@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="HSTS.API/HSTS.API.csproj" />
+  <Project Path="HSTS.Domain/HSTS.Domain.csproj" />
+</Solution>
