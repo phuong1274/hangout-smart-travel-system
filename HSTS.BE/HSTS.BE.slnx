@@ -1,4 +1,6 @@
 <Solution>
   <Project Path="HSTS.API/HSTS.API.csproj" />
+  <Project Path="HSTS.Application/HSTS.Application.csproj" />
   <Project Path="HSTS.Domain/HSTS.Domain.csproj" />
+  <Project Path="HSTS.Infrastructure/HSTS.Infrastructure.csproj" />
 </Solution>
