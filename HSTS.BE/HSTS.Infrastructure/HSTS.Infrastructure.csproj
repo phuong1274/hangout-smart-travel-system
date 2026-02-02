@@ -5,10 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
 	<ItemGroup>
-		<ProjectReference Include="..\SEP490.Application\SEP490.Application.csproj" />
-		<ProjectReference Include="..\SEP490.Domain\SEP490.Domain.csproj" />
+		<ProjectReference Include="..\HSTS.Application\HSTS.Application.csproj" />
+		<ProjectReference Include="..\HSTS.Domain\HSTS.Domain.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

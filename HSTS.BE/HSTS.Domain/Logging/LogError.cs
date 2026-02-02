@@ -5,7 +5,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SEP490.Domain.Logging
+namespace HSTS.Domain.Logging
 {
     public class LogError
     {
