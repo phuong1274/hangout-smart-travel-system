@@ -1,4 +1,4 @@
-﻿namespace SEP490.Application.Common.LoggingInterfaces
+﻿namespace HSTS.Application.Common.LoggingInterfaces
 {
     public interface ILoggingService
     {
