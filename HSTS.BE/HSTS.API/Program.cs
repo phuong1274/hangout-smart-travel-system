@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 
-namespace SEP490.API
+namespace HSTS.API
 {
     public class Program
     {

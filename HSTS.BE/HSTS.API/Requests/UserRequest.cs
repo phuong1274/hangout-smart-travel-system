@@ -1,4 +1,4 @@
-﻿namespace SEP490.API.Requests
+﻿namespace HSTS.API.Requests
 {
     public record UpdateUserRequest(string FullName, string Email);
 }
