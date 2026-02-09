@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, theme } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Space, theme } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
@@ -11,18 +11,12 @@ import {
   MenuUnfoldOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/auth.store';
-import { APP_NAME } from '@/config/constants';
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
+import { CurrencySwitcher } from '@/components/common/CurrencySwitcher';
 
 const { Header, Sider, Content } = Layout;
-
-const menuItems = [
-  { key: '/admin/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
-  { key: '/admin/users', icon: <UserOutlined />, label: 'User Management' },
-  { key: '/admin/destinations', icon: <EnvironmentOutlined />, label: 'Destinations' },
-  { key: '/admin/transportation', icon: <CarOutlined />, label: 'Transportation' },
-  { key: '/admin/weather', icon: <CloudOutlined />, label: 'Weather' },
-];
 
 export const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -30,6 +24,15 @@ export const AdminLayout = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { token } = theme.useToken();
+  const { t } = useTranslation();
+
+  const menuItems = [
+    { key: '/admin/dashboard', icon: <DashboardOutlined />, label: t('nav.dashboard') },
+    { key: '/admin/users', icon: <UserOutlined />, label: t('nav.userManagement') },
+    { key: '/admin/destinations', icon: <EnvironmentOutlined />, label: t('nav.destinations') },
+    { key: '/admin/transportation', icon: <CarOutlined />, label: t('nav.transportation') },
+    { key: '/admin/weather', icon: <CloudOutlined />, label: t('nav.weather') },
+  ];
 
   const handleLogout = () => {
     logout();
@@ -50,7 +53,7 @@ export const AdminLayout = () => {
             fontSize: collapsed ? 14 : 16,
           }}
         >
-          {collapsed ? 'HSTS' : APP_NAME}
+          {collapsed ? 'HSTS' : t('appName')}
         </div>
         <Menu
           theme="dark"
@@ -77,22 +80,26 @@ export const AdminLayout = () => {
             <MenuFoldOutlined onClick={() => setCollapsed(true)} style={{ fontSize: 18 }} />
           )}
 
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: 'logout',
-                  icon: <LogoutOutlined />,
-                  label: 'Sign Out',
-                  onClick: handleLogout,
-                },
-              ],
-            }}
-          >
-            <Avatar icon={<UserOutlined />} style={{ cursor: 'pointer' }}>
-              {user?.fullName?.charAt(0)}
-            </Avatar>
-          </Dropdown>
+          <Space>
+            <LanguageSwitcher />
+            <CurrencySwitcher />
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'logout',
+                    icon: <LogoutOutlined />,
+                    label: t('nav.signOut'),
+                    onClick: handleLogout,
+                  },
+                ],
+              }}
+            >
+              <Avatar icon={<UserOutlined />} style={{ cursor: 'pointer' }}>
+                {user?.fullName?.charAt(0)}
+              </Avatar>
+            </Dropdown>
+          </Space>
         </Header>
 
         <Content style={{ margin: 24, padding: 24, background: token.colorBgContainer }}>

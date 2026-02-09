@@ -111,9 +111,11 @@ export const TripsPage = () => {
 # `lib/` - Third-party Configuration:
 - `axios.ts`: Axios instance with JWT interceptor (auto-attach Bearer token from Zustand, auto-redirect on 401).
 - `query-client.ts`: TanStack Query client with default staleTime (5min), retry (1), no refetchOnWindowFocus.
+- `i18n.ts`: i18next configuration with namespace-per-feature pattern and browser language detection.
 
 # `stores/` - Global State:
-- Only `auth.store.ts` lives here. Uses Zustand `persist` middleware to save to localStorage.
+- `auth.store.ts`: Auth state (JWT, user). Uses Zustand `persist` middleware to save to localStorage.
+- `currency.store.ts`: Multi-currency state (selected currency, convert, format). Persisted to localStorage.
 - Feature-specific client state goes in `features/<name>/stores/`.
 
 # `app/routes.tsx` - Routing:
@@ -248,6 +250,77 @@ UI state (filter, modal) -> Zustand store -> Component re-render
 | FE-12 | Statistics and Analytics | `features/dashboard/` |
 | FE-13 | Expense Recording & Tracking | `features/expenses/` |
 
+## Internationalization (i18n):
+
+Uses `react-i18next` with namespace-per-feature pattern.
+
+### Structure:
+```
+src/locales/
+├── en/                    # English (default)
+│   ├── common.json        # Shared: nav, actions, status, errors, currency labels
+│   ├── auth.json          # Auth feature: sign in, sign up, validation
+│   ├── trips.json         # Trips feature
+│   ├── admin.json         # Admin feature: sidebar, dashboard, users
+│   ├── destinations.json  # Destinations feature
+│   ├── expenses.json      # Expenses feature
+│   ├── reviews.json       # Reviews feature
+│   └── profile.json       # Profile feature
+└── vi/                    # Vietnamese (add later)
+    └── ...                # Same file names, translated values
+```
+
+### How to use in components:
+```tsx
+// Default namespace (common)
+const { t } = useTranslation();
+t('nav.signIn')          // -> "Sign In"
+t('appName')             // -> "Hangout - Smart Travel System"
+
+// Feature-specific namespace
+const { t } = useTranslation('auth');
+t('signIn.title')        // -> "Sign In"
+t('validation.emailRequired')  // -> "Please enter your email"
+
+// Interpolation
+t('signIn.subtitle', { appName: 'HSTS' })  // -> "Welcome to HSTS"
+```
+
+### How to add a new language:
+1. Copy `src/locales/en/` to `src/locales/vi/` (or any language code)
+2. Translate all JSON values
+3. Import and register in `src/lib/i18n.ts`:
+```typescript
+import commonVI from '@/locales/vi/common.json';
+// ... other imports
+
+export const resources = {
+  en: { ... },
+  vi: { common: commonVI, auth: authVI, ... },
+};
+```
+
+## Multi-Currency:
+
+Supports 6 currencies: VND, USD, EUR, JPY, KRW, THB.
+
+### How to use:
+```tsx
+import { useCurrency } from '@/hooks/use-currency';
+
+const { format, convert, formatConverted, currency } = useCurrency();
+
+format(500000)                    // "₫500,000" (current currency = VND)
+format(25, 'USD')                 // "$25.00"
+convert(25, 'USD')                // 635,000 (USD -> current currency)
+convert(25, 'USD', 'EUR')         // 23 (USD -> EUR)
+formatConverted(25, 'USD')        // "₫635,000" (convert + format)
+```
+
+### Components:
+- `<LanguageSwitcher />` - Dropdown to switch language, placed in all layout headers.
+- `<CurrencySwitcher />` - Dropdown to switch currency, placed in all layout headers.
+
 ###### .env
 ```
 VITE_API_URL=https://localhost:7000
@@ -266,4 +339,6 @@ VITE_CLOUDINARY_CLOUD_NAME=<your_cloud_name>
 - React Router 7 (routing)
 - Axios (HTTP client)
 - Day.js (date handling)
+- react-i18next + i18next (internationalization)
+- i18next-browser-languagedetector (auto language detection)
 - ESLint + Prettier (code style)

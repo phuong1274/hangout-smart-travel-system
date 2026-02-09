@@ -1,15 +1,17 @@
 import { Button, Card, Divider, Form, Input, Typography } from 'antd';
 import { GoogleOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useLogin } from '../api/auth.query';
 import type { LoginRequest } from '../types/auth.type';
-import { APP_NAME } from '@/config/constants';
 
 const { Title, Text } = Typography;
 
 export const LoginForm = () => {
   const [form] = Form.useForm<LoginRequest>();
   const loginMutation = useLogin();
+  const { t } = useTranslation('auth');
+  const { t: tCommon } = useTranslation();
 
   const onFinish = (values: LoginRequest) => {
     loginMutation.mutate(values);
@@ -18,26 +20,30 @@ export const LoginForm = () => {
   return (
     <Card>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <Title level={3}>Sign In</Title>
-        <Text type="secondary">Welcome to {APP_NAME}</Text>
+        <Title level={3}>{t('signIn.title')}</Title>
+        <Text type="secondary">{t('signIn.subtitle', { appName: tCommon('appName') })}</Text>
       </div>
 
       <Form form={form} layout="vertical" onFinish={onFinish} autoComplete="off">
         <Form.Item
           name="email"
           rules={[
-            { required: true, message: 'Please enter your email' },
-            { type: 'email', message: 'Invalid email address' },
+            { required: true, message: t('validation.emailRequired') },
+            { type: 'email', message: t('validation.emailInvalid') },
           ]}
         >
-          <Input prefix={<MailOutlined />} placeholder="Email" size="large" />
+          <Input prefix={<MailOutlined />} placeholder={t('signIn.emailPlaceholder')} size="large" />
         </Form.Item>
 
         <Form.Item
           name="password"
-          rules={[{ required: true, message: 'Please enter your password' }]}
+          rules={[{ required: true, message: t('validation.passwordRequired') }]}
         >
-          <Input.Password prefix={<LockOutlined />} placeholder="Password" size="large" />
+          <Input.Password
+            prefix={<LockOutlined />}
+            placeholder={t('signIn.passwordPlaceholder')}
+            size="large"
+          />
         </Form.Item>
 
         <Form.Item>
@@ -48,20 +54,20 @@ export const LoginForm = () => {
             block
             loading={loginMutation.isPending}
           >
-            Sign In
+            {t('signIn.submitButton')}
           </Button>
         </Form.Item>
       </Form>
 
-      <Divider>or</Divider>
+      <Divider>{tCommon('divider.or')}</Divider>
 
       <Button icon={<GoogleOutlined />} size="large" block style={{ marginBottom: 16 }}>
-        Sign in with Google
+        {t('signIn.googleButton')}
       </Button>
 
       <div style={{ textAlign: 'center' }}>
         <Text>
-          Don&apos;t have an account? <Link to="/register">Sign up now</Link>
+          {t('signIn.noAccount')} <Link to="/register">{t('signIn.signUpLink')}</Link>
         </Text>
       </div>
     </Card>

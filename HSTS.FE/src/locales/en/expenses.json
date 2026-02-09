@@ -1,0 +1,31 @@
+{
+  "title": "Expenses",
+  "addExpense": "Add Expense",
+  "totalSpent": "Total Spent",
+  "estimatedBudget": "Estimated Budget",
+  "remaining": "Remaining",
+  "overBudget": "Over Budget",
+  "budgetWarning": "You have exceeded {{percent}}% of your budget",
+  "fields": {
+    "description": "Description",
+    "amount": "Amount",
+    "category": "Category",
+    "date": "Date",
+    "paidBy": "Paid By",
+    "splitWith": "Split With"
+  },
+  "category": {
+    "accommodation": "Accommodation",
+    "transportation": "Transportation",
+    "food": "Food & Drinks",
+    "activities": "Activities",
+    "shopping": "Shopping",
+    "other": "Other"
+  },
+  "summary": {
+    "title": "Budget Summary",
+    "estimated": "Estimated",
+    "actual": "Actual",
+    "difference": "Difference"
+  }
+}

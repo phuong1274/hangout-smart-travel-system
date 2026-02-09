@@ -1,13 +1,16 @@
 import { Layout, Button, Space } from 'antd';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { APP_NAME } from '@/config/constants';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/auth.store';
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
+import { CurrencySwitcher } from '@/components/common/CurrencySwitcher';
 
 const { Header, Content, Footer } = Layout;
 
 export const PublicLayout = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
+  const { t } = useTranslation();
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -25,18 +28,20 @@ export const PublicLayout = () => {
           style={{ fontSize: 20, fontWeight: 700, cursor: 'pointer' }}
           onClick={() => navigate('/')}
         >
-          {APP_NAME}
+          {t('appName')}
         </div>
         <Space>
+          <LanguageSwitcher />
+          <CurrencySwitcher />
           {isAuthenticated ? (
             <Button type="primary" onClick={() => navigate('/trips')}>
-              My Trips
+              {t('nav.myTrips')}
             </Button>
           ) : (
             <>
-              <Button onClick={() => navigate('/login')}>Sign In</Button>
+              <Button onClick={() => navigate('/login')}>{t('nav.signIn')}</Button>
               <Button type="primary" onClick={() => navigate('/register')}>
-                Sign Up
+                {t('nav.signUp')}
               </Button>
             </>
           )}
@@ -48,7 +53,7 @@ export const PublicLayout = () => {
       </Content>
 
       <Footer style={{ textAlign: 'center' }}>
-        {APP_NAME} &copy; {new Date().getFullYear()} - SEP490-G36
+        {t('appName')} &copy; {new Date().getFullYear()}
       </Footer>
     </Layout>
   );

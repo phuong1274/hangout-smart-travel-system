@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, theme } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Space, theme } from 'antd';
 import {
   CompassOutlined,
   DollarOutlined,
@@ -10,17 +10,12 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/auth.store';
-import { APP_NAME } from '@/config/constants';
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
+import { CurrencySwitcher } from '@/components/common/CurrencySwitcher';
 
 const { Header, Sider, Content } = Layout;
-
-const menuItems = [
-  { key: '/trips', icon: <CompassOutlined />, label: 'My Trips' },
-  { key: '/trips/plan', icon: <PlusOutlined />, label: 'Plan a Trip' },
-  { key: '/expenses', icon: <DollarOutlined />, label: 'Expenses' },
-  { key: '/profile', icon: <UserOutlined />, label: 'Profile' },
-];
 
 export const TravelerLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -28,6 +23,14 @@ export const TravelerLayout = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { token } = theme.useToken();
+  const { t } = useTranslation();
+
+  const menuItems = [
+    { key: '/trips', icon: <CompassOutlined />, label: t('nav.myTrips') },
+    { key: '/trips/plan', icon: <PlusOutlined />, label: t('nav.planTrip') },
+    { key: '/expenses', icon: <DollarOutlined />, label: t('nav.expenses') },
+    { key: '/profile', icon: <UserOutlined />, label: t('nav.profile') },
+  ];
 
   const handleLogout = () => {
     logout();
@@ -50,7 +53,7 @@ export const TravelerLayout = () => {
           }}
           onClick={() => navigate('/')}
         >
-          {collapsed ? 'HSTS' : APP_NAME}
+          {collapsed ? 'HSTS' : t('appName')}
         </div>
         <Menu
           theme="dark"
@@ -77,28 +80,32 @@ export const TravelerLayout = () => {
             <MenuFoldOutlined onClick={() => setCollapsed(true)} style={{ fontSize: 18 }} />
           )}
 
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: 'profile',
-                  icon: <UserOutlined />,
-                  label: 'My Profile',
-                  onClick: () => navigate('/profile'),
-                },
-                {
-                  key: 'logout',
-                  icon: <LogoutOutlined />,
-                  label: 'Sign Out',
-                  onClick: handleLogout,
-                },
-              ],
-            }}
-          >
-            <Avatar icon={<UserOutlined />} style={{ cursor: 'pointer' }}>
-              {user?.fullName?.charAt(0)}
-            </Avatar>
-          </Dropdown>
+          <Space>
+            <LanguageSwitcher />
+            <CurrencySwitcher />
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'profile',
+                    icon: <UserOutlined />,
+                    label: t('nav.myProfile'),
+                    onClick: () => navigate('/profile'),
+                  },
+                  {
+                    key: 'logout',
+                    icon: <LogoutOutlined />,
+                    label: t('nav.signOut'),
+                    onClick: handleLogout,
+                  },
+                ],
+              }}
+            >
+              <Avatar icon={<UserOutlined />} style={{ cursor: 'pointer' }}>
+                {user?.fullName?.charAt(0)}
+              </Avatar>
+            </Dropdown>
+          </Space>
         </Header>
 
         <Content style={{ margin: 24, padding: 24, background: token.colorBgContainer }}>

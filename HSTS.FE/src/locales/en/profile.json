@@ -1,0 +1,21 @@
+{
+  "title": "My Profile",
+  "editProfile": "Edit Profile",
+  "changePassword": "Change Password",
+  "fields": {
+    "fullName": "Full Name",
+    "email": "Email",
+    "phone": "Phone Number",
+    "bio": "Bio",
+    "avatar": "Avatar"
+  },
+  "password": {
+    "current": "Current Password",
+    "new": "New Password",
+    "confirm": "Confirm New Password",
+    "success": "Password changed successfully",
+    "error": "Failed to change password"
+  },
+  "travelHistory": "Travel History",
+  "savedPreferences": "Saved Preferences"
+}

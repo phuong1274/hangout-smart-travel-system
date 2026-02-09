@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, theme } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Space, theme } from 'antd';
 import {
   EnvironmentOutlined,
   DashboardOutlined,
@@ -9,15 +9,12 @@ import {
   MenuUnfoldOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/auth.store';
-import { APP_NAME } from '@/config/constants';
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
+import { CurrencySwitcher } from '@/components/common/CurrencySwitcher';
 
 const { Header, Sider, Content } = Layout;
-
-const menuItems = [
-  { key: '/partner/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
-  { key: '/partner/destinations', icon: <EnvironmentOutlined />, label: 'My Destinations' },
-];
 
 export const PartnerLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -25,6 +22,12 @@ export const PartnerLayout = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { token } = theme.useToken();
+  const { t } = useTranslation();
+
+  const menuItems = [
+    { key: '/partner/dashboard', icon: <DashboardOutlined />, label: t('nav.dashboard') },
+    { key: '/partner/destinations', icon: <EnvironmentOutlined />, label: t('nav.myDestinations') },
+  ];
 
   const handleLogout = () => {
     logout();
@@ -45,7 +48,7 @@ export const PartnerLayout = () => {
             fontSize: collapsed ? 14 : 16,
           }}
         >
-          {collapsed ? 'HSTS' : APP_NAME}
+          {collapsed ? 'HSTS' : t('appName')}
         </div>
         <Menu
           theme="dark"
@@ -72,22 +75,26 @@ export const PartnerLayout = () => {
             <MenuFoldOutlined onClick={() => setCollapsed(true)} style={{ fontSize: 18 }} />
           )}
 
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: 'logout',
-                  icon: <LogoutOutlined />,
-                  label: 'Sign Out',
-                  onClick: handleLogout,
-                },
-              ],
-            }}
-          >
-            <Avatar icon={<UserOutlined />} style={{ cursor: 'pointer' }}>
-              {user?.fullName?.charAt(0)}
-            </Avatar>
-          </Dropdown>
+          <Space>
+            <LanguageSwitcher />
+            <CurrencySwitcher />
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'logout',
+                    icon: <LogoutOutlined />,
+                    label: t('nav.signOut'),
+                    onClick: handleLogout,
+                  },
+                ],
+              }}
+            >
+              <Avatar icon={<UserOutlined />} style={{ cursor: 'pointer' }}>
+                {user?.fullName?.charAt(0)}
+              </Avatar>
+            </Dropdown>
+          </Space>
         </Header>
 
         <Content style={{ margin: 24, padding: 24, background: token.colorBgContainer }}>

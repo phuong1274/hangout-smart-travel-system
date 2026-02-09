@@ -1,15 +1,17 @@
 import { Button, Card, Form, Input, Typography } from 'antd';
 import { LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useRegister } from '../api/auth.query';
 import type { RegisterRequest } from '../types/auth.type';
-import { APP_NAME } from '@/config/constants';
 
 const { Title, Text } = Typography;
 
 export const RegisterForm = () => {
   const [form] = Form.useForm<RegisterRequest>();
   const registerMutation = useRegister();
+  const { t } = useTranslation('auth');
+  const { t: tCommon } = useTranslation();
 
   const onFinish = (values: RegisterRequest) => {
     registerMutation.mutate(values);
@@ -18,59 +20,63 @@ export const RegisterForm = () => {
   return (
     <Card>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <Title level={3}>Create Account</Title>
-        <Text type="secondary">Join {APP_NAME} to plan your trips smartly</Text>
+        <Title level={3}>{t('signUp.title')}</Title>
+        <Text type="secondary">{t('signUp.subtitle', { appName: tCommon('appName') })}</Text>
       </div>
 
       <Form form={form} layout="vertical" onFinish={onFinish} autoComplete="off">
         <Form.Item
           name="fullName"
           rules={[
-            { required: true, message: 'Please enter your full name' },
-            { max: 100, message: 'Full name must be at most 100 characters' },
+            { required: true, message: t('validation.fullNameRequired') },
+            { max: 100, message: t('validation.fullNameMax') },
           ]}
         >
-          <Input prefix={<UserOutlined />} placeholder="Full name" size="large" />
+          <Input prefix={<UserOutlined />} placeholder={t('signUp.fullNamePlaceholder')} size="large" />
         </Form.Item>
 
         <Form.Item
           name="email"
           rules={[
-            { required: true, message: 'Please enter your email' },
-            { type: 'email', message: 'Invalid email address' },
+            { required: true, message: t('validation.emailRequired') },
+            { type: 'email', message: t('validation.emailInvalid') },
           ]}
         >
-          <Input prefix={<MailOutlined />} placeholder="Email" size="large" />
+          <Input prefix={<MailOutlined />} placeholder={t('signUp.emailPlaceholder')} size="large" />
         </Form.Item>
 
         <Form.Item
           name="password"
           rules={[
-            { required: true, message: 'Please enter a password' },
-            { min: 6, message: 'Password must be at least 6 characters' },
+            { required: true, message: t('validation.passwordRequired') },
+            { min: 6, message: t('validation.passwordMin') },
           ]}
         >
-          <Input.Password prefix={<LockOutlined />} placeholder="Password" size="large" />
+          <Input.Password
+            prefix={<LockOutlined />}
+            placeholder={t('signUp.passwordPlaceholder')}
+            size="large"
+          />
         </Form.Item>
 
         <Form.Item
           name="confirmPassword"
           dependencies={['password']}
           rules={[
-            { required: true, message: 'Please confirm your password' },
+            { required: true, message: t('validation.confirmPasswordRequired') },
             ({ getFieldValue }) => ({
               validator(_, value) {
                 if (!value || getFieldValue('password') === value) {
                   return Promise.resolve();
                 }
-                return Promise.reject(new Error('Passwords do not match'));
+                return Promise.reject(new Error(t('validation.confirmPasswordMismatch')));
               },
             }),
           ]}
         >
           <Input.Password
             prefix={<LockOutlined />}
-            placeholder="Confirm password"
+            placeholder={t('signUp.confirmPasswordPlaceholder')}
             size="large"
           />
         </Form.Item>
@@ -83,14 +89,14 @@ export const RegisterForm = () => {
             block
             loading={registerMutation.isPending}
           >
-            Sign Up
+            {t('signUp.submitButton')}
           </Button>
         </Form.Item>
       </Form>
 
       <div style={{ textAlign: 'center' }}>
         <Text>
-          Already have an account? <Link to="/login">Sign in</Link>
+          {t('signUp.hasAccount')} <Link to="/login">{t('signUp.signInLink')}</Link>
         </Text>
       </div>
     </Card>

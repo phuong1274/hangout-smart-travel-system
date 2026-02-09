@@ -1,0 +1,25 @@
+{
+  "title": "Reviews",
+  "writeReview": "Write a Review",
+  "moderation": "Review Moderation",
+  "fields": {
+    "rating": "Rating",
+    "comment": "Comment",
+    "destination": "Destination",
+    "date": "Date",
+    "author": "Author"
+  },
+  "status": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected"
+  },
+  "action": {
+    "approve": "Approve",
+    "reject": "Reject",
+    "report": "Report"
+  },
+  "placeholder": {
+    "writeComment": "Share your experience..."
+  }
+}
