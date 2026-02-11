@@ -1,6 +1,6 @@
 export const APP_NAME = 'Hangout - Smart Travel System';
 
-export const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7000';
+export const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7139';
 
 export const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
 export const GOOGLE_OAUTH_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '';

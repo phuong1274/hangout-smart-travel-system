@@ -323,7 +323,7 @@ formatConverted(25, 'USD')        // "₫635,000" (convert + format)
 
 ###### .env
 ```
-VITE_API_URL=https://localhost:7000
+VITE_API_URL=https://localhost:7139
 VITE_GOOGLE_MAPS_KEY=<your_key>
 VITE_GOOGLE_OAUTH_CLIENT_ID=<your_client_id>
 VITE_CLOUDINARY_CLOUD_NAME=<your_cloud_name>
