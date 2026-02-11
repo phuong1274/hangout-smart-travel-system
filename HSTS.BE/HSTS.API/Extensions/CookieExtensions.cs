@@ -15,7 +15,7 @@ namespace HSTS.API.Extensions
             response.Cookies.Append(AccessTokenCookie, authResult.AccessToken, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure = !isDevelopment, // Only require Secure in production
                 SameSite = sameSite,
                 Path = "/api",
                 Expires = DateTimeOffset.UtcNow.AddMinutes(30)
@@ -24,7 +24,7 @@ namespace HSTS.API.Extensions
             response.Cookies.Append(RefreshTokenCookie, authResult.RefreshToken, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure = !isDevelopment, // Only require Secure in production
                 SameSite = sameSite,
                 Path = "/api/auth",
                 Expires = authResult.RefreshTokenExpiry
@@ -35,7 +35,7 @@ namespace HSTS.API.Extensions
             response.Cookies.Append(XsrfTokenCookie, csrfToken, new CookieOptions
             {
                 HttpOnly = false,
-                Secure = true,
+                Secure = !isDevelopment, // Only require Secure in production
                 SameSite = sameSite,
                 Path = "/",
                 Expires = authResult.RefreshTokenExpiry
@@ -50,7 +50,7 @@ namespace HSTS.API.Extensions
             response.Cookies.Append(AccessTokenCookie, "", new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure = !isDevelopment, // Only require Secure in production
                 SameSite = sameSite,
                 Path = "/api",
                 Expires = expiry
@@ -59,7 +59,7 @@ namespace HSTS.API.Extensions
             response.Cookies.Append(RefreshTokenCookie, "", new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure = !isDevelopment, // Only require Secure in production
                 SameSite = sameSite,
                 Path = "/api/auth",
                 Expires = expiry
@@ -68,7 +68,7 @@ namespace HSTS.API.Extensions
             response.Cookies.Append(XsrfTokenCookie, "", new CookieOptions
             {
                 HttpOnly = false,
-                Secure = true,
+                Secure = !isDevelopment, // Only require Secure in production
                 SameSite = sameSite,
                 Path = "/",
                 Expires = expiry

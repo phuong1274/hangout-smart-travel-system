@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { message } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { usersApi } from './users.api';
 import { useAuthStore } from '@/stores/auth.store';
+import { useMessage } from '@/hooks/useMessage';
 import type {
   UpdateMyInfoRequest,
   CreateProfileRequest,
@@ -25,16 +25,17 @@ export const useUpdateMyInfo = () => {
   const queryClient = useQueryClient();
   const { updateUser } = useAuthStore();
   const { t } = useTranslation('profile');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: UpdateMyInfoRequest) => usersApi.updateMyInfo(data),
     onSuccess: ({ data }) => {
       queryClient.invalidateQueries({ queryKey: USER_KEYS.myInfo });
       updateUser({ fullName: data.fullName });
-      message.success(t('updateSuccess'));
+      messageApi.success(t('updateSuccess'));
     },
     onError: () => {
-      message.error(t('updateError'));
+      messageApi.error(t('updateError'));
     },
   });
 };
@@ -49,16 +50,17 @@ export const useMyProfiles = () => {
 export const useCreateProfile = () => {
   const queryClient = useQueryClient();
   const { t } = useTranslation('profile');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: CreateProfileRequest) => usersApi.createProfile(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: USER_KEYS.myProfiles });
       queryClient.invalidateQueries({ queryKey: USER_KEYS.myInfo });
-      message.success(t('profiles.createSuccess'));
+      messageApi.success(t('profiles.createSuccess'));
     },
     onError: () => {
-      message.error(t('profiles.createError'));
+      messageApi.error(t('profiles.createError'));
     },
   });
 };
@@ -66,16 +68,17 @@ export const useCreateProfile = () => {
 export const useUpdateProfile = () => {
   const queryClient = useQueryClient();
   const { t } = useTranslation('profile');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: UpdateProfileRequest) => usersApi.updateProfile(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: USER_KEYS.myProfiles });
       queryClient.invalidateQueries({ queryKey: USER_KEYS.myInfo });
-      message.success(t('profiles.updateSuccess'));
+      messageApi.success(t('profiles.updateSuccess'));
     },
     onError: () => {
-      message.error(t('profiles.updateError'));
+      messageApi.error(t('profiles.updateError'));
     },
   });
 };
@@ -83,16 +86,17 @@ export const useUpdateProfile = () => {
 export const useDeleteProfile = () => {
   const queryClient = useQueryClient();
   const { t } = useTranslation('profile');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (profileId: number) => usersApi.deleteProfile(profileId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: USER_KEYS.myProfiles });
       queryClient.invalidateQueries({ queryKey: USER_KEYS.myInfo });
-      message.success(t('profiles.deleteSuccess'));
+      messageApi.success(t('profiles.deleteSuccess'));
     },
     onError: () => {
-      message.error(t('profiles.deleteError'));
+      messageApi.error(t('profiles.deleteError'));
     },
   });
 };

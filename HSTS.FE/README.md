@@ -323,11 +323,12 @@ formatConverted(25, 'USD')        // "₫635,000" (convert + format)
 
 ###### .env
 ```
-VITE_API_URL=https://localhost:7139
+VITE_API_URL=
 VITE_GOOGLE_MAPS_KEY=<your_key>
 VITE_GOOGLE_OAUTH_CLIENT_ID=<your_client_id>
 VITE_CLOUDINARY_CLOUD_NAME=<your_cloud_name>
 ```
+> **Note:** `VITE_API_URL` should be left empty in development. The Vite proxy (`vite.config.ts`) forwards `/api` requests to `https://localhost:7139`. Setting `VITE_API_URL` to the backend URL directly will bypass the proxy, causing cross-origin cookie issues.
 
 ###### Library in project:
 - React 19 + TypeScript

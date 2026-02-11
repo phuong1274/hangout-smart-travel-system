@@ -9,11 +9,13 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ roles }: ProtectedRouteProps) => {
   const { isAuthenticated, user } = useAuthStore();
 
+  // Redirect to login if not authenticated
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  if (roles && user && !roles.some((r) => user.roles.includes(r))) {
+  // Check role requirements if specified
+  if (roles && user && user.roles.length > 0 && !roles.some((r) => user.roles.includes(r))) {
     return <Navigate to="/unauthorized" replace />;
   }
 

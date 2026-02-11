@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App as AntdApp } from 'antd';
 import enUS from 'antd/locale/en_US';
 import { queryClient } from '@/lib/query-client';
 
@@ -21,7 +21,7 @@ export const AppProviders = ({ children }: AppProvidersProps) => {
           },
         }}
       >
-        {children}
+        <AntdApp>{children}</AntdApp>
       </ConfigProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>

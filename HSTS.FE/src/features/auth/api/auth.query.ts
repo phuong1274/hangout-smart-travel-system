@@ -1,10 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { message } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { authApi } from './auth.api';
 import { useAuthStore } from '@/stores/auth.store';
 import { ROLES } from '@/config/constants';
+import { useMessage } from '@/hooks/useMessage';
 import type {
   LoginRequest,
   RegisterRequest,
@@ -27,6 +27,7 @@ export const useLogin = () => {
   const navigate = useNavigate();
   const { login } = useAuthStore();
   const { t } = useTranslation('auth');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: LoginRequest) => authApi.login(data),
@@ -39,11 +40,11 @@ export const useLogin = () => {
         hasPassword: data.hasPassword,
         hasGoogleLinked: data.hasGoogleLinked,
       });
-      message.success(t('signIn.success'));
+      messageApi.success(t('signIn.success'));
       navigate(getRedirectPath(data.roles));
     },
     onError: () => {
-      message.error(t('signIn.error'));
+      messageApi.error(t('signIn.error'));
     },
   });
 };
@@ -51,15 +52,16 @@ export const useLogin = () => {
 export const useRegister = () => {
   const navigate = useNavigate();
   const { t } = useTranslation('auth');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: RegisterRequest) => authApi.register(data),
     onSuccess: (_, variables) => {
-      message.success(t('signUp.success'));
+      messageApi.success(t('signUp.success'));
       navigate('/verify-email', { state: { email: variables.email } });
     },
     onError: () => {
-      message.error(t('signUp.error'));
+      messageApi.error(t('signUp.error'));
     },
   });
 };
@@ -68,6 +70,7 @@ export const useGoogleLogin = () => {
   const navigate = useNavigate();
   const { login } = useAuthStore();
   const { t } = useTranslation('auth');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: GoogleLoginRequest) => authApi.googleLogin(data),
@@ -80,11 +83,11 @@ export const useGoogleLogin = () => {
         hasPassword: data.hasPassword,
         hasGoogleLinked: data.hasGoogleLinked,
       });
-      message.success(t('signIn.success'));
+      messageApi.success(t('signIn.success'));
       navigate(getRedirectPath(data.roles));
     },
     onError: () => {
-      message.error(t('google.error'));
+      messageApi.error(t('google.error'));
     },
   });
 };
@@ -92,29 +95,31 @@ export const useGoogleLogin = () => {
 export const useVerifyEmail = () => {
   const navigate = useNavigate();
   const { t } = useTranslation('auth');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: VerifyEmailRequest) => authApi.verifyEmail(data),
     onSuccess: () => {
-      message.success(t('verifyEmail.success'));
+      messageApi.success(t('verifyEmail.success'));
       navigate('/login');
     },
     onError: () => {
-      message.error(t('verifyEmail.error'));
+      messageApi.error(t('verifyEmail.error'));
     },
   });
 };
 
 export const useResendOtp = () => {
   const { t } = useTranslation('auth');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: ResendOtpRequest) => authApi.resendOtp(data),
     onSuccess: () => {
-      message.success(t('verifyEmail.resendSuccess'));
+      messageApi.success(t('verifyEmail.resendSuccess'));
     },
     onError: () => {
-      message.error(t('verifyEmail.resendError'));
+      messageApi.error(t('verifyEmail.resendError'));
     },
   });
 };
@@ -122,15 +127,16 @@ export const useResendOtp = () => {
 export const useForgotPassword = () => {
   const navigate = useNavigate();
   const { t } = useTranslation('auth');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: ForgotPasswordRequest) => authApi.forgotPassword(data),
     onSuccess: (_, variables) => {
-      message.success(t('forgotPassword.success'));
+      messageApi.success(t('forgotPassword.success'));
       navigate('/reset-password', { state: { email: variables.email } });
     },
     onError: () => {
-      message.error(t('forgotPassword.error'));
+      messageApi.error(t('forgotPassword.error'));
     },
   });
 };
@@ -138,29 +144,31 @@ export const useForgotPassword = () => {
 export const useResetPassword = () => {
   const navigate = useNavigate();
   const { t } = useTranslation('auth');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: ResetPasswordRequest) => authApi.resetPassword(data),
     onSuccess: () => {
-      message.success(t('resetPassword.success'));
+      messageApi.success(t('resetPassword.success'));
       navigate('/login');
     },
     onError: () => {
-      message.error(t('resetPassword.error'));
+      messageApi.error(t('resetPassword.error'));
     },
   });
 };
 
 export const useChangePassword = () => {
   const { t } = useTranslation('auth');
+  const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: ChangePasswordRequest) => authApi.changePassword(data),
     onSuccess: () => {
-      message.success(t('changePassword.success'));
+      messageApi.success(t('changePassword.success'));
     },
     onError: () => {
-      message.error(t('changePassword.error'));
+      messageApi.error(t('changePassword.error'));
     },
   });
 };
