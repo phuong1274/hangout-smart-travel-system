@@ -1,7 +1,10 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using HSTS.Infrastructure.Persistence;
 using HSTS.Infrastructure.Repositories;
+using HSTS.Infrastructure.Services;
+using HSTS.Application.Auth.Interfaces;
+using HSTS.Application.Interfaces;
 using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Infrastructure
@@ -15,10 +18,18 @@ namespace HSTS.Infrastructure
             services.AddDbContext<AppDbContext>(options =>
                 options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
+            services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
             services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
 
-            //Service registrations for logging services can be added here
+            // Logging
             services.AddScoped<ILoggingService, Logging>();
+
+            // Auth services
+            services.AddScoped<IPasswordHasher, PasswordHasher>();
+            services.AddScoped<IJwtService, JwtService>();
+            services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+            services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<ICurrentUserService, CurrentUserService>();
 
             return services;
         }

@@ -2,12 +2,20 @@
   "title": "My Profile",
   "editProfile": "Edit Profile",
   "changePassword": "Change Password",
+  "saveChanges": "Save Changes",
+  "updateSuccess": "Profile updated successfully.",
+  "updateError": "Failed to update profile.",
   "fields": {
     "fullName": "Full Name",
     "email": "Email",
     "phone": "Phone Number",
-    "bio": "Bio",
+    "dateOfBirth": "Date of Birth",
+    "gender": "Gender",
     "avatar": "Avatar"
+  },
+  "validation": {
+    "fullNameRequired": "Please enter your full name",
+    "fullNameMax": "Full name must be at most 100 characters"
   },
   "password": {
     "current": "Current Password",
@@ -15,6 +23,28 @@
     "confirm": "Confirm New Password",
     "success": "Password changed successfully",
     "error": "Failed to change password"
+  },
+  "profiles": {
+    "title": "My Profiles",
+    "create": "New Profile",
+    "edit": "Edit Profile",
+    "save": "Save",
+    "cancel": "Cancel",
+    "empty": "No profiles yet. Create your first profile!",
+    "name": "Profile Name",
+    "nameRequired": "Please enter a profile name",
+    "nameMax": "Profile name must be at most 100 characters",
+    "address": "Address",
+    "addressMax": "Address must be at most 500 characters",
+    "avatarUrl": "Avatar URL",
+    "avatarUrlMax": "Avatar URL must be at most 500 characters",
+    "deleteConfirm": "Are you sure you want to delete this profile?",
+    "createSuccess": "Profile created successfully.",
+    "createError": "Failed to create profile.",
+    "updateSuccess": "Profile updated successfully.",
+    "updateError": "Failed to update profile.",
+    "deleteSuccess": "Profile deleted successfully.",
+    "deleteError": "Failed to delete profile."
   },
   "travelHistory": "Travel History",
   "savedPreferences": "Saved Preferences"

@@ -1,20 +1,19 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Role } from '@/config/constants';
 
 export interface AuthUser {
   id: number;
   fullName: string;
   email: string;
-  avatar?: string;
-  role: Role;
+  roles: string[];
+  hasPassword: boolean;
+  hasGoogleLinked: boolean;
 }
 
 interface AuthState {
-  accessToken: string | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
-  login: (accessToken: string, user: AuthUser) => void;
+  login: (user: AuthUser) => void;
   logout: () => void;
   updateUser: (user: Partial<AuthUser>) => void;
 }
@@ -22,20 +21,17 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      accessToken: null,
       user: null,
       isAuthenticated: false,
 
-      login: (accessToken, user) =>
+      login: (user) =>
         set({
-          accessToken,
           user,
           isAuthenticated: true,
         }),
 
       logout: () =>
         set({
-          accessToken: null,
           user: null,
           isAuthenticated: false,
         }),

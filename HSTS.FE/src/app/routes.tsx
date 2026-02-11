@@ -13,6 +13,9 @@ import { ROLES } from '@/config/constants';
 import { HomePage } from '@/pages/public/HomePage';
 import { LoginPage } from '@/pages/public/LoginPage';
 import { RegisterPage } from '@/pages/public/RegisterPage';
+import { VerifyEmailPage } from '@/pages/public/VerifyEmailPage';
+import { ForgotPasswordPage } from '@/pages/public/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/pages/public/ResetPasswordPage';
 
 // Admin pages
 import { DashboardPage as AdminDashboardPage } from '@/pages/admin/DashboardPage';
@@ -30,6 +33,9 @@ export const router = createBrowserRouter([
       { path: '/', element: <HomePage /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <RegisterPage /> },
+      { path: '/verify-email', element: <VerifyEmailPage /> },
+      { path: '/forgot-password', element: <ForgotPasswordPage /> },
+      { path: '/reset-password', element: <ResetPasswordPage /> },
       { path: '/unauthorized', element: <UnauthorizedPage /> },
     ],
   },
@@ -77,7 +83,7 @@ export const router = createBrowserRouter([
 
   // ─── Moderator routes ───
   {
-    element: <ProtectedRoute roles={[ROLES.MODERATOR]} />,
+    element: <ProtectedRoute roles={[ROLES.CONTENT_MODERATOR]} />,
     children: [
       {
         element: <ModeratorLayout />,

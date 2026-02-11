@@ -7,14 +7,19 @@ import type { RegisterRequest } from '../types/auth.type';
 
 const { Title, Text } = Typography;
 
+interface RegisterFormValues extends RegisterRequest {
+  confirmPassword: string;
+}
+
 export const RegisterForm = () => {
-  const [form] = Form.useForm<RegisterRequest>();
+  const [form] = Form.useForm<RegisterFormValues>();
   const registerMutation = useRegister();
   const { t } = useTranslation('auth');
   const { t: tCommon } = useTranslation();
 
-  const onFinish = (values: RegisterRequest) => {
-    registerMutation.mutate(values);
+  const onFinish = (values: RegisterFormValues) => {
+    const { confirmPassword: _, ...data } = values;
+    registerMutation.mutate(data);
   };
 
   return (
@@ -32,7 +37,11 @@ export const RegisterForm = () => {
             { max: 100, message: t('validation.fullNameMax') },
           ]}
         >
-          <Input prefix={<UserOutlined />} placeholder={t('signUp.fullNamePlaceholder')} size="large" />
+          <Input
+            prefix={<UserOutlined />}
+            placeholder={t('signUp.fullNamePlaceholder')}
+            size="large"
+          />
         </Form.Item>
 
         <Form.Item
@@ -42,14 +51,18 @@ export const RegisterForm = () => {
             { type: 'email', message: t('validation.emailInvalid') },
           ]}
         >
-          <Input prefix={<MailOutlined />} placeholder={t('signUp.emailPlaceholder')} size="large" />
+          <Input
+            prefix={<MailOutlined />}
+            placeholder={t('signUp.emailPlaceholder')}
+            size="large"
+          />
         </Form.Item>
 
         <Form.Item
           name="password"
           rules={[
             { required: true, message: t('validation.passwordRequired') },
-            { min: 6, message: t('validation.passwordMin') },
+            { min: 8, message: t('validation.passwordMin') },
           ]}
         >
           <Input.Password

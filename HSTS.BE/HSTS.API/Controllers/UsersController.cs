@@ -1,124 +1,74 @@
-﻿using ErrorOr;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
-using HSTS.API.Requests;
+using HSTS.API.Common;
+using HSTS.Application.Users;
 using HSTS.Application.Users.Commands;
 using HSTS.Application.Users.Queries;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace HSTS.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    [EnableRateLimiting("fixed")]
-    public class UsersController : ControllerBase
+    [Authorize]
+    public class UsersController : BaseApiController
     {
-        private readonly ISender _mediator;
-        public UsersController(ISender mediator) => _mediator = mediator;
-
-        [HttpGet]
-        public async Task<IActionResult> GetUsers(
-            [FromQuery] string? searchTerm,
-            [FromQuery] int pageIndex = 1,
-            [FromQuery] int pageSize = 10,
-            CancellationToken ct = default)
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMyInfo()
         {
-            var query = new GetUsersPagingQuery(searchTerm, pageIndex, pageSize);
+            var result = await Mediator.Send(new GetMyInfoQuery());
 
-            var result = await _mediator.Send(query, ct);
-
-            return result.Match(
-                response => Ok(response),
-                errors => errors.First().Type switch
-                {
-                    ErrorType.NotFound => NotFound(errors.First().Description),
-                    ErrorType.Validation => BadRequest(errors),
-                    ErrorType.Conflict => Conflict(errors.First().Description),
-                    _ => Problem(errors.First().Description)
-                }
-            );
+            return result.Match<IActionResult>(Ok, MapErrors);
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetUsers()
+        [HttpPut("me")]
+        public async Task<IActionResult> UpdateMyInfo(UpdateMyInfoCommand command)
         {
+            var result = await Mediator.Send(command);
 
-            var result = await _mediator.Send(new GetUsersQuery());
-
-            return result.Match(
-                response => Ok(response),
-                errors => errors.First().Type switch
-                {
-                    ErrorType.NotFound => NotFound(errors.First().Description),
-                    ErrorType.Validation => BadRequest(errors),
-                    ErrorType.Conflict => Conflict(errors.First().Description),
-                    _ => Problem(errors.First().Description)
-                }
-            );
+            return result.Match<IActionResult>(Ok, MapErrors);
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> Get(int id)
+        [HttpGet("me/profiles")]
+        public async Task<IActionResult> GetMyProfiles()
         {
-            var result = await _mediator.Send(new GetUserQuery(id));
-            return result.Match(
-                Ok,
-                errors => errors.First().Type switch
-                {
-                    ErrorType.NotFound => NotFound(errors.First().Description),
-                    ErrorType.Validation => BadRequest(errors),
-                    ErrorType.Conflict => Conflict(errors.First().Description),
-                    _ => Problem(errors.First().Description)
-                }
-            );
+            var result = await Mediator.Send(new GetMyProfilesQuery());
+
+            return result.Match<IActionResult>(Ok, MapErrors);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Create(CreateUserCommand command)
+        [HttpGet("me/profiles/{profileId:int}")]
+        public async Task<IActionResult> GetMyProfile(int profileId)
         {
-            var result = await _mediator.Send(command);
-            return result.Match(
-                Ok,
-                errors => errors.First().Type switch
-                {
-                    ErrorType.NotFound => NotFound(errors.First().Description),
-                    ErrorType.Validation => BadRequest(errors),
-                    ErrorType.Conflict => Conflict(errors.First().Description),
-                    _ => Problem(errors.First().Description)
-                }
-            );
+            var result = await Mediator.Send(new GetMyProfileQuery(profileId));
+
+            return result.Match<IActionResult>(Ok, MapErrors);
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, UpdateUserRequest request)
+        [HttpPost("me/profiles")]
+        public async Task<IActionResult> CreateProfile(CreateProfileCommand command)
         {
-            var result = await _mediator.Send(new UpdateUserCommand(id, request.FullName, request.Email));
-            return result.Match(
-                Ok,
-                errors => errors.First().Type switch
-                {
-                    ErrorType.NotFound => NotFound(errors.First().Description),
-                    ErrorType.Validation => BadRequest(errors),
-                    ErrorType.Conflict => Conflict(errors.First().Description),
-                    _ => Problem(errors.First().Description)
-                }
-            );
-        }
+            var result = await Mediator.Send(command);
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var result = await _mediator.Send(new DeleteUserCommand(id));
             return result.Match<IActionResult>(
-                _ => NoContent(),
-                errors => errors.First().Type switch
-                {
-                    ErrorType.NotFound => NotFound(errors.First().Description),
-                    ErrorType.Validation => BadRequest(errors),
-                    ErrorType.Conflict => Conflict(errors.First().Description),
-                    _ => Problem(errors.First().Description)
-                }
-            );
+                value => CreatedAtAction(nameof(GetMyProfile), new { profileId = value.Id }, value),
+                MapErrors);
+        }
+
+        [HttpPut("me/profiles/{profileId:int}")]
+        public async Task<IActionResult> UpdateProfile(int profileId, UpdateProfileCommand command)
+        {
+            if (profileId != command.ProfileId)
+                return BadRequest(new { message = "Profile ID in route does not match request body." });
+
+            var result = await Mediator.Send(command);
+
+            return result.Match<IActionResult>(Ok, MapErrors);
+        }
+
+        [HttpDelete("me/profiles/{profileId:int}")]
+        public async Task<IActionResult> DeleteProfile(int profileId)
+        {
+            var result = await Mediator.Send(new DeleteProfileCommand(profileId));
+
+            return result.Match<IActionResult>(_ => NoContent(), MapErrors);
         }
     }
 }

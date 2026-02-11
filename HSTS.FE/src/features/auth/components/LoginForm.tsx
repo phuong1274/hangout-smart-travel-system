@@ -32,7 +32,11 @@ export const LoginForm = () => {
             { type: 'email', message: t('validation.emailInvalid') },
           ]}
         >
-          <Input prefix={<MailOutlined />} placeholder={t('signIn.emailPlaceholder')} size="large" />
+          <Input
+            prefix={<MailOutlined />}
+            placeholder={t('signIn.emailPlaceholder')}
+            size="large"
+          />
         </Form.Item>
 
         <Form.Item
@@ -45,6 +49,10 @@ export const LoginForm = () => {
             size="large"
           />
         </Form.Item>
+
+        <div style={{ textAlign: 'right', marginBottom: 16 }}>
+          <Link to="/forgot-password">{t('signIn.forgotPassword')}</Link>
+        </div>
 
         <Form.Item>
           <Button

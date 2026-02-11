@@ -14,7 +14,7 @@ export const PAGINATION = {
 
 export const ROLES = {
   ADMIN: 'ADMIN',
-  MODERATOR: 'MODERATOR',
+  CONTENT_MODERATOR: 'CONTENT_MODERATOR',
   PARTNER: 'PARTNER',
   TRAVELER: 'TRAVELER',
 } as const;
