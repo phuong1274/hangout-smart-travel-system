@@ -4,6 +4,7 @@ export { RegisterForm } from './components/RegisterForm';
 export { VerifyEmailForm } from './components/VerifyEmailForm';
 export { ForgotPasswordForm } from './components/ForgotPasswordForm';
 export { ResetPasswordForm } from './components/ResetPasswordForm';
+export { OtpVerificationStep } from './components/OtpVerificationStep';
 
 // Hooks / Queries
 export {
@@ -30,4 +31,5 @@ export type {
   ChangePasswordRequest,
   AuthResponse,
   MessageResponse,
+  OtpSendResponse,
 } from './types/auth.type';

@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { AxiosError } from 'axios';
 import { authApi } from './auth.api';
 import { useAuthStore } from '@/stores/auth.store';
 import { ROLES } from '@/config/constants';
@@ -14,6 +15,7 @@ import type {
   ForgotPasswordRequest,
   ResetPasswordRequest,
   ChangePasswordRequest,
+  OtpSendResponse,
 } from '../types/auth.type';
 
 const getRedirectPath = (roles: string[]): string => {
@@ -43,7 +45,15 @@ export const useLogin = () => {
       messageApi.success(t('signIn.success'));
       navigate(getRedirectPath(data.roles));
     },
-    onError: () => {
+    onError: (error: AxiosError<{ code?: string; message?: string }>, variables) => {
+      const errorCode = error.response?.data?.code;
+
+      if (errorCode === 'Account.EmailNotVerified') {
+        messageApi.warning(t('signIn.emailNotVerified'));
+        navigate('/verify-email', { state: { email: variables.email } });
+        return;
+      }
+
       messageApi.error(t('signIn.error'));
     },
   });
@@ -109,14 +119,15 @@ export const useVerifyEmail = () => {
   });
 };
 
-export const useResendOtp = () => {
+export const useResendOtp = (onResendSuccess?: (data: OtpSendResponse) => void) => {
   const { t } = useTranslation('auth');
   const messageApi = useMessage();
 
   return useMutation({
     mutationFn: (data: ResendOtpRequest) => authApi.resendOtp(data),
-    onSuccess: () => {
+    onSuccess: ({ data }) => {
       messageApi.success(t('verifyEmail.resendSuccess'));
+      onResendSuccess?.(data);
     },
     onError: () => {
       messageApi.error(t('verifyEmail.resendError'));
@@ -131,9 +142,15 @@ export const useForgotPassword = () => {
 
   return useMutation({
     mutationFn: (data: ForgotPasswordRequest) => authApi.forgotPassword(data),
-    onSuccess: (_, variables) => {
+    onSuccess: ({ data }, variables) => {
       messageApi.success(t('forgotPassword.success'));
-      navigate('/reset-password', { state: { email: variables.email } });
+      navigate('/reset-password', {
+        state: {
+          email: variables.email,
+          remainingResends: data.remainingResends,
+          cooldownSeconds: data.cooldownSeconds,
+        },
+      });
     },
     onError: () => {
       messageApi.error(t('forgotPassword.error'));

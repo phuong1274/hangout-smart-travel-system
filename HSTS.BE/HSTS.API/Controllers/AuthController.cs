@@ -42,7 +42,12 @@ namespace HSTS.API.Controllers
             var result = await Mediator.Send(command);
 
             return result.Match<IActionResult>(
-                value => Ok(new { message = value }),
+                value => Ok(new
+                {
+                    message = value.Message,
+                    remainingResends = value.RemainingResends,
+                    cooldownSeconds = value.CooldownSeconds
+                }),
                 MapErrors);
         }
 
@@ -64,7 +69,22 @@ namespace HSTS.API.Controllers
                         HasPassword: authResult.HasPassword,
                         HasGoogleLinked: authResult.HasGoogleLinked));
                 },
-                MapErrors);
+                errors =>
+                {
+                    var first = errors.First();
+
+                    // Return structured response for unverified email so FE can redirect
+                    if (first.Code == "Account.EmailNotVerified")
+                    {
+                        return StatusCode(StatusCodes.Status403Forbidden, new
+                        {
+                            code = first.Code,
+                            message = first.Description
+                        });
+                    }
+
+                    return MapErrors(errors);
+                });
         }
 
         [HttpPost("google-login")]
@@ -94,7 +114,12 @@ namespace HSTS.API.Controllers
             var result = await Mediator.Send(command);
 
             return result.Match<IActionResult>(
-                value => Ok(new { message = value }),
+                value => Ok(new
+                {
+                    message = value.Message,
+                    remainingResends = value.RemainingResends,
+                    cooldownSeconds = value.CooldownSeconds
+                }),
                 MapErrors);
         }
 

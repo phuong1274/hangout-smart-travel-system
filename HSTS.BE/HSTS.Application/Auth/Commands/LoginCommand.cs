@@ -10,15 +10,25 @@ namespace HSTS.Application.Auth.Commands
 
     public class LoginCommandHandler : IRequestHandler<LoginCommand, ErrorOr<AuthResult>>
     {
+        private const int MaxOtpSends = 4;
+        private const int CooldownSeconds = 60;
+        private const int RateLimitWindowMinutes = 15;
+
         private readonly IAppDbContext _context;
         private readonly IJwtService _jwtService;
         private readonly IPasswordHasher _passwordHasher;
+        private readonly IEmailService _emailService;
 
-        public LoginCommandHandler(IAppDbContext context, IJwtService jwtService, IPasswordHasher passwordHasher)
+        public LoginCommandHandler(
+            IAppDbContext context,
+            IJwtService jwtService,
+            IPasswordHasher passwordHasher,
+            IEmailService emailService)
         {
             _context = context;
             _jwtService = jwtService;
             _passwordHasher = passwordHasher;
+            _emailService = emailService;
         }
 
         public async Task<ErrorOr<AuthResult>> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -36,7 +46,13 @@ namespace HSTS.Application.Auth.Commands
                 return Error.NotFound("Auth.InvalidCredentials", "Invalid email or password.");
 
             if (account.Status == AccountStatus.PendingVerification)
-                return Error.Validation("Auth.NotVerified", "Please verify your email before signing in.");
+            {
+                var otpSent = await TrySendVerificationOtp(request.Email, cancellationToken);
+                var message = otpSent
+                    ? "Email not verified. A new verification code has been sent to your email."
+                    : "Email not verified. Please go to the verification page to request a new code.";
+                return Error.Forbidden("Account.EmailNotVerified", message);
+            }
 
             if (account.Status == AccountStatus.Banned)
                 return Error.Forbidden("Auth.Banned", "Your account has been banned.");
@@ -70,6 +86,52 @@ namespace HSTS.Application.Auth.Commands
                 AccessToken: accessToken,
                 RefreshToken: refreshToken,
                 RefreshTokenExpiry: refreshTokenExpiry);
+        }
+
+        private async Task<bool> TrySendVerificationOtp(string email, CancellationToken cancellationToken)
+        {
+            var otpType = OtpType.EmailVerification;
+
+            // Rate limit check
+            var windowStart = DateTime.UtcNow.AddMinutes(-RateLimitWindowMinutes);
+            var recentOtpCount = await _context.Otps
+                .CountAsync(o => o.Email == email && o.Type == otpType && o.CreatedAt > windowStart, cancellationToken);
+
+            if (recentOtpCount >= MaxOtpSends)
+                return false;
+
+            // Cooldown check
+            var lastOtp = await _context.Otps
+                .Where(o => o.Email == email && o.Type == otpType)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (lastOtp is not null && (DateTime.UtcNow - lastOtp.CreatedAt).TotalSeconds < CooldownSeconds)
+                return false;
+
+            // Invalidate previous OTPs
+            var previousOtps = await _context.Otps
+                .Where(o => o.Email == email && o.Type == otpType && !o.IsUsed)
+                .ToListAsync(cancellationToken);
+
+            foreach (var old in previousOtps)
+                old.IsUsed = true;
+
+            var otpCode = Random.Shared.Next(100000, 999999).ToString();
+            var otp = new Otp
+            {
+                Email = email,
+                Code = otpCode,
+                Type = otpType,
+                ExpiredAt = DateTime.UtcNow.AddMinutes(5)
+            };
+
+            _context.Otps.Add(otp);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            await _emailService.SendOtpEmailAsync(email, otpCode, otpType, cancellationToken);
+
+            return true;
         }
     }
 

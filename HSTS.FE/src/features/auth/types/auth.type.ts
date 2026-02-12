@@ -20,6 +20,13 @@ export interface VerifyEmailRequest {
 
 export interface ResendOtpRequest {
   email: string;
+  type: 'EmailVerification' | 'ForgotPassword';
+}
+
+export interface OtpSendResponse {
+  message: string;
+  remainingResends: number;
+  cooldownSeconds: number;
 }
 
 export interface ForgotPasswordRequest {
