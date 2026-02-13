@@ -20,3 +20,10 @@ HSTS.BE/HSTS.Domain/obj/
 HSTS.BE/HSTS.Infrastructure/bin/
 
 HSTS.BE/HSTS.Infrastructure/obj/
+
+# AI tooling & local docs (never push to remote)
+.claude/
+CLAUDE.md
+AGENTS.md
+docs/
+.playwright-mcp/

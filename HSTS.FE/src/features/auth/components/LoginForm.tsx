@@ -1,8 +1,9 @@
 import { Button, Card, Divider, Form, Input, Typography } from 'antd';
-import { GoogleOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
+import { LockOutlined, MailOutlined } from '@ant-design/icons';
+import { GoogleLogin } from '@react-oauth/google';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useLogin } from '../api/auth.query';
+import { useLogin, useGoogleLogin } from '../api/auth.query';
 import type { LoginRequest } from '../types/auth.type';
 
 const { Title, Text } = Typography;
@@ -10,6 +11,7 @@ const { Title, Text } = Typography;
 export const LoginForm = () => {
   const [form] = Form.useForm<LoginRequest>();
   const loginMutation = useLogin();
+  const googleLoginMutation = useGoogleLogin();
   const { t } = useTranslation('auth');
   const { t: tCommon } = useTranslation();
 
@@ -69,9 +71,18 @@ export const LoginForm = () => {
 
       <Divider>{tCommon('divider.or')}</Divider>
 
-      <Button icon={<GoogleOutlined />} size="large" block style={{ marginBottom: 16 }}>
-        {t('signIn.googleButton')}
-      </Button>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+        <GoogleLogin
+          onSuccess={(credentialResponse) => {
+            if (credentialResponse.credential) {
+              googleLoginMutation.mutate({ googleIdToken: credentialResponse.credential });
+            }
+          }}
+          size="large"
+          width="300"
+          text="signin_with"
+        />
+      </div>
 
       <div style={{ textAlign: 'center' }}>
         <Text>

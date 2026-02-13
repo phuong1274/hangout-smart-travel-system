@@ -1,8 +1,9 @@
-import { Button, Card, Form, Input, Typography } from 'antd';
+import { Button, Card, Divider, Form, Input, Typography } from 'antd';
 import { LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
+import { GoogleLogin } from '@react-oauth/google';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useRegister } from '../api/auth.query';
+import { useRegister, useGoogleLogin } from '../api/auth.query';
 import type { RegisterRequest } from '../types/auth.type';
 
 const { Title, Text } = Typography;
@@ -14,6 +15,7 @@ interface RegisterFormValues extends RegisterRequest {
 export const RegisterForm = () => {
   const [form] = Form.useForm<RegisterFormValues>();
   const registerMutation = useRegister();
+  const googleLoginMutation = useGoogleLogin();
   const { t } = useTranslation('auth');
   const { t: tCommon } = useTranslation();
 
@@ -106,6 +108,21 @@ export const RegisterForm = () => {
           </Button>
         </Form.Item>
       </Form>
+
+      <Divider>{tCommon('divider.or')}</Divider>
+
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+        <GoogleLogin
+          onSuccess={(credentialResponse) => {
+            if (credentialResponse.credential) {
+              googleLoginMutation.mutate({ googleIdToken: credentialResponse.credential });
+            }
+          }}
+          size="large"
+          width="300"
+          text="signup_with"
+        />
+      </div>
 
       <div style={{ textAlign: 'center' }}>
         <Text>
