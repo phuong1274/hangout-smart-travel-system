@@ -1,73 +1,66 @@
 # HSTS FRONTEND (Hangout - Smart Travel System)
 
-Environment: Node.js (v18+ recommended)
-Framework: React + Vite (JavaScript)
-UI Library: Ant Design (AntD)
+**Environment:** Node.js (v18+)  
+**Framework:** React + Vite (JavaScript)  
+**UI Library:** Ant Design (AntD)  
 
-## Core Philosophy
+## Technical Setup
 
-- Hangout is an Algorithm-based destination scheduling system (Strictly NO AI).
-
-- The frontend is built using a Feature-Based Architecture to seamlessly map 1-to-1 with the Backend's Clean Architecture (Domain/Application layers).
-
-## Tech Stack
-
-- Build Tool: Vite
-
-- Routing: React Router v6
-
-- Data Fetching & Caching: TanStack Query (React Query)
-
-- HTTP Client: Axios (Configured with interceptors for BE ErrorOr & FluentValidation)
-
-- State Management: Zustand (For global states like Auth Session)
-
-- Styling/UI: Ant Design & Custom CSS/LESS
-
-## Getting Started
-
-1. Install Dependencies
-{
+### Installation
+1. Turn on terminal in the root directory:
+```
 npm install
-}
+```
 2. Environment Variables
-
-- Copy .env.example and rename it to .env.
-
-- Update the VITE_API_BASE_URL to match your local backend port.
-
-- Add third-party keys (Google Maps, Cloudinary) if needed.
-
-3. Run Development Server
-{
+Get .env from non-git source. Create a .env file in the root directory with the following structure:
+```
+VITE_API_BASE_URL=https://localhost:7139/api
+```
+3. Development
+```
 npm run dev
-}
-## Folder Structure (Feature-Based)
 ```
-src/
-├── assets/ # Static assets (images, global styles)
-├── components/ # Shared/Global UI components (e.g., CustomTable)
-├── config/ # Global configurations and constants (constants.js)
-├── features/ # CORE: Business modules (auth, schedules, users, etc.)
-│ └── [feature]/
-│ ├── api/ # Axios API calls
-│ ├── components/ # Feature-specific UI components
-│ ├── hooks/ # React Query hooks (useQuery, useMutation)
-│ └── pages/ # Smart components / Page layouts
-├── hooks/ # Shared utility hooks
-├── layouts/ # App layout wrappers (MainLayout, AuthLayout)
-├── lib/ # Third-party library setups (axios.js, react-query.js)
-├── routes/ # Global router configuration
-├── store/ # Zustand global stores
-└── utils/ # Helper functions (formatters, parsers)
 ```
-## Development Guidelines
+npm run build
+```
+!Focus
+Feature-Based Architecture: This project maps 1-to-1 with the Backend's Clean Architecture layers. Do not mix business logic between features.
 
-- Feature Isolation: Always create new pages and UI components inside their respective src/features/[module-name]/ folder.
-Do not clutter the global src/components/ unless the component is used across multiple features.
+## Explain Layers (Directory Structure)
+### Features Layer (src/features/)
+Contains business modules (e.g., Auth, Users, Schedules). This is the "Application" equivalent in FE.
 
-- API Calls: Define API endpoints in features/[module]/api/ and wrap them in custom hooks using React Query inside features/[module]/hooks/.
+- api/: Defines Axios calls for specific features (maps to BE Controllers).
 
-- Error Handling: Backend validation errors (HTTP 400 from FluentValidation) are automatically caught and displayed via Ant Design's notification system in src/lib/axios.js.
+- hooks/: Contains React Query logic (maps to Application Handlers).
 
-- Configuration: Do not hardcode magic strings. Use src/config/constants.js for app-wide constants, pagination settings, and roles.
+- components/: UI components exclusive to the feature.
+
+- pages/: View components that represent a full screen/route.
+
+### Components Layer (src/components/)
+Contains Shared/Global UI components (e.g., CustomTable, PageHeader). These are "Value Objects" equivalent for the UI—reusable and business-logic-free.
+
+### Lib Layer (src/lib/)
+Implements configurations for external libraries (Infrastructure equivalent).
+
+- axios.js: Configured with interceptors to handle ErrorOr and FluentValidation responses from BE.
+
+- react-query.js: Global caching and synchronization configuration.
+
+### Store Layer (src/store/)
+Manages global state (e.g., Auth Session) using Zustand.
+
+### Routes Layer (src/routes/)
+Receives URL requests and translates them into specific Page components (maps to API Layer routing).
+
+## Core Libraries
+- TanStack Query (React Query): For data fetching and server-state management.
+
+- Axios: HTTP client with error-matching for BE ErrorOr patterns.
+
+- Zustand: Lightweight global state management.
+
+- Ant Design: UI framework for a minimalist, professional interface.
+
+- React Router v6: For client-side navigation.
