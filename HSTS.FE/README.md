@@ -43,7 +43,7 @@ npm install
 npm run dev
 }
 ## Folder Structure (Feature-Based)
-
+```
 src/
 ├── assets/ # Static assets (images, global styles)
 ├── components/ # Shared/Global UI components (e.g., CustomTable)
@@ -60,7 +60,7 @@ src/
 ├── routes/ # Global router configuration
 ├── store/ # Zustand global stores
 └── utils/ # Helper functions (formatters, parsers)
-
+```
 ## Development Guidelines
 
 - Feature Isolation: Always create new pages and UI components inside their respective src/features/[module-name]/ folder.
