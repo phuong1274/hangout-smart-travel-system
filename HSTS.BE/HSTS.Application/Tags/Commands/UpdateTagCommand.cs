@@ -23,7 +23,7 @@ namespace HSTS.Application.Tags.Commands
         {
             var tag = await _repository.GetAsync(request.Id, cancellationToken);
 
-            if (tag is null)
+            if (tag is null || tag.IsDeleted)
             {
                 return Error.NotFound("Tag.NotFound", $"Tag with ID {request.Id} not found.");
             }
