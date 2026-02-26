@@ -53,5 +53,21 @@ namespace HSTS.API.Controllers
                 }
             );
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var command = new DeleteTagCommand(id);
+            var result = await _mediator.Send(command);
+
+            return result.Match(
+                tagDto => Ok("Deleted successfully"),
+                errors => errors.First().Type switch
+                {
+                    ErrorType.NotFound => NotFound(errors.First().Description),
+                    _ => Problem(errors.First().Description)
+                }
+            );
+        }
     }
 }
