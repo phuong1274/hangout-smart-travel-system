@@ -14,7 +14,10 @@ namespace HSTS.Infrastructure.Persistence
         }
 
         public DbSet<User> Users => Set<User>();
-
+        public DbSet<Location> Locations => Set<Location>();
+        public DbSet<LocationTag> LocationTags => Set<LocationTag>();
+        public DbSet<Tag> Tags => Set<Tag>();
+        public DbSet<LocationType> LocationTypes => Set<LocationType>();
         #region Logging
         /// <summary>
         /// Logging config
