@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -28,8 +29,18 @@ namespace HSTS.Application.Tags.Commands
             }
 
             tag.Name = request.Name;
+            var existingTag = await _repository.Query()
+               .Where(x => x.Name == request.Name && !x.IsDeleted)
+               .FirstOrDefaultAsync(cancellationToken);
+
+            if (existingTag != null)
+            {
+                return Error.Conflict("Tag.DuplicateName",
+                    $"A tag with the name '{request.Name}' already exists.");
+            }
             await _repository.UpdateAsync(tag, cancellationToken);
             return tag.ToDto();
+
         }
     }
 
