@@ -37,12 +37,12 @@ namespace HSTS.Infrastructure.Persistence
                 {
                     modelBuilder.Entity(entityType.ClrType)
                         .Property(nameof(BaseEntity.CreatedAt))
-                        .HasColumnType("timestamp")
+                        .HasColumnType("datetime")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     modelBuilder.Entity(entityType.ClrType)
                         .Property(nameof(BaseEntity.UpdatedAt))
-                        .HasColumnType("timestamp")
+                        .HasColumnType("datetime")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
                         .ValueGeneratedOnAddOrUpdate();
 
