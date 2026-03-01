@@ -1,11 +1,13 @@
 ﻿import axios from 'axios';
 import { notification, message } from 'antd';
-import { API_URL, TOKEN_KEY } from '../config/constants';
+import { API_URL, TOKEN_KEY, API_TIMEOUT } from '@/config/constants';
+import { useAuthStore } from '@/store/authStore';
+import { PATHS } from '@/routes/paths';
 
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 10000,
+  timeout: API_TIMEOUT,
 });
 
 apiClient.interceptors.request.use(
@@ -24,15 +26,17 @@ apiClient.interceptors.response.use(
   (error) => {
     const { response } = error;
     if (response) {
-      if (response.status === 400) {
+      if (response.status === 401) {
+        message.warning('Session expired. Please log in again!');
+        useAuthStore.getState().logout();
+        window.location.href = PATHS.AUTH.LOGIN;
+      } else if (response.status === 400) {
         if (response.data.errors) {
           const errorMessages = Object.values(response.data.errors).flat().join(', ');
           notification.error({ message: 'Invalid Data', description: errorMessages });
         } else {
           message.error(response.data.title || 'Bad Request!');
         }
-      } else if (response.status === 401) {
-        message.warning('Session expired. Please log in again!');
       } else if (response.status === 500) {
         notification.error({ message: 'System Error', description: 'Internal server error!' });
       }

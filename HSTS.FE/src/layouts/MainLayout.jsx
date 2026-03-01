@@ -1,19 +1,44 @@
-﻿import React from 'react';
-import { Layout, Menu, Button } from 'antd';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { DashboardOutlined, ScheduleOutlined, LogoutOutlined } from '@ant-design/icons';
-import { useAuthStore } from '../store/authStore';
+﻿import React, { Suspense } from 'react';
+import { Layout, Menu, Button, Spin } from 'antd';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { DashboardOutlined, ScheduleOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons';
+import { useAuthStore } from '@/store/authStore';
+import { PATHS } from '@/routes/paths';
+import { ROLES } from '@/config/constants';
 
 const { Header, Sider, Content } = Layout;
 
 const MainLayout = () => {
   const navigate = useNavigate();
-  const logout = useAuthStore((state) => state.logout);
+  const location = useLocation();
+  const { logout, role } = useAuthStore();
 
   const handleLogout = () => {
     logout();
-    navigate('/auth/login');
+    navigate(PATHS.AUTH.LOGIN);
   };
+
+  const menuItems = [
+    { 
+      key: PATHS.DASHBOARD, 
+      icon: <DashboardOutlined />, 
+      label: 'Dashboard', 
+      onClick: () => navigate(PATHS.DASHBOARD) 
+    },
+    { 
+      key: PATHS.SCHEDULES, 
+      icon: <ScheduleOutlined />, 
+      label: 'Schedules', 
+      onClick: () => navigate(PATHS.SCHEDULES) 
+    },
+    { 
+      key: PATHS.USERS, 
+      icon: <UserOutlined />, 
+      label: 'Users', 
+      onClick: () => navigate(PATHS.USERS),
+      hidden: role !== ROLES.ADMIN
+    },
+  ].filter(item => !item.hidden);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -22,11 +47,10 @@ const MainLayout = () => {
           HANGOUT ADMIN
         </div>
         <Menu 
-          theme="dark" mode="inline" defaultSelectedKeys={['1']}
-          items={[
-            { key: '1', icon: <DashboardOutlined />, label: 'Dashboard', onClick: () => navigate('/') },
-            { key: '2', icon: <ScheduleOutlined />, label: 'Schedules', onClick: () => navigate('/schedules') },
-          ]}
+          theme="dark" 
+          mode="inline" 
+          selectedKeys={[location.pathname]}
+          items={menuItems}
         />
       </Sider>
       <Layout>
@@ -35,7 +59,9 @@ const MainLayout = () => {
         </Header>
         <Content style={{ margin: '16px' }}>
           <div style={{ padding: 24, minHeight: 360, background: '#fff', borderRadius: 8 }}>
-            <Outlet />
+            <Suspense fallback={<div style={{ textAlign: 'center', padding: '50px' }}><Spin tip="Loading content..." /></div>}>
+              <Outlet />
+            </Suspense>
           </div>
         </Content>
       </Layout>

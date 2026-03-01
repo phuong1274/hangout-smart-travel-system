@@ -1,22 +1,75 @@
-﻿import { createBrowserRouter } from 'react-router-dom';
-import MainLayout from '../layouts/MainLayout';
-import AuthLayout from '../layouts/AuthLayout';
-import LoginPage from '../features/auth/pages/LoginPage';
+import React, { lazy, Suspense } from 'react';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { Spin } from 'antd';
+import ProtectedRoute from './ProtectedRoute';
+import PublicRoute from './PublicRoute';
+import { PATHS } from './paths';
+import { ROLES } from '@/config/constants';
+
+// Lazy load layouts and pages
+const MainLayout = lazy(() => import('@/layouts/MainLayout'));
+const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
+const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
+const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
+
+const LoadingFallback = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    <Spin size="large" tip="Loading page..." />
+  </div>
+);
+
+const SuspenseWrapper = ({ children }) => (
+  <Suspense fallback={<LoadingFallback />}>
+    {children}
+  </Suspense>
+);
 
 export const router = createBrowserRouter([
   {
-    path: '/auth',
-    element: <AuthLayout />,
+    element: <SuspenseWrapper><PublicRoute /></SuspenseWrapper>,
     children: [
-      { path: 'login', element: <LoginPage /> }
+      {
+        path: PATHS.AUTH.ROOT,
+        element: <AuthLayout />,
+        children: [
+          { path: 'login', element: <LoginPage /> },
+          { path: '', element: <Navigate to="login" replace /> }
+        ]
+      }
     ]
   },
   {
-    path: '/',
-    element: <MainLayout />,
+    element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
-      { index: true, element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div> },
-      { path: 'schedules', element: <div><h2>Algorithm Scheduling Management</h2></div> }
+      {
+        path: PATHS.DASHBOARD,
+        element: <MainLayout />,
+        children: [
+          { 
+            index: true, 
+            element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div> 
+          },
+          { 
+            path: PATHS.SCHEDULES.replace('/', ''), 
+            element: <div><h2>Algorithm Scheduling Management</h2></div> 
+          },
+          {
+            path: PATHS.USERS.replace('/', ''),
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+            children: [
+              { index: true, element: <UsersPage /> }
+            ]
+          }
+        ]
+      }
     ]
+  },
+  {
+    path: PATHS.UNAUTHORIZED,
+    element: <div style={{ textAlign: 'center', marginTop: 50 }}><h1>403</h1><p>Unauthorized Access</p></div>
+  },
+  {
+    path: PATHS.NOT_FOUND,
+    element: <div style={{ textAlign: 'center', marginTop: 50 }}><h1>404</h1><p>Page Not Found</p></div>
   }
 ]);
