@@ -43,6 +43,10 @@ namespace HSTS.Domain.Entities
 
         public LocationType LocationType { get; set; }
 
+        public int DestinationId { get; set; }
+
+        public Destination Destination { get; set; }
+
         public ICollection<LocationTag> LocationTags { get; set; }
 
         public ICollection<LocationMedia> LocationMedias { get; set; }

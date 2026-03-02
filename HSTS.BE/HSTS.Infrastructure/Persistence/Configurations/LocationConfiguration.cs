@@ -48,6 +48,11 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                    .WithMany() // Assuming LocationType doesn't need a collection of Locations
                    .HasForeignKey(l => l.LocationTypeId);
 
+            // Configure relationship with Destination
+            builder.HasOne(l => l.Destination)
+                   .WithMany(d => d.Locations)
+                   .HasForeignKey(l => l.DestinationId);
+
             // Configure relationship with LocationTag
             builder.HasMany(l => l.LocationTags)
                    .WithOne(lt => lt.Location)
