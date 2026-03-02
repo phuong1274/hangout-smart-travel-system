@@ -12,6 +12,10 @@ const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
 
+// Global Pages
+const Error404 = lazy(() => import('@/components/Errors/Error404'));
+const Error403 = lazy(() => import('@/components/Errors/Error403'));
+
 const LoadingFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
     <Spin size="large" tip="Loading page..." />
@@ -59,6 +63,16 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <UsersPage /> }
             ]
+          },
+          // Error 403 shown within Layout when user doesn't have permissions
+          {
+            path: PATHS.UNAUTHORIZED.replace('/', ''),
+            element: <Error403 />
+          },
+          // Catch-all 404 for dashboard children
+          {
+            path: '*',
+            element: <Error404 />
           }
         ]
       }
@@ -66,10 +80,10 @@ export const router = createBrowserRouter([
   },
   {
     path: PATHS.UNAUTHORIZED,
-    element: <div style={{ textAlign: 'center', marginTop: 50 }}><h1>403</h1><p>Unauthorized Access</p></div>
+    element: <SuspenseWrapper><Error403 /></SuspenseWrapper>
   },
   {
     path: PATHS.NOT_FOUND,
-    element: <div style={{ textAlign: 'center', marginTop: 50 }}><h1>404</h1><p>Page Not Found</p></div>
+    element: <SuspenseWrapper><Error404 /></SuspenseWrapper>
   }
 ]);

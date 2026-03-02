@@ -1,14 +1,14 @@
 ﻿import { create } from 'zustand';
-import { TOKEN_KEY } from '@/config/constants';
+import { setToken, getToken, removeToken } from '@/utils/storage';
 
 export const useAuthStore = create((set) => ({
   user: null,
-  token: localStorage.getItem(TOKEN_KEY) || null,
+  token: getToken(),
   role: null,
-  isAuthenticated: !!localStorage.getItem(TOKEN_KEY),
+  isAuthenticated: !!getToken(),
   
   setAuth: (user, token) => {
-    localStorage.setItem(TOKEN_KEY, token);
+    setToken(token);
     set({ 
       user, 
       token, 
@@ -18,7 +18,7 @@ export const useAuthStore = create((set) => ({
   },
   
   logout: () => {
-    localStorage.removeItem(TOKEN_KEY);
+    removeToken();
     set({ 
       user: null, 
       token: null, 

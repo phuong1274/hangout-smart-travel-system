@@ -6,7 +6,7 @@ import { router } from '@/routes';
 import { queryClient } from '@/lib/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { getProfileApi } from '@/features/auth/api';
-import ErrorBoundary from '@/components/ErrorBoundary';
+import ErrorBoundary from '@/components/Errors/ErrorBoundary';
 
 function App() {
   const { token, setAuth, logout } = useAuthStore();

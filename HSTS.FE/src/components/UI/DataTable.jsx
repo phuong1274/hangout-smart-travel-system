@@ -29,7 +29,7 @@ const DataTable = ({
         total,
         showSizeChanger: true,
         pageSizeOptions: PAGINATION.PAGE_SIZE_OPTIONS,
-        showTotal: (total) => `Total ${total} items`,
+        showTotal: (totalItems) => `Total ${totalItems} items`,
       }}
       onChange={onTableChange}
       locale={{
