@@ -17,7 +17,8 @@ namespace HSTS.Application.Locations.Commands
         int MinimumAge,
         string Address,
         string? SocialLink,
-        int LocationTypeId) : IRequest<ErrorOr<LocationDto>>;
+        int LocationTypeId,
+        int DestinationId) : IRequest<ErrorOr<LocationDto>>;
 
     public class CreateLocationCommandHandler : IRequestHandler<CreateLocationCommand, ErrorOr<LocationDto>>
     {
@@ -50,7 +51,8 @@ namespace HSTS.Application.Locations.Commands
                 MinimumAge = request.MinimumAge,
                 Address = request.Address,
                 SocialLink = request.SocialLink,
-                LocationTypeId = request.LocationTypeId
+                LocationTypeId = request.LocationTypeId,
+                DestinationId = request.DestinationId
             };
 
             await _repository.AddAsync(location, cancellationToken);
@@ -71,6 +73,7 @@ namespace HSTS.Application.Locations.Commands
             RuleFor(x => x.Address).NotEmpty().MaximumLength(300);
             RuleFor(x => x.SocialLink).MaximumLength(500);
             RuleFor(x => x.LocationTypeId).NotEmpty();
+            RuleFor(x => x.DestinationId).NotEmpty();
         }
     }
 }

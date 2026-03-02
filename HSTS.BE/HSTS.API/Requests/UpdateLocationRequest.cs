@@ -2,12 +2,13 @@ namespace HSTS.API.Requests
 {
     public record UpdateLocationRequest(
         string Name,
-        string Description,
+        string? Description,
         double Latitude,
         double Longitude,
         decimal TicketPrice,
         int MinimumAge,
         string Address,
         string? SocialLink,
-        int LocationTypeId);
+        int LocationTypeId,
+        int DestinationId);
 }
