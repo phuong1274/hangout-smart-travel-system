@@ -31,7 +31,8 @@ namespace HSTS.API.Controllers
                 request.MinimumAge,
                 request.Address,
                 request.SocialLink,
-                request.LocationTypeId);
+                request.LocationTypeId,
+                request.DestinationId);
 
             var result = await _mediator.Send(command);
 
@@ -59,7 +60,8 @@ namespace HSTS.API.Controllers
                 request.MinimumAge,
                 request.Address,
                 request.SocialLink,
-                request.LocationTypeId);
+                request.LocationTypeId,
+                request.DestinationId);
 
             var result = await _mediator.Send(command);
 
@@ -70,6 +72,22 @@ namespace HSTS.API.Controllers
                     ErrorType.NotFound => NotFound(errors.First().Description),
                     ErrorType.Validation => BadRequest(errors),
                     ErrorType.Conflict => Conflict(errors.First().Description),
+                    _ => Problem(errors.First().Description)
+                }
+            );
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var command = new DeleteLocationCommand(id);
+            var result = await _mediator.Send(command);
+
+            return result.Match(
+                _ => Ok("Deleted successfully"),
+                errors => errors.First().Type switch
+                {
+                    ErrorType.NotFound => NotFound(errors.First().Description),
                     _ => Problem(errors.First().Description)
                 }
             );
