@@ -1,4 +1,7 @@
-﻿using Microsoft.AspNetCore.RateLimiting;
+﻿using System.Data.Common;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using System.Threading.RateLimiting;
 
 namespace HSTS.API
@@ -31,6 +34,19 @@ namespace HSTS.API
 
             var app = builder.Build();
 
+            // Short-circuit early when the database cannot be reached so the client gets a bare 500.
+            app.Use(async (context, next) =>
+            {
+                try
+                {
+                    await next();
+                }
+                catch (Exception exception) when (IsDatabaseConnectionException(exception))
+                {
+                    await HandleDatabaseConnectionFailureAsync(context);
+                }
+            });
+
             app.UseRateLimiter();
 
             if (app.Environment.IsDevelopment())
@@ -46,6 +62,24 @@ namespace HSTS.API
             app.MapControllers();
 
             app.Run();
+        }
+
+        private static bool IsDatabaseConnectionException(Exception exception) => exception switch
+        {
+            DbException => true,
+            DbUpdateException dbUpdateException when dbUpdateException.InnerException is DbException => true,
+            _ => false
+        };
+
+        private static async Task HandleDatabaseConnectionFailureAsync(HttpContext context)
+        {
+            if (!context.Response.HasStarted)
+            {
+                context.Response.Clear();
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            }
+
+            await context.Response.CompleteAsync();
         }
     }
 }
