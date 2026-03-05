@@ -40,6 +40,11 @@ export const router = createBrowserRouter([
           { path: 'login', element: <LoginPage /> },
           { path: '', element: <Navigate to="login" replace /> }
         ]
+      },
+      // Public: Destinations (for testing)
+      {
+        path: PATHS.DESTINATIONS.replace('/', ''),
+        element: <DestinationsPage />
       }
     ]
   },
@@ -57,10 +62,6 @@ export const router = createBrowserRouter([
           {
             path: PATHS.SCHEDULES.replace('/', ''),
             element: <div><h2>Algorithm Scheduling Management</h2></div>
-          },
-          {
-            path: PATHS.DESTINATIONS.replace('/', ''),
-            element: <DestinationsPage />
           },
           {
             path: PATHS.USERS.replace('/', ''),
