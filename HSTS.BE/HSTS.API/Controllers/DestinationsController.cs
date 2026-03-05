@@ -92,5 +92,22 @@ namespace HSTS.API.Controllers
                 }
             );
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var command = new DeleteDestinationCommand(id);
+            var result = await _mediator.Send(command);
+
+            return result.Match(
+                _ => Ok(new { message = "Destination deleted successfully" }),
+                errors => errors.First().Type switch
+                {
+                    ErrorType.NotFound => NotFound(errors.First().Description),
+                    ErrorType.Validation => BadRequest(errors),
+                    _ => Problem(errors.First().Description)
+                }
+            );
+        }
     }
 }

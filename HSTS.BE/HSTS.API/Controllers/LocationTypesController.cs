@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using HSTS.API.Requests;
 using HSTS.Application.LocationTypes.Commands;
+using HSTS.Application.LocationTypes.Queries;
 
 namespace HSTS.API.Controllers
 {
@@ -17,6 +18,44 @@ namespace HSTS.API.Controllers
         public LocationTypesController(ISender mediator)
         {
             _mediator = mediator;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetLocationTypes(
+            [FromQuery] string? searchTerm,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
+        {
+            var query = new GetLocationTypesPagingQuery(searchTerm, pageIndex, pageSize);
+            var result = await _mediator.Send(query, ct);
+
+            return result.Match(
+                response => Ok(response),
+                errors => errors.First().Type switch
+                {
+                    ErrorType.NotFound => NotFound(errors.First().Description),
+                    ErrorType.Validation => BadRequest(errors),
+                    ErrorType.Conflict => Conflict(errors.First().Description),
+                    _ => Problem(errors.First().Description)
+                }
+            );
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetLocationType(int id)
+        {
+            var result = await _mediator.Send(new GetLocationTypeQuery(id));
+            return result.Match(
+                Ok,
+                errors => errors.First().Type switch
+                {
+                    ErrorType.NotFound => NotFound(errors.First().Description),
+                    ErrorType.Validation => BadRequest(errors),
+                    ErrorType.Conflict => Conflict(errors.First().Description),
+                    _ => Problem(errors.First().Description)
+                }
+            );
         }
 
         [HttpPost]

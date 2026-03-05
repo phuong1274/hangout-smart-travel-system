@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, Layout, message } from 'antd';
+import { Card, Typography, Space, Button, Layout } from 'antd';
 import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
 import SearchFilter from '@/components/UI/SearchFilter';
-import { useDestinations } from '../hooks/useDestinations';
-import DestinationTable from '../components/DestinationTable';
-import DestinationForm from '../components/DestinationForm';
+import { useTags } from '../hooks/useTags';
+import TagTable from '../components/TagTable';
+import TagForm from '../components/TagForm';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '@/routes/paths';
-import { deleteDestinationApi } from '../api';
+import { message } from 'antd';
+import { deleteTagApi } from '../api';
 
 const { Title } = Typography;
 const { Header, Content } = Layout;
 
-const DestinationsPage = () => {
+const TagsPage = () => {
   const navigate = useNavigate();
   const {
     data,
@@ -20,36 +21,36 @@ const DestinationsPage = () => {
     pagination,
     handleTableChange,
     handleSearch,
-    fetchDestinations,
-  } = useDestinations();
+    fetchTags,
+  } = useTags();
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editingDestination, setEditingDestination] = useState(null);
+  const [editingTag, setEditingTag] = useState(null);
 
   const handleCreate = () => {
-    setEditingDestination(null);
+    setEditingTag(null);
     setFormOpen(true);
   };
 
-  const handleEdit = (destination) => {
-    setEditingDestination(destination);
+  const handleEdit = (tag) => {
+    setEditingTag(tag);
     setFormOpen(true);
   };
 
   const handleFormClose = () => {
     setFormOpen(false);
-    setEditingDestination(null);
+    setEditingTag(null);
   };
 
   const handleFormSuccess = () => {
-    fetchDestinations();
+    fetchTags();
   };
 
-  const handleDelete = async (destination) => {
+  const handleDelete = async (tag) => {
     try {
-      await deleteDestinationApi(destination.id);
-      message.success('Destination deleted successfully');
-      fetchDestinations();
+      await deleteTagApi(tag.id);
+      message.success('Tag deleted successfully');
+      fetchTags();
     } catch (error) {
       // Handled by global interceptor
     }
@@ -60,7 +61,7 @@ const DestinationsPage = () => {
       <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
-          <Title level={3} style={{ margin: 0 }}>Hangout - Destinations</Title>
+          <Title level={3} style={{ margin: 0 }}>Hangout - Tags</Title>
         </div>
         <Button type="primary" onClick={() => navigate(PATHS.AUTH.LOGIN)}>
           Login
@@ -69,18 +70,18 @@ const DestinationsPage = () => {
       <Content style={{ padding: '24px', background: '#f0f2f5' }}>
         <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={2} style={{ margin: 0 }}>Destination Management</Title>
+            <Title level={2} style={{ margin: 0 }}>Tag Management</Title>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Add Destination
+              Add Tag
             </Button>
           </div>
           <Card>
             <SearchFilter
               onSearch={handleSearch}
               loading={loading}
-              placeholder="Search destinations..."
+              placeholder="Search tags..."
             />
-            <DestinationTable
+            <TagTable
               data={data}
               loading={loading}
               pagination={pagination}
@@ -91,9 +92,9 @@ const DestinationsPage = () => {
           </Card>
         </Space>
       </Content>
-      <DestinationForm
+      <TagForm
         open={formOpen}
-        destination={editingDestination}
+        tag={editingTag}
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
       />
@@ -101,4 +102,4 @@ const DestinationsPage = () => {
   );
 };
 
-export default DestinationsPage;
+export default TagsPage;

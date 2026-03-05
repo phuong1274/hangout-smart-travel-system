@@ -15,3 +15,7 @@ export const createDestinationApi = (data) => {
 export const updateDestinationApi = (id, data) => {
   return apiClient.put(`/Destinations/${id}`, data);
 };
+
+export const deleteDestinationApi = (id) => {
+  return apiClient.delete(`/Destinations/${id}`);
+};

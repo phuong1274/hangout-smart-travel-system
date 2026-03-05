@@ -2,9 +2,9 @@ import React from 'react';
 import { Table, Button, Space, Popconfirm, message } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { PAGINATION } from '@/config/constants';
-import { deleteDestinationApi } from '../api';
+import { deleteTagApi } from '../api';
 
-const DestinationTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete }) => {
+const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete }) => {
   const columns = [
     {
       title: 'ID',
@@ -31,8 +31,8 @@ const DestinationTable = ({ data, loading, pagination, onTableChange, onEdit, on
             Edit
           </Button>
           <Popconfirm
-            title="Delete Destination"
-            description="Are you sure you want to delete this destination?"
+            title="Delete Tag"
+            description="Are you sure you want to delete this tag?"
             onConfirm={() => onDelete(record)}
             okText="Yes"
             cancelText="No"
@@ -65,4 +65,4 @@ const DestinationTable = ({ data, loading, pagination, onTableChange, onEdit, on
   );
 };
 
-export default DestinationTable;
+export default TagTable;
