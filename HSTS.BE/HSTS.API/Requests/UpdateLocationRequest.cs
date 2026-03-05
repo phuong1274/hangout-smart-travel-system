@@ -10,5 +10,7 @@ namespace HSTS.API.Requests
         string Address,
         string? SocialLink,
         int LocationTypeId,
-        int DestinationId);
+        int DestinationId,
+        List<int>? TagIds,
+        List<string>? MediaLinks);
 }

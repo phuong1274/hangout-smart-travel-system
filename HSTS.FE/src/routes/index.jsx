@@ -14,6 +14,7 @@ const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
 const DestinationsPage = lazy(() => import('@/features/destinations/pages/DestinationsPage'));
 const TagsPage = lazy(() => import('@/features/tags/pages/TagsPage'));
 const LocationTypesPage = lazy(() => import('@/features/locationTypes/pages/LocationTypesPage'));
+const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPage'));
 
 // Global Pages
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
@@ -57,6 +58,11 @@ export const router = createBrowserRouter([
       {
         path: PATHS.LOCATION_TYPES.replace('/', ''),
         element: <LocationTypesPage />
+      },
+      // Public: Locations (for testing)
+      {
+        path: PATHS.LOCATIONS.replace('/', ''),
+        element: <LocationsPage />
       }
     ]
   },

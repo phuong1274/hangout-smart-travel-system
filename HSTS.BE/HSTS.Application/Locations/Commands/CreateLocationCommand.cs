@@ -18,7 +18,9 @@ namespace HSTS.Application.Locations.Commands
         string Address,
         string? SocialLink,
         int LocationTypeId,
-        int DestinationId) : IRequest<ErrorOr<LocationDto>>;
+        int DestinationId,
+        List<int>? TagIds,
+        List<string>? MediaLinks) : IRequest<ErrorOr<LocationDto>>;
 
     public class CreateLocationCommandHandler : IRequestHandler<CreateLocationCommand, ErrorOr<LocationDto>>
     {
@@ -56,7 +58,52 @@ namespace HSTS.Application.Locations.Commands
             };
 
             await _repository.AddAsync(location, cancellationToken);
-            return location.ToDto();
+
+            // Add tags if provided
+            if (request.TagIds != null && request.TagIds.Count > 0)
+            {
+                var tags = await _repository.Query()
+                    .Where(t => request.TagIds.Contains(t.Id) && !t.IsDeleted)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var tag in tags)
+                {
+                    location.LocationTags.Add(new LocationTag
+                    {
+                        LocationId = location.Id,
+                        TagId = tag.Id,
+                        Score = 1.0
+                    });
+                }
+            }
+
+            // Add media links if provided
+            if (request.MediaLinks != null && request.MediaLinks.Count > 0)
+            {
+                foreach (var link in request.MediaLinks)
+                {
+                    location.LocationMedias.Add(new LocationMedia
+                    {
+                        LocationId = location.Id,
+                        Link = link
+                    });
+                }
+            }
+
+            await _repository.UpdateAsync(location, cancellationToken);
+
+            return new LocationDto(
+                location.Id,
+                location.Name,
+                location.Description,
+                location.Latitude,
+                location.Longitude,
+                location.TicketPrice,
+                location.MinimumAge,
+                location.Address,
+                location.SocialLink,
+                location.LocationTypeId,
+                location.DestinationId);
         }
     }
 

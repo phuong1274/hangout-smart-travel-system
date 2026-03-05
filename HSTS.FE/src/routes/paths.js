@@ -8,6 +8,7 @@ export const PATHS = {
   DESTINATIONS: '/destinations',
   TAGS: '/tags',
   LOCATION_TYPES: '/location-types',
+  LOCATIONS: '/locations',
   USERS: '/users',
   UNAUTHORIZED: '/403',
   NOT_FOUND: '*',

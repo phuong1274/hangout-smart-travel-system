@@ -10,5 +10,10 @@ namespace HSTS.Application.Locations
         int MinimumAge,
         string Address,
         string? SocialLink,
-        int LocationTypeId);
+        int LocationTypeId,
+        int DestinationId,
+        string? LocationTypeName = null,
+        string? DestinationName = null,
+        List<int>? TagIds = null,
+        List<string>? MediaLinks = null);
 }

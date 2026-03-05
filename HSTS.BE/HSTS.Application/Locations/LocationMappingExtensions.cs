@@ -16,7 +16,8 @@ namespace HSTS.Application.Locations
                 location.MinimumAge,
                 location.Address,
                 location.SocialLink,
-                location.LocationTypeId);
+                location.LocationTypeId,
+                location.DestinationId);
         }
     }
 }
