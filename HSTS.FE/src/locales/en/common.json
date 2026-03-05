@@ -1,0 +1,88 @@
+{
+  "appName": "Hangout - Smart Travel System",
+  "nav": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "signOut": "Sign Out",
+    "myTrips": "My Trips",
+    "planTrip": "Plan a Trip",
+    "expenses": "Expenses",
+    "profile": "Profile",
+    "myProfile": "My Profile",
+    "dashboard": "Dashboard",
+    "userManagement": "User Management",
+    "destinations": "Destinations",
+    "myDestinations": "My Destinations",
+    "transportation": "Transportation",
+    "weather": "Weather",
+    "reviewModeration": "Review Moderation",
+    "backToHome": "Back to Home"
+  },
+  "home": {
+    "subtitle": "Smart travel planning and scheduling system",
+    "getStarted": "Get Started",
+    "exploreDestinations": "Explore Destinations"
+  },
+  "action": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "confirm": "Confirm",
+    "submit": "Submit",
+    "reset": "Reset",
+    "loading": "Loading...",
+    "viewAll": "View All",
+    "viewDetails": "View Details",
+    "goBack": "Go Back"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "draft": "Draft",
+    "completed": "Completed"
+  },
+  "message": {
+    "success": "Operation successful",
+    "error": "Something went wrong",
+    "notFound": "Not found",
+    "confirmDelete": "Are you sure you want to delete this item?",
+    "noData": "No data available"
+  },
+  "pagination": {
+    "total": "Total {{total}} items",
+    "itemsPerPage": "Items per page"
+  },
+  "error": {
+    "required": "This field is required",
+    "invalidEmail": "Invalid email address",
+    "minLength": "Must be at least {{min}} characters",
+    "maxLength": "Must be at most {{max}} characters",
+    "passwordMismatch": "Passwords do not match",
+    "unauthorized": "You do not have permission to access this page",
+    "pageNotFound": "The page you are looking for does not exist"
+  },
+  "divider": {
+    "or": "or"
+  },
+  "currency": {
+    "label": "Currency",
+    "VND": "Vietnamese Dong",
+    "USD": "US Dollar",
+    "EUR": "Euro",
+    "JPY": "Japanese Yen",
+    "KRW": "Korean Won",
+    "THB": "Thai Baht"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "vi": "Tiếng Việt"
+  }
+}
