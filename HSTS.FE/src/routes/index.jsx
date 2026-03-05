@@ -11,6 +11,7 @@ const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
+const DestinationsPage = lazy(() => import('@/features/destinations/pages/DestinationsPage'));
 
 // Global Pages
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
@@ -49,13 +50,17 @@ export const router = createBrowserRouter([
         path: PATHS.DASHBOARD,
         element: <MainLayout />,
         children: [
-          { 
-            index: true, 
-            element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div> 
+          {
+            index: true,
+            element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div>
           },
-          { 
-            path: PATHS.SCHEDULES.replace('/', ''), 
-            element: <div><h2>Algorithm Scheduling Management</h2></div> 
+          {
+            path: PATHS.SCHEDULES.replace('/', ''),
+            element: <div><h2>Algorithm Scheduling Management</h2></div>
+          },
+          {
+            path: PATHS.DESTINATIONS.replace('/', ''),
+            element: <DestinationsPage />
           },
           {
             path: PATHS.USERS.replace('/', ''),

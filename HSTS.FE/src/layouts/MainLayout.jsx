@@ -1,7 +1,7 @@
 ﻿import React, { Suspense } from 'react';
 import { Layout, Menu, Button, Spin } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { DashboardOutlined, ScheduleOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons';
+import { DashboardOutlined, ScheduleOutlined, CompassOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
 import { PATHS } from '@/routes/paths';
 import { ROLES } from '@/config/constants';
@@ -19,22 +19,28 @@ const MainLayout = () => {
   };
 
   const menuItems = [
-    { 
-      key: PATHS.DASHBOARD, 
-      icon: <DashboardOutlined />, 
-      label: 'Dashboard', 
-      onClick: () => navigate(PATHS.DASHBOARD) 
+    {
+      key: PATHS.DASHBOARD,
+      icon: <DashboardOutlined />,
+      label: 'Dashboard',
+      onClick: () => navigate(PATHS.DASHBOARD)
     },
-    { 
-      key: PATHS.SCHEDULES, 
-      icon: <ScheduleOutlined />, 
-      label: 'Schedules', 
-      onClick: () => navigate(PATHS.SCHEDULES) 
+    {
+      key: PATHS.SCHEDULES,
+      icon: <ScheduleOutlined />,
+      label: 'Schedules',
+      onClick: () => navigate(PATHS.SCHEDULES)
     },
-    { 
-      key: PATHS.USERS, 
-      icon: <UserOutlined />, 
-      label: 'Users', 
+    {
+      key: PATHS.DESTINATIONS,
+      icon: <CompassOutlined />,
+      label: 'Destinations',
+      onClick: () => navigate(PATHS.DESTINATIONS)
+    },
+    {
+      key: PATHS.USERS,
+      icon: <UserOutlined />,
+      label: 'Users',
       onClick: () => navigate(PATHS.USERS),
       hidden: role !== ROLES.ADMIN
     },

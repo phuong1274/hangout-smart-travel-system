@@ -5,6 +5,7 @@ export const PATHS = {
   },
   DASHBOARD: '/',
   SCHEDULES: '/schedules',
+  DESTINATIONS: '/destinations',
   USERS: '/users',
   UNAUTHORIZED: '/403',
   NOT_FOUND: '*',
