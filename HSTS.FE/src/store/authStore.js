@@ -1,37 +1,21 @@
-﻿import { create } from 'zustand';
-import { setToken, getToken, removeToken } from '@/utils/storage';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
-export const useAuthStore = create((set) => ({
-  user: null,
-  token: getToken(),
-  role: null,
-  isAuthenticated: !!getToken(),
-  
-  setAuth: (user, token) => {
-    setToken(token);
-    set({ 
-      user, 
-      token, 
-      role: user?.role || null,
-      isAuthenticated: true 
-    });
-  },
-  
-  logout: () => {
-    removeToken();
-    set({ 
-      user: null, 
-      token: null, 
-      role: null,
-      isAuthenticated: false 
-    });
-  },
+export const useAuthStore = create(
+  persist(
+    (set, get) => ({
+      user: null,
+      isAuthenticated: false,
 
-  updateUser: (user) => {
-    set((state) => ({
-      ...state,
-      user,
-      role: user?.role || state.role
-    }));
-  }
-}));
+      login: (user) => set({ user, isAuthenticated: true }),
+
+      logout: () => set({ user: null, isAuthenticated: false }),
+
+      updateUser: (updates) => {
+        const current = get().user;
+        if (current) set({ user: { ...current, ...updates } });
+      },
+    }),
+    { name: 'auth-storage' },
+  ),
+);
