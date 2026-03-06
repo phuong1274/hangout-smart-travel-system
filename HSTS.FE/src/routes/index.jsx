@@ -15,6 +15,7 @@ const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage
 const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
 const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
+const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 
 // Global Pages
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
@@ -71,6 +72,10 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <UsersPage /> }
             ]
+          },
+          {
+            path: PATHS.PROFILE.replace('/', ''),
+            element: <ProfilePage />,
           },
           // Error 403 shown within Layout when user doesn't have permissions
           {
