@@ -42,6 +42,11 @@ namespace HSTS.Application.Auth.Commands
             if (account is null)
             {
                 // New user — create Account + User + Profile + assign TRAVELER role
+                var travelerRole = await _context.Roles
+                    .FirstOrDefaultAsync(r => r.Name == "TRAVELER", cancellationToken);
+                if (travelerRole is null)
+                    return Error.Failure("Role.NotFound", "Default role not found. Please contact support.");
+
                 account = new Account
                 {
                     Email = googleUser.Email,
@@ -50,7 +55,6 @@ namespace HSTS.Application.Auth.Commands
                 };
 
                 _context.Accounts.Add(account);
-                await _context.SaveChangesAsync(cancellationToken);
 
                 user = new User
                 {
@@ -59,16 +63,12 @@ namespace HSTS.Application.Auth.Commands
                 };
 
                 _context.Users.Add(user);
-                await _context.SaveChangesAsync(cancellationToken);
 
                 _context.Profiles.Add(new Profile
                 {
                     UserId = user.Id,
                     ProfileName = "Default"
                 });
-
-                var travelerRole = await _context.Roles
-                    .FirstAsync(r => r.Name == "TRAVELER", cancellationToken);
 
                 _context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = travelerRole.Id });
                 await _context.SaveChangesAsync(cancellationToken);
@@ -90,13 +90,17 @@ namespace HSTS.Application.Auth.Commands
                     return Error.Forbidden("Auth.Banned", "Your account has been banned.");
 
                 user = await _context.Users
-                    .FirstAsync(u => u.AccountId == account.Id, cancellationToken);
+                    .FirstOrDefaultAsync(u => u.AccountId == account.Id, cancellationToken);
+                if (user is null)
+                    return Error.NotFound("User.NotFound", "User account is incomplete.");
             }
 
             // Load roles
             user = await _context.Users
                 .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
-                .FirstAsync(u => u.Id == user.Id, cancellationToken);
+                .FirstOrDefaultAsync(u => u.Id == user.Id, cancellationToken);
+            if (user is null)
+                return Error.NotFound("User.NotFound", "User account is incomplete.");
 
             var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
 

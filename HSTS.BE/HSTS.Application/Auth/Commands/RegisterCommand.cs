@@ -30,6 +30,11 @@ namespace HSTS.Application.Auth.Commands
 
             var passwordHash = _passwordHasher.Hash(request.Password);
 
+            var travelerRole = await _context.Roles
+                .FirstOrDefaultAsync(r => r.Name == "TRAVELER", cancellationToken);
+            if (travelerRole is null)
+                return Error.Failure("Role.NotFound", "Default role not found. Please contact support.");
+
             var account = new Account
             {
                 Email = request.Email,
@@ -38,7 +43,6 @@ namespace HSTS.Application.Auth.Commands
             };
 
             _context.Accounts.Add(account);
-            await _context.SaveChangesAsync(cancellationToken);
 
             var user = new User
             {
@@ -47,7 +51,6 @@ namespace HSTS.Application.Auth.Commands
             };
 
             _context.Users.Add(user);
-            await _context.SaveChangesAsync(cancellationToken);
 
             var defaultProfile = new Profile
             {
@@ -56,9 +59,6 @@ namespace HSTS.Application.Auth.Commands
             };
 
             _context.Profiles.Add(defaultProfile);
-
-            var travelerRole = await _context.Roles
-                .FirstAsync(r => r.Name == "TRAVELER", cancellationToken);
 
             _context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = travelerRole.Id });
 
