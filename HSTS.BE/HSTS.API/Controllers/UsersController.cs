@@ -53,7 +53,7 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPut("me/profiles/{profileId:int}")]
-        public async Task<IActionResult> UpdateProfile(int profileId, UpdateProfileCommand command)
+        public async Task<IActionResult> UpdateProfile(int profileId, [FromBody] UpdateProfileCommand command)
         {
             if (profileId != command.ProfileId)
                 return BadRequest(new { message = "Profile ID in route does not match request body." });
