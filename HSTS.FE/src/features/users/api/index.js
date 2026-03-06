@@ -1,21 +1,11 @@
 import apiClient from '@/lib/axios';
 
-export const getUsersApi = (params) => {
-  return apiClient.get('/Users', { params });
-};
-
-export const getUserByIdApi = (id) => {
-  return apiClient.get(`/Users/${id}`);
-};
-
-export const createUserApi = (data) => {
-  return apiClient.post('/Users', data);
-};
-
-export const updateUserApi = (id, data) => {
-  return apiClient.put(`/Users/${id}`, data);
-};
-
-export const deleteUserApi = (id) => {
-  return apiClient.delete(`/Users/${id}`);
+export const usersApi = {
+  getMyInfo: () => apiClient.get('/api/users/me'),
+  updateMyInfo: (data) => apiClient.put('/api/users/me', data),
+  getMyProfiles: () => apiClient.get('/api/users/me/profiles'),
+  getMyProfile: (profileId) => apiClient.get(`/api/users/me/profiles/${profileId}`),
+  createProfile: (data) => apiClient.post('/api/users/me/profiles', data),
+  updateProfile: ({ profileId, ...data }) => apiClient.put(`/api/users/me/profiles/${profileId}`, data),
+  deleteProfile: (profileId) => apiClient.delete(`/api/users/me/profiles/${profileId}`),
 };
