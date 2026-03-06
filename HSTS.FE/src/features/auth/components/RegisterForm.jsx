@@ -10,7 +10,7 @@ const RegisterForm = () => {
   const [form] = Form.useForm();
   const { register, loading } = useRegister();
 
-  const onFinish = ({ confirmPassword: _, ...data }) => {
+  const onFinish = ({ confirmPassword: _confirmPassword, ...data }) => {
     register(data);
   };
 

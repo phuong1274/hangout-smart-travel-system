@@ -27,7 +27,7 @@ export const useUsers = () => {
       
       setData(response.items || []);
       setTotal(response.totalCount || 0);
-    } catch (error) {
+    } catch {
       // Handled by global interceptor
     } finally {
       setLoading(false);
