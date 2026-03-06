@@ -5,9 +5,10 @@ import SearchFilter from '@/components/UI/SearchFilter';
 import { useLocationTypes } from '../hooks/useLocationTypes';
 import LocationTypeTable from '../components/LocationTypeTable';
 import LocationTypeForm from '../components/LocationTypeForm';
+import DetailModal from '@/components/DetailModal';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '@/routes/paths';
-import { deleteLocationTypeApi } from '../api';
+import { deleteLocationTypeApi, getLocationTypeByIdApi } from '../api';
 
 const { Title } = Typography;
 const { Header, Content } = Layout;
@@ -25,6 +26,8 @@ const LocationTypesPage = () => {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingLocationType, setEditingLocationType] = useState(null);
+  const [viewingLocationType, setViewingLocationType] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const handleCreate = () => {
     setEditingLocationType(null);
@@ -43,6 +46,16 @@ const LocationTypesPage = () => {
 
   const handleFormSuccess = () => {
     fetchLocationTypes();
+  };
+
+  const handleView = async (locationType) => {
+    try {
+      const detail = await getLocationTypeByIdApi(locationType.id);
+      setViewingLocationType(detail);
+      setDetailModalOpen(true);
+    } catch (error) {
+      message.error('Failed to load location type details');
+    }
   };
 
   const handleDelete = async (locationType) => {
@@ -86,6 +99,7 @@ const LocationTypesPage = () => {
               pagination={pagination}
               onTableChange={handleTableChange}
               onEdit={handleEdit}
+              onView={handleView}
               onDelete={handleDelete}
             />
           </Card>
@@ -96,6 +110,17 @@ const LocationTypesPage = () => {
         locationType={editingLocationType}
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
+      />
+
+      {/* Detail Modal */}
+      <DetailModal
+        open={detailModalOpen}
+        onClose={() => {
+          setDetailModalOpen(false);
+          setViewingLocationType(null);
+        }}
+        data={viewingLocationType}
+        type="locationType"
       />
     </Layout>
   );

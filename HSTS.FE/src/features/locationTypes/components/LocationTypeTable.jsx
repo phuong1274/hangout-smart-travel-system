@@ -1,9 +1,9 @@
 import React from 'react';
 import { Table, Button, Space, Popconfirm } from 'antd';
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { PAGINATION } from '@/config/constants';
 
-const LocationTypeTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete }) => {
+const LocationTypeTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView }) => {
   const columns = [
     {
       title: 'ID',
@@ -19,9 +19,16 @@ const LocationTypeTable = ({ data, loading, pagination, onTableChange, onEdit, o
     {
       title: 'Actions',
       key: 'actions',
-      width: 150,
+      width: 180,
       render: (_, record) => (
-        <Space>
+        <Space direction="vertical" size="small">
+          <Button
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => onView(record)}
+          >
+            View
+          </Button>
           <Button
             type="link"
             icon={<EditOutlined />}

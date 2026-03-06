@@ -10,6 +10,6 @@ namespace HSTS.Domain.Entities
     {
         public int Id { get; set; }
         public string Name { get; set; }
-        public ICollection<LocationTag> LocationTags { get; set; }
+        public ICollection<LocationTag> LocationTags { get; set; } = new List<LocationTag>();
     }
 }

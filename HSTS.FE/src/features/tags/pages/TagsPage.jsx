@@ -5,10 +5,11 @@ import SearchFilter from '@/components/UI/SearchFilter';
 import { useTags } from '../hooks/useTags';
 import TagTable from '../components/TagTable';
 import TagForm from '../components/TagForm';
+import DetailModal from '@/components/DetailModal';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '@/routes/paths';
 import { message } from 'antd';
-import { deleteTagApi } from '../api';
+import { deleteTagApi, getTagByIdApi } from '../api';
 
 const { Title } = Typography;
 const { Header, Content } = Layout;
@@ -26,6 +27,8 @@ const TagsPage = () => {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingTag, setEditingTag] = useState(null);
+  const [viewingTag, setViewingTag] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const handleCreate = () => {
     setEditingTag(null);
@@ -44,6 +47,16 @@ const TagsPage = () => {
 
   const handleFormSuccess = () => {
     fetchTags();
+  };
+
+  const handleView = async (tag) => {
+    try {
+      const detail = await getTagByIdApi(tag.id);
+      setViewingTag(detail);
+      setDetailModalOpen(true);
+    } catch (error) {
+      message.error('Failed to load tag details');
+    }
   };
 
   const handleDelete = async (tag) => {
@@ -87,6 +100,7 @@ const TagsPage = () => {
               pagination={pagination}
               onTableChange={handleTableChange}
               onEdit={handleEdit}
+              onView={handleView}
               onDelete={handleDelete}
             />
           </Card>
@@ -97,6 +111,17 @@ const TagsPage = () => {
         tag={editingTag}
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
+      />
+
+      {/* Detail Modal */}
+      <DetailModal
+        open={detailModalOpen}
+        onClose={() => {
+          setDetailModalOpen(false);
+          setViewingTag(null);
+        }}
+        data={viewingTag}
+        type="tag"
       />
     </Layout>
   );

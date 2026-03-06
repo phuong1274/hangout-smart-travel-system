@@ -1,3 +1,5 @@
+using HSTS.Application.Locations.Commands;
+
 namespace HSTS.API.Requests
 {
     public record UpdateLocationRequest(
@@ -11,6 +13,6 @@ namespace HSTS.API.Requests
         string? SocialLink,
         int LocationTypeId,
         int DestinationId,
-        List<int>? TagIds,
+        List<TagScoreDto>? TagsWithScores,
         List<string>? MediaLinks);
 }

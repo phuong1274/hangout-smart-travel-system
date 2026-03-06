@@ -47,9 +47,9 @@ namespace HSTS.Domain.Entities
 
         public Destination Destination { get; set; }
 
-        public ICollection<LocationTag> LocationTags { get; set; }
+        public ICollection<LocationTag> LocationTags { get; set; } = new List<LocationTag>();
 
-        public ICollection<LocationMedia> LocationMedias { get; set; }
+        public ICollection<LocationMedia> LocationMedias { get; set; } = new List<LocationMedia>();
 
     }
 }

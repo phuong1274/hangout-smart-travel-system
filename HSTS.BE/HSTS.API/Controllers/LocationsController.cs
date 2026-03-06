@@ -72,7 +72,7 @@ namespace HSTS.API.Controllers
                 request.SocialLink,
                 request.LocationTypeId,
                 request.DestinationId,
-                request.TagIds,
+                request.TagsWithScores,
                 request.MediaLinks);
 
             var result = await _mediator.Send(command);
@@ -103,7 +103,7 @@ namespace HSTS.API.Controllers
                 request.SocialLink,
                 request.LocationTypeId,
                 request.DestinationId,
-                request.TagIds,
+                request.TagsWithScores,
                 request.MediaLinks);
 
             var result = await _mediator.Send(command);

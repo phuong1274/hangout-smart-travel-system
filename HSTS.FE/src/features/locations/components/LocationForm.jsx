@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message } from 'antd';
-import { PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Slider, Tag, Progress } from 'antd';
+import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, EnvironmentOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { createLocationApi, updateLocationApi, getAllTagsApi, getAllDestinationsApi, getAllLocationTypesApi } from '../api';
+import { uploadImageToCloudinary } from '@/services/cloudinary';
+import GoogleMapPicker from '@/components/GoogleMapPicker';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -14,8 +16,14 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [locationTypes, setLocationTypes] = useState([]);
   const [mediaLinks, setMediaLinks] = useState([]);
   const [newMediaLink, setNewMediaLink] = useState('');
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [tagsWithScores, setTagsWithScores] = useState([]);
 
   const isEdit = !!location;
+
+  // Calculate total score
+  const totalScore = tagsWithScores.reduce((sum, tag) => sum + tag.score, 0);
+  const scoreError = Math.abs(totalScore - 1) > 0.01 && tagsWithScores.length > 0;
 
   // Fetch dropdown data
   useEffect(() => {
@@ -49,21 +57,40 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         address: location.address,
         socialLink: location.socialLink,
         locationTypeId: location.locationTypeId,
-        destinationId: location.destinationId,
-        tagIds: location.tagIds || []
+        destinationId: location.destinationId
       });
       setMediaLinks(location.mediaLinks || []);
+      // Set tags with scores (default score if not provided)
+      if (location.tagIds && location.tagIds.length > 0) {
+        const defaultScore = location.tagIds.length > 0 ? 1 / location.tagIds.length : 1;
+        setTagsWithScores(location.tagIds.map(tagId => ({
+          tagId,
+          score: defaultScore,
+          name: tags.find(t => t.id === tagId)?.name || `Tag ${tagId}`
+        })));
+      } else {
+        setTagsWithScores([]);
+      }
     } else {
       form.resetFields();
       setMediaLinks([]);
+      setTagsWithScores([]);
     }
-  }, [location, form]);
+  }, [location, form, tags]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
+      // Validate tag scores
+      if (tagsWithScores.length > 0 && scoreError) {
+        message.error('Tag scores must sum to 1.0 (100%)');
+        setLoading(false);
+        return;
+      }
+
       const payload = {
         ...values,
+        tagsWithScores: tagsWithScores.length > 0 ? tagsWithScores.map(({ tagId, score }) => ({ tagId, score })) : undefined,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : undefined
       };
 
@@ -90,6 +117,54 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
   const handleRemoveMediaLink = (index) => {
     setMediaLinks(mediaLinks.filter((_, i) => i !== index));
+  };
+
+  const handleImageUpload = async (file) => {
+    try {
+      const imageUrl = await uploadImageToCloudinary(file);
+      setMediaLinks([...mediaLinks, imageUrl]);
+      message.success('Image uploaded successfully');
+    } catch (error) {
+      message.error(error.message || 'Upload failed');
+    }
+    return Upload.LIST_IGNORE; // Prevent default upload behavior
+  };
+
+  const handleAddTag = (tagId) => {
+    if (!tagsWithScores.find(t => t.tagId === tagId)) {
+      const tag = tags.find(t => t.id === tagId);
+      const remainingScore = 1 - totalScore;
+      setTagsWithScores([...tagsWithScores, {
+        tagId,
+        score: remainingScore > 0 ? remainingScore : 0.1,
+        name: tag?.name || `Tag ${tagId}`
+      }]);
+    }
+  };
+
+  const handleRemoveTag = (tagId) => {
+    setTagsWithScores(tagsWithScores.filter(t => t.tagId !== tagId));
+  };
+
+  const handleScoreChange = (tagId, newScore) => {
+    setTagsWithScores(tagsWithScores.map(t => 
+      t.tagId === tagId ? { ...t, score: newScore } : t
+    ));
+  };
+
+  const handleAutoDistributeScores = () => {
+    if (tagsWithScores.length > 0) {
+      const equalScore = 1 / tagsWithScores.length;
+      setTagsWithScores(tagsWithScores.map(t => ({ ...t, score: equalScore })));
+    }
+  };
+
+  const handleMapConfirm = ({ lat, lng }) => {
+    form.setFieldsValue({
+      latitude: lat,
+      longitude: lng,
+    });
+    message.success('Location coordinates updated!');
   };
 
   return (
@@ -125,7 +200,19 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         <Space direction="horizontal" style={{ width: '100%' }} size="large">
           <Form.Item
             name="latitude"
-            label="Latitude"
+            label={
+              <Space>
+                <span>Latitude</span>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<EnvironmentOutlined />}
+                  onClick={() => setMapPickerOpen(true)}
+                >
+                  Pick on Map
+                </Button>
+              </Space>
+            }
             rules={[
               { required: true, message: 'Please enter latitude' },
               { type: 'number', min: -90, max: 90, message: 'Latitude must be between -90 and 90' }
@@ -227,39 +314,159 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         <Form.Item
           name="tagIds"
           label="Tags"
+          help={scoreError ? `Total score must be 1.0, current: ${totalScore.toFixed(2)}` : `Total score: ${totalScore.toFixed(2)} (should be 1.0)`}
+          validateStatus={scoreError ? 'error' : ''}
         >
-          <Select mode="multiple" placeholder="Select tags (optional)" allowClear>
-            {tags.map(tag => (
-              <Option key={tag.id} value={tag.id}>{tag.name}</Option>
-            ))}
-          </Select>
+          <div>
+            {/* Tag selector */}
+            <Select
+              placeholder="Select tags to add"
+              onChange={handleAddTag}
+              value={null}
+              style={{ width: '100%', marginBottom: 12 }}
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  {tagsWithScores.length > 0 && (
+                    <div style={{ padding: '8px', borderTop: '1px solid #f0f0f0' }}>
+                      <Button size="small" type="link" onClick={handleAutoDistributeScores}>
+                        Auto-distribute scores equally
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            >
+              {tags
+                .filter(tag => !tagsWithScores.find(t => t.tagId === tag.id))
+                .map(tag => (
+                  <Option key={tag.id} value={tag.id}>{tag.name}</Option>
+                ))}
+            </Select>
+
+            {/* Tags with scores */}
+            {tagsWithScores.length > 0 && (
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                {tagsWithScores.map((tagScore) => (
+                  <div key={tagScore.tagId} style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px',
+                    padding: '8px',
+                    background: '#f5f5f5',
+                    borderRadius: '6px'
+                  }}>
+                    <Tag color="purple" style={{ minWidth: '80px' }}>
+                      {tagScore.name}
+                    </Tag>
+                    <Slider
+                      value={tagScore.score}
+                      onChange={(value) => handleScoreChange(tagScore.tagId, value)}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      style={{ flex: 1 }}
+                      tooltip={{ formatter: (value) => `${(value * 100).toFixed(0)}%` }}
+                    />
+                    <InputNumber
+                      value={tagScore.score}
+                      onChange={(value) => handleScoreChange(tagScore.tagId, value || 0)}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      formatter={(value) => `${(value * 100).toFixed(0)}%`}
+                      style={{ width: 80 }}
+                      size="small"
+                    />
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      icon={<MinusCircleOutlined />}
+                      onClick={() => handleRemoveTag(tagScore.tagId)}
+                    />
+                  </div>
+                ))}
+
+                {/* Score summary */}
+                <div style={{ 
+                  padding: '8px', 
+                  background: scoreError ? '#fff2f0' : '#f6ffed',
+                  border: `1px solid ${scoreError ? '#ffccc7' : '#b7eb8f'}`,
+                  borderRadius: '4px',
+                  marginTop: '8px'
+                }}>
+                  <Space>
+                    <span>Total:</span>
+                    <Progress
+                      percent={(totalScore * 100).toFixed(1)}
+                      strokeColor={scoreError ? '#ff4d4f' : '#52c41a'}
+                      size="small"
+                      format={() => `${(totalScore * 100).toFixed(1)}%`}
+                      style={{ width: 150 }}
+                    />
+                    {scoreError && <span style={{ color: '#ff4d4f', fontSize: 12 }}>Must equal 100%</span>}
+                  </Space>
+                </div>
+              </Space>
+            )}
+          </div>
         </Form.Item>
 
-        <Form.Item label="Media Links (Image URLs)">
-          <Space.Compact style={{ width: '100%' }}>
-            <Input
-              placeholder="Paste image URL here"
-              value={newMediaLink}
-              onChange={(e) => setNewMediaLink(e.target.value)}
-              onPressEnter={handleAddMediaLink}
-            />
-            <Button type="primary" onClick={handleAddMediaLink} icon={<PlusOutlined />}>
-              Add
-            </Button>
-          </Space.Compact>
+        <Form.Item label="Media (Images)">
+          {/* File Upload */}
+          <Upload
+            accept="image/*"
+            beforeUpload={handleImageUpload}
+            showUploadList={false}
+            multiple={false}
+          >
+            <Button icon={<UploadOutlined />}>Upload Image to Cloudinary</Button>
+          </Upload>
+
+          {/* Or paste URL */}
+          <div style={{ marginTop: 12 }}>
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
+                placeholder="Or paste image URL here"
+                value={newMediaLink}
+                onChange={(e) => setNewMediaLink(e.target.value)}
+                onPressEnter={handleAddMediaLink}
+              />
+              <Button type="primary" onClick={handleAddMediaLink} icon={<PlusOutlined />}>
+                Add URL
+              </Button>
+            </Space.Compact>
+          </div>
           
+          {/* Display uploaded links */}
           {mediaLinks.length > 0 && (
-            <div style={{ marginTop: 8, maxHeight: 150, overflowY: 'auto' }}>
+            <div style={{ marginTop: 12, maxHeight: 200, overflowY: 'auto' }}>
               {mediaLinks.map((link, index) => (
-                <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', background: '#f5f5f5', marginBottom: 4, borderRadius: 4 }}>
-                  <span style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{link}</span>
-                  <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleRemoveMediaLink(index)} />
+                <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', background: '#f5f5f5', marginBottom: 8, borderRadius: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
+                    <PictureOutlined style={{ marginRight: 8, color: '#1677ff' }} />
+                    <span style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{link}</span>
+                  </div>
+                  <Space>
+                    <a href={link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>View</a>
+                    <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleRemoveMediaLink(index)} />
+                  </Space>
                 </div>
               ))}
             </div>
           )}
         </Form.Item>
       </Form>
+
+      {/* Google Map Picker Modal */}
+      <GoogleMapPicker
+        open={mapPickerOpen}
+        onClose={() => setMapPickerOpen(false)}
+        onConfirm={handleMapConfirm}
+        initialLat={form.getFieldValue('latitude')}
+        initialLng={form.getFieldValue('longitude')}
+      />
     </Modal>
   );
 };

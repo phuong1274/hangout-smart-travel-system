@@ -8,6 +8,9 @@ using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Application.Locations.Commands
 {
+    // DTO for tag with score
+    public record TagScoreDto(int TagId, double Score);
+
     public record CreateLocationCommand(
         string Name,
         string Description,
@@ -19,21 +22,23 @@ namespace HSTS.Application.Locations.Commands
         string? SocialLink,
         int LocationTypeId,
         int DestinationId,
-        List<int>? TagIds,
+        List<TagScoreDto>? TagsWithScores,
         List<string>? MediaLinks) : IRequest<ErrorOr<LocationDto>>;
 
     public class CreateLocationCommandHandler : IRequestHandler<CreateLocationCommand, ErrorOr<LocationDto>>
     {
-        private readonly IRepository<Location> _repository;
+        private readonly IRepository<Location> _locationRepository;
+        private readonly IRepository<Tag> _tagRepository;
 
-        public CreateLocationCommandHandler(IRepository<Location> repository)
+        public CreateLocationCommandHandler(IRepository<Location> locationRepository, IRepository<Tag> tagRepository)
         {
-            _repository = repository;
+            _locationRepository = locationRepository;
+            _tagRepository = tagRepository;
         }
 
         public async Task<ErrorOr<LocationDto>> Handle(CreateLocationCommand request, CancellationToken cancellationToken)
         {
-            var existingLocation = await _repository.Query()
+            var existingLocation = await _locationRepository.Query()
                 .Where(x => x.Name == request.Name && !x.IsDeleted)
                 .FirstOrDefaultAsync(cancellationToken);
 
@@ -46,7 +51,7 @@ namespace HSTS.Application.Locations.Commands
             var location = new Location
             {
                 Name = request.Name,
-                Description = request.Description,
+                Description = request.Description ?? string.Empty,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
                 TicketPrice = request.TicketPrice,
@@ -57,23 +62,28 @@ namespace HSTS.Application.Locations.Commands
                 DestinationId = request.DestinationId
             };
 
-            await _repository.AddAsync(location, cancellationToken);
+            await _locationRepository.AddAsync(location, cancellationToken);
 
-            // Add tags if provided
-            if (request.TagIds != null && request.TagIds.Count > 0)
+            // Add tags with scores if provided
+            if (request.TagsWithScores != null && request.TagsWithScores.Count > 0)
             {
-                var tags = await _repository.Query()
-                    .Where(t => request.TagIds.Contains(t.Id) && !t.IsDeleted)
+                var tagIds = request.TagsWithScores.Select(t => t.TagId).ToList();
+                var tags = await _tagRepository.Query()
+                    .Where(t => tagIds.Contains(t.Id) && !t.IsDeleted)
                     .ToListAsync(cancellationToken);
 
-                foreach (var tag in tags)
+                foreach (var tagScore in request.TagsWithScores)
                 {
-                    location.LocationTags.Add(new LocationTag
+                    var tag = tags.FirstOrDefault(t => t.Id == tagScore.TagId);
+                    if (tag != null)
                     {
-                        LocationId = location.Id,
-                        TagId = tag.Id,
-                        Score = 1.0
-                    });
+                        location.LocationTags.Add(new LocationTag
+                        {
+                            LocationId = location.Id,
+                            TagId = tag.Id,
+                            Score = tagScore.Score
+                        });
+                    }
                 }
             }
 
@@ -90,7 +100,7 @@ namespace HSTS.Application.Locations.Commands
                 }
             }
 
-            await _repository.UpdateAsync(location, cancellationToken);
+            await _locationRepository.UpdateAsync(location, cancellationToken);
 
             return new LocationDto(
                 location.Id,
@@ -103,7 +113,11 @@ namespace HSTS.Application.Locations.Commands
                 location.Address,
                 location.SocialLink,
                 location.LocationTypeId,
-                location.DestinationId);
+                location.DestinationId,
+                null,
+                null,
+                request.TagsWithScores?.Select(t => t.TagId).ToList(),
+                request.MediaLinks);
         }
     }
 
@@ -121,6 +135,17 @@ namespace HSTS.Application.Locations.Commands
             RuleFor(x => x.SocialLink).MaximumLength(500);
             RuleFor(x => x.LocationTypeId).NotEmpty();
             RuleFor(x => x.DestinationId).NotEmpty();
+            
+            // Validate tags with scores
+            RuleFor(x => x.TagsWithScores)
+                .Must(tags => tags == null || !tags.Any() || tags.Sum(t => t.Score) >= 0.99 && tags.Sum(t => t.Score) <= 1.01)
+                .WithMessage("Tag scores must sum to 1.0 (±0.01 tolerance for floating point)");
+            
+            RuleForEach(x => x.TagsWithScores).ChildRules(tag =>
+            {
+                tag.RuleFor(x => x.TagId).NotEmpty().WithMessage("Tag ID is required");
+                tag.RuleFor(x => x.Score).InclusiveBetween(0, 1).WithMessage("Score must be between 0 and 1");
+            });
         }
     }
 }

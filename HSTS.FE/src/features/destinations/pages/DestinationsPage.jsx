@@ -5,9 +5,10 @@ import SearchFilter from '@/components/UI/SearchFilter';
 import { useDestinations } from '../hooks/useDestinations';
 import DestinationTable from '../components/DestinationTable';
 import DestinationForm from '../components/DestinationForm';
+import DetailModal from '@/components/DetailModal';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '@/routes/paths';
-import { deleteDestinationApi } from '../api';
+import { deleteDestinationApi, getDestinationByIdApi } from '../api';
 
 const { Title } = Typography;
 const { Header, Content } = Layout;
@@ -25,6 +26,8 @@ const DestinationsPage = () => {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingDestination, setEditingDestination] = useState(null);
+  const [viewingDestination, setViewingDestination] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const handleCreate = () => {
     setEditingDestination(null);
@@ -43,6 +46,16 @@ const DestinationsPage = () => {
 
   const handleFormSuccess = () => {
     fetchDestinations();
+  };
+
+  const handleView = async (destination) => {
+    try {
+      const detail = await getDestinationByIdApi(destination.id);
+      setViewingDestination(detail);
+      setDetailModalOpen(true);
+    } catch (error) {
+      message.error('Failed to load destination details');
+    }
   };
 
   const handleDelete = async (destination) => {
@@ -86,6 +99,7 @@ const DestinationsPage = () => {
               pagination={pagination}
               onTableChange={handleTableChange}
               onEdit={handleEdit}
+              onView={handleView}
               onDelete={handleDelete}
             />
           </Card>
@@ -96,6 +110,17 @@ const DestinationsPage = () => {
         destination={editingDestination}
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
+      />
+
+      {/* Detail Modal */}
+      <DetailModal
+        open={detailModalOpen}
+        onClose={() => {
+          setDetailModalOpen(false);
+          setViewingDestination(null);
+        }}
+        data={viewingDestination}
+        type="destination"
       />
     </Layout>
   );

@@ -5,9 +5,10 @@ import SearchFilter from '@/components/UI/SearchFilter';
 import { useLocations } from '../hooks/useLocations';
 import LocationTable from '../components/LocationTable';
 import LocationForm from '../components/LocationForm';
+import DetailModal from '@/components/DetailModal';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '@/routes/paths';
-import { deleteLocationApi } from '../api';
+import { deleteLocationApi, getLocationByIdApi } from '../api';
 
 const { Title } = Typography;
 const { Header, Content } = Layout;
@@ -25,6 +26,8 @@ const LocationsPage = () => {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState(null);
+  const [viewingLocation, setViewingLocation] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const handleCreate = () => {
     setEditingLocation(null);
@@ -43,6 +46,16 @@ const LocationsPage = () => {
 
   const handleFormSuccess = () => {
     fetchLocations();
+  };
+
+  const handleView = async (location) => {
+    try {
+      const detail = await getLocationByIdApi(location.id);
+      setViewingLocation(detail);
+      setDetailModalOpen(true);
+    } catch (error) {
+      message.error('Failed to load location details');
+    }
   };
 
   const handleDelete = async (location) => {
@@ -86,6 +99,7 @@ const LocationsPage = () => {
               pagination={pagination}
               onTableChange={handleTableChange}
               onEdit={handleEdit}
+              onView={handleView}
               onDelete={handleDelete}
             />
           </Card>
@@ -96,6 +110,17 @@ const LocationsPage = () => {
         location={editingLocation}
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
+      />
+
+      {/* Detail Modal */}
+      <DetailModal
+        open={detailModalOpen}
+        onClose={() => {
+          setDetailModalOpen(false);
+          setViewingLocation(null);
+        }}
+        data={viewingLocation}
+        type="location"
       />
     </Layout>
   );
