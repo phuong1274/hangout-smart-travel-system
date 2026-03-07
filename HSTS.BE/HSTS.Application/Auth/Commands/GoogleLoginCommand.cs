@@ -62,7 +62,7 @@ namespace HSTS.Application.Auth.Commands
 
                 user.Profiles.Add(new Profile { ProfileName = "Default" });
                 user.UserRoles.Add(new UserRole { RoleId = travelerRole.Id });
-                _context.Accounts.Add(account);
+                _context.Users.Add(user);
                 await _context.SaveChangesAsync(cancellationToken);
             }
             else

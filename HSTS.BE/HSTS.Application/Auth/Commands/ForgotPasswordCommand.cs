@@ -80,7 +80,14 @@ namespace HSTS.Application.Auth.Commands
             _context.Otps.Add(otp);
             await _context.SaveChangesAsync(cancellationToken);
 
-            await _emailService.SendOtpEmailAsync(request.Email, otpCode, otpType, cancellationToken);
+            try
+            {
+                await _emailService.SendOtpEmailAsync(request.Email, otpCode, otpType, cancellationToken);
+            }
+            catch
+            {
+                return Error.Failure("Email.SendFailed", "Failed to send OTP email. Please try again later.");
+            }
 
             var remainingResends = MaxOtpSends - recentOtpCount - 1;
 

@@ -51,7 +51,7 @@ namespace HSTS.Application.Auth.Commands
             user.Profiles.Add(new Profile { ProfileName = "Default" });
             user.UserRoles.Add(new UserRole { RoleId = travelerRole.Id });
 
-            _context.Accounts.Add(account);
+            _context.Users.Add(user);
 
             await _context.SaveChangesAsync(cancellationToken);
 
@@ -68,7 +68,14 @@ namespace HSTS.Application.Auth.Commands
             _context.Otps.Add(otp);
             await _context.SaveChangesAsync(cancellationToken);
 
-            await _emailService.SendOtpEmailAsync(request.Email, otpCode, OtpType.EmailVerification, cancellationToken);
+            try
+            {
+                await _emailService.SendOtpEmailAsync(request.Email, otpCode, OtpType.EmailVerification, cancellationToken);
+            }
+            catch
+            {
+                return Error.Failure("Email.SendFailed", "Account created but failed to send OTP email. Please use resend OTP.");
+            }
 
             return "OTP sent to your email. Please verify to activate your account.";
         }
