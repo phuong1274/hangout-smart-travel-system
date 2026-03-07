@@ -1,0 +1,108 @@
+import { useState, useCallback } from 'react';
+import { Button, Card, Form, Input, Typography } from 'antd';
+import { LockOutlined } from '@ant-design/icons';
+import { Link, Navigate, useLocation } from 'react-router-dom';
+import { useResetPassword, useResendOtp } from '../hooks/useAuth';
+import OtpVerificationStep from './OtpVerificationStep';
+import { PATHS } from '@/routes/paths';
+
+const { Title } = Typography;
+
+const ResetPasswordForm = () => {
+  const [form] = Form.useForm();
+  const location = useLocation();
+  const email = location.state?.email;
+  const initialRemainingResends = location.state?.remainingResends;
+  const initialCooldownSeconds = location.state?.cooldownSeconds;
+
+  const { resetPassword, loading: resetLoading } = useResetPassword();
+  const { resendOtp, loading: resendLoading } = useResendOtp();
+
+  const [step, setStep] = useState(1);
+  const [otpCode, setOtpCode] = useState('');
+
+  const handleOtpSubmit = useCallback((code) => {
+    setOtpCode(code);
+    setStep(2);
+  }, []);
+
+  const handleResendOtp = useCallback(async () => {
+    if (!email) return;
+    return resendOtp({ email, type: 'ForgotPassword' });
+  }, [email, resendOtp]);
+
+  const handlePasswordSubmit = useCallback(
+    (values) => {
+      if (!email) return;
+      resetPassword(
+        { email, otpCode, newPassword: values.newPassword },
+        { onError: () => { setStep(1); setOtpCode(''); } },
+      );
+    },
+    [email, otpCode, resetPassword],
+  );
+
+  if (!email) return <Navigate to={PATHS.AUTH.FORGOT_PASSWORD} replace />;
+
+  return (
+    <Card>
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <Title level={3}>Reset Password</Title>
+      </div>
+
+      {step === 1 ? (
+        <OtpVerificationStep
+          email={email}
+          onSubmitOtp={handleOtpSubmit}
+          onResendOtp={handleResendOtp}
+          isSubmitting={false}
+          isResending={resendLoading}
+          initialCooldownSeconds={initialCooldownSeconds}
+          initialRemainingResends={initialRemainingResends}
+        />
+      ) : (
+        <Form form={form} layout="vertical" onFinish={handlePasswordSubmit} autoComplete="off">
+          <Form.Item
+            name="newPassword"
+            label="New Password"
+            rules={[
+              { required: true, message: 'Please enter a new password' },
+              { min: 8, message: 'Password must be at least 8 characters' },
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined />} size="large" />
+          </Form.Item>
+
+          <Form.Item
+            name="confirmPassword"
+            label="Confirm Password"
+            dependencies={['newPassword']}
+            rules={[
+              { required: true, message: 'Please confirm your password' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
+                  return Promise.reject(new Error('Passwords do not match'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined />} size="large" />
+          </Form.Item>
+
+          <Form.Item>
+            <Button type="primary" htmlType="submit" size="large" block loading={resetLoading}>
+              Reset Password
+            </Button>
+          </Form.Item>
+        </Form>
+      )}
+
+      <div style={{ textAlign: 'center', marginTop: 16 }}>
+        <Link to={PATHS.AUTH.LOGIN}>Back to Login</Link>
+      </div>
+    </Card>
+  );
+};
+
+export default ResetPasswordForm;

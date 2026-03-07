@@ -1,17 +1,16 @@
-import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { PATHS } from './paths';
 
 const ProtectedRoute = ({ allowedRoles }) => {
-  const { isAuthenticated, role, token } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const location = useLocation();
 
-  if (!isAuthenticated || !token) {
+  if (!isAuthenticated) {
     return <Navigate to={PATHS.AUTH.LOGIN} state={{ from: location }} replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(role)) {
+  if (allowedRoles && !allowedRoles.some((r) => user?.roles?.includes(r))) {
     return <Navigate to={PATHS.UNAUTHORIZED} replace />;
   }
 

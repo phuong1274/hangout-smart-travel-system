@@ -3,4 +3,5 @@
   <Project Path="HSTS.Application/HSTS.Application.csproj" />
   <Project Path="HSTS.Domain/HSTS.Domain.csproj" />
   <Project Path="HSTS.Infrastructure/HSTS.Infrastructure.csproj" />
+  <Project Path="HSTS.Tests/HSTS.Tests.csproj" />
 </Solution>

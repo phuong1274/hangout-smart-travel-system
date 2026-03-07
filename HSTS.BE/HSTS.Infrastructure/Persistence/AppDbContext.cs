@@ -1,24 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using HSTS.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace HSTS.Infrastructure.Persistence
 {
-    public class AppDbContext : DbContext
+    public class AppDbContext : DbContext, IAppDbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
 
+        public DbSet<Account> Accounts => Set<Account>();
         public DbSet<User> Users => Set<User>();
+        public DbSet<Profile> Profiles => Set<Profile>();
+        public DbSet<Role> Roles => Set<Role>();
+        public DbSet<UserRole> UserRoles => Set<UserRole>();
+        public DbSet<Otp> Otps => Set<Otp>();
+        public DbSet<AccountRefreshToken> AccountRefreshTokens => Set<AccountRefreshToken>();
 
         #region Logging
         /// <summary>
         /// Logging config
-        /// !!!WARNING, DO NOT DELETE THIS SECTION!!! 
+        /// !!!WARNING, DO NOT DELETE THIS SECTION!!!
         /// If you delete this section, the logging feature will be broken.
         /// </summary>
         public DbSet<LogError> LogErrors => Set<LogError>();
@@ -37,12 +39,12 @@ namespace HSTS.Infrastructure.Persistence
                 {
                     modelBuilder.Entity(entityType.ClrType)
                         .Property(nameof(BaseEntity.CreatedAt))
-                        .HasColumnType("datetime")
+                        .HasColumnType("timestamp")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     modelBuilder.Entity(entityType.ClrType)
                         .Property(nameof(BaseEntity.UpdatedAt))
-                        .HasColumnType("datetime")
+                        .HasColumnType("timestamp")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
                         .ValueGeneratedOnAddOrUpdate();
 
