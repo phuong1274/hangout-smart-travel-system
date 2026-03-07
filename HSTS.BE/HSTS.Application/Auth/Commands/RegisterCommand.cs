@@ -42,25 +42,16 @@ namespace HSTS.Application.Auth.Commands
                 Status = AccountStatus.PendingVerification
             };
 
-            _context.Accounts.Add(account);
-
             var user = new User
             {
-                AccountId = account.Id,
+                Account = account,
                 FullName = request.FullName
             };
 
-            _context.Users.Add(user);
+            user.Profiles.Add(new Profile { ProfileName = "Default" });
+            user.UserRoles.Add(new UserRole { RoleId = travelerRole.Id });
 
-            var defaultProfile = new Profile
-            {
-                UserId = user.Id,
-                ProfileName = "Default"
-            };
-
-            _context.Profiles.Add(defaultProfile);
-
-            _context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = travelerRole.Id });
+            _context.Accounts.Add(account);
 
             await _context.SaveChangesAsync(cancellationToken);
 

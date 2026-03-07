@@ -54,23 +54,15 @@ namespace HSTS.Application.Auth.Commands
                     Status = AccountStatus.Active
                 };
 
-                _context.Accounts.Add(account);
-
                 user = new User
                 {
-                    AccountId = account.Id,
+                    Account = account,
                     FullName = googleUser.Name
                 };
 
-                _context.Users.Add(user);
-
-                _context.Profiles.Add(new Profile
-                {
-                    UserId = user.Id,
-                    ProfileName = "Default"
-                });
-
-                _context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = travelerRole.Id });
+                user.Profiles.Add(new Profile { ProfileName = "Default" });
+                user.UserRoles.Add(new UserRole { RoleId = travelerRole.Id });
+                _context.Accounts.Add(account);
                 await _context.SaveChangesAsync(cancellationToken);
             }
             else
