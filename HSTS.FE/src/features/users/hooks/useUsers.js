@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
-import { getUsersApi } from '../api';
+import { usersApi } from '../api';
 
 export const useUsers = () => {
   const { 
@@ -19,7 +19,7 @@ export const useUsers = () => {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await getUsersApi({ 
+      const response = await usersApi.getUsers({
         pageIndex, 
         pageSize, 
         searchTerm: searchTerm || undefined 

@@ -1,6 +1,7 @@
 import apiClient from '@/lib/axios';
 
 export const usersApi = {
+  getUsers: (params) => apiClient.get('/api/users', { params }),
   getMyInfo: () => apiClient.get('/api/users/me'),
   updateMyInfo: (data) => apiClient.put('/api/users/me', data),
   getMyProfiles: () => apiClient.get('/api/users/me/profiles'),
