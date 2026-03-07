@@ -172,6 +172,35 @@ export const useChangePassword = () => {
   return { changePassword, loading };
 };
 
+export const useGoogleLogin = () => {
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuthStore();
+  const navigate = useNavigate();
+
+  const googleLogin = useCallback(async (googleIdToken) => {
+    setLoading(true);
+    try {
+      const res = await authApi.googleLogin({ googleIdToken });
+      login({
+        id: res.data.userId,
+        fullName: res.data.fullName,
+        email: res.data.email,
+        roles: res.data.roles,
+        hasPassword: res.data.hasPassword,
+        hasGoogleLinked: res.data.hasGoogleLinked,
+      });
+      message.success('Login successful!');
+      navigate(getRedirectPath(res.data.roles));
+    } catch {
+      // handled by interceptor
+    } finally {
+      setLoading(false);
+    }
+  }, [login, navigate]);
+
+  return { googleLogin, loading };
+};
+
 export const useLogout = () => {
   const { logout } = useAuthStore();
 

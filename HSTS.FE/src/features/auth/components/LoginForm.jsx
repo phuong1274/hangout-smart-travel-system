@@ -1,7 +1,8 @@
-import { Button, Card, Form, Input, Typography } from 'antd';
+import { Button, Card, Divider, Form, Input, Typography } from 'antd';
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
+import { GoogleLogin } from '@react-oauth/google';
 import { Link } from 'react-router-dom';
-import { useLogin } from '../hooks/useAuth';
+import { useLogin, useGoogleLogin } from '../hooks/useAuth';
 import { PATHS } from '@/routes/paths';
 
 const { Title, Text } = Typography;
@@ -9,6 +10,7 @@ const { Title, Text } = Typography;
 const LoginForm = () => {
   const [form] = Form.useForm();
   const { login, loading } = useLogin();
+  const { googleLogin, loading: googleLoading } = useGoogleLogin();
 
   return (
     <Card>
@@ -46,7 +48,18 @@ const LoginForm = () => {
         </Form.Item>
       </Form>
 
-      <div style={{ textAlign: 'center' }}>
+      <Divider plain>or</Divider>
+
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <GoogleLogin
+          onSuccess={(res) => googleLogin(res.credential)}
+          onError={() => {}}
+          useOneTap={false}
+          width="100%"
+        />
+      </div>
+
+      <div style={{ textAlign: 'center', marginTop: 16 }}>
         <Text>Don&apos;t have an account? <Link to={PATHS.AUTH.REGISTER}>Sign Up</Link></Text>
       </div>
     </Card>

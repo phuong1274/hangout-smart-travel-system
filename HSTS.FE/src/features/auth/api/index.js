@@ -10,4 +10,5 @@ export const authApi = {
   refreshToken: () => apiClient.post('/api/auth/refresh-token'),
   logout: () => apiClient.post('/api/auth/logout'),
   changePassword: (data) => apiClient.post('/api/auth/change-password', data),
+  googleLogin: (data) => apiClient.post('/api/auth/google-login', data),
 };
