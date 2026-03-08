@@ -20,18 +20,31 @@ namespace HSTS.Application.Locations.Commands
         string? SocialLink,
         int LocationTypeId,
         int DestinationId,
+        string? Telephone,
+        string? Email,
+        decimal? Rating,
+        int? ReviewCount,
+        string? PriceRange,
+        decimal? PriceMinUsd,
+        decimal? PriceMaxUsd,
+        string? Source,
+        string? SourceUrl,
+        int? RecommendedDurationMinutes,
         List<TagScoreDto>? TagsWithScores,
-        List<string>? MediaLinks) : IRequest<ErrorOr<LocationDto>>;
+        List<string>? MediaLinks,
+        List<int>? AmenityIds) : IRequest<ErrorOr<LocationDto>>;
 
     public class UpdateLocationCommandHandler : IRequestHandler<UpdateLocationCommand, ErrorOr<LocationDto>>
     {
         private readonly IRepository<Location> _locationRepository;
         private readonly IRepository<Tag> _tagRepository;
+        private readonly IRepository<Amenity> _amenityRepository;
 
-        public UpdateLocationCommandHandler(IRepository<Location> locationRepository, IRepository<Tag> tagRepository)
+        public UpdateLocationCommandHandler(IRepository<Location> locationRepository, IRepository<Tag> tagRepository, IRepository<Amenity> amenityRepository)
         {
             _locationRepository = locationRepository;
             _tagRepository = tagRepository;
+            _amenityRepository = amenityRepository;
         }
 
         public async Task<ErrorOr<LocationDto>> Handle(UpdateLocationCommand request, CancellationToken cancellationToken)
@@ -63,6 +76,16 @@ namespace HSTS.Application.Locations.Commands
             location.SocialLink = request.SocialLink;
             location.LocationTypeId = request.LocationTypeId;
             location.DestinationId = request.DestinationId;
+            location.Telephone = request.Telephone;
+            location.Email = request.Email;
+            location.Rating = request.Rating;
+            location.ReviewCount = request.ReviewCount;
+            location.PriceRange = request.PriceRange;
+            location.PriceMinUsd = request.PriceMinUsd;
+            location.PriceMaxUsd = request.PriceMaxUsd;
+            location.Source = request.Source;
+            location.SourceUrl = request.SourceUrl;
+            location.RecommendedDurationMinutes = request.RecommendedDurationMinutes;
             location.UpdatedAt = DateTime.UtcNow;
 
             // Update tags with scores if provided
@@ -115,6 +138,34 @@ namespace HSTS.Application.Locations.Commands
                 }
             }
 
+            // Update amenities if provided
+            if (request.AmenityIds != null)
+            {
+                // Remove existing amenities
+                location.LocationAmenities.Clear();
+
+                // Add new amenities
+                if (request.AmenityIds.Count > 0)
+                {
+                    var amenities = await _amenityRepository.Query()
+                        .Where(a => request.AmenityIds.Contains(a.Id) && !a.IsDeleted)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var amenityId in request.AmenityIds)
+                    {
+                        var amenity = amenities.FirstOrDefault(a => a.Id == amenityId);
+                        if (amenity != null)
+                        {
+                            location.LocationAmenities.Add(new LocationAmenity
+                            {
+                                LocationId = location.Id,
+                                AmenityId = amenity.Id
+                            });
+                        }
+                    }
+                }
+            }
+
             await _locationRepository.UpdateAsync(location, cancellationToken);
 
             return new LocationDto(
@@ -132,7 +183,18 @@ namespace HSTS.Application.Locations.Commands
                 null,
                 null,
                 request.TagsWithScores?.Select(t => t.TagId).ToList(),
-                request.MediaLinks);
+                request.MediaLinks,
+                request.Telephone,
+                request.Email,
+                request.Rating,
+                request.ReviewCount,
+                request.PriceRange,
+                request.PriceMinUsd,
+                request.PriceMaxUsd,
+                request.Source,
+                request.SourceUrl,
+                request.RecommendedDurationMinutes,
+                request.AmenityIds);
         }
     }
 
@@ -151,12 +213,22 @@ namespace HSTS.Application.Locations.Commands
             RuleFor(x => x.SocialLink).MaximumLength(500);
             RuleFor(x => x.LocationTypeId).NotEmpty();
             RuleFor(x => x.DestinationId).NotEmpty();
-            
+            RuleFor(x => x.Telephone).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.Telephone));
+            RuleFor(x => x.Email).EmailAddress().MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Email));
+            RuleFor(x => x.Rating).InclusiveBetween(0, 10).When(x => x.Rating.HasValue);
+            RuleFor(x => x.ReviewCount).GreaterThanOrEqualTo(0).When(x => x.ReviewCount.HasValue);
+            RuleFor(x => x.PriceRange).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.PriceRange));
+            RuleFor(x => x.PriceMinUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMinUsd.HasValue);
+            RuleFor(x => x.PriceMaxUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMaxUsd.HasValue);
+            RuleFor(x => x.Source).MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Source));
+            RuleFor(x => x.SourceUrl).MaximumLength(2000).When(x => !string.IsNullOrEmpty(x.SourceUrl));
+            RuleFor(x => x.RecommendedDurationMinutes).GreaterThanOrEqualTo(0).When(x => x.RecommendedDurationMinutes.HasValue);
+
             // Validate tags with scores
             RuleFor(x => x.TagsWithScores)
                 .Must(tags => tags == null || !tags.Any() || tags.Sum(t => t.Score) >= 0.99 && tags.Sum(t => t.Score) <= 1.01)
                 .WithMessage("Tag scores must sum to 1.0 (±0.01 tolerance for floating point)");
-            
+
             RuleForEach(x => x.TagsWithScores).ChildRules(tag =>
             {
                 tag.RuleFor(x => x.TagId).NotEmpty().WithMessage("Tag ID is required");

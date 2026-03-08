@@ -21,6 +21,9 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<Otp> Otps => Set<Otp>();
         public DbSet<AccountRefreshToken> AccountRefreshTokens => Set<AccountRefreshToken>();
+        public DbSet<Amenity> Amenities => Set<Amenity>();
+        public DbSet<LocationAmenity> LocationAmenities => Set<LocationAmenity>();
+        public DbSet<Destination> Destinations => Set<Destination>();
 
         #region Logging
         /// <summary>

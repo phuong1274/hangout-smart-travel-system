@@ -9,6 +9,7 @@ export const PATHS = {
   TAGS: '/tags',
   LOCATION_TYPES: '/location-types',
   LOCATIONS: '/locations',
+  AMENITIES: '/amenities',
   USERS: '/users',
   UNAUTHORIZED: '/403',
   NOT_FOUND: '*',

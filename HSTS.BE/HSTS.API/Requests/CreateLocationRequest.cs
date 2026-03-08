@@ -13,6 +13,17 @@ namespace HSTS.API.Requests
         string? SocialLink,
         int LocationTypeId,
         int DestinationId,
+        string? Telephone,
+        string? Email,
+        decimal? Rating,
+        int? ReviewCount,
+        string? PriceRange,
+        decimal? PriceMinUsd,
+        decimal? PriceMaxUsd,
+        string? Source,
+        string? SourceUrl,
+        int? RecommendedDurationMinutes,
         List<TagScoreDto>? TagsWithScores,
-        List<string>? MediaLinks);
+        List<string>? MediaLinks,
+        List<int>? AmenityIds);
 }

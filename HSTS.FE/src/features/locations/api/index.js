@@ -32,3 +32,7 @@ export const getAllDestinationsApi = () => {
 export const getAllLocationTypesApi = () => {
   return apiClient.get('/common/location-types');
 };
+
+export const getAllAmenitiesApi = () => {
+  return apiClient.get('/common/amenities');
+};

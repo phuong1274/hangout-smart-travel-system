@@ -6,20 +6,6 @@ import PublicRoute from './PublicRoute';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
 
-// Lazy load layouts and pages
-const MainLayout = lazy(() => import('@/layouts/MainLayout'));
-const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
-const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
-const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
-const DestinationsPage = lazy(() => import('@/features/destinations/pages/DestinationsPage'));
-const TagsPage = lazy(() => import('@/features/tags/pages/TagsPage'));
-const LocationTypesPage = lazy(() => import('@/features/locationTypes/pages/LocationTypesPage'));
-const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPage'));
-
-// Global Pages
-const Error404 = lazy(() => import('@/components/Errors/Error404'));
-const Error403 = lazy(() => import('@/components/Errors/Error403'));
-
 const LoadingFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
     <Spin size="large" tip="Loading page..." />
@@ -31,6 +17,21 @@ const SuspenseWrapper = ({ children }) => (
     {children}
   </Suspense>
 );
+
+// Lazy load layouts and pages
+const MainLayout = lazy(() => import('@/layouts/MainLayout'));
+const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
+const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
+const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
+const DestinationsPage = lazy(() => import('@/features/destinations/pages/DestinationsPage'));
+const TagsPage = lazy(() => import('@/features/tags/pages/TagsPage'));
+const LocationTypesPage = lazy(() => import('@/features/locationTypes/pages/LocationTypesPage'));
+const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPage'));
+const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPage'));
+
+// Global Pages
+const Error404 = lazy(() => import('@/components/Errors/Error404'));
+const Error403 = lazy(() => import('@/components/Errors/Error403'));
 
 export const router = createBrowserRouter([
   {
@@ -63,6 +64,11 @@ export const router = createBrowserRouter([
       {
         path: PATHS.LOCATIONS.replace('/', ''),
         element: <LocationsPage />
+      },
+      // Public: Amenities (for testing)
+      {
+        path: PATHS.AMENITIES.replace('/', ''),
+        element: <AmenitiesPage />
       }
     ]
   },

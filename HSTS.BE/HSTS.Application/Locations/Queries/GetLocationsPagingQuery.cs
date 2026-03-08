@@ -23,6 +23,9 @@ namespace HSTS.Application.Locations.Queries
             var query = _repository.Query()
                 .Include(l => l.LocationType)
                 .Include(l => l.Destination)
+                .Include(l => l.LocationTags).ThenInclude(lt => lt.Tag)
+                .Include(l => l.LocationMedias)
+                .Include(l => l.LocationAmenities).ThenInclude(la => la.Amenity)
                 .AsQueryable();
 
             query = query.Where(l => !l.IsDeleted);
@@ -53,7 +56,20 @@ namespace HSTS.Application.Locations.Queries
                 l.LocationTypeId,
                 l.DestinationId,
                 l.LocationType?.Name ?? string.Empty,
-                l.Destination?.Name ?? string.Empty
+                l.Destination?.Name ?? string.Empty,
+                l.LocationTags.Select(lt => lt.Tag.Id).ToList(),
+                l.LocationMedias.Select(lm => lm.Link).ToList(),
+                l.Telephone,
+                l.Email,
+                l.Rating,
+                l.ReviewCount,
+                l.PriceRange,
+                l.PriceMinUsd,
+                l.PriceMaxUsd,
+                l.Source,
+                l.SourceUrl,
+                l.RecommendedDurationMinutes,
+                l.LocationAmenities.Select(la => la.Amenity.Id).ToList()
             )).ToList();
 
             return new LocationPagedResponse(locationDtos, total);

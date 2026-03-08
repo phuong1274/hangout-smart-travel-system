@@ -4,7 +4,7 @@ import { EnvironmentOutlined, DollarOutlined, UserOutlined, CalendarOutlined, Li
 
 /**
  * Reusable Detail Modal for displaying entity information
- * Supports: locations, tags, destinations, locationTypes
+ * Supports: locations, tags, destinations, locationTypes, amenities
  */
 const DetailModal = ({ open, onClose, data, type }) => {
   if (!data) return null;
@@ -132,6 +132,23 @@ const DetailModal = ({ open, onClose, data, type }) => {
           </Descriptions>
         );
 
+      case 'amenity':
+        return (
+          <Descriptions column={1} size="small" bordered>
+            <Descriptions.Item label="ID">{data.id}</Descriptions.Item>
+            <Descriptions.Item label="Name">{data.name}</Descriptions.Item>
+            <Descriptions.Item label="Description" span={2}>
+              {data.description || 'N/A'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Created At">
+              <CalendarOutlined /> {data.createdAt ? new Date(data.createdAt).toLocaleString() : 'N/A'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Updated At">
+              <CalendarOutlined /> {data.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+            </Descriptions.Item>
+          </Descriptions>
+        );
+
       default:
         return <div>Unknown entity type</div>;
     }
@@ -147,6 +164,8 @@ const DetailModal = ({ open, onClose, data, type }) => {
         return `🧭 ${data.name}`;
       case 'locationType':
         return `📋 ${data.name}`;
+      case 'amenity':
+        return `🏢 ${data.name}`;
       default:
         return 'Details';
     }

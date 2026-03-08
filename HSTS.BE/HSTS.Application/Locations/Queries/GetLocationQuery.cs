@@ -22,6 +22,7 @@ namespace HSTS.Application.Locations.Queries
                 .Include(l => l.Destination)
                 .Include(l => l.LocationTags).ThenInclude(lt => lt.Tag)
                 .Include(l => l.LocationMedias)
+                .Include(l => l.LocationAmenities).ThenInclude(la => la.Amenity)
                 .FirstOrDefaultAsync(l => l.Id == request.Id, ct);
 
             if (location is null || location.IsDeleted)
@@ -44,7 +45,18 @@ namespace HSTS.Application.Locations.Queries
                 location.LocationType?.Name ?? string.Empty,
                 location.Destination?.Name ?? string.Empty,
                 location.LocationTags.Select(lt => lt.Tag.Id).ToList(),
-                location.LocationMedias.Select(lm => lm.Link).ToList()
+                location.LocationMedias.Select(lm => lm.Link).ToList(),
+                location.Telephone,
+                location.Email,
+                location.Rating,
+                location.ReviewCount,
+                location.PriceRange,
+                location.PriceMinUsd,
+                location.PriceMaxUsd,
+                location.Source,
+                location.SourceUrl,
+                location.RecommendedDurationMinutes,
+                location.LocationAmenities.Select(la => la.Amenity.Id).ToList()
             );
         }
     }

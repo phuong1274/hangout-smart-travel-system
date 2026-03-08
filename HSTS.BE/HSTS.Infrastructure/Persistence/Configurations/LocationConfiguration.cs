@@ -43,6 +43,45 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.LocationTypeId)
                 .IsRequired();
 
+            // New fields
+            builder.Property(x => x.Telephone)
+                .HasMaxLength(50)
+                .IsRequired(false);
+
+            builder.Property(x => x.Email)
+                .HasMaxLength(200)
+                .IsRequired(false);
+
+            builder.Property(x => x.Rating)
+                .HasColumnType("decimal(3,2)")
+                .IsRequired(false);
+
+            builder.Property(x => x.ReviewCount)
+                .IsRequired(false);
+
+            builder.Property(x => x.PriceRange)
+                .HasMaxLength(50)
+                .IsRequired(false);
+
+            builder.Property(x => x.PriceMinUsd)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired(false);
+
+            builder.Property(x => x.PriceMaxUsd)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired(false);
+
+            builder.Property(x => x.Source)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
+            builder.Property(x => x.SourceUrl)
+                .HasMaxLength(2000)
+                .IsRequired(false);
+
+            builder.Property(x => x.RecommendedDurationMinutes)
+                .IsRequired(false);
+
             // Configure relationship with LocationType
             builder.HasOne(l => l.LocationType)
                    .WithMany() // Assuming LocationType doesn't need a collection of Locations
@@ -57,6 +96,16 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.HasMany(l => l.LocationTags)
                    .WithOne(lt => lt.Location)
                    .HasForeignKey(lt => lt.LocationId);
+
+            // Configure relationship with LocationMedia
+            builder.HasMany(l => l.LocationMedias)
+                   .WithOne(lm => lm.Location)
+                   .HasForeignKey(lm => lm.LocationId);
+
+            // Configure relationship with LocationAmenity
+            builder.HasMany(l => l.LocationAmenities)
+                   .WithOne(la => la.Location)
+                   .HasForeignKey(la => la.LocationId);
         }
     }
 }

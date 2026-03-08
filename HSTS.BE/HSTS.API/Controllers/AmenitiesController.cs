@@ -2,32 +2,31 @@ using ErrorOr;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using HSTS.API.Requests;
-using HSTS.Application.Locations.Commands;
-using HSTS.Application.Locations.Queries;
+using HSTS.Application.Amenities.Commands;
+using HSTS.Application.Amenities.Queries;
 
 namespace HSTS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     [EnableRateLimiting("fixed")]
-    public class LocationsController : ControllerBase
+    public class AmenitiesController : ControllerBase
     {
         private readonly ISender _mediator;
 
-        public LocationsController(ISender mediator)
+        public AmenitiesController(ISender mediator)
         {
             _mediator = mediator;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetLocations(
+        public async Task<IActionResult> GetAmenities(
             [FromQuery] string? searchTerm,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
         {
-            var query = new GetLocationsPagingQuery(searchTerm, pageIndex, pageSize);
+            var query = new GetAmenitiesPagingQuery(searchTerm, pageIndex, pageSize);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(
@@ -43,9 +42,9 @@ namespace HSTS.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetLocation(int id)
+        public async Task<IActionResult> GetAmenity(int id)
         {
-            var result = await _mediator.Send(new GetLocationQuery(id));
+            var result = await _mediator.Send(new GetAmenityQuery(id));
             return result.Match(
                 Ok,
                 errors => errors.First().Type switch
@@ -59,37 +58,13 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(CreateLocationRequest request)
+        public async Task<IActionResult> Create(CreateAmenityRequest request)
         {
-            var command = new CreateLocationCommand(
-                request.Name,
-                request.Description ?? string.Empty,
-                request.Latitude,
-                request.Longitude,
-                request.TicketPrice,
-                request.MinimumAge,
-                request.Address,
-                request.SocialLink,
-                request.LocationTypeId,
-                request.DestinationId,
-                request.Telephone,
-                request.Email,
-                request.Rating,
-                request.ReviewCount,
-                request.PriceRange,
-                request.PriceMinUsd,
-                request.PriceMaxUsd,
-                request.Source,
-                request.SourceUrl,
-                request.RecommendedDurationMinutes,
-                request.TagsWithScores,
-                request.MediaLinks,
-                request.AmenityIds);
-
+            var command = new CreateAmenityCommand(request.Name, request.Description);
             var result = await _mediator.Send(command);
 
             return result.Match(
-                locationDto => CreatedAtAction(nameof(Create), new { id = locationDto.Id }, locationDto),
+                amenityDto => CreatedAtAction(nameof(GetAmenity), new { id = amenityDto.Id }, amenityDto),
                 errors => errors.First().Type switch
                 {
                     ErrorType.Validation => BadRequest(errors),
@@ -100,38 +75,13 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, UpdateLocationRequest request)
+        public async Task<IActionResult> Update(int id, UpdateAmenityRequest request)
         {
-            var command = new UpdateLocationCommand(
-                id,
-                request.Name,
-                request.Description ?? string.Empty,
-                request.Latitude,
-                request.Longitude,
-                request.TicketPrice,
-                request.MinimumAge,
-                request.Address,
-                request.SocialLink,
-                request.LocationTypeId,
-                request.DestinationId,
-                request.Telephone,
-                request.Email,
-                request.Rating,
-                request.ReviewCount,
-                request.PriceRange,
-                request.PriceMinUsd,
-                request.PriceMaxUsd,
-                request.Source,
-                request.SourceUrl,
-                request.RecommendedDurationMinutes,
-                request.TagsWithScores,
-                request.MediaLinks,
-                request.AmenityIds);
-
+            var command = new UpdateAmenityCommand(id, request.Name, request.Description);
             var result = await _mediator.Send(command);
 
             return result.Match(
-                locationDto => Ok(locationDto),
+                Ok,
                 errors => errors.First().Type switch
                 {
                     ErrorType.NotFound => NotFound(errors.First().Description),
@@ -145,7 +95,7 @@ namespace HSTS.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var command = new DeleteLocationCommand(id);
+            var command = new DeleteAmenityCommand(id);
             var result = await _mediator.Send(command);
 
             return result.Match(
@@ -158,4 +108,7 @@ namespace HSTS.API.Controllers
             );
         }
     }
+
+    public record CreateAmenityRequest(string Name, string? Description);
+    public record UpdateAmenityRequest(string Name, string? Description);
 }

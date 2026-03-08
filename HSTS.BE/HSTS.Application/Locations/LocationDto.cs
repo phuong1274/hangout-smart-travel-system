@@ -15,5 +15,16 @@ namespace HSTS.Application.Locations
         string? LocationTypeName = null,
         string? DestinationName = null,
         List<int>? TagIds = null,
-        List<string>? MediaLinks = null);
+        List<string>? MediaLinks = null,
+        string? Telephone = null,
+        string? Email = null,
+        decimal? Rating = null,
+        int? ReviewCount = null,
+        string? PriceRange = null,
+        decimal? PriceMinUsd = null,
+        decimal? PriceMaxUsd = null,
+        string? Source = null,
+        string? SourceUrl = null,
+        int? RecommendedDurationMinutes = null,
+        List<int>? AmenityIds = null);
 }

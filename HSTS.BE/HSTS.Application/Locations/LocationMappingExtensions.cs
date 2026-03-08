@@ -17,7 +17,22 @@ namespace HSTS.Application.Locations
                 location.Address,
                 location.SocialLink,
                 location.LocationTypeId,
-                location.DestinationId);
+                location.DestinationId,
+                location.LocationType?.Name ?? string.Empty,
+                location.Destination?.Name ?? string.Empty,
+                location.LocationTags.Select(lt => lt.Tag.Id).ToList(),
+                location.LocationMedias.Select(lm => lm.Link).ToList(),
+                location.Telephone,
+                location.Email,
+                location.Rating,
+                location.ReviewCount,
+                location.PriceRange,
+                location.PriceMinUsd,
+                location.PriceMaxUsd,
+                location.Source,
+                location.SourceUrl,
+                location.RecommendedDurationMinutes,
+                location.LocationAmenities.Select(la => la.Amenity.Id).ToList());
         }
     }
 }

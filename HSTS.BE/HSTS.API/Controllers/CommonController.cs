@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using HSTS.Application.Tags.Queries;
 using HSTS.Application.Destinations.Queries;
 using HSTS.Application.LocationTypes.Queries;
+using HSTS.Application.Amenities.Queries;
 
 namespace HSTS.API.Controllers
 {
@@ -43,6 +44,16 @@ namespace HSTS.API.Controllers
         public async Task<IActionResult> GetAllLocationTypes()
         {
             var result = await _mediator.Send(new GetAllLocationTypesQuery());
+            return result.Match<IActionResult>(
+                Ok,
+                errors => NotFound(errors.First().Description)
+            );
+        }
+
+        [HttpGet("amenities")]
+        public async Task<IActionResult> GetAllAmenities()
+        {
+            var result = await _mediator.Send(new GetAllAmenitiesQuery());
             return result.Match<IActionResult>(
                 Ok,
                 errors => NotFound(errors.First().Description)

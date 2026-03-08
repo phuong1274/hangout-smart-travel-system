@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Slider, Tag, Progress } from 'antd';
+import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Slider, Tag, Progress, Row, Col } from 'antd';
 import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, EnvironmentOutlined, MinusCircleOutlined } from '@ant-design/icons';
-import { createLocationApi, updateLocationApi, getAllTagsApi, getAllDestinationsApi, getAllLocationTypesApi } from '../api';
+import { createLocationApi, updateLocationApi, getAllTagsApi, getAllDestinationsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
 import { uploadImageToCloudinary } from '@/services/cloudinary';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
 
@@ -14,10 +14,12 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [tags, setTags] = useState([]);
   const [destinations, setDestinations] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
+  const [amenities, setAmenities] = useState([]);
   const [mediaLinks, setMediaLinks] = useState([]);
   const [newMediaLink, setNewMediaLink] = useState('');
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [tagsWithScores, setTagsWithScores] = useState([]);
+  const [selectedAmenityIds, setSelectedAmenityIds] = useState([]);
 
   const isEdit = !!location;
 
@@ -29,14 +31,16 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        const [tagsRes, destinationsRes, typesRes] = await Promise.all([
+        const [tagsRes, destinationsRes, typesRes, amenitiesRes] = await Promise.all([
           getAllTagsApi(),
           getAllDestinationsApi(),
-          getAllLocationTypesApi()
+          getAllLocationTypesApi(),
+          getAllAmenitiesApi()
         ]);
         setTags(tagsRes || []);
         setDestinations(destinationsRes || []);
         setLocationTypes(typesRes || []);
+        setAmenities(amenitiesRes || []);
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
       }
@@ -57,9 +61,18 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         address: location.address,
         socialLink: location.socialLink,
         locationTypeId: location.locationTypeId,
-        destinationId: location.destinationId
+        destinationId: location.destinationId,
+        telephone: location.telephone,
+        email: location.email,
+        priceRange: location.priceRange,
+        priceMinUsd: location.priceMinUsd,
+        priceMaxUsd: location.priceMaxUsd,
+        source: location.source,
+        sourceUrl: location.sourceUrl,
+        recommendedDurationMinutes: location.recommendedDurationMinutes
       });
       setMediaLinks(location.mediaLinks || []);
+      setSelectedAmenityIds(location.amenityIds || []);
       // Set tags with scores (default score if not provided)
       if (location.tagIds && location.tagIds.length > 0) {
         const defaultScore = location.tagIds.length > 0 ? 1 / location.tagIds.length : 1;
@@ -75,6 +88,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       form.resetFields();
       setMediaLinks([]);
       setTagsWithScores([]);
+      setSelectedAmenityIds([]);
     }
   }, [location, form, tags]);
 
@@ -91,7 +105,8 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       const payload = {
         ...values,
         tagsWithScores: tagsWithScores.length > 0 ? tagsWithScores.map(({ tagId, score }) => ({ tagId, score })) : undefined,
-        mediaLinks: mediaLinks.length > 0 ? mediaLinks : undefined
+        mediaLinks: mediaLinks.length > 0 ? mediaLinks : undefined,
+        amenityIds: selectedAmenityIds.length > 0 ? selectedAmenityIds : undefined
       };
 
       if (isEdit) {
@@ -283,6 +298,87 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           <Input placeholder="https://..." />
         </Form.Item>
 
+        {/* Contact Information */}
+        <Space direction="horizontal" style={{ width: '100%' }} size="large">
+          <Form.Item
+            name="telephone"
+            label="Telephone"
+            rules={[{ max: 50, message: 'Telephone cannot exceed 50 characters' }]}
+            style={{ width: '48%' }}
+          >
+            <Input placeholder="Enter telephone" />
+          </Form.Item>
+
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { type: 'email', message: 'Please enter a valid email' },
+              { max: 200, message: 'Email cannot exceed 200 characters' }
+            ]}
+            style={{ width: '48%' }}
+          >
+            <Input placeholder="Enter email" />
+          </Form.Item>
+        </Space>
+
+        {/* Price Range */}
+        <Form.Item
+          name="priceRange"
+          label="Price Range"
+          rules={[{ max: 50, message: 'Price range cannot exceed 50 characters' }]}
+        >
+          <Input placeholder="e.g., $, $$, $$$, $$$$" />
+        </Form.Item>
+
+        <Space direction="horizontal" style={{ width: '100%' }} size="large">
+          <Form.Item
+            name="priceMinUsd"
+            label="Min Price (USD)"
+            rules={[{ min: 0, type: 'number', message: 'Min price must be >= 0' }]}
+            style={{ width: '48%' }}
+          >
+            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" />
+          </Form.Item>
+
+          <Form.Item
+            name="priceMaxUsd"
+            label="Max Price (USD)"
+            rules={[{ min: 0, type: 'number', message: 'Max price must be >= 0' }]}
+            style={{ width: '48%' }}
+          >
+            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" />
+          </Form.Item>
+        </Space>
+
+        {/* Source Information */}
+        <Form.Item
+          name="source"
+          label="Source"
+          rules={[{ max: 500, message: 'Source cannot exceed 500 characters' }]}
+        >
+          <Input placeholder="e.g., tripadvisor, google, etc." />
+        </Form.Item>
+
+        <Form.Item
+          name="sourceUrl"
+          label="Source URL"
+          rules={[
+            { type: 'url', message: 'Please enter a valid URL' },
+            { max: 2000, message: 'URL cannot exceed 2000 characters' }
+          ]}
+        >
+          <Input placeholder="https://..." />
+        </Form.Item>
+
+        <Form.Item
+          name="recommendedDurationMinutes"
+          label="Recommended Duration (minutes)"
+          rules={[{ min: 0, type: 'integer', message: 'Duration must be >= 0' }]}
+        >
+          <InputNumber style={{ width: '100%' }} step={15} min={0} placeholder="e.g., 60" />
+        </Form.Item>
+
         <Space direction="horizontal" style={{ width: '100%' }} size="large">
           <Form.Item
             name="locationTypeId"
@@ -411,6 +507,25 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
               </Space>
             )}
           </div>
+        </Form.Item>
+
+        {/* Amenities Selector */}
+        <Form.Item
+          name="amenityIds"
+          label="Amenities"
+        >
+          <Select
+            mode="multiple"
+            placeholder="Select amenities"
+            value={selectedAmenityIds}
+            onChange={setSelectedAmenityIds}
+            style={{ width: '100%' }}
+            maxTagCount="responsive"
+          >
+            {amenities.map(amenity => (
+              <Option key={amenity.id} value={amenity.id}>{amenity.name}</Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Form.Item label="Media (Images)">

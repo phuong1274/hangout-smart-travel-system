@@ -47,9 +47,44 @@ namespace HSTS.Domain.Entities
 
         public Destination Destination { get; set; }
 
+        [MaxLength(50)]
+        public string? Telephone { get; set; }
+
+        [EmailAddress]
+        [MaxLength(200)]
+        public string? Email { get; set; }
+
+        [Column(TypeName = "decimal(3,2)")]
+        [Range(0, 10)]
+        public decimal? Rating { get; set; }
+
+        public int? ReviewCount { get; set; }
+
+        [MaxLength(50)]
+        public string? PriceRange { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(0, 100000000)]
+        public decimal? PriceMinUsd { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(0, 100000000)]
+        public decimal? PriceMaxUsd { get; set; }
+
+        [MaxLength(500)]
+        public string? Source { get; set; }
+
+        [Url]
+        [MaxLength(2000)]
+        public string? SourceUrl { get; set; }
+
+        public int? RecommendedDurationMinutes { get; set; }
+
         public ICollection<LocationTag> LocationTags { get; set; } = new List<LocationTag>();
 
         public ICollection<LocationMedia> LocationMedias { get; set; } = new List<LocationMedia>();
+
+        public ICollection<LocationAmenity> LocationAmenities { get; set; } = new List<LocationAmenity>();
 
     }
 }

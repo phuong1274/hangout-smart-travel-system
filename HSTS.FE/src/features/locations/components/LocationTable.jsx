@@ -1,6 +1,6 @@
 import React from 'react';
-import { Table, Button, Space, Popconfirm, Tag } from 'antd';
-import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Popconfirm, Tag, Tooltip } from 'antd';
+import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined, PhoneOutlined, MailOutlined, StarOutlined } from '@ant-design/icons';
 import { PAGINATION } from '@/config/constants';
 
 const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView }) => {
@@ -15,7 +15,7 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      width: 200,
+      width: 180,
       render: (text, record) => (
         <div>
           <strong>{text}</strong>
@@ -25,6 +25,11 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
               {record.destinationName}
             </div>
           )}
+          {record.rating && (
+            <div style={{ fontSize: 12, color: '#faad14' }}>
+              <StarOutlined /> {record.rating.toFixed(1)} ({record.reviewCount || 0})
+            </div>
+          )}
         </div>
       ),
     },
@@ -32,27 +37,46 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       title: 'Type',
       dataIndex: 'locationTypeName',
       key: 'locationTypeName',
-      width: 120,
+      width: 100,
       render: (text) => text || 'N/A',
     },
     {
       title: 'Address',
       dataIndex: 'address',
       key: 'address',
-      width: 150,
+      width: 120,
       ellipsis: true,
     },
     {
+      title: 'Contact',
+      key: 'contact',
+      width: 100,
+      render: (_, record) => (
+        <div style={{ fontSize: 12 }}>
+          {record.telephone && (
+            <div><PhoneOutlined style={{ marginRight: 4 }} />{record.telephone}</div>
+          )}
+          {record.email && (
+            <div><MailOutlined style={{ marginRight: 4 }} />{record.email}</div>
+          )}
+        </div>
+      ),
+    },
+    {
       title: 'Price',
-      dataIndex: 'ticketPrice',
-      key: 'ticketPrice',
-      width: 80,
-      render: (value) => value ? `$${value.toFixed(2)}` : 'Free',
+      key: 'price',
+      width: 100,
+      render: (_, record) => (
+        <div style={{ fontSize: 12 }}>
+          {record.ticketPrice > 0 && <div>${record.ticketPrice.toFixed(2)}</div>}
+          {record.priceRange && <div><Tag color="blue">{record.priceRange}</Tag></div>}
+        </div>
+      ),
     },
     {
       title: 'Coordinates',
       key: 'coordinates',
-      width: 150,
+      width: 130,
       render: (_, record) => (
         <div style={{ fontSize: 12 }}>
           <div>Lat: {record.latitude?.toFixed(4)}</div>
