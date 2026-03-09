@@ -133,6 +133,24 @@ export const useForgotPassword = () => {
   return { forgotPassword, loading };
 };
 
+export const useVerifyForgotPasswordOtp = () => {
+  const [loading, setLoading] = useState(false);
+
+  const verifyForgotPasswordOtp = useCallback(async (data) => {
+    setLoading(true);
+    try {
+      await authApi.verifyForgotPasswordOtp(data);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { verifyForgotPasswordOtp, loading };
+};
+
 export const useResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
