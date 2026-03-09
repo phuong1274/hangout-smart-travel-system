@@ -1,18 +1,20 @@
 ﻿using HSTS.Domain.Entities;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
 namespace HSTS.Domain.Entities
 {
     public class Location : BaseEntity
     {
-        [Required]
+        [Key]
         public int Id { get; set; }
+
         [Required]
         [MaxLength(200)]
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
 
         [MaxLength(2000)]
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         [Required]
         [Range(-90, 90)]
@@ -32,20 +34,7 @@ namespace HSTS.Domain.Entities
 
         [Required]
         [MaxLength(300)]
-        public string Address { get; set; }
-
-        [Url]
-        [MaxLength(500)]
-        public string? SocialLink { get; set; }
-
-        [Required]
-        public int LocationTypeId { get; set; }
-
-        public LocationType LocationType { get; set; }
-
-        public int DestinationId { get; set; }
-
-        public Destination Destination { get; set; }
+        public string Address { get; set; } = null!;
 
         [MaxLength(50)]
         public string? Telephone { get; set; }
@@ -54,11 +43,12 @@ namespace HSTS.Domain.Entities
         [MaxLength(200)]
         public string? Email { get; set; }
 
-        [Column(TypeName = "decimal(3,2)")]
-        [Range(0, 10)]
-        public decimal? Rating { get; set; }
+        [Required]
+        public int DestinationId { get; set; }
+        public Destination? Destination { get; set; }
 
-        public int? ReviewCount { get; set; }
+        public int? LocationTypeId { get; set; }
+        public LocationType? LocationType { get; set; }
 
         [MaxLength(50)]
         public string? PriceRange { get; set; }
@@ -71,20 +61,12 @@ namespace HSTS.Domain.Entities
         [Range(0, 100000000)]
         public decimal? PriceMaxUsd { get; set; }
 
-        [MaxLength(500)]
-        public string? Source { get; set; }
-
-        [Url]
-        [MaxLength(2000)]
-        public string? SourceUrl { get; set; }
-
         public int? RecommendedDurationMinutes { get; set; }
 
+        // Navigation properties
+        public ICollection<LocationSocialLink> SocialLinks { get; set; } = new List<LocationSocialLink>();
         public ICollection<LocationTag> LocationTags { get; set; } = new List<LocationTag>();
-
         public ICollection<LocationMedia> LocationMedias { get; set; } = new List<LocationMedia>();
-
         public ICollection<LocationAmenity> LocationAmenities { get; set; } = new List<LocationAmenity>();
-
     }
 }

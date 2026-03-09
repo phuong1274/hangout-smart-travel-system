@@ -12,6 +12,7 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Account> Accounts => Set<Account>();
         public DbSet<User> Users => Set<User>();
         public DbSet<Location> Locations => Set<Location>();
+        public DbSet<LocationSocialLink> LocationSocialLinks => Set<LocationSocialLink>();
         public DbSet<LocationMedia> LocationMedias => Set<LocationMedia>();
         public DbSet<LocationTag> LocationTags => Set<LocationTag>();
         public DbSet<Tag> Tags => Set<Tag>();

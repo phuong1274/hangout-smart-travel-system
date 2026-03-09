@@ -11,27 +11,23 @@ namespace HSTS.Application.Locations.Commands
     public record UpdateLocationCommand(
         int Id,
         string Name,
-        string Description,
+        string? Description,
         double Latitude,
         double Longitude,
         decimal TicketPrice,
         int MinimumAge,
         string Address,
-        string? SocialLink,
         int LocationTypeId,
         int DestinationId,
         string? Telephone,
         string? Email,
-        decimal? Rating,
-        int? ReviewCount,
         string? PriceRange,
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
-        string? Source,
-        string? SourceUrl,
         int? RecommendedDurationMinutes,
         List<TagScoreDto>? TagsWithScores,
         List<string>? MediaLinks,
+        List<SocialLinkDto>? SocialLinks,
         List<int>? AmenityIds) : IRequest<ErrorOr<LocationDto>>;
 
     public class UpdateLocationCommandHandler : IRequestHandler<UpdateLocationCommand, ErrorOr<LocationDto>>
@@ -40,7 +36,10 @@ namespace HSTS.Application.Locations.Commands
         private readonly IRepository<Tag> _tagRepository;
         private readonly IRepository<Amenity> _amenityRepository;
 
-        public UpdateLocationCommandHandler(IRepository<Location> locationRepository, IRepository<Tag> tagRepository, IRepository<Amenity> amenityRepository)
+        public UpdateLocationCommandHandler(
+            IRepository<Location> locationRepository,
+            IRepository<Tag> tagRepository,
+            IRepository<Amenity> amenityRepository)
         {
             _locationRepository = locationRepository;
             _tagRepository = tagRepository;
@@ -67,34 +66,27 @@ namespace HSTS.Application.Locations.Commands
             }
 
             location.Name = request.Name;
-            location.Description = request.Description ?? string.Empty;
+            location.Description = request.Description;
             location.Latitude = request.Latitude;
             location.Longitude = request.Longitude;
             location.TicketPrice = request.TicketPrice;
             location.MinimumAge = request.MinimumAge;
             location.Address = request.Address;
-            location.SocialLink = request.SocialLink;
             location.LocationTypeId = request.LocationTypeId;
             location.DestinationId = request.DestinationId;
             location.Telephone = request.Telephone;
             location.Email = request.Email;
-            location.Rating = request.Rating;
-            location.ReviewCount = request.ReviewCount;
             location.PriceRange = request.PriceRange;
             location.PriceMinUsd = request.PriceMinUsd;
             location.PriceMaxUsd = request.PriceMaxUsd;
-            location.Source = request.Source;
-            location.SourceUrl = request.SourceUrl;
             location.RecommendedDurationMinutes = request.RecommendedDurationMinutes;
             location.UpdatedAt = DateTime.UtcNow;
 
             // Update tags with scores if provided
             if (request.TagsWithScores != null)
             {
-                // Remove existing tags
                 location.LocationTags.Clear();
 
-                // Add new tags with scores
                 if (request.TagsWithScores.Count > 0)
                 {
                     var tagIds = request.TagsWithScores.Select(t => t.TagId).ToList();
@@ -121,10 +113,8 @@ namespace HSTS.Application.Locations.Commands
             // Update media links if provided
             if (request.MediaLinks != null)
             {
-                // Remove existing media
                 location.LocationMedias.Clear();
 
-                // Add new media links
                 if (request.MediaLinks.Count > 0)
                 {
                     foreach (var link in request.MediaLinks)
@@ -138,13 +128,30 @@ namespace HSTS.Application.Locations.Commands
                 }
             }
 
+            // Update social links if provided
+            if (request.SocialLinks != null)
+            {
+                location.SocialLinks.Clear();
+
+                if (request.SocialLinks.Count > 0)
+                {
+                    foreach (var socialLink in request.SocialLinks)
+                    {
+                        location.SocialLinks.Add(new LocationSocialLink
+                        {
+                            LocationId = location.Id,
+                            Platform = socialLink.Platform,
+                            Url = socialLink.Url
+                        });
+                    }
+                }
+            }
+
             // Update amenities if provided
             if (request.AmenityIds != null)
             {
-                // Remove existing amenities
                 location.LocationAmenities.Clear();
 
-                // Add new amenities
                 if (request.AmenityIds.Count > 0)
                 {
                     var amenities = await _amenityRepository.Query()
@@ -168,33 +175,7 @@ namespace HSTS.Application.Locations.Commands
 
             await _locationRepository.UpdateAsync(location, cancellationToken);
 
-            return new LocationDto(
-                location.Id,
-                location.Name,
-                location.Description,
-                location.Latitude,
-                location.Longitude,
-                location.TicketPrice,
-                location.MinimumAge,
-                location.Address,
-                location.SocialLink,
-                location.LocationTypeId,
-                location.DestinationId,
-                null,
-                null,
-                request.TagsWithScores?.Select(t => t.TagId).ToList(),
-                request.MediaLinks,
-                request.Telephone,
-                request.Email,
-                request.Rating,
-                request.ReviewCount,
-                request.PriceRange,
-                request.PriceMinUsd,
-                request.PriceMaxUsd,
-                request.Source,
-                request.SourceUrl,
-                request.RecommendedDurationMinutes,
-                request.AmenityIds);
+            return location.ToDto();
         }
     }
 
@@ -210,18 +191,13 @@ namespace HSTS.Application.Locations.Commands
             RuleFor(x => x.TicketPrice).GreaterThanOrEqualTo(0);
             RuleFor(x => x.MinimumAge).InclusiveBetween(0, 120);
             RuleFor(x => x.Address).NotEmpty().MaximumLength(300);
-            RuleFor(x => x.SocialLink).MaximumLength(500);
             RuleFor(x => x.LocationTypeId).NotEmpty();
             RuleFor(x => x.DestinationId).NotEmpty();
             RuleFor(x => x.Telephone).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.Telephone));
             RuleFor(x => x.Email).EmailAddress().MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Email));
-            RuleFor(x => x.Rating).InclusiveBetween(0, 10).When(x => x.Rating.HasValue);
-            RuleFor(x => x.ReviewCount).GreaterThanOrEqualTo(0).When(x => x.ReviewCount.HasValue);
             RuleFor(x => x.PriceRange).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.PriceRange));
             RuleFor(x => x.PriceMinUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMinUsd.HasValue);
             RuleFor(x => x.PriceMaxUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMaxUsd.HasValue);
-            RuleFor(x => x.Source).MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Source));
-            RuleFor(x => x.SourceUrl).MaximumLength(2000).When(x => !string.IsNullOrEmpty(x.SourceUrl));
             RuleFor(x => x.RecommendedDurationMinutes).GreaterThanOrEqualTo(0).When(x => x.RecommendedDurationMinutes.HasValue);
 
             // Validate tags with scores
@@ -233,6 +209,13 @@ namespace HSTS.Application.Locations.Commands
             {
                 tag.RuleFor(x => x.TagId).NotEmpty().WithMessage("Tag ID is required");
                 tag.RuleFor(x => x.Score).InclusiveBetween(0, 1).WithMessage("Score must be between 0 and 1");
+            });
+
+            // Validate social links
+            RuleForEach(x => x.SocialLinks).ChildRules(link =>
+            {
+                link.RuleFor(x => x.Platform).NotEmpty().MaximumLength(50);
+                link.RuleFor(x => x.Url).NotEmpty().MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Url));
             });
         }
     }

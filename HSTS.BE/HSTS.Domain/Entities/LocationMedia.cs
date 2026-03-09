@@ -9,11 +9,10 @@ namespace HSTS.Domain.Entities
 
         [Required]
         [MaxLength(2000)]
-        public string Link { get; set; }
+        public string Link { get; set; } = null!;
 
         [Required]
         public int LocationId { get; set; }
-
-        public Location Location { get; set; }
+        public Location? Location { get; set; }
     }
 }

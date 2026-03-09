@@ -1,6 +1,6 @@
-using HSTS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using HSTS.Domain.Entities;
 
 namespace HSTS.Infrastructure.Persistence.Configurations
 {
@@ -14,16 +14,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Name)
                 .HasMaxLength(200)
                 .IsRequired();
-
-            // Configure relationship with Location
-            builder.HasMany(d => d.Locations)
-                   .WithOne(l => l.Destination)
-                   .HasForeignKey(l => l.DestinationId)
-                   .OnDelete(DeleteBehavior.Restrict); // Keep it Restrict for now to prevent accidental deletion
-
-            // Charset MySQL
-            builder.HasCharSet("utf8mb4");
-            builder.UseCollation("utf8mb4_unicode_ci");
         }
     }
 }

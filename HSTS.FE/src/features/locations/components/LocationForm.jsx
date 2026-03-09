@@ -8,6 +8,17 @@ import GoogleMapPicker from '@/components/GoogleMapPicker';
 const { TextArea } = Input;
 const { Option } = Select;
 
+// Platform options for social links
+const SOCIAL_PLATFORMS = [
+  { value: 'Facebook', label: 'Facebook' },
+  { value: 'Instagram', label: 'Instagram' },
+  { value: 'TikTok', label: 'TikTok' },
+  { value: 'Twitter', label: 'Twitter/X' },
+  { value: 'Website', label: 'Official Website' },
+  { value: 'YouTube', label: 'YouTube' },
+  { value: 'Other', label: 'Other' }
+];
+
 const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -20,6 +31,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [tagsWithScores, setTagsWithScores] = useState([]);
   const [selectedAmenityIds, setSelectedAmenityIds] = useState([]);
+  const [socialLinks, setSocialLinks] = useState([]);
 
   const isEdit = !!location;
 
@@ -59,7 +71,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         ticketPrice: location.ticketPrice,
         minimumAge: location.minimumAge,
         address: location.address,
-        socialLink: location.socialLink,
         locationTypeId: location.locationTypeId,
         destinationId: location.destinationId,
         telephone: location.telephone,
@@ -67,12 +78,12 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         priceRange: location.priceRange,
         priceMinUsd: location.priceMinUsd,
         priceMaxUsd: location.priceMaxUsd,
-        source: location.source,
-        sourceUrl: location.sourceUrl,
         recommendedDurationMinutes: location.recommendedDurationMinutes
       });
       setMediaLinks(location.mediaLinks || []);
       setSelectedAmenityIds(location.amenityIds || []);
+      setSocialLinks(location.socialLinks || []);
+      
       // Set tags with scores (default score if not provided)
       if (location.tagIds && location.tagIds.length > 0) {
         const defaultScore = location.tagIds.length > 0 ? 1 / location.tagIds.length : 1;
@@ -89,6 +100,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       setMediaLinks([]);
       setTagsWithScores([]);
       setSelectedAmenityIds([]);
+      setSocialLinks([]);
     }
   }, [location, form, tags]);
 
@@ -106,7 +118,8 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         ...values,
         tagsWithScores: tagsWithScores.length > 0 ? tagsWithScores.map(({ tagId, score }) => ({ tagId, score })) : undefined,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : undefined,
-        amenityIds: selectedAmenityIds.length > 0 ? selectedAmenityIds : undefined
+        amenityIds: selectedAmenityIds.length > 0 ? selectedAmenityIds : undefined,
+        socialLinks: socialLinks.length > 0 ? socialLinks : undefined
       };
 
       if (isEdit) {
@@ -182,6 +195,27 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     message.success('Location coordinates updated!');
   };
 
+  // Social Links handlers
+  const handleAddSocialLink = (platform) => {
+    if (!socialLinks.find(sl => sl.platform === platform)) {
+      setSocialLinks([...socialLinks, { platform, url: '' }]);
+    }
+  };
+
+  const handleUpdateSocialLink = (index, url) => {
+    const updated = [...socialLinks];
+    updated[index].url = url;
+    setSocialLinks(updated);
+  };
+
+  const handleRemoveSocialLink = (index) => {
+    setSocialLinks(socialLinks.filter((_, i) => i !== index));
+  };
+
+  const getUsedPlatforms = () => {
+    return socialLinks.map(sl => sl.platform);
+  };
+
   return (
     <Modal
       title={isEdit ? 'Edit Location' : 'Create Location'}
@@ -190,7 +224,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       onOk={() => form.submit()}
       confirmLoading={loading}
       destroyOnClose
-      width={800}
+      width={900}
     >
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
         <Form.Item
@@ -287,17 +321,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           <Input placeholder="Enter address" />
         </Form.Item>
 
-        <Form.Item
-          name="socialLink"
-          label="Social Link"
-          rules={[
-            { type: 'url', message: 'Please enter a valid URL' },
-            { max: 500, message: 'URL cannot exceed 500 characters' }
-          ]}
-        >
-          <Input placeholder="https://..." />
-        </Form.Item>
-
         {/* Contact Information */}
         <Space direction="horizontal" style={{ width: '100%' }} size="large">
           <Form.Item
@@ -323,14 +346,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         </Space>
 
         {/* Price Range */}
-        <Form.Item
-          name="priceRange"
-          label="Price Range"
-          rules={[{ max: 50, message: 'Price range cannot exceed 50 characters' }]}
-        >
-          <Input placeholder="e.g., $, $$, $$$, $$$$" />
-        </Form.Item>
-
         <Space direction="horizontal" style={{ width: '100%' }} size="large">
           <Form.Item
             name="priceMinUsd"
@@ -351,24 +366,12 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           </Form.Item>
         </Space>
 
-        {/* Source Information */}
         <Form.Item
-          name="source"
-          label="Source"
-          rules={[{ max: 500, message: 'Source cannot exceed 500 characters' }]}
+          name="priceRange"
+          label="Price Range (e.g., $, $$, $$$)"
+          rules={[{ max: 50, message: 'Price range cannot exceed 50 characters' }]}
         >
-          <Input placeholder="e.g., tripadvisor, google, etc." />
-        </Form.Item>
-
-        <Form.Item
-          name="sourceUrl"
-          label="Source URL"
-          rules={[
-            { type: 'url', message: 'Please enter a valid URL' },
-            { max: 2000, message: 'URL cannot exceed 2000 characters' }
-          ]}
-        >
-          <Input placeholder="https://..." />
+          <Input placeholder="e.g., $, $$, $$$, $$$$" />
         </Form.Item>
 
         <Form.Item
@@ -571,6 +574,58 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
               ))}
             </div>
           )}
+        </Form.Item>
+
+        {/* Social Links */}
+        <Form.Item label="Social Links">
+          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            {/* Add platform selector */}
+            <Select
+              placeholder="Add social platform"
+              onChange={handleAddSocialLink}
+              value={null}
+              style={{ width: '100%' }}
+            >
+              {SOCIAL_PLATFORMS
+                .filter(platform => !getUsedPlatforms().includes(platform.value))
+                .map(platform => (
+                  <Option key={platform.value} value={platform.value}>{platform.label}</Option>
+                ))}
+            </Select>
+
+            {/* Display added social links */}
+            {socialLinks.length > 0 && (
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                {socialLinks.map((socialLink, index) => (
+                  <div key={index} style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px',
+                    padding: '8px',
+                    background: '#f5f5f5',
+                    borderRadius: '6px'
+                  }}>
+                    <Tag color="blue" style={{ minWidth: '100px' }}>
+                      {socialLink.platform}
+                    </Tag>
+                    <Input
+                      placeholder="Enter URL"
+                      value={socialLink.url}
+                      onChange={(e) => handleUpdateSocialLink(index, e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      icon={<MinusCircleOutlined />}
+                      onClick={() => handleRemoveSocialLink(index)}
+                    />
+                  </div>
+                ))}
+              </Space>
+            )}
+          </Space>
         </Form.Item>
       </Form>
 

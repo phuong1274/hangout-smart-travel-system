@@ -1,5 +1,4 @@
 using HSTS.Application.Interfaces;
-using HSTS.Application.Locations;
 using HSTS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using static HSTS.Application.Interfaces.IRepository;
@@ -23,41 +22,15 @@ namespace HSTS.Application.Locations.Queries
                 .Include(l => l.LocationTags).ThenInclude(lt => lt.Tag)
                 .Include(l => l.LocationMedias)
                 .Include(l => l.LocationAmenities).ThenInclude(la => la.Amenity)
-                .FirstOrDefaultAsync(l => l.Id == request.Id, ct);
+                .Include(l => l.SocialLinks)
+                .FirstOrDefaultAsync(l => l.Id == request.Id && !l.IsDeleted, ct);
 
-            if (location is null || location.IsDeleted)
+            if (location is null)
             {
                 return Error.NotFound("Location.NotFound", $"Location with ID {request.Id} not found.");
             }
 
-            return new LocationDto(
-                location.Id,
-                location.Name,
-                location.Description,
-                location.Latitude,
-                location.Longitude,
-                location.TicketPrice,
-                location.MinimumAge,
-                location.Address,
-                location.SocialLink,
-                location.LocationTypeId,
-                location.DestinationId,
-                location.LocationType?.Name ?? string.Empty,
-                location.Destination?.Name ?? string.Empty,
-                location.LocationTags.Select(lt => lt.Tag.Id).ToList(),
-                location.LocationMedias.Select(lm => lm.Link).ToList(),
-                location.Telephone,
-                location.Email,
-                location.Rating,
-                location.ReviewCount,
-                location.PriceRange,
-                location.PriceMinUsd,
-                location.PriceMaxUsd,
-                location.Source,
-                location.SourceUrl,
-                location.RecommendedDurationMinutes,
-                location.LocationAmenities.Select(la => la.Amenity.Id).ToList()
-            );
+            return location.ToDto();
         }
     }
 }

@@ -6,12 +6,10 @@ namespace HSTS.Domain.Entities
     {
         [Required]
         public int LocationId { get; set; }
+        public Location? Location { get; set; }
 
         [Required]
         public int AmenityId { get; set; }
-
-        public Location Location { get; set; }
-
-        public Amenity Amenity { get; set; }
+        public Amenity? Amenity { get; set; }
     }
 }

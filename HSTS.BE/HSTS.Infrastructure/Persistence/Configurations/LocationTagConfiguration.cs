@@ -8,22 +8,24 @@ namespace HSTS.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<LocationTag> builder)
         {
-            // Define the composite primary key
-            builder.HasKey(lt => new { lt.LocationId, lt.TagId });
+            builder.ToTable("LocationTags");
+            builder.HasKey(x => new { x.LocationId, x.TagId });
 
-            // Configure foreign key relationship with Location
-            builder.HasOne(lt => lt.Location)
-                .WithMany(l => l.LocationTags)
-                .HasForeignKey(lt => lt.LocationId);
-
-            // Configure foreign key relationship with Tag
-            builder.HasOne(lt => lt.Tag)
-                .WithMany(t => t.LocationTags)
-                .HasForeignKey(lt => lt.TagId);
-
-            // Configure other properties
-            builder.Property(lt => lt.Score)
+            builder.Property(x => x.Score)
+                .HasColumnType("decimal(3,2)")
                 .IsRequired();
+
+            // Configure relationship with Location
+            builder.HasOne(lt => lt.Location)
+                   .WithMany(l => l.LocationTags)
+                   .HasForeignKey(lt => lt.LocationId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure relationship with Tag
+            builder.HasOne(lt => lt.Tag)
+                   .WithMany(t => t.LocationTags)
+                   .HasForeignKey(lt => lt.TagId)
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

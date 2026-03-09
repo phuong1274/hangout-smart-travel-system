@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
 import { getLocationsApi } from '../api';
 
@@ -33,10 +33,6 @@ export const useLocations = () => {
       setLoading(false);
     }
   }, [pageIndex, pageSize, searchTerm, setTotal]);
-
-  useEffect(() => {
-    fetchLocations();
-  }, [fetchLocations]);
 
   return {
     data,

@@ -8,32 +8,28 @@ using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Application.Locations.Commands
 {
-    // DTO for tag with score
     public record TagScoreDto(int TagId, double Score);
+    public record SocialLinkDto(string Platform, string Url);
 
     public record CreateLocationCommand(
         string Name,
-        string Description,
+        string? Description,
         double Latitude,
         double Longitude,
         decimal TicketPrice,
         int MinimumAge,
         string Address,
-        string? SocialLink,
         int LocationTypeId,
         int DestinationId,
         string? Telephone,
         string? Email,
-        decimal? Rating,
-        int? ReviewCount,
         string? PriceRange,
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
-        string? Source,
-        string? SourceUrl,
         int? RecommendedDurationMinutes,
         List<TagScoreDto>? TagsWithScores,
         List<string>? MediaLinks,
+        List<SocialLinkDto>? SocialLinks,
         List<int>? AmenityIds) : IRequest<ErrorOr<LocationDto>>;
 
     public class CreateLocationCommandHandler : IRequestHandler<CreateLocationCommand, ErrorOr<LocationDto>>
@@ -42,7 +38,10 @@ namespace HSTS.Application.Locations.Commands
         private readonly IRepository<Tag> _tagRepository;
         private readonly IRepository<Amenity> _amenityRepository;
 
-        public CreateLocationCommandHandler(IRepository<Location> locationRepository, IRepository<Tag> tagRepository, IRepository<Amenity> amenityRepository)
+        public CreateLocationCommandHandler(
+            IRepository<Location> locationRepository,
+            IRepository<Tag> tagRepository,
+            IRepository<Amenity> amenityRepository)
         {
             _locationRepository = locationRepository;
             _tagRepository = tagRepository;
@@ -64,24 +63,19 @@ namespace HSTS.Application.Locations.Commands
             var location = new Location
             {
                 Name = request.Name,
-                Description = request.Description ?? string.Empty,
+                Description = request.Description,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
                 TicketPrice = request.TicketPrice,
                 MinimumAge = request.MinimumAge,
                 Address = request.Address,
-                SocialLink = request.SocialLink,
                 LocationTypeId = request.LocationTypeId,
                 DestinationId = request.DestinationId,
                 Telephone = request.Telephone,
                 Email = request.Email,
-                Rating = request.Rating,
-                ReviewCount = request.ReviewCount,
                 PriceRange = request.PriceRange,
                 PriceMinUsd = request.PriceMinUsd,
                 PriceMaxUsd = request.PriceMaxUsd,
-                Source = request.Source,
-                SourceUrl = request.SourceUrl,
                 RecommendedDurationMinutes = request.RecommendedDurationMinutes
             };
 
@@ -123,6 +117,20 @@ namespace HSTS.Application.Locations.Commands
                 }
             }
 
+            // Add social links if provided
+            if (request.SocialLinks != null && request.SocialLinks.Count > 0)
+            {
+                foreach (var socialLink in request.SocialLinks)
+                {
+                    location.SocialLinks.Add(new LocationSocialLink
+                    {
+                        LocationId = location.Id,
+                        Platform = socialLink.Platform,
+                        Url = socialLink.Url
+                    });
+                }
+            }
+
             // Add amenities if provided
             if (request.AmenityIds != null && request.AmenityIds.Count > 0)
             {
@@ -146,33 +154,7 @@ namespace HSTS.Application.Locations.Commands
 
             await _locationRepository.UpdateAsync(location, cancellationToken);
 
-            return new LocationDto(
-                location.Id,
-                location.Name,
-                location.Description,
-                location.Latitude,
-                location.Longitude,
-                location.TicketPrice,
-                location.MinimumAge,
-                location.Address,
-                location.SocialLink,
-                location.LocationTypeId,
-                location.DestinationId,
-                null,
-                null,
-                request.TagsWithScores?.Select(t => t.TagId).ToList(),
-                request.MediaLinks,
-                request.Telephone,
-                request.Email,
-                request.Rating,
-                request.ReviewCount,
-                request.PriceRange,
-                request.PriceMinUsd,
-                request.PriceMaxUsd,
-                request.Source,
-                request.SourceUrl,
-                request.RecommendedDurationMinutes,
-                request.AmenityIds);
+            return location.ToDto();
         }
     }
 
@@ -187,18 +169,13 @@ namespace HSTS.Application.Locations.Commands
             RuleFor(x => x.TicketPrice).GreaterThanOrEqualTo(0);
             RuleFor(x => x.MinimumAge).InclusiveBetween(0, 120);
             RuleFor(x => x.Address).NotEmpty().MaximumLength(300);
-            RuleFor(x => x.SocialLink).MaximumLength(500);
             RuleFor(x => x.LocationTypeId).NotEmpty();
             RuleFor(x => x.DestinationId).NotEmpty();
             RuleFor(x => x.Telephone).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.Telephone));
             RuleFor(x => x.Email).EmailAddress().MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Email));
-            RuleFor(x => x.Rating).InclusiveBetween(0, 10).When(x => x.Rating.HasValue);
-            RuleFor(x => x.ReviewCount).GreaterThanOrEqualTo(0).When(x => x.ReviewCount.HasValue);
             RuleFor(x => x.PriceRange).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.PriceRange));
             RuleFor(x => x.PriceMinUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMinUsd.HasValue);
             RuleFor(x => x.PriceMaxUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMaxUsd.HasValue);
-            RuleFor(x => x.Source).MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Source));
-            RuleFor(x => x.SourceUrl).MaximumLength(2000).When(x => !string.IsNullOrEmpty(x.SourceUrl));
             RuleFor(x => x.RecommendedDurationMinutes).GreaterThanOrEqualTo(0).When(x => x.RecommendedDurationMinutes.HasValue);
 
             // Validate tags with scores
@@ -210,6 +187,13 @@ namespace HSTS.Application.Locations.Commands
             {
                 tag.RuleFor(x => x.TagId).NotEmpty().WithMessage("Tag ID is required");
                 tag.RuleFor(x => x.Score).InclusiveBetween(0, 1).WithMessage("Score must be between 0 and 1");
+            });
+
+            // Validate social links
+            RuleForEach(x => x.SocialLinks).ChildRules(link =>
+            {
+                link.RuleFor(x => x.Platform).NotEmpty().MaximumLength(50);
+                link.RuleFor(x => x.Url).NotEmpty().MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Url));
             });
         }
     }

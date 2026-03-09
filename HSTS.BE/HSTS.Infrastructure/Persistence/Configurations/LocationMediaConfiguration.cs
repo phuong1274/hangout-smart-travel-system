@@ -21,7 +21,8 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             // Configure relationship with Location
             builder.HasOne(lm => lm.Location)
                    .WithMany(l => l.LocationMedias)
-                   .HasForeignKey(lm => lm.LocationId);
+                   .HasForeignKey(lm => lm.LocationId)
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

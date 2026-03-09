@@ -1,18 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace HSTS.Domain.Entities
 {
     public class LocationTag : BaseEntity
     {
+        [Required]
         public int LocationId { get; set; }
-        public int TagId { get; set; }
-        public double Score { get; set; }
-        public Location Location { get; set; }
-        public Tag Tag { get; set; }
+        public Location? Location { get; set; }
 
+        [Required]
+        public int TagId { get; set; }
+        public Tag? Tag { get; set; }
+
+        [Range(0, 1)]
+        public double Score { get; set; }
     }
 }

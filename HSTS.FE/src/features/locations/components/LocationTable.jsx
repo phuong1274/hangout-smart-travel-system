@@ -1,6 +1,6 @@
 import React from 'react';
 import { Table, Button, Space, Popconfirm, Tag, Tooltip } from 'antd';
-import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined, PhoneOutlined, MailOutlined, StarOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined, PhoneOutlined, MailOutlined, LinkOutlined } from '@ant-design/icons';
 import { PAGINATION } from '@/config/constants';
 
 const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView }) => {
@@ -25,9 +25,10 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
               {record.destinationName}
             </div>
           )}
-          {record.rating && (
-            <div style={{ fontSize: 12, color: '#faad14' }}>
-              <StarOutlined /> {record.rating.toFixed(1)} ({record.reviewCount || 0})
+          {record.socialLinks && record.socialLinks.length > 0 && (
+            <div style={{ fontSize: 12, color: '#1677ff', marginTop: 4 }}>
+              <LinkOutlined style={{ marginRight: 4 }} />
+              {record.socialLinks.length} link(s)
             </div>
           )}
         </div>
@@ -50,14 +51,14 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
     {
       title: 'Contact',
       key: 'contact',
-      width: 100,
+      width: 120,
       render: (_, record) => (
         <div style={{ fontSize: 12 }}>
           {record.telephone && (
             <div><PhoneOutlined style={{ marginRight: 4 }} />{record.telephone}</div>
           )}
           {record.email && (
-            <div><MailOutlined style={{ marginRight: 4 }} />{record.email}</div>
+            <div style={{ fontSize: 11, color: '#666' }}><MailOutlined style={{ marginRight: 4 }} />{record.email}</div>
           )}
         </div>
       ),
@@ -65,11 +66,16 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
     {
       title: 'Price',
       key: 'price',
-      width: 100,
+      width: 120,
       render: (_, record) => (
         <div style={{ fontSize: 12 }}>
-          {record.ticketPrice > 0 && <div>${record.ticketPrice.toFixed(2)}</div>}
-          {record.priceRange && <div><Tag color="blue">{record.priceRange}</Tag></div>}
+          {record.ticketPrice > 0 && <div style={{ fontWeight: 500 }}>${record.ticketPrice.toFixed(2)}</div>}
+          {record.priceRange && <Tag color="blue">{record.priceRange}</Tag>}
+          {(record.priceMinUsd || record.priceMaxUsd) && (
+            <div style={{ fontSize: 11, color: '#666' }}>
+              ${record.priceMinUsd?.toFixed(2) || '0'} - ${record.priceMaxUsd?.toFixed(2) || '0'}
+            </div>
+          )}
         </div>
       ),
     },
@@ -83,6 +89,13 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
           <div>Lng: {record.longitude?.toFixed(4)}</div>
         </div>
       ),
+    },
+    {
+      title: 'Duration',
+      dataIndex: 'recommendedDurationMinutes',
+      key: 'recommendedDurationMinutes',
+      width: 90,
+      render: (value) => value ? `${value} min` : '-',
     },
     {
       title: 'Actions',
@@ -127,7 +140,7 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       dataSource={data}
       loading={loading}
       rowKey="id"
-      scroll={{ x: 1000 }}
+      scroll={{ x: 1200 }}
       pagination={{
         current: pagination?.current || PAGINATION.DEFAULT_PAGE,
         pageSize: pagination?.pageSize || PAGINATION.DEFAULT_PAGE_SIZE,

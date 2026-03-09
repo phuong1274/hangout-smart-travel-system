@@ -18,10 +18,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Description)
                 .HasMaxLength(500)
                 .IsRequired(false);
-
-            builder.HasMany(a => a.LocationAmenities)
-                   .WithOne(la => la.Amenity)
-                   .HasForeignKey(la => la.AmenityId);
         }
     }
 }

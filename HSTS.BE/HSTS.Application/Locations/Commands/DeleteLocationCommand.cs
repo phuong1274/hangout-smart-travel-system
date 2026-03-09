@@ -13,13 +13,16 @@ namespace HSTS.Application.Locations.Commands
     {
         private readonly IRepository<Location> _locationRepository;
         private readonly IRepository<LocationMedia> _mediaRepository;
+        private readonly IRepository<LocationSocialLink> _socialLinkRepository;
 
         public DeleteLocationCommandHandler(
             IRepository<Location> locationRepository,
-            IRepository<LocationMedia> mediaRepository)
+            IRepository<LocationMedia> mediaRepository,
+            IRepository<LocationSocialLink> socialLinkRepository)
         {
             _locationRepository = locationRepository;
             _mediaRepository = mediaRepository;
+            _socialLinkRepository = socialLinkRepository;
         }
 
         public async Task<ErrorOr<Deleted>> Handle(DeleteLocationCommand request, CancellationToken cancellationToken)
@@ -44,6 +47,17 @@ namespace HSTS.Application.Locations.Commands
             {
                 media.IsDeleted = true;
                 await _mediaRepository.UpdateAsync(media, cancellationToken);
+            }
+
+            // Soft-delete all associated social links
+            var socialLinks = await _socialLinkRepository.Query()
+                .Where(sl => sl.LocationId == request.Id && !sl.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            foreach (var socialLink in socialLinks)
+            {
+                socialLink.IsDeleted = true;
+                await _socialLinkRepository.UpdateAsync(socialLink, cancellationToken);
             }
 
             return Result.Deleted;
