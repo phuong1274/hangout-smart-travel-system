@@ -50,7 +50,7 @@ namespace HSTS.Application.Auth.Commands
                 var otpSent = await TrySendVerificationOtp(request.Email, cancellationToken);
                 var message = otpSent
                     ? "Email not verified. A new verification code has been sent to your email."
-                    : "Email not verified. Please go to the verification page to request a new code.";
+                    : "Email not verified. Please check your inbox for the verification code.";
                 return Error.Forbidden("Account.EmailNotVerified", message);
             }
 
@@ -93,6 +93,13 @@ namespace HSTS.Application.Auth.Commands
         private async Task<bool> TrySendVerificationOtp(string email, CancellationToken cancellationToken)
         {
             var otpType = OtpType.EmailVerification;
+
+            // If a valid (unexpired, unused) OTP already exists, don't invalidate it — let user use it
+            var hasValidOtp = await _context.Otps
+                .AnyAsync(o => o.Email == email && o.Type == otpType && !o.IsUsed && o.ExpiredAt > DateTime.UtcNow, cancellationToken);
+
+            if (hasValidOtp)
+                return false;
 
             // Rate limit check
             var windowStart = DateTime.UtcNow.AddMinutes(-RateLimitWindowMinutes);
