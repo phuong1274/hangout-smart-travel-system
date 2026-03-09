@@ -35,7 +35,9 @@ namespace HSTS.Application.Auth.Commands
 
             var user = await _context.Users
                 .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
-                .FirstAsync(u => u.AccountId == storedToken.AccountId, cancellationToken);
+                .FirstOrDefaultAsync(u => u.AccountId == storedToken.AccountId, cancellationToken);
+            if (user is null)
+                return Error.NotFound("User.NotFound", "User account is incomplete.");
 
             var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
             var account = storedToken.Account;

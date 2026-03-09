@@ -6,6 +6,21 @@ import PublicRoute from './PublicRoute';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
 
+// Lazy load layouts and pages
+const MainLayout = lazy(() => import('@/layouts/MainLayout'));
+const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
+const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
+const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
+const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
+const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
+const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
+const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
+
+// Global Pages
+const Error404 = lazy(() => import('@/components/Errors/Error404'));
+const Error403 = lazy(() => import('@/components/Errors/Error403'));
+
 const LoadingFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
     <Spin size="large" tip="Loading page..." />
@@ -42,6 +57,10 @@ export const router = createBrowserRouter([
         element: <AuthLayout />,
         children: [
           { path: 'login', element: <LoginPage /> },
+          { path: 'register', element: <RegisterPage /> },
+          { path: 'verify-email', element: <VerifyEmailPage /> },
+          { path: 'forgot-password', element: <ForgotPasswordPage /> },
+          { path: 'reset-password', element: <ResetPasswordPage /> },
           { path: '', element: <Navigate to="login" replace /> }
         ]
       },
@@ -93,6 +112,10 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <UsersPage /> }
             ]
+          },
+          {
+            path: PATHS.PROFILE.replace('/', ''),
+            element: <ProfilePage />,
           },
           // Error 403 shown within Layout when user doesn't have permissions
           {

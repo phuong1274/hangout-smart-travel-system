@@ -1,7 +1,4 @@
-﻿using System.Data.Common;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
+using System.Text;
 using System.Threading.RateLimiting;
 using HSTS.API.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -87,20 +84,23 @@ namespace HSTS.API
 
             var app = builder.Build();
 
-            // Short-circuit early when the database cannot be reached so the client gets a bare 500.
+            app.UseRateLimiter();
+
+            // Short-circuit early when the database cannot be reached
             app.Use(async (context, next) =>
             {
-                try
+                try { await next(); }
+                catch (Exception ex) when (ex is System.Data.Common.DbException ||
+                    (ex is Microsoft.EntityFrameworkCore.DbUpdateException due && due.InnerException is System.Data.Common.DbException))
                 {
-                    await next();
-                }
-                catch (Exception exception) when (IsDatabaseConnectionException(exception))
-                {
-                    await HandleDatabaseConnectionFailureAsync(context);
+                    if (!context.Response.HasStarted)
+                    {
+                        context.Response.Clear();
+                        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    }
+                    await context.Response.CompleteAsync();
                 }
             });
-
-            app.UseRateLimiter();
 
             if (app.Environment.IsDevelopment())
             {
@@ -120,24 +120,6 @@ namespace HSTS.API
             app.MapControllers();
 
             app.Run();
-        }
-
-        private static bool IsDatabaseConnectionException(Exception exception) => exception switch
-        {
-            DbException => true,
-            DbUpdateException dbUpdateException when dbUpdateException.InnerException is DbException => true,
-            _ => false
-        };
-
-        private static async Task HandleDatabaseConnectionFailureAsync(HttpContext context)
-        {
-            if (!context.Response.HasStarted)
-            {
-                context.Response.Clear();
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            }
-
-            await context.Response.CompleteAsync();
         }
     }
 }
