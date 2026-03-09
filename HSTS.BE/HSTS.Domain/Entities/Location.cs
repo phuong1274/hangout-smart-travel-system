@@ -50,9 +50,6 @@ namespace HSTS.Domain.Entities
         public int? LocationTypeId { get; set; }
         public LocationType? LocationType { get; set; }
 
-        [MaxLength(50)]
-        public string? PriceRange { get; set; }
-
         [Column(TypeName = "decimal(18,2)")]
         [Range(0, 100000000)]
         public decimal? PriceMinUsd { get; set; }

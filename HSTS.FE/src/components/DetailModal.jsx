@@ -1,6 +1,6 @@
 import React from 'react';
-import { Modal, Descriptions, Tag, Space, Image } from 'antd';
-import { EnvironmentOutlined, DollarOutlined, UserOutlined, CalendarOutlined, LinkOutlined } from '@ant-design/icons';
+import { Modal, Descriptions, Tag, Space, Image, Divider } from 'antd';
+import { EnvironmentOutlined, DollarOutlined, UserOutlined, CalendarOutlined, LinkOutlined, PhoneOutlined, MailOutlined, ClockCircleOutlined, PictureOutlined } from '@ant-design/icons';
 
 /**
  * Reusable Detail Modal for displaying entity information
@@ -19,49 +19,103 @@ const DetailModal = ({ open, onClose, data, type }) => {
             <Descriptions.Item label="Description" span={2}>
               {data.description || 'N/A'}
             </Descriptions.Item>
-            <Descriptions.Item label="Address">
-              <EnvironmentOutlined style={{ marginRight: 4 }} />
-              {data.address}
-            </Descriptions.Item>
+            
             <Descriptions.Item label="Location Type">
               <Tag color="blue">{data.locationTypeName || 'N/A'}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Destination">
               <Tag color="green">{data.destinationName || 'N/A'}</Tag>
             </Descriptions.Item>
+            
+            <Descriptions.Item label="Address">
+              <EnvironmentOutlined style={{ marginRight: 4 }} />
+              {data.address}
+            </Descriptions.Item>
+            
             <Descriptions.Item label="Coordinates">
               <Space direction="vertical" size="small">
                 <div>Latitude: {data.latitude?.toFixed(6) || 'N/A'}</div>
                 <div>Longitude: {data.longitude?.toFixed(6) || 'N/A'}</div>
               </Space>
             </Descriptions.Item>
+            
             <Descriptions.Item label="Ticket Price">
               <DollarOutlined style={{ color: '#52c41a' }} />{' '}
               {data.ticketPrice ? `$${data.ticketPrice.toFixed(2)}` : 'Free'}
             </Descriptions.Item>
+            
+            <Descriptions.Item label="Price Range" span={2}>
+              {(data.priceMinUsd || data.priceMaxUsd) ? (
+                <Space>
+                  <DollarOutlined />
+                  ${data.priceMinUsd?.toFixed(2) || '0'} - ${data.priceMaxUsd?.toFixed(2) || '0'}
+                </Space>
+              ) : 'N/A'}
+            </Descriptions.Item>
+            
             <Descriptions.Item label="Minimum Age">
               <UserOutlined /> {data.minimumAge || 0}+
             </Descriptions.Item>
-            <Descriptions.Item label="Social Link">
-              {data.socialLink ? (
-                <a href={data.socialLink} target="_blank" rel="noopener noreferrer">
-                  <LinkOutlined /> Visit
-                </a>
-              ) : (
-                'N/A'
-              )}
+            
+            <Descriptions.Item label="Recommended Duration">
+              <ClockCircleOutlined /> {data.recommendedDurationMinutes ? `${data.recommendedDurationMinutes} min` : 'N/A'}
             </Descriptions.Item>
+            
+            <Divider style={{ margin: '8px 0' }} />
+            
+            <Descriptions.Item label="Contact Information" span={2}>
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                {data.telephone && (
+                  <div><PhoneOutlined /> <strong>Phone:</strong> {data.telephone}</div>
+                )}
+                {data.email && (
+                  <div><MailOutlined /> <strong>Email:</strong> {data.email}</div>
+                )}
+                {!data.telephone && !data.email && 'No contact information'}
+              </Space>
+            </Descriptions.Item>
+            
+            <Descriptions.Item label="Social Links" span={2}>
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                {data.socialLinks && data.socialLinks.length > 0 ? (
+                  data.socialLinks.map((link, index) => (
+                    <div key={index}>
+                      <Tag color="blue">{link.platform}</Tag>
+                      <a href={link.url} target="_blank" rel="noopener noreferrer">
+                        <LinkOutlined /> {link.url}
+                      </a>
+                    </div>
+                  ))
+                ) : (
+                  'No social links'
+                )}
+              </Space>
+            </Descriptions.Item>
+            
             <Descriptions.Item label="Tags" span={2}>
               <Space wrap>
-                {data.tags && data.tags.length > 0 ? (
-                  data.tags.map((tag, index) => (
-                    <Tag key={index} color="purple">{tag.name || tag}</Tag>
+                {data.tagIds && data.tagIds.length > 0 ? (
+                  data.tagIds.map((tagId, index) => (
+                    <Tag key={index} color="purple">Tag #{tagId}</Tag>
                   ))
                 ) : (
                   'No tags'
                 )}
               </Space>
             </Descriptions.Item>
+            
+            <Descriptions.Item label="Amenities" span={2}>
+              <Space wrap>
+                {data.amenityIds && data.amenityIds.length > 0 ? (
+                  data.amenityIds.map((amenityId, index) => (
+                    <Tag key={index} color="green">Amenity #{amenityId}</Tag>
+                  ))
+                ) : (
+                  'No amenities'
+                )}
+              </Space>
+            </Descriptions.Item>
+            
             <Descriptions.Item label="Images" span={2}>
               <Space wrap>
                 {data.mediaLinks && data.mediaLinks.length > 0 ? (
@@ -81,6 +135,9 @@ const DetailModal = ({ open, onClose, data, type }) => {
                 )}
               </Space>
             </Descriptions.Item>
+            
+            <Divider style={{ margin: '8px 0' }} />
+            
             <Descriptions.Item label="Created At">
               <CalendarOutlined /> {data.createdAt ? new Date(data.createdAt).toLocaleString() : 'N/A'}
             </Descriptions.Item>

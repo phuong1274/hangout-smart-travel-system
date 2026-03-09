@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Slider, Tag, Progress, Row, Col } from 'antd';
+import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Tag } from 'antd';
 import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, EnvironmentOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { createLocationApi, updateLocationApi, getAllTagsApi, getAllDestinationsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
 import { uploadImageToCloudinary } from '@/services/cloudinary';
@@ -29,15 +29,11 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [mediaLinks, setMediaLinks] = useState([]);
   const [newMediaLink, setNewMediaLink] = useState('');
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
-  const [tagsWithScores, setTagsWithScores] = useState([]);
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [selectedAmenityIds, setSelectedAmenityIds] = useState([]);
   const [socialLinks, setSocialLinks] = useState([]);
 
   const isEdit = !!location;
-
-  // Calculate total score
-  const totalScore = tagsWithScores.reduce((sum, tag) => sum + tag.score, 0);
-  const scoreError = Math.abs(totalScore - 1) > 0.01 && tagsWithScores.length > 0;
 
   // Fetch dropdown data
   useEffect(() => {
@@ -49,10 +45,18 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           getAllLocationTypesApi(),
           getAllAmenitiesApi()
         ]);
-        setTags(tagsRes || []);
-        setDestinations(destinationsRes || []);
-        setLocationTypes(typesRes || []);
-        setAmenities(amenitiesRes || []);
+        
+        console.log('Dropdown API responses:', {
+          tags: tagsRes,
+          destinations: destinationsRes,
+          locationTypes: typesRes,
+          amenities: amenitiesRes
+        });
+        
+        setTags(Array.isArray(tagsRes) ? tagsRes : []);
+        setDestinations(Array.isArray(destinationsRes) ? destinationsRes : []);
+        setLocationTypes(Array.isArray(typesRes) ? typesRes : []);
+        setAmenities(Array.isArray(amenitiesRes) ? amenitiesRes : []);
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
       }
@@ -75,51 +79,46 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         destinationId: location.destinationId,
         telephone: location.telephone,
         email: location.email,
-        priceRange: location.priceRange,
         priceMinUsd: location.priceMinUsd,
         priceMaxUsd: location.priceMaxUsd,
         recommendedDurationMinutes: location.recommendedDurationMinutes
       });
       setMediaLinks(location.mediaLinks || []);
       setSelectedAmenityIds(location.amenityIds || []);
-      setSocialLinks(location.socialLinks || []);
-      
-      // Set tags with scores (default score if not provided)
-      if (location.tagIds && location.tagIds.length > 0) {
-        const defaultScore = location.tagIds.length > 0 ? 1 / location.tagIds.length : 1;
-        setTagsWithScores(location.tagIds.map(tagId => ({
-          tagId,
-          score: defaultScore,
-          name: tags.find(t => t.id === tagId)?.name || `Tag ${tagId}`
-        })));
-      } else {
-        setTagsWithScores([]);
-      }
+      // Map social links from BE format (with id) to form state
+      setSocialLinks(location.socialLinks?.map(sl => ({
+        id: sl.id,
+        platform: sl.platform,
+        url: sl.url
+      })) || []);
+      setSelectedTagIds(location.tagIds || []);
     } else {
       form.resetFields();
       setMediaLinks([]);
-      setTagsWithScores([]);
+      setSelectedTagIds([]);
       setSelectedAmenityIds([]);
       setSocialLinks([]);
     }
-  }, [location, form, tags]);
+  }, [location, form]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      // Validate tag scores
-      if (tagsWithScores.length > 0 && scoreError) {
-        message.error('Tag scores must sum to 1.0 (100%)');
-        setLoading(false);
-        return;
-      }
+      // Transform social links to match BE format (include Id for updates)
+      const formattedSocialLinks = socialLinks.length > 0
+        ? socialLinks.map(sl => ({
+            id: sl.id,
+            platform: sl.platform,
+            url: sl.url
+          }))
+        : undefined;
 
       const payload = {
         ...values,
-        tagsWithScores: tagsWithScores.length > 0 ? tagsWithScores.map(({ tagId, score }) => ({ tagId, score })) : undefined,
+        tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : undefined,
         amenityIds: selectedAmenityIds.length > 0 ? selectedAmenityIds : undefined,
-        socialLinks: socialLinks.length > 0 ? socialLinks : undefined
+        socialLinks: formattedSocialLinks
       };
 
       if (isEdit) {
@@ -130,7 +129,19 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (error) {
-      // Handled by global interceptor
+      // Handle duplicate name error specifically
+      if (error?.response?.status === 409) {
+        const errorMessage = error.response.data?.description || error.response.data?.message || 'Duplicate name detected';
+        message.error(errorMessage);
+      } else if (error?.response?.status === 400) {
+        // Handle validation errors
+        const errors = error.response.data;
+        if (Array.isArray(errors)) {
+          errors.forEach(err => {
+            message.error(err.description || err.message);
+          });
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -158,35 +169,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     return Upload.LIST_IGNORE; // Prevent default upload behavior
   };
 
-  const handleAddTag = (tagId) => {
-    if (!tagsWithScores.find(t => t.tagId === tagId)) {
-      const tag = tags.find(t => t.id === tagId);
-      const remainingScore = 1 - totalScore;
-      setTagsWithScores([...tagsWithScores, {
-        tagId,
-        score: remainingScore > 0 ? remainingScore : 0.1,
-        name: tag?.name || `Tag ${tagId}`
-      }]);
-    }
-  };
-
-  const handleRemoveTag = (tagId) => {
-    setTagsWithScores(tagsWithScores.filter(t => t.tagId !== tagId));
-  };
-
-  const handleScoreChange = (tagId, newScore) => {
-    setTagsWithScores(tagsWithScores.map(t => 
-      t.tagId === tagId ? { ...t, score: newScore } : t
-    ));
-  };
-
-  const handleAutoDistributeScores = () => {
-    if (tagsWithScores.length > 0) {
-      const equalScore = 1 / tagsWithScores.length;
-      setTagsWithScores(tagsWithScores.map(t => ({ ...t, score: equalScore })));
-    }
-  };
-
   const handleMapConfirm = ({ lat, lng }) => {
     form.setFieldsValue({
       latitude: lat,
@@ -198,7 +180,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   // Social Links handlers
   const handleAddSocialLink = (platform) => {
     if (!socialLinks.find(sl => sl.platform === platform)) {
-      setSocialLinks([...socialLinks, { platform, url: '' }]);
+      setSocialLinks([...socialLinks, { id: 0, platform, url: '' }]);
     }
   };
 
@@ -310,6 +292,27 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           </Form.Item>
         </Space>
 
+        {/* Price Range */}
+        <Space direction="horizontal" style={{ width: '100%' }} size="large">
+          <Form.Item
+            name="priceMinUsd"
+            label="Min Price (USD)"
+            rules={[{ min: 0, type: 'number', message: 'Min price must be >= 0' }]}
+            style={{ width: '48%' }}
+          >
+            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" />
+          </Form.Item>
+
+          <Form.Item
+            name="priceMaxUsd"
+            label="Max Price (USD)"
+            rules={[{ min: 0, type: 'number', message: 'Max price must be >= 0' }]}
+            style={{ width: '48%' }}
+          >
+            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" />
+          </Form.Item>
+        </Space>
+
         <Form.Item
           name="address"
           label="Address"
@@ -345,35 +348,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           </Form.Item>
         </Space>
 
-        {/* Price Range */}
-        <Space direction="horizontal" style={{ width: '100%' }} size="large">
-          <Form.Item
-            name="priceMinUsd"
-            label="Min Price (USD)"
-            rules={[{ min: 0, type: 'number', message: 'Min price must be >= 0' }]}
-            style={{ width: '48%' }}
-          >
-            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" />
-          </Form.Item>
-
-          <Form.Item
-            name="priceMaxUsd"
-            label="Max Price (USD)"
-            rules={[{ min: 0, type: 'number', message: 'Max price must be >= 0' }]}
-            style={{ width: '48%' }}
-          >
-            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" />
-          </Form.Item>
-        </Space>
-
-        <Form.Item
-          name="priceRange"
-          label="Price Range (e.g., $, $$, $$$)"
-          rules={[{ max: 50, message: 'Price range cannot exceed 50 characters' }]}
-        >
-          <Input placeholder="e.g., $, $$, $$$, $$$$" />
-        </Form.Item>
-
         <Form.Item
           name="recommendedDurationMinutes"
           label="Recommended Duration (minutes)"
@@ -387,10 +361,10 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             name="locationTypeId"
             label="Location Type"
             rules={[{ required: true, message: 'Please select location type' }]}
-            style={{ width: '48%' }}
+            style={{ width: '50%', minWidth: '200px' }}
           >
-            <Select placeholder="Select location type">
-              {locationTypes.map(type => (
+            <Select placeholder="Select location type" showSearch optionFilterProp="children">
+              {Array.isArray(locationTypes) && locationTypes.map(type => (
                 <Option key={type.id} value={type.id}>{type.name}</Option>
               ))}
             </Select>
@@ -400,10 +374,10 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             name="destinationId"
             label="Destination"
             rules={[{ required: true, message: 'Please select destination' }]}
-            style={{ width: '48%' }}
+            style={{ width: '50%', minWidth: '200px' }}
           >
-            <Select placeholder="Select destination">
-              {destinations.map(dest => (
+            <Select placeholder="Select destination" showSearch optionFilterProp="children">
+              {Array.isArray(destinations) && destinations.map(dest => (
                 <Option key={dest.id} value={dest.id}>{dest.name}</Option>
               ))}
             </Select>
@@ -413,103 +387,19 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         <Form.Item
           name="tagIds"
           label="Tags"
-          help={scoreError ? `Total score must be 1.0, current: ${totalScore.toFixed(2)}` : `Total score: ${totalScore.toFixed(2)} (should be 1.0)`}
-          validateStatus={scoreError ? 'error' : ''}
         >
-          <div>
-            {/* Tag selector */}
-            <Select
-              placeholder="Select tags to add"
-              onChange={handleAddTag}
-              value={null}
-              style={{ width: '100%', marginBottom: 12 }}
-              dropdownRender={(menu) => (
-                <>
-                  {menu}
-                  {tagsWithScores.length > 0 && (
-                    <div style={{ padding: '8px', borderTop: '1px solid #f0f0f0' }}>
-                      <Button size="small" type="link" onClick={handleAutoDistributeScores}>
-                        Auto-distribute scores equally
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            >
-              {tags
-                .filter(tag => !tagsWithScores.find(t => t.tagId === tag.id))
-                .map(tag => (
-                  <Option key={tag.id} value={tag.id}>{tag.name}</Option>
-                ))}
-            </Select>
-
-            {/* Tags with scores */}
-            {tagsWithScores.length > 0 && (
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                {tagsWithScores.map((tagScore) => (
-                  <div key={tagScore.tagId} style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '8px',
-                    padding: '8px',
-                    background: '#f5f5f5',
-                    borderRadius: '6px'
-                  }}>
-                    <Tag color="purple" style={{ minWidth: '80px' }}>
-                      {tagScore.name}
-                    </Tag>
-                    <Slider
-                      value={tagScore.score}
-                      onChange={(value) => handleScoreChange(tagScore.tagId, value)}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      style={{ flex: 1 }}
-                      tooltip={{ formatter: (value) => `${(value * 100).toFixed(0)}%` }}
-                    />
-                    <InputNumber
-                      value={tagScore.score}
-                      onChange={(value) => handleScoreChange(tagScore.tagId, value || 0)}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      formatter={(value) => `${(value * 100).toFixed(0)}%`}
-                      style={{ width: 80 }}
-                      size="small"
-                    />
-                    <Button
-                      type="text"
-                      danger
-                      size="small"
-                      icon={<MinusCircleOutlined />}
-                      onClick={() => handleRemoveTag(tagScore.tagId)}
-                    />
-                  </div>
-                ))}
-
-                {/* Score summary */}
-                <div style={{ 
-                  padding: '8px', 
-                  background: scoreError ? '#fff2f0' : '#f6ffed',
-                  border: `1px solid ${scoreError ? '#ffccc7' : '#b7eb8f'}`,
-                  borderRadius: '4px',
-                  marginTop: '8px'
-                }}>
-                  <Space>
-                    <span>Total:</span>
-                    <Progress
-                      percent={(totalScore * 100).toFixed(1)}
-                      strokeColor={scoreError ? '#ff4d4f' : '#52c41a'}
-                      size="small"
-                      format={() => `${(totalScore * 100).toFixed(1)}%`}
-                      style={{ width: 150 }}
-                    />
-                    {scoreError && <span style={{ color: '#ff4d4f', fontSize: 12 }}>Must equal 100%</span>}
-                  </Space>
-                </div>
-              </Space>
-            )}
-          </div>
+          <Select
+            mode="multiple"
+            placeholder="Select tags"
+            value={selectedTagIds}
+            onChange={setSelectedTagIds}
+            style={{ width: '100%' }}
+            maxTagCount="responsive"
+          >
+            {tags.map(tag => (
+              <Option key={tag.id} value={tag.id}>{tag.name}</Option>
+            ))}
+          </Select>
         </Form.Item>
 
         {/* Amenities Selector */}

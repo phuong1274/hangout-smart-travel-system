@@ -21,11 +21,10 @@ namespace HSTS.Application.Locations.Commands
         int DestinationId,
         string? Telephone,
         string? Email,
-        string? PriceRange,
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
         int? RecommendedDurationMinutes,
-        List<TagScoreDto>? TagsWithScores,
+        List<int>? TagIds,
         List<string>? MediaLinks,
         List<SocialLinkDto>? SocialLinks,
         List<int>? AmenityIds) : IRequest<ErrorOr<LocationDto>>;
@@ -76,34 +75,31 @@ namespace HSTS.Application.Locations.Commands
             location.DestinationId = request.DestinationId;
             location.Telephone = request.Telephone;
             location.Email = request.Email;
-            location.PriceRange = request.PriceRange;
             location.PriceMinUsd = request.PriceMinUsd;
             location.PriceMaxUsd = request.PriceMaxUsd;
             location.RecommendedDurationMinutes = request.RecommendedDurationMinutes;
             location.UpdatedAt = DateTime.UtcNow;
 
-            // Update tags with scores if provided
-            if (request.TagsWithScores != null)
+            // Update tags if provided
+            if (request.TagIds != null)
             {
                 location.LocationTags.Clear();
 
-                if (request.TagsWithScores.Count > 0)
+                if (request.TagIds.Count > 0)
                 {
-                    var tagIds = request.TagsWithScores.Select(t => t.TagId).ToList();
                     var tags = await _tagRepository.Query()
-                        .Where(t => tagIds.Contains(t.Id) && !t.IsDeleted)
+                        .Where(t => request.TagIds.Contains(t.Id) && !t.IsDeleted)
                         .ToListAsync(cancellationToken);
 
-                    foreach (var tagScore in request.TagsWithScores)
+                    foreach (var tagId in request.TagIds)
                     {
-                        var tag = tags.FirstOrDefault(t => t.Id == tagScore.TagId);
+                        var tag = tags.FirstOrDefault(t => t.Id == tagId);
                         if (tag != null)
                         {
                             location.LocationTags.Add(new LocationTag
                             {
                                 LocationId = location.Id,
-                                TagId = tag.Id,
-                                Score = tagScore.Score
+                                TagId = tag.Id
                             });
                         }
                     }
@@ -195,21 +191,9 @@ namespace HSTS.Application.Locations.Commands
             RuleFor(x => x.DestinationId).NotEmpty();
             RuleFor(x => x.Telephone).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.Telephone));
             RuleFor(x => x.Email).EmailAddress().MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Email));
-            RuleFor(x => x.PriceRange).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.PriceRange));
             RuleFor(x => x.PriceMinUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMinUsd.HasValue);
             RuleFor(x => x.PriceMaxUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMaxUsd.HasValue);
             RuleFor(x => x.RecommendedDurationMinutes).GreaterThanOrEqualTo(0).When(x => x.RecommendedDurationMinutes.HasValue);
-
-            // Validate tags with scores
-            RuleFor(x => x.TagsWithScores)
-                .Must(tags => tags == null || !tags.Any() || tags.Sum(t => t.Score) >= 0.99 && tags.Sum(t => t.Score) <= 1.01)
-                .WithMessage("Tag scores must sum to 1.0 (±0.01 tolerance for floating point)");
-
-            RuleForEach(x => x.TagsWithScores).ChildRules(tag =>
-            {
-                tag.RuleFor(x => x.TagId).NotEmpty().WithMessage("Tag ID is required");
-                tag.RuleFor(x => x.Score).InclusiveBetween(0, 1).WithMessage("Score must be between 0 and 1");
-            });
 
             // Validate social links
             RuleForEach(x => x.SocialLinks).ChildRules(link =>

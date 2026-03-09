@@ -18,7 +18,6 @@ namespace HSTS.Application.Locations
         List<LocationSocialLinkDto>? SocialLinks = null,
         string? Telephone = null,
         string? Email = null,
-        string? PriceRange = null,
         decimal? PriceMinUsd = null,
         decimal? PriceMaxUsd = null,
         int? RecommendedDurationMinutes = null,

@@ -4,85 +4,189 @@ import { SearchOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { GOOGLE_MAPS_KEY } from '@/config/constants';
 
 const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) => {
-  const mapRef = useRef(null);
+  const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
-  const [latitude, setLatitude] = useState(initialLat || 10.823099); // Default to Ho Chi Minh City
+  const autocompleteRef = useRef(null);
+  
+  const [latitude, setLatitude] = useState(initialLat || 10.823099);
   const [longitude, setLongitude] = useState(initialLng || 106.629664);
   const [searchAddress, setSearchAddress] = useState('');
-  const [autocomplete, setAutocomplete] = useState(null);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState(null);
 
-  // Initialize map
+  // Initialize map when modal opens
   useEffect(() => {
-    if (open && window.google && mapRef.current && !mapInstanceRef.current) {
-      const initialPosition = { lat: initialLat || 10.823099, lng: initialLng || 106.629664 };
+    if (!open) return;
 
-      mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
-        zoom: 12,
-        center: initialPosition,
-        mapTypeControl: true,
-        streetViewControl: false,
-        fullscreenControl: true,
-      });
+    // Wait for Google Maps to load
+    if (!window.google || !window.google.maps) {
+      setMapError('Google Maps API is not loaded. Please refresh the page.');
+      return;
+    }
 
-      // Add marker
-      markerRef.current = new window.google.maps.Marker({
-        position: initialPosition,
-        map: mapInstanceRef.current,
-        draggable: true,
-        animation: window.google.maps.Animation.DROP,
-      });
+    // Only initialize once
+    if (mapInstanceRef.current) return;
 
-      // Handle marker drag
-      markerRef.current.addListener('dragend', (event) => {
-        const position = event.latLng;
-        setLatitude(position.lat());
-        setLongitude(position.lng());
-      });
+    const initMap = () => {
+      if (!mapContainerRef.current) return;
 
-      // Handle map click
-      mapInstanceRef.current.addListener('click', (event) => {
-        const position = event.latLng;
-        markerRef.current.setPosition(position);
-        setLatitude(position.lat());
-        setLongitude(position.lng());
-      });
+      try {
+        const initialPosition = { 
+          lat: parseFloat(latitude) || 10.823099, 
+          lng: parseFloat(longitude) || 106.629664 
+        };
 
-      // Setup autocomplete
-      if (window.google.maps.places) {
-        const autocompleteInstance = new window.google.maps.places.Autocomplete(
-          document.getElementById('map-search-input'),
-          {
-            types: ['geocode'],
-          }
-        );
+        // Create map with smooth fade-in
+        mapInstanceRef.current = new window.google.maps.Map(mapContainerRef.current, {
+          zoom: 12,
+          center: initialPosition,
+          mapTypeControl: true,
+          streetViewControl: false,
+          fullscreenControl: true,
+          disableDefaultUI: false,
+        });
+        
+        // Add fade-in effect
+        if (mapContainerRef.current) {
+          mapContainerRef.current.style.opacity = '0';
+          mapContainerRef.current.style.transition = 'opacity 0.5s ease-in-out';
+          setTimeout(() => {
+            mapContainerRef.current.style.opacity = '1';
+          }, 100);
+        }
 
-        autocompleteInstance.addListener('place_changed', () => {
-          const place = autocompleteInstance.getPlace();
-          if (place.geometry && place.geometry.location) {
-            const location = place.geometry.location;
-            mapInstanceRef.current.setCenter(location);
-            mapInstanceRef.current.setZoom(15);
-            markerRef.current.setPosition(location);
-            setLatitude(location.lat());
-            setLongitude(location.lng());
-            message.success('Location found!');
-          }
+        // Create marker with drop animation
+        markerRef.current = new window.google.maps.Marker({
+          position: initialPosition,
+          map: mapInstanceRef.current,
+          draggable: true,
+          animation: window.google.maps.Animation.DROP,
         });
 
-        setAutocomplete(autocompleteInstance);
-      }
-    }
-  }, [open, initialLat, initialLng]);
+        // Handle marker drag
+        markerRef.current.addListener('dragend', (event) => {
+          const position = event.latLng;
+          setLatitude(position.lat());
+          setLongitude(position.lng());
+        });
 
-  // Update marker when coordinates change
+        // Handle map click
+        mapInstanceRef.current.addListener('click', (event) => {
+          const position = event.latLng;
+          markerRef.current.setPosition(position);
+          setLatitude(position.lat());
+          setLongitude(position.lng());
+        });
+
+        // Setup autocomplete
+        const searchInput = document.getElementById('map-search-input');
+        if (searchInput && window.google.maps.places) {
+          autocompleteRef.current = new window.google.maps.places.Autocomplete(searchInput, {
+            types: ['geocode'],
+          });
+
+          autocompleteRef.current.addListener('place_changed', () => {
+            const place = autocompleteRef.current.getPlace();
+            if (place.geometry && place.geometry.location) {
+              const location = place.geometry.location;
+              
+              // Smooth pan to location
+              mapInstanceRef.current.panTo(location);
+              
+              // Smooth zoom with animation
+              const currentZoom = mapInstanceRef.current.getZoom();
+              const targetZoom = 15;
+              const zoomStep = (targetZoom - currentZoom) / 20;
+              let zoomLevel = currentZoom;
+              
+              const zoomAnimation = setInterval(() => {
+                zoomLevel += zoomStep;
+                if ((zoomStep > 0 && zoomLevel >= targetZoom) || 
+                    (zoomStep < 0 && zoomLevel <= targetZoom)) {
+                  clearInterval(zoomAnimation);
+                  mapInstanceRef.current.setZoom(targetZoom);
+                } else {
+                  mapInstanceRef.current.setZoom(Math.round(zoomLevel));
+                }
+              }, 30);
+              
+              markerRef.current.setPosition(location);
+              setLatitude(location.lat());
+              setLongitude(location.lng());
+              message.success('Location found!');
+            }
+          });
+        }
+
+        setIsMapLoaded(true);
+      } catch (error) {
+        console.error('Map initialization error:', error);
+        setMapError('Failed to initialize map. Please check your API key.');
+      }
+    };
+
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(initMap, 100);
+    return () => clearTimeout(timer);
+  }, [open]);
+
+  // Update marker position when coordinates change (with smooth animation)
   useEffect(() => {
     if (mapInstanceRef.current && markerRef.current && latitude && longitude) {
-      const newPosition = { lat: parseFloat(latitude), lng: parseFloat(longitude) };
+      const newPosition = { 
+        lat: parseFloat(latitude), 
+        lng: parseFloat(longitude) 
+      };
+      
+      // Smooth pan to new location
+      mapInstanceRef.current.panTo(newPosition);
+      
+      // Smooth zoom in animation
+      const currentZoom = mapInstanceRef.current.getZoom();
+      const targetZoom = 17; // Zoom in closer for better detail
+      const zoomDiff = targetZoom - currentZoom;
+      
+      if (Math.abs(zoomDiff) > 0.5) {
+        const zoomSteps = 20;
+        const zoomStep = zoomDiff / zoomSteps;
+        let step = 0;
+        
+        const zoomAnimation = setInterval(() => {
+          step++;
+          const newZoom = currentZoom + (zoomStep * step);
+          
+          if (step >= zoomSteps) {
+            clearInterval(zoomAnimation);
+            mapInstanceRef.current.setZoom(targetZoom);
+          } else {
+            mapInstanceRef.current.setZoom(Math.round(newZoom));
+          }
+        }, 25);
+      }
+      
+      // Animate marker drop
       markerRef.current.setPosition(newPosition);
-      mapInstanceRef.current.setCenter(newPosition);
+      markerRef.current.setAnimation(window.google.maps.Animation.BOUNCE);
+      
+      // Stop bounce after animation
+      setTimeout(() => {
+        if (markerRef.current) {
+          markerRef.current.setAnimation(null);
+        }
+      }, 1000);
     }
   }, [latitude, longitude]);
+
+  // Cleanup when modal closes
+  useEffect(() => {
+    if (!open) {
+      // Clear references but don't destroy map (for performance)
+      setIsMapLoaded(false);
+      setMapError(null);
+      setSearchAddress('');
+    }
+  }, [open]);
 
   const handleConfirm = () => {
     onConfirm({ lat: latitude, lng: longitude });
@@ -93,9 +197,13 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const { latitude: userLat, longitude: userLng } = position.coords;
+          const userLat = position.coords.latitude;
+          const userLng = position.coords.longitude;
+          
+          // Update coordinates (will trigger smooth pan via useEffect)
           setLatitude(userLat);
           setLongitude(userLng);
+          
           message.success('Current location detected!');
         },
         () => {
@@ -121,6 +229,7 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
       width={900}
       okText="Confirm Location"
       cancelText="Cancel"
+      destroyOnClose={false}
     >
       <div style={{ marginBottom: 16 }}>
         <Space.Compact style={{ width: '100%' }}>
@@ -129,34 +238,89 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
             placeholder="Search for a place (e.g., 'Ben Thanh Market, Ho Chi Minh City')"
             value={searchAddress}
             onChange={(e) => setSearchAddress(e.target.value)}
-            onPressEnter={(e) => {
-              // Trigger search if user presses enter
-              if (autocomplete) {
-                const event = new Event('place_changed', { bubbles: true });
-                document.getElementById('map-search-input').dispatchEvent(event);
-              }
-            }}
             prefix={<SearchOutlined />}
+            disabled={!isMapLoaded}
           />
-          <Button onClick={handleUseCurrentLocation} icon={<EnvironmentOutlined />}>
+          <Button 
+            onClick={handleUseCurrentLocation} 
+            icon={<EnvironmentOutlined />} 
+            disabled={!isMapLoaded}
+          >
             Use My Location
           </Button>
         </Space.Compact>
       </div>
 
-      <div
-        ref={mapRef}
-        style={{
-          width: '100%',
-          height: '450px',
-          borderRadius: '8px',
-          border: '1px solid #d9d9d9',
-        }}
-      />
+      {mapError && (
+        <div style={{ 
+          marginBottom: 16, 
+          padding: '12px', 
+          background: '#fff2f0', 
+          border: '1px solid #ffccc7', 
+          borderRadius: '6px' 
+        }}>
+          <strong>⚠️ {mapError}</strong>
+          <div style={{ fontSize: 13, marginTop: 4 }}>
+            You can still manually enter coordinates in the form below.
+          </div>
+        </div>
+      )}
 
-      <div style={{ marginTop: 16, padding: '12px', background: '#f5f5f5', borderRadius: '6px' }}>
+      {/* Map Container - wrapped in a div to prevent React from managing its children */}
+      <div style={{ 
+        position: 'relative',
+        marginBottom: 16,
+        borderRadius: '8px',
+        border: '1px solid #d9d9d9',
+        overflow: 'hidden',
+      }}>
+        <div
+          ref={mapContainerRef}
+          style={{
+            width: '100%',
+            height: isMapLoaded ? '450px' : '200px',
+            background: isMapLoaded ? '#fff' : '#f5f5f5',
+          }}
+        />
+        
+        {/* Loading/Error Overlay */}
+        {!isMapLoaded && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            color: '#888',
+            background: '#f5f5f5',
+            pointerEvents: 'none',
+          }}>
+            <EnvironmentOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+            <div>{mapError ? 'Map unavailable' : 'Loading map...'}</div>
+            {mapError && (
+              <div style={{ fontSize: 12, marginTop: 8 }}>
+                You can still manually enter coordinates
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Coordinates Display */}
+      <div style={{ 
+        padding: '12px', 
+        background: '#f5f5f5', 
+        borderRadius: '6px',
+        marginBottom: 16,
+      }}>
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
-          <div style={{ fontWeight: 'bold', marginBottom: 8 }}>Selected Coordinates:</div>
+          <div style={{ fontWeight: 'bold', marginBottom: 8 }}>
+            Selected Coordinates:
+          </div>
           <Space direction="horizontal" size="large">
             <div>
               <strong>Latitude:</strong> {latitude?.toFixed(6) || 'N/A'}
@@ -172,10 +336,15 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
       </div>
 
       {!GOOGLE_MAPS_KEY && (
-        <div style={{ marginTop: 16, padding: '12px', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: '6px' }}>
+        <div style={{ 
+          padding: '12px', 
+          background: '#fff2f0', 
+          border: '1px solid #ffccc7', 
+          borderRadius: '6px' 
+        }}>
           <strong>⚠️ Google Maps API Key Not Configured</strong>
           <div style={{ fontSize: 13, marginTop: 4 }}>
-            Please add <code>VITE_GOOGLE_MAPS_KEY</code> to your <code>.env</code> file to enable the map.
+            Please add <code>VITE_GOOGLE_MAPS_KEY</code> to your <code>.env</code> file.
             <br />
             You can still manually enter coordinates in the form.
           </div>

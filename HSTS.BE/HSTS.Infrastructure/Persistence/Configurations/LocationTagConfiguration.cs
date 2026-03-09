@@ -11,10 +11,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.ToTable("LocationTags");
             builder.HasKey(x => new { x.LocationId, x.TagId });
 
-            builder.Property(x => x.Score)
-                .HasColumnType("decimal(3,2)")
-                .IsRequired();
-
             // Configure relationship with Location
             builder.HasOne(lt => lt.Location)
                    .WithMany(l => l.LocationTags)

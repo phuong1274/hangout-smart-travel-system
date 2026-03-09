@@ -38,7 +38,8 @@ const processQueue = (error) => {
 apiClient.interceptors.response.use(
   (response) => {
     const { data } = response;
-    if (data && typeof data === 'object') {
+    // Handle paginated responses (PascalCase from .NET)
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
       if (Object.prototype.hasOwnProperty.call(data, 'Items')) data.items = data.Items;
       if (Object.prototype.hasOwnProperty.call(data, 'TotalCount')) data.totalCount = data.TotalCount;
     }

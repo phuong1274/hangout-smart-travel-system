@@ -14,11 +14,10 @@ namespace HSTS.API.Requests
         int DestinationId,
         string? Telephone,
         string? Email,
-        string? PriceRange,
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
         int? RecommendedDurationMinutes,
-        List<TagScoreDto>? TagsWithScores,
+        List<int>? TagIds,
         List<string>? MediaLinks,
         List<SocialLinkDto>? SocialLinks,
         List<int>? AmenityIds);

@@ -21,6 +21,10 @@ HSTS.BE/HSTS.Infrastructure/bin/
 
 HSTS.BE/HSTS.Infrastructure/obj/
 
+HSTS.BE/HSTS.Tests/bin/
+HSTS.BE/HSTS.Tests/obj/
+
+
 # AI tooling & local docs (never push to remote)
 .claude/
 CLAUDE.md

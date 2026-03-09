@@ -25,8 +25,8 @@ export const useTags = () => {
         searchTerm: searchTerm || undefined
       });
 
-      setData(response.items || []);
-      setTotal(response.totalCount || 0);
+      setData(response.items || response.Items || []);
+      setTotal(response.totalCount || response.TotalCount || 0);
     } catch (error) {
       // Handled by global interceptor
     } finally {

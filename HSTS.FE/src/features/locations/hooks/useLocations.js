@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { usePagination } from '@/hooks/usePagination';
 import { getLocationsApi } from '../api';
 
@@ -25,14 +25,19 @@ export const useLocations = () => {
         searchTerm: searchTerm || undefined
       });
 
-      setData(response.items || []);
-      setTotal(response.totalCount || 0);
+      // response is already the data object due to .then(res => res.data) in API
+      setData(response.items || response.Items || []);
+      setTotal(response.totalCount || response.TotalCount || 0);
     } catch (error) {
       // Handled by global interceptor
     } finally {
       setLoading(false);
     }
   }, [pageIndex, pageSize, searchTerm, setTotal]);
+
+  useEffect(() => {
+    fetchLocations();
+  }, [fetchLocations]);
 
   return {
     data,

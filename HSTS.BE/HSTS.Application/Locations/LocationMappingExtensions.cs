@@ -19,16 +19,15 @@ namespace HSTS.Application.Locations
                 location.DestinationId,
                 location.LocationType?.Name,
                 location.Destination?.Name,
-                location.LocationTags.Select(lt => lt.Tag!.Id).ToList(),
+                location.LocationTags.Select(lt => lt.TagId).ToList(),
                 location.LocationMedias.Select(lm => lm.Link).ToList(),
                 location.SocialLinks.Select(sl => new LocationSocialLinkDto(sl.Id, sl.Platform, sl.Url)).ToList(),
                 location.Telephone,
                 location.Email,
-                location.PriceRange,
                 location.PriceMinUsd,
                 location.PriceMaxUsd,
                 location.RecommendedDurationMinutes,
-                location.LocationAmenities.Select(la => la.Amenity!.Id).ToList());
+                location.LocationAmenities.Select(la => la.AmenityId).ToList());
         }
     }
 }

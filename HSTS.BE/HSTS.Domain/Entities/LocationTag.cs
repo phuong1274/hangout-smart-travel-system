@@ -11,8 +11,5 @@ namespace HSTS.Domain.Entities
         [Required]
         public int TagId { get; set; }
         public Tag? Tag { get; set; }
-
-        [Range(0, 1)]
-        public double Score { get; set; }
     }
 }

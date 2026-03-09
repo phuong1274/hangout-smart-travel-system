@@ -6,21 +6,6 @@ import PublicRoute from './PublicRoute';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
 
-// Lazy load layouts and pages
-const MainLayout = lazy(() => import('@/layouts/MainLayout'));
-const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
-const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
-const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
-const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
-const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
-const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
-const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
-const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
-
-// Global Pages
-const Error404 = lazy(() => import('@/components/Errors/Error404'));
-const Error403 = lazy(() => import('@/components/Errors/Error403'));
-
 const LoadingFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
     <Spin size="large" tip="Loading page..." />
@@ -33,11 +18,20 @@ const SuspenseWrapper = ({ children }) => (
   </Suspense>
 );
 
-// Lazy load layouts and pages
+// Lazy load layouts
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
+
+// Lazy load auth pages
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
+const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
+const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
+const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
+
+// Lazy load feature pages
 const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
+const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const DestinationsPage = lazy(() => import('@/features/destinations/pages/DestinationsPage'));
 const TagsPage = lazy(() => import('@/features/tags/pages/TagsPage'));
 const LocationTypesPage = lazy(() => import('@/features/locationTypes/pages/LocationTypesPage'));
@@ -48,7 +42,23 @@ const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPag
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
 
+// Dashboard overview component
+const DashboardOverview = () => (
+  <div>
+    <h2>Overview</h2>
+    <p>Algorithm-based destination scheduling system.</p>
+  </div>
+);
+
+// Schedule management component
+const ScheduleManagement = () => (
+  <div>
+    <h2>Algorithm Scheduling Management</h2>
+  </div>
+);
+
 export const router = createBrowserRouter([
+  // Public Routes (Auth pages)
   {
     element: <SuspenseWrapper><PublicRoute /></SuspenseWrapper>,
     children: [
@@ -63,34 +73,33 @@ export const router = createBrowserRouter([
           { path: 'reset-password', element: <ResetPasswordPage /> },
           { path: '', element: <Navigate to="login" replace /> }
         ]
-      },
-      // Public: Destinations (for testing)
-      {
-        path: PATHS.DESTINATIONS.replace('/', ''),
-        element: <DestinationsPage />
-      },
-      // Public: Tags (for testing)
-      {
-        path: PATHS.TAGS.replace('/', ''),
-        element: <TagsPage />
-      },
-      // Public: Location Types (for testing)
-      {
-        path: PATHS.LOCATION_TYPES.replace('/', ''),
-        element: <LocationTypesPage />
-      },
-      // Public: Locations (for testing)
-      {
-        path: PATHS.LOCATIONS.replace('/', ''),
-        element: <LocationsPage />
-      },
-      // Public: Amenities (for testing)
-      {
-        path: PATHS.AMENITIES.replace('/', ''),
-        element: <AmenitiesPage />
       }
     ]
   },
+
+  // Public Routes (Feature pages - for testing/demo)
+  {
+    path: PATHS.DESTINATIONS.replace('/', ''),
+    element: <SuspenseWrapper><DestinationsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.TAGS.replace('/', ''),
+    element: <SuspenseWrapper><TagsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.LOCATION_TYPES.replace('/', ''),
+    element: <SuspenseWrapper><LocationTypesPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.LOCATIONS.replace('/', ''),
+    element: <SuspenseWrapper><LocationsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.AMENITIES.replace('/', ''),
+    element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
+  },
+
+  // Protected Routes (Admin/Authenticated users)
   {
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
@@ -100,11 +109,11 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div>
+            element: <DashboardOverview />
           },
           {
             path: PATHS.SCHEDULES.replace('/', ''),
-            element: <div><h2>Algorithm Scheduling Management</h2></div>
+            element: <ScheduleManagement />
           },
           {
             path: PATHS.USERS.replace('/', ''),
@@ -115,14 +124,12 @@ export const router = createBrowserRouter([
           },
           {
             path: PATHS.PROFILE.replace('/', ''),
-            element: <ProfilePage />,
+            element: <ProfilePage />
           },
-          // Error 403 shown within Layout when user doesn't have permissions
           {
             path: PATHS.UNAUTHORIZED.replace('/', ''),
             element: <Error403 />
           },
-          // Catch-all 404 for dashboard children
           {
             path: '*',
             element: <Error404 />
@@ -131,6 +138,8 @@ export const router = createBrowserRouter([
       }
     ]
   },
+
+  // Error Routes
   {
     path: PATHS.UNAUTHORIZED,
     element: <SuspenseWrapper><Error403 /></SuspenseWrapper>

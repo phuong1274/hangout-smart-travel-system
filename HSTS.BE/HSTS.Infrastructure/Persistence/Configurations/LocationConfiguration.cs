@@ -44,10 +44,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasMaxLength(200)
                 .IsRequired(false);
 
-            builder.Property(x => x.PriceRange)
-                .HasMaxLength(50)
-                .IsRequired(false);
-
             builder.Property(x => x.PriceMinUsd)
                 .HasColumnType("decimal(18,2)")
                 .IsRequired(false);
