@@ -16,6 +16,7 @@ const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswo
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
 const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
 const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
+const HomePage = lazy(() => import('@/features/home/pages/Home'));
 
 // Global Pages
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
@@ -34,6 +35,10 @@ const SuspenseWrapper = ({ children }) => (
 );
 
 export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <SuspenseWrapper><HomePage /></SuspenseWrapper>,
+  },
   {
     element: <SuspenseWrapper><PublicRoute /></SuspenseWrapper>,
     children: [

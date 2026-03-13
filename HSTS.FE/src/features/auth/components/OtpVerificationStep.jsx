@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Button, Input, Typography, Space, Flex } from 'antd';
+import { Button, Input, Typography } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
+import styles from './OtpVerificationStep.module.css';
 
-const { Text } = Typography;
+const { Title, Text } = Typography;
 
 const OTP_EXPIRY_SECONDS = 300;
 const DEFAULT_COOLDOWN_SECONDS = 60;
@@ -47,6 +48,7 @@ const OtpVerificationStep = ({
       setCooldown(result.cooldownSeconds ?? DEFAULT_COOLDOWN_SECONDS);
       setRemainingResends(result.remainingResends ?? 0);
       setExpiryCountdown(OTP_EXPIRY_SECONDS);
+      setOtpValue('');
     }
   }, [cooldown, remainingResends, onResendOtp]);
 
@@ -54,47 +56,59 @@ const OtpVerificationStep = ({
   const canResend = cooldown === 0 && remainingResends > 0 && !isResending;
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
-      <Text>OTP sent to <strong>{email}</strong></Text>
+    <div className={styles.otpContainer}>
+      <Title level={2} className={styles.otpTitle}>Verify OTP</Title>
+      
+      <div className={styles.otpDesc}>
+        We have sent a verification code to<br />
+        <strong>{email}</strong>
+      </div>
 
-      {isExpired ? (
-        <Text type="danger">OTP has expired. Please resend.</Text>
-      ) : (
-        <Text type="secondary">Expires in {formatTime(expiryCountdown)}</Text>
-      )}
+      <div className={styles.expiryText}>
+        {isExpired ? (
+          <Text type="danger">OTP has expired. Please resend.</Text>
+        ) : (
+          <Text type="secondary">Code expires in {formatTime(expiryCountdown)}</Text>
+        )}
+      </div>
 
-      <Input.OTP
-        length={6}
-        value={otpValue}
-        onChange={setOtpValue}
-        disabled={isExpired}
-      />
+      <div className={styles.otpInputWrapper}>
+        <Input.OTP
+          length={6}
+          value={otpValue}
+          onChange={setOtpValue}
+          disabled={isExpired}
+          size="large"
+        />
+      </div>
 
-      <Flex justify="space-between" align="center">
-        <Button
-          type="primary"
-          onClick={() => onSubmitOtp(otpValue)}
-          disabled={otpValue.length !== 6 || isExpired}
-          loading={isSubmitting}
-        >
-          Verify
-        </Button>
+      <Button
+        type="primary"
+        onClick={() => onSubmitOtp(otpValue)}
+        disabled={otpValue.length !== 6 || isExpired}
+        loading={isSubmitting}
+        shape="round"
+        size="large"
+        className={styles.btnVerify}
+      >
+        VERIFY
+      </Button>
 
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={handleResend}
-          disabled={!canResend}
-          loading={isResending}
-          type="link"
-        >
-          {cooldown > 0
-            ? `Resend in ${cooldown}s`
-            : remainingResends <= 0
-            ? 'No resends left'
-            : 'Resend OTP'}
-        </Button>
-      </Flex>
-    </Space>
+      <Button
+        icon={<ReloadOutlined />}
+        onClick={handleResend}
+        disabled={!canResend}
+        loading={isResending}
+        type="text"
+        className={styles.btnResend}
+      >
+        {cooldown > 0
+          ? `Resend in ${cooldown}s`
+          : remainingResends <= 0
+          ? 'No resends left'
+          : 'Resend OTP'}
+      </Button>
+    </div>
   );
 };
 

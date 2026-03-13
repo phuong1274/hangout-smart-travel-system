@@ -1,0 +1,92 @@
+.headerContainer {
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  background-color: #fdfcf0; 
+  z-index: 100;
+  position: relative; 
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  cursor: pointer;
+}
+
+.logoImage {
+  height: 80px;
+  width: auto;
+  object-fit: contain;
+  transition: all 0.3s ease; 
+}
+
+.brandName {
+  color: #ff4d4f;
+  font-weight: 800;
+  font-size: 24px;
+  margin: 0 0 0 -15px;
+  line-height: 1; 
+  transform: translateY(-8px);
+  transition: all 0.3s ease;
+}
+
+.navMenu {
+  display: flex;
+  align-items: center;
+  margin-right: 30px; 
+}
+
+.navLink {
+  cursor: pointer;
+  transition: color 0.3s;
+  padding: 0 5px;
+  color: #000; 
+}
+
+.navLink:hover {
+  color: #ff4d4f;
+}
+
+.locationPicker :global(.ant-select-selection-item) {
+  font-weight: 600;
+}
+
+.signInBtn {
+  background-color: #000 !important;
+  border-color: #000 !important;
+  border-radius: 6px !important;
+  font-weight: 500;
+  color: #fff !important;
+}
+
+/*Responsive */
+.mobileMenuBtn {
+  display: none;
+}
+
+
+@media (max-width: 768px) {
+  .headerContainer {
+    padding: 10px 15px; 
+  }
+
+  .navMenu {
+    display: none; 
+  }
+
+  .mobileMenuBtn {
+    display: block; 
+  }
+
+  .logoImage {
+    height: 50px; 
+  }
+
+  .brandName {
+    font-size: 18px; 
+    margin: 0 0 0 -10px;
+    transform: translateY(-5px);
+  }
+}

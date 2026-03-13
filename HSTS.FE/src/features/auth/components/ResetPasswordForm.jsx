@@ -5,6 +5,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useResetPassword, useResendOtp, useVerifyForgotPasswordOtp } from '../hooks/useAuth';
 import OtpVerificationStep from './OtpVerificationStep';
 import { PATHS } from '@/routes/paths';
+import styles from './ResetPasswordForm.module.css';
 
 const { Title } = Typography;
 
@@ -66,21 +67,29 @@ const ResetPasswordForm = () => {
           initialRemainingResends={initialRemainingResends}
         />
       ) : (
-        <Form form={form} layout="vertical" onFinish={handlePasswordSubmit} autoComplete="off">
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handlePasswordSubmit}
+          autoComplete="off"
+          className={styles.resetForm}
+        >
           <Form.Item
             name="newPassword"
-            label="New Password"
             rules={[
               { required: true, message: 'Please enter a new password' },
               { min: 8, message: 'Password must be at least 8 characters' },
             ]}
           >
-            <Input.Password prefix={<LockOutlined />} size="large" />
+            <Input.Password
+              placeholder="New Password"
+              size="large"
+              className={styles.resetInput}
+            />
           </Form.Item>
 
           <Form.Item
             name="confirmPassword"
-            label="Confirm Password"
             dependencies={['newPassword']}
             rules={[
               { required: true, message: 'Please confirm your password' },
@@ -92,19 +101,32 @@ const ResetPasswordForm = () => {
               }),
             ]}
           >
-            <Input.Password prefix={<LockOutlined />} size="large" />
+            <Input.Password
+              placeholder="Confirm New Password"
+              size="large"
+              className={styles.resetInput}
+            />
           </Form.Item>
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit" size="large" block loading={resetLoading}>
+          <Form.Item style={{ textAlign: 'center', marginBottom: 0 }}>
+            <Button
+              htmlType="submit"
+              size="large"
+              block
+              loading={resetLoading}
+              shape="round"
+              className={styles.btnReset}
+            >
               Reset Password
             </Button>
           </Form.Item>
         </Form>
       )}
 
-      <div style={{ textAlign: 'center', marginTop: 16 }}>
-        <Link to={PATHS.AUTH.LOGIN}>Back to Login</Link>
+      <div>
+        <Link to={PATHS.AUTH.LOGIN} className={styles.backLink}>
+          <LeftOutlined /> Back to Login
+        </Link>
       </div>
     </Card>
   );

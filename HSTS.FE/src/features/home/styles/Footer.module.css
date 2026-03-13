@@ -1,0 +1,51 @@
+.footerContainer {
+    padding: 60px 50px 30px; 
+    border-top: 1px solid #e8e8e8;
+    background-color: #fff; 
+  }
+  
+  .logoWrapper {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 0; 
+  }
+  
+  .logoImage {
+    height: 80px;
+    width: auto;
+    object-fit: contain;
+  }
+  
+  .brandName {
+    color: #ff4d4f;
+    font-weight: 800;
+    font-size: 36px;
+    margin: 0 0 0 -15px;
+    transform: translateY(-8px);
+    line-height: 1;
+  }
+  
+  .columnTitle {
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    margin-bottom: 24px !important;
+  }
+  
+  .linkText {
+    font-size: 16px;
+    color: #333;
+    cursor: pointer;
+    transition: color 0.3s;
+  }
+  
+  .linkText:hover {
+    color: #ff4d4f;
+  }
+  
+  .bottomText {
+    text-align: center;
+    margin-top: 60px;
+    color: #333;
+    font-size: 14px;
+  }

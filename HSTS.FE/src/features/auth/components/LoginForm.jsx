@@ -1,9 +1,11 @@
-import { Button, Card, Divider, Form, Input, Typography } from 'antd';
+import { Button, Form, Input, Typography } from 'antd';
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { GoogleLogin } from '@react-oauth/google';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useLogin, useGoogleLogin } from '../hooks/useAuth';
 import { PATHS } from '@/routes/paths';
+
+import styles from './LoginForm.module.css';
 
 const { Title, Text } = Typography;
 
@@ -11,58 +13,101 @@ const LoginForm = () => {
   const [form] = Form.useForm();
   const { login, loading } = useLogin();
   const { googleLogin, loading: googleLoading } = useGoogleLogin();
+  const navigate = useNavigate();
 
   return (
-    <Card>
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <Title level={3}>Sign In</Title>
-        <Text type="secondary">Welcome back to Hangout</Text>
-      </div>
+    <div className={styles.loginContainer}>
+      
+    
+      <div className={styles.loginLeft}>
+        <Title level={2} className={styles.loginTitle}>Sign in to Hangout</Title>
 
-      <Form form={form} layout="vertical" onFinish={login} autoComplete="off">
-        <Form.Item
-          name="email"
-          rules={[
-            { required: true, message: 'Please enter your email' },
-            { type: 'email', message: 'Invalid email address' },
-          ]}
-        >
-          <Input prefix={<MailOutlined />} placeholder="Email" size="large" />
-        </Form.Item>
-
-        <Form.Item
-          name="password"
-          rules={[{ required: true, message: 'Please enter your password' }]}
-        >
-          <Input.Password prefix={<LockOutlined />} placeholder="Password" size="large" />
-        </Form.Item>
-
-        <div style={{ textAlign: 'right', marginBottom: 16 }}>
-          <Link to={PATHS.AUTH.FORGOT_PASSWORD}>Forgot password?</Link>
+        <div className={styles.googleLoginWrapper}>
+          <GoogleLogin
+            onSuccess={(res) => googleLogin(res.credential)}
+            onError={() => {}}
+            useOneTap={false}
+            shape="pill" 
+          />
         </div>
 
-        <Form.Item>
-          <Button type="primary" htmlType="submit" size="large" block loading={loading}>
-            Sign In
-          </Button>
-        </Form.Item>
-      </Form>
+        <Text type="secondary" className={styles.loginDividerText}>
+          or use your email account:
+        </Text>
 
-      <Divider plain>or</Divider>
+        <Form 
+          form={form} 
+          layout="vertical" 
+          onFinish={login} 
+          autoComplete="off"
+          className={styles.loginForm}
+        >
+          <Form.Item
+            name="email"
+            rules={[
+              { required: true, message: 'Please enter your email' },
+              { type: 'email', message: 'Invalid email address' },
+            ]}
+          >
+            <Input 
+              prefix={<MailOutlined className={styles.loginIcon} />} 
+              placeholder="Email" 
+              size="large" 
+              className={styles.loginInput}
+            />
+          </Form.Item>
 
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <GoogleLogin
-          onSuccess={(res) => googleLogin(res.credential)}
-          onError={() => {}}
-          useOneTap={false}
-          width="100%"
-        />
+          <Form.Item
+            name="password"
+            rules={[{ required: true, message: 'Please enter your password' }]}
+          >
+            <Input.Password 
+              prefix={<LockOutlined className={styles.loginIcon} />} 
+              placeholder="Password" 
+              size="large" 
+              className={styles.loginInput}
+            />
+          </Form.Item>
+
+          <div className={styles.forgotPassword}>
+            <Link to={PATHS.AUTH.FORGOT_PASSWORD}>
+              Forgot your password?
+            </Link>
+          </div>
+
+          <Form.Item style={{ textAlign: 'center' }}>
+            <Button 
+              type="primary" 
+              htmlType="submit" 
+              size="large" 
+              loading={loading}
+              shape="round"
+              className={styles.btnSignin}
+            >
+              SIGN IN
+            </Button>
+          </Form.Item>
+        </Form>
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: 16 }}>
-        <Text>Don&apos;t have an account? <Link to={PATHS.AUTH.REGISTER}>Sign Up</Link></Text>
+      
+      <div className={styles.loginRight}>
+        <Title level={2} className={styles.welcomeTitle}>Hello, Friend!</Title>
+        <Text className={styles.welcomeText}>
+          Enter your personal details and start<br />journey with us
+        </Text>
+        
+        <Button 
+          size="large" 
+          shape="round" 
+          onClick={() => navigate(PATHS.AUTH.REGISTER)}
+          className={styles.btnSignup}
+        >
+          SIGN UP
+        </Button>
       </div>
-    </Card>
+
+    </div>
   );
 };
 
