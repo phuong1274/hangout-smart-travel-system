@@ -8,6 +8,12 @@ Turn on terminal in Infrastructure:
 - Create Migration: 
 -> dotnet ef migrations add <NameMigrations> -o Migrations
 
+-> Alternative:
+dotnet ef migrations add <TenMiDauBuoi> -p ../HSTS.Infrastructure
+dotnet ef database update -p ../HSTS.Infrastructure
+
+eg: dotnet ef migrations add No! -o Migrations
+
 eg: dotnet ef migrations add InitialCreate -o Migrations
 
 - Apply Migration:

@@ -27,3 +27,4 @@ HSTS.BE/HSTS.Infrastructure/Migrations
 
 .vs/
 .vscode/
+HSTS.BE/HSTS.Tests/obj
