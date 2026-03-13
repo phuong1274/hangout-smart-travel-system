@@ -25,6 +25,8 @@ HSTS.BE/HSTS.Infrastructure/bin/
 HSTS.BE/HSTS.Infrastructure/obj/
 HSTS.BE/HSTS.Infrastructure/Migrations
 
+HSTS.BE/HSTS.Tests/bin/
+
+HSTS.BE/HSTS.Tests/obj/
 .vs/
 .vscode/
-HSTS.BE/HSTS.Tests/obj

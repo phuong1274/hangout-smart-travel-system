@@ -4,9 +4,9 @@ import { useAuthStore } from '@/store/authStore';
 import { PATHS } from './paths';
 
 const PublicRoute = () => {
-  const { isAuthenticated, token } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
 
-  if (isAuthenticated && token) {
+  if (isAuthenticated) {
     return <Navigate to={PATHS.DASHBOARD} replace />;
   }
 

@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Button, Card, Form, Input, Typography } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { useResetPassword, useResendOtp } from '../hooks/useAuth';
+import { useResetPassword, useResendOtp, useVerifyForgotPasswordOtp } from '../hooks/useAuth';
 import OtpVerificationStep from './OtpVerificationStep';
 import { PATHS } from '@/routes/paths';
 import styles from './ResetPasswordForm.module.css';
@@ -18,14 +18,19 @@ const ResetPasswordForm = () => {
 
   const { resetPassword, loading: resetLoading } = useResetPassword();
   const { resendOtp, loading: resendLoading } = useResendOtp();
+  const { verifyForgotPasswordOtp, loading: verifyLoading } = useVerifyForgotPasswordOtp();
 
   const [step, setStep] = useState(1);
   const [otpCode, setOtpCode] = useState('');
 
-  const handleOtpSubmit = useCallback((code) => {
-    setOtpCode(code);
-    setStep(2);
-  }, []);
+  const handleOtpSubmit = useCallback(async (code) => {
+    if (!email) return;
+    const success = await verifyForgotPasswordOtp({ email, otpCode: code });
+    if (success) {
+      setOtpCode(code);
+      setStep(2);
+    }
+  }, [email, verifyForgotPasswordOtp]);
 
   const handleResendOtp = useCallback(async () => {
     if (!email) return;
@@ -56,7 +61,7 @@ const ResetPasswordForm = () => {
           email={email}
           onSubmitOtp={handleOtpSubmit}
           onResendOtp={handleResendOtp}
-          isSubmitting={false}
+          isSubmitting={verifyLoading}
           isResending={resendLoading}
           initialCooldownSeconds={initialCooldownSeconds}
           initialRemainingResends={initialRemainingResends}
