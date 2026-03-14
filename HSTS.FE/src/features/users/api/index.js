@@ -4,6 +4,7 @@ export const usersApi = {
   getUsers: (params) => apiClient.get('/api/users', { params }),
   getMyInfo: () => apiClient.get('/api/users/me'),
   updateMyInfo: (data) => apiClient.put('/api/users/me', data),
+  uploadAvatar: (formData) => apiClient.post('/api/users/me/avatar', formData),
   getMyProfiles: () => apiClient.get('/api/users/me/profiles'),
   getMyProfile: (profileId) => apiClient.get(`/api/users/me/profiles/${profileId}`),
   createProfile: (data) => apiClient.post('/api/users/me/profiles', data),

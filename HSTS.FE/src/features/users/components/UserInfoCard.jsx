@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import { useMyInfo, useUpdateMyInfo } from '../hooks/useUserProfile';
 
 const { Title } = Typography;
+const { TextArea } = Input;
 
 const GENDER_OPTIONS = [
   { value: 0, label: 'Male' },
@@ -20,6 +21,7 @@ const UserInfoCard = () => {
 
   const initialValues = {
     fullName: user.fullName,
+    bio: user.bio ?? '',
     dateOfBirth: user.dateOfBirth ? dayjs(user.dateOfBirth) : null,
     gender: user.gender,
     phoneNumber: user.phoneNumber,
@@ -28,6 +30,7 @@ const UserInfoCard = () => {
   const onFinish = (values) => {
     updateMyInfo({
       fullName: values.fullName,
+      bio: values.bio || null,
       dateOfBirth: values.dateOfBirth?.toISOString() ?? null,
       gender: values.gender ?? null,
       phoneNumber: values.phoneNumber || null,
@@ -50,6 +53,13 @@ const UserInfoCard = () => {
           ]}
         >
           <Input size="large" />
+        </Form.Item>
+        <Form.Item
+          name="bio"
+          label="Bio"
+          rules={[{ max: 300, message: 'Max 300 characters' }]}
+        >
+          <TextArea rows={3} maxLength={300} showCount placeholder="Tell us about yourself..." />
         </Form.Item>
         <Form.Item name="dateOfBirth" label="Date of Birth">
           <DatePicker style={{ width: '100%' }} size="large" />

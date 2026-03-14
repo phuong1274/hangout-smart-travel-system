@@ -6,16 +6,19 @@ import { useAuthStore } from '@/store/authStore';
 export const useMyInfo = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { updateUser } = useAuthStore();
 
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
       const res = await usersApi.getMyInfo();
       setData(res.data);
+      // Sync avatarUrl to authStore so MainLayout header thumbnail stays current
+      updateUser({ avatarUrl: res.data.avatarUrl ?? null });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [updateUser]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
@@ -109,4 +112,27 @@ export const useDeleteProfile = (onSuccess) => {
   }, [onSuccess]);
 
   return { deleteProfile, loading };
+};
+
+export const useUploadAvatar = (onSuccess) => {
+  const [loading, setLoading] = useState(false);
+  const { updateUser } = useAuthStore();
+
+  const uploadAvatar = useCallback(async (file) => {
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await usersApi.uploadAvatar(formData);
+      updateUser({ avatarUrl: res.data.avatarUrl });
+      message.success('Avatar updated!');
+      onSuccess?.();
+    } catch {
+      // intentionally empty — axios interceptor shows error toast
+    } finally {
+      setLoading(false);
+    }
+  }, [updateUser, onSuccess]);
+
+  return { uploadAvatar, loading };
 };
