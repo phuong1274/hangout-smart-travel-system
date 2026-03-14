@@ -26,6 +26,20 @@ namespace HSTS.API.Controllers
             return result.Match<IActionResult>(Ok, MapErrors);
         }
 
+        [HttpPost("me/avatar")]
+        [RequestSizeLimit(5 * 1024 * 1024)]
+        public async Task<IActionResult> UploadAvatar([FromForm] IFormFile file)
+        {
+            if (file is null || file.Length == 0)
+                return BadRequest(new { message = "File is required." });
+
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            var command = new UploadAvatarCommand(ms.ToArray(), file.ContentType, file.FileName);
+            var result = await Mediator.Send(command);
+            return result.Match<IActionResult>(Ok, MapErrors);
+        }
+
         [HttpGet("me/profiles")]
         public async Task<IActionResult> GetMyProfiles()
         {

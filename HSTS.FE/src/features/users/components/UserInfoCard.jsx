@@ -1,6 +1,6 @@
 import { Button, Card, DatePicker, Form, Input, Select, Spin, Typography } from 'antd';
 import dayjs from 'dayjs';
-import { useMyInfo, useUpdateMyInfo } from '../hooks/useUserProfile';
+import { useUpdateMyInfo } from '../hooks/useUserProfile';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -11,9 +11,8 @@ const GENDER_OPTIONS = [
   { value: 2, label: 'Other' },
 ];
 
-const UserInfoCard = () => {
+const UserInfoCard = ({ user, loading, refetch }) => {
   const [form] = Form.useForm();
-  const { data: user, loading, refetch } = useMyInfo();
   const { updateMyInfo, loading: saving } = useUpdateMyInfo(refetch);
 
   if (loading) return <Spin />;

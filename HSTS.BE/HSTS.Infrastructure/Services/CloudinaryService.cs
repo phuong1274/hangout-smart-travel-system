@@ -26,8 +26,15 @@ namespace HSTS.Infrastructure.Services
         {
             if (oldAvatarUrl is not null)
             {
-                var oldPublicId = ExtractPublicId(oldAvatarUrl);
-                await _cloudinary.DestroyAsync(new DeletionParams(oldPublicId));
+                try
+                {
+                    var oldPublicId = ExtractPublicId(oldAvatarUrl);
+                    await _cloudinary.DestroyAsync(new DeletionParams(oldPublicId));
+                }
+                catch
+                {
+                    // Silent failure — old avatar deletion is best-effort
+                }
             }
 
             using var stream = new MemoryStream(fileBytes);

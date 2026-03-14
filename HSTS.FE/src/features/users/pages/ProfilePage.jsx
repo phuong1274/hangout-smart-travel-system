@@ -9,14 +9,14 @@ import { useMyInfo } from '../hooks/useUserProfile';
 const { Title } = Typography;
 
 const ProfilePage = () => {
-  const { data: myInfo, refetch } = useMyInfo();
+  const { data: myInfo, loading, refetch } = useMyInfo();
   const [activeTab, setActiveTab] = useState('personal');
 
   const tabs = [
     {
       key: 'personal',
       label: 'Personal Info',
-      children: <UserInfoCard />,
+      children: <UserInfoCard user={myInfo} loading={loading} refetch={refetch} />,
     },
     {
       key: 'profiles',

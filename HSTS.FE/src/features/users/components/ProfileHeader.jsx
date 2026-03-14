@@ -17,6 +17,7 @@ const ProfileHeader = ({ user, onAvatarUploaded }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
   const { uploadAvatar, loading } = useUploadAvatar(() => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     setPendingFile(null);
     onAvatarUploaded?.();
@@ -35,6 +36,7 @@ const ProfileHeader = ({ user, onAvatarUploaded }) => {
       return;
     }
 
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(file));
     setPendingFile(file);
     // Reset input so same file can be re-selected
