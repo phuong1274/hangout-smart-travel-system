@@ -25,16 +25,16 @@ const MainLayout = () => {
       onClick: () => navigate(PATHS.DASHBOARD),
     },
     {
-      key: PATHS.SCHEDULES,
+      key: PATHS.DASHBOARD + PATHS.SCHEDULES,
       icon: <ScheduleOutlined />,
       label: 'Schedules',
-      onClick: () => navigate(PATHS.SCHEDULES),
+      onClick: () => navigate(PATHS.DASHBOARD + PATHS.SCHEDULES),
     },
     {
-      key: PATHS.USERS,
+      key: PATHS.DASHBOARD + PATHS.USERS,
       icon: <UserOutlined />,
       label: 'Users',
-      onClick: () => navigate(PATHS.USERS),
+      onClick: () => navigate(PATHS.DASHBOARD + PATHS.USERS),
       hidden: role !== ROLES.ADMIN,
     },
   ].filter((item) => !item.hidden);
@@ -43,7 +43,7 @@ const MainLayout = () => {
     {
       key: 'profile',
       label: 'My Profile',
-      onClick: () => navigate(PATHS.PROFILE),
+      onClick: () => navigate(PATHS.DASHBOARD + PATHS.PROFILE),
     },
     { type: 'divider' },
     {
