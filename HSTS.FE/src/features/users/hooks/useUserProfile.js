@@ -15,6 +15,8 @@ export const useMyInfo = () => {
       setData(res.data);
       // Sync avatarUrl to authStore so MainLayout header thumbnail stays current
       updateUser({ avatarUrl: res.data.avatarUrl ?? null });
+    } catch {
+      // errors handled by axios interceptor (toast / redirect)
     } finally {
       setLoading(false);
     }
@@ -36,6 +38,8 @@ export const useUpdateMyInfo = (onSuccess) => {
       updateUser({ fullName: res.data.fullName });
       message.success('Profile updated!');
       onSuccess?.();
+    } catch {
+      // errors handled by axios interceptor
     } finally {
       setLoading(false);
     }
@@ -53,6 +57,8 @@ export const useMyProfiles = () => {
     try {
       const res = await usersApi.getMyProfiles();
       setData(res.data);
+    } catch {
+      // errors handled by axios interceptor (toast / redirect)
     } finally {
       setLoading(false);
     }
@@ -72,6 +78,8 @@ export const useCreateProfile = (onSuccess) => {
       await usersApi.createProfile(data);
       message.success('Profile created!');
       onSuccess?.();
+    } catch {
+      // errors handled by axios interceptor
     } finally {
       setLoading(false);
     }
@@ -89,6 +97,8 @@ export const useUpdateProfile = (onSuccess) => {
       await usersApi.updateProfile(data);
       message.success('Profile updated!');
       onSuccess?.();
+    } catch {
+      // errors handled by axios interceptor
     } finally {
       setLoading(false);
     }
@@ -106,6 +116,8 @@ export const useDeleteProfile = (onSuccess) => {
       await usersApi.deleteProfile(profileId);
       message.success('Profile deleted!');
       onSuccess?.();
+    } catch {
+      // errors handled by axios interceptor
     } finally {
       setLoading(false);
     }
