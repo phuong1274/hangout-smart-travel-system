@@ -86,7 +86,7 @@ apiClient.interceptors.response.use(
           const msgs = Object.values(response.data.errors).flat().join(', ');
           notification.error({ message: 'Invalid Data', description: msgs });
         } else {
-          message.error(response.data?.title || 'Bad Request');
+          message.error(response.data?.detail || response.data?.title || 'Bad Request');
         }
       } else if (response.status === 403) {
         // Skip generic message for auth-specific errors handled by individual hooks

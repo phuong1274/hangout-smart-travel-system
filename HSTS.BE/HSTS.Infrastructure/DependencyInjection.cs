@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using HSTS.Infrastructure.Persistence;
 using HSTS.Infrastructure.Repositories;
 using HSTS.Infrastructure.Services;
+using HSTS.Infrastructure.Settings;
 using HSTS.Application.Auth.Interfaces;
 using HSTS.Application.Interfaces;
 using static HSTS.Application.Interfaces.IRepository;
@@ -30,6 +31,10 @@ namespace HSTS.Infrastructure
             services.AddScoped<IGoogleAuthService, GoogleAuthService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+            // Cloudinary
+            services.Configure<CloudinarySettings>(configuration.GetSection("Cloudinary"));
+            services.AddScoped<ICloudinaryService, CloudinaryService>();
 
             return services;
         }

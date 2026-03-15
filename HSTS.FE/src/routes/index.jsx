@@ -60,38 +60,32 @@ export const router = createBrowserRouter([
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
       {
-        path: PATHS.DASHBOARD,
         element: <MainLayout />,
         children: [
-          { 
-            index: true, 
-            element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div> 
-          },
-          { 
-            path: PATHS.SCHEDULES.replace('/', ''), 
-            element: <div><h2>Algorithm Scheduling Management</h2></div> 
+          {
+            path: PATHS.DASHBOARD,
+            element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div>
           },
           {
-            path: PATHS.USERS.replace('/', ''),
+            path: PATHS.SCHEDULES,
+            element: <div><h2>Algorithm Scheduling Management</h2></div>
+          },
+          {
+            path: PATHS.USERS,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
             children: [
               { index: true, element: <UsersPage /> }
             ]
           },
           {
-            path: PATHS.PROFILE.replace('/', ''),
+            path: PATHS.PROFILE,
             element: <ProfilePage />,
           },
           // Error 403 shown within Layout when user doesn't have permissions
           {
-            path: PATHS.UNAUTHORIZED.replace('/', ''),
+            path: PATHS.UNAUTHORIZED,
             element: <Error403 />
           },
-          // Catch-all 404 for dashboard children
-          {
-            path: '*',
-            element: <Error404 />
-          }
         ]
       }
     ]

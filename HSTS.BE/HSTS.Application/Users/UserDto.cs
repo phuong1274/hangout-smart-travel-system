@@ -6,6 +6,8 @@ namespace HSTS.Application.Users
         int Id,
         string Email,
         string FullName,
+        string? AvatarUrl,
+        string? Bio,
         DateTime? DateOfBirth,
         Gender? Gender,
         string? PhoneNumber,

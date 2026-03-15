@@ -1,3 +1,5 @@
+using HSTS.Domain.Entities;
+
 namespace HSTS.Application.Users
 {
     public static class UserMappingExtensions
@@ -7,6 +9,8 @@ namespace HSTS.Application.Users
                 Id: user.Id,
                 Email: account.Email,
                 FullName: user.FullName,
+                AvatarUrl: user.AvatarUrl,
+                Bio: user.Bio,
                 DateOfBirth: user.DateOfBirth,
                 Gender: user.Gender,
                 PhoneNumber: user.PhoneNumber,
