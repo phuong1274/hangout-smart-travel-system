@@ -17,7 +17,7 @@ COPY HSTS.Infrastructure/ HSTS.Infrastructure/
 COPY HSTS.Domain/     HSTS.Domain/
 
 RUN dotnet publish HSTS.API/HSTS.API.csproj \
-    -c Release -o /app/publish --no-restore
+    -c Release -o /app/publish
 
 # Stage 2: Runtime (smaller image — no SDK)
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
