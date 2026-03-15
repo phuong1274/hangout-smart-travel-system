@@ -28,6 +28,7 @@ namespace HSTS.API.Controllers
 
         [HttpPost("me/avatar")]
         [RequestSizeLimit(5 * 1024 * 1024)]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadAvatar([FromForm] IFormFile file)
         {
             if (file is null || file.Length == 0)
