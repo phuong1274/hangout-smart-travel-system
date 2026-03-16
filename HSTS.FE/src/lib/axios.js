@@ -87,10 +87,16 @@ apiClient.interceptors.response.use(
           const msgs = Object.values(response.data.errors).flat().join(', ');
           notification.error({ message: 'Invalid Data', description: msgs });
         } else {
-          message.error(response.data?.title || 'Bad Request');
+          message.error(response.data?.detail || response.data?.title || 'Bad Request');
         }
       } else if (response.status === 403) {
-        message.error('You do not have permission to do this.');
+        // Skip generic message for auth-specific errors handled by individual hooks
+        if (!response.data?.code) {
+          message.error('You do not have permission to do this.');
+        }
+      } else if (response.status === 409) {
+        const msg = response.data?.detail || response.data?.title || 'This resource already exists.';
+        message.error(msg);
       } else if (response.status === 500) {
         notification.error({ message: 'System Error', description: 'Internal server error!' });
       }

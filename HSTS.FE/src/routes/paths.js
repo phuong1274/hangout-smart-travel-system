@@ -7,7 +7,7 @@ export const PATHS = {
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
   },
-  DASHBOARD: '/',
+  DASHBOARD: '/dashboard',
   SCHEDULES: '/schedules',
   DESTINATIONS: '/destinations',
   TAGS: '/tags',

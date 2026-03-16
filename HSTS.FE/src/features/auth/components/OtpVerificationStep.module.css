@@ -1,0 +1,68 @@
+.otpContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 500px;
+    margin: 60px auto;
+    padding: 32px 40px; 
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #d9d9d9;
+    text-align: center;
+  }
+  
+  .otpTitle {
+    margin-bottom: 16px !important;
+    font-weight: 700 !important;
+  }
+  
+  .otpDesc {
+    margin-bottom: 16px;
+    font-size: 15px;
+    color: #333;
+    line-height: 1.5;
+  }
+  
+  .expiryText {
+    margin-bottom: 24px;
+    min-height: 22px;
+  }
+  
+  .otpInputWrapper {
+    margin-bottom: 24px; 
+  }
+  
+  .btnVerify {
+    background-color: #000 !important;
+    color: #fff !important;
+    width: 200px;
+    font-weight: 600 !important;
+    margin-bottom: 16px;
+  }
+  
+  .btnResend {
+    color: #666 !important;
+    font-weight: 500 !important;
+  }
+  
+  .btnResend:hover:not(:disabled) {
+    color: #000 !important;
+  }
+  
+  @media (max-width: 768px) {
+    .otpContainer {
+      margin: 24px 16px;
+      padding: 24px; 
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .otpTitle {
+      font-size: 24px !important;
+    }
+    
+    .otpContainer {
+      padding: 20px 16px; 
+    }
+  }

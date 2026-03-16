@@ -108,6 +108,16 @@ namespace HSTS.API.Controllers
                 MapErrors);
         }
 
+        [HttpPost("verify-forgot-password-otp")]
+        public async Task<IActionResult> VerifyForgotPasswordOtp(VerifyForgotPasswordOtpCommand command)
+        {
+            var result = await Mediator.Send(command);
+
+            return result.Match<IActionResult>(
+                value => Ok(new { message = value }),
+                MapErrors);
+        }
+
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordCommand command)
         {

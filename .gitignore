@@ -17,6 +17,9 @@ HSTS.BE/HSTS.Domain/bin/
 
 HSTS.BE/HSTS.Domain/obj/
 
+HSTS.BE/HSTS.Tests/bin/
+HSTS.BE/HSTS.Tests/obj/ 
+
 HSTS.BE/HSTS.Infrastructure/bin/
 
 HSTS.BE/HSTS.Infrastructure/obj/
@@ -32,3 +35,9 @@ AGENTS.md
 docs/
 .playwright-mcp/
 HSTS.BE/HSTS.Infrastructure/Migrations
+
+HSTS.BE/HSTS.Tests/bin/
+
+HSTS.BE/HSTS.Tests/obj/
+.vs/
+.vscode/

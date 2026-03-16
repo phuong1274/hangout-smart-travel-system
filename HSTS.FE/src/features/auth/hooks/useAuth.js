@@ -35,7 +35,8 @@ export const useLogin = () => {
     } catch (err) {
       const code = err?.response?.data?.code;
       if (code === 'Account.EmailNotVerified') {
-        message.warning('Please verify your email first.');
+        const msg = err?.response?.data?.message || 'Please verify your email first.';
+        message.warning(msg);
         navigate(PATHS.AUTH.VERIFY_EMAIL, { state: { email: data.email } });
         return;
       }
@@ -131,6 +132,24 @@ export const useForgotPassword = () => {
   }, [navigate]);
 
   return { forgotPassword, loading };
+};
+
+export const useVerifyForgotPasswordOtp = () => {
+  const [loading, setLoading] = useState(false);
+
+  const verifyForgotPasswordOtp = useCallback(async (data) => {
+    setLoading(true);
+    try {
+      await authApi.verifyForgotPasswordOtp(data);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { verifyForgotPasswordOtp, loading };
 };
 
 export const useResetPassword = () => {
