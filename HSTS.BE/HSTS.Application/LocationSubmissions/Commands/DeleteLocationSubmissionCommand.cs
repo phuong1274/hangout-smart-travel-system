@@ -8,7 +8,7 @@ using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Application.LocationSubmissions.Commands
 {
-    public record DeleteLocationSubmissionCommand(int Id, string UserId) : IRequest<ErrorOr<Deleted>>;
+    public record DeleteLocationSubmissionCommand(int Id, int UserId) : IRequest<ErrorOr<Deleted>>;
 
     public class DeleteLocationSubmissionCommandHandler : IRequestHandler<DeleteLocationSubmissionCommand, ErrorOr<Deleted>>
     {

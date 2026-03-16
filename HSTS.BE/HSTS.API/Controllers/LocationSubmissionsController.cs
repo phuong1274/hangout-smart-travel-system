@@ -1,5 +1,6 @@
 using ErrorOr;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
@@ -24,13 +25,14 @@ namespace HSTS.API.Controllers
         }
 
         [HttpGet("my")]
+        [Authorize]
         public async Task<IActionResult> GetMySubmissions(
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
             {
                 return Unauthorized();
             }
@@ -51,6 +53,7 @@ namespace HSTS.API.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<IActionResult> GetSubmission(int id, CancellationToken ct)
         {
             var result = await _mediator.Send(new GetSubmissionByIdQuery(id), ct);
@@ -68,14 +71,9 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> Create(CreateLocationSubmissionRequest request, CancellationToken ct)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized();
-            }
-
             var socialLinks = request.SocialLinks?.Select(s => new LocationSubmissionSocialLinkDto(s.Platform, s.Url)).ToList();
 
             var command = new CreateLocationSubmissionCommand(
@@ -93,8 +91,7 @@ namespace HSTS.API.Controllers
                 request.MediaLinks,
                 socialLinks,
                 request.AmenityIds,
-                request.TagIds,
-                userId
+                request.TagIds
             );
 
             var result = await _mediator.Send(command, ct);
@@ -111,14 +108,9 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<IActionResult> Update(int id, CreateLocationSubmissionRequest request, CancellationToken ct)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized();
-            }
-
             var socialLinks = request.SocialLinks?.Select(s => new LocationSubmissionSocialLinkDto(s.Platform, s.Url)).ToList();
 
             var command = new UpdateLocationSubmissionCommand(
@@ -137,8 +129,7 @@ namespace HSTS.API.Controllers
                 request.MediaLinks,
                 socialLinks,
                 request.AmenityIds,
-                request.TagIds,
-                userId
+                request.TagIds
             );
 
             var result = await _mediator.Send(command, ct);
@@ -157,10 +148,11 @@ namespace HSTS.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
             {
                 return Unauthorized();
             }
@@ -182,6 +174,7 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPost("{id}/review")]
+        [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
         public async Task<IActionResult> Review(int id, ReviewLocationSubmissionRequest request, CancellationToken ct)
         {
             var reviewedBy = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "admin";
@@ -208,6 +201,7 @@ namespace HSTS.API.Controllers
         }
 
         [HttpGet("admin/all")]
+        [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
         public async Task<IActionResult> GetAllSubmissions(
             [FromQuery] string? searchTerm,
             [FromQuery] SubmissionStatus? status,

@@ -25,23 +25,26 @@ namespace HSTS.Application.LocationSubmissions.Commands
         List<string>? MediaLinks,
         List<LocationSubmissionSocialLinkDto>? SocialLinks,
         List<int>? AmenityIds,
-        List<int>? TagIds,
-        string UserId
+        List<int>? TagIds
     ) : IRequest<ErrorOr<LocationSubmissionDto>>;
 
     public class CreateLocationSubmissionCommandHandler : IRequestHandler<CreateLocationSubmissionCommand, ErrorOr<LocationSubmissionDto>>
     {
         private readonly IRepository<LocationSubmission> _repository;
+        private readonly ICurrentUserService _currentUser;
 
-        public CreateLocationSubmissionCommandHandler(IRepository<LocationSubmission> repository)
+        public CreateLocationSubmissionCommandHandler(
+            IRepository<LocationSubmission> repository,
+            ICurrentUserService currentUser)
         {
             _repository = repository;
+            _currentUser = currentUser;
         }
 
         public async Task<ErrorOr<LocationSubmissionDto>> Handle(CreateLocationSubmissionCommand request, CancellationToken cancellationToken)
         {
             var existingSubmission = await _repository.Query()
-                .Where(x => x.Name == request.Name && x.UserId == request.UserId && !x.IsDeleted)
+                .Where(x => x.Name == request.Name && x.UserId == _currentUser.UserId && !x.IsDeleted)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (existingSubmission != null)
@@ -63,19 +66,20 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 PriceMaxUsd = request.PriceMaxUsd,
                 DestinationId = request.DestinationId,
                 LocationTypeId = request.LocationTypeId,
-                UserId = request.UserId,
+                UserId = _currentUser.UserId,
+                CreatedBy = _currentUser.UserId.ToString(),
                 Status = Domain.Entities.SubmissionStatus.Pending,
-                MediaLinksJson = request.MediaLinks != null && request.MediaLinks.Count > 0 
-                    ? JsonSerializer.Serialize(request.MediaLinks) 
+                MediaLinksJson = request.MediaLinks != null && request.MediaLinks.Count > 0
+                    ? JsonSerializer.Serialize(request.MediaLinks)
                     : null,
-                SocialLinksJson = request.SocialLinks != null && request.SocialLinks.Count > 0 
-                    ? JsonSerializer.Serialize(request.SocialLinks) 
+                SocialLinksJson = request.SocialLinks != null && request.SocialLinks.Count > 0
+                    ? JsonSerializer.Serialize(request.SocialLinks)
                     : null,
-                AmenityIdsJson = request.AmenityIds != null && request.AmenityIds.Count > 0 
-                    ? JsonSerializer.Serialize(request.AmenityIds) 
+                AmenityIdsJson = request.AmenityIds != null && request.AmenityIds.Count > 0
+                    ? JsonSerializer.Serialize(request.AmenityIds)
                     : null,
-                TagIdsJson = request.TagIds != null && request.TagIds.Count > 0 
-                    ? JsonSerializer.Serialize(request.TagIds) 
+                TagIdsJson = request.TagIds != null && request.TagIds.Count > 0
+                    ? JsonSerializer.Serialize(request.TagIds)
                     : null
             };
 
@@ -99,7 +103,6 @@ namespace HSTS.Application.LocationSubmissions.Commands
             RuleFor(x => x.Email).EmailAddress().MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Email));
             RuleFor(x => x.PriceMinUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMinUsd.HasValue);
             RuleFor(x => x.PriceMaxUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMaxUsd.HasValue);
-            RuleFor(x => x.UserId).NotEmpty();
 
             RuleFor(x => x.DestinationId).NotEmpty().When(x => x.DestinationId.HasValue)
                 .WithMessage("Destination ID must be provided if specified.");

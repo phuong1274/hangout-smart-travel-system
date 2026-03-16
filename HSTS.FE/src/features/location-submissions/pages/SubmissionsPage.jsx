@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, Layout, message, Modal } from 'antd';
-import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
+import { Card, Typography, Space, Button, Layout, message, Modal, Tag } from 'antd';
+import { PlusOutlined, HomeOutlined, PictureOutlined, LinkOutlined, TagsOutlined } from '@ant-design/icons';
 import { useSubmissions } from '../hooks/useSubmissions';
 import SubmissionTable from '../components/SubmissionTable';
 import SubmissionForm from '../components/SubmissionForm';
 import { useNavigate } from 'react-router-dom';
-import { deleteLocationSubmissionApi, getSubmissionByIdApi, reviewSubmissionApi } from '../api';
+import { deleteLocationSubmissionApi, getSubmissionByIdApi } from '../api';
 import { SubmissionStatus } from '../types';
 
 const { Title } = Typography;
@@ -25,8 +25,6 @@ const SubmissionsPage = () => {
   const [editingSubmission, setEditingSubmission] = useState(null);
   const [viewingSubmission, setViewingSubmission] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [reviewData, setReviewData] = useState({ status: SubmissionStatus.Approved, rejectionReason: '' });
 
   const handleCreate = () => {
     setEditingSubmission(null);
@@ -64,35 +62,6 @@ const SubmissionsPage = () => {
       fetchSubmissions();
     } catch (error) {
       // Handled by global interceptor
-    }
-  };
-
-  const handleApprove = async (submission) => {
-    try {
-      await reviewSubmissionApi(submission.id, { status: SubmissionStatus.Approved });
-      message.success('Submission approved successfully');
-      fetchSubmissions();
-      setReviewModalOpen(false);
-    } catch (error) {
-      message.error('Failed to approve submission');
-    }
-  };
-
-  const handleReject = async () => {
-    if (!reviewData.rejectionReason) {
-      message.error('Please provide a rejection reason');
-      return;
-    }
-    try {
-      await reviewSubmissionApi(viewingSubmission.id, {
-        status: SubmissionStatus.Rejected,
-        rejectionReason: reviewData.rejectionReason
-      });
-      message.success('Submission rejected');
-      fetchSubmissions();
-      setReviewModalOpen(false);
-    } catch (error) {
-      message.error('Failed to reject submission');
     }
   };
 
@@ -159,84 +128,70 @@ const SubmissionsPage = () => {
             <p><strong>Location Type:</strong> {viewingSubmission.locationTypeName || 'N/A'}</p>
             <p><strong>Destination:</strong> {viewingSubmission.destinationName || 'N/A'}</p>
 
-            {viewingSubmission.services && viewingSubmission.services.length > 0 && (
-              <div>
-                <h4>Services:</h4>
-                <ul>
-                  {viewingSubmission.services.map((s, i) => (
-                    <li key={i}>{s.name} - ${s.price} {s.unit}</li>
+            {viewingSubmission.mediaLinks && viewingSubmission.mediaLinks.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h4><PictureOutlined /> Media Links:</h4>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  {viewingSubmission.mediaLinks.map((link, i) => (
+                    <a key={i} href={link} target="_blank" rel="noopener noreferrer">
+                      {link}
+                    </a>
                   ))}
-                </ul>
+                </Space>
+              </div>
+            )}
+
+            {viewingSubmission.socialLinks && viewingSubmission.socialLinks.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h4><LinkOutlined /> Social Media Links:</h4>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  {viewingSubmission.socialLinks.map((social, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <strong>{social.platform}:</strong>
+                      <a href={social.url} target="_blank" rel="noopener noreferrer">{social.url}</a>
+                    </div>
+                  ))}
+                </Space>
+              </div>
+            )}
+
+            {viewingSubmission.tagIds && viewingSubmission.tagIds.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h4><TagsOutlined /> Tags:</h4>
+                <Space wrap>
+                  {viewingSubmission.tagIds.map((tagId) => (
+                    <Tag key={tagId}>Tag #{tagId}</Tag>
+                  ))}
+                </Space>
+              </div>
+            )}
+
+            {viewingSubmission.amenityIds && viewingSubmission.amenityIds.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h4> Amenities:</h4>
+                <Space wrap>
+                  {viewingSubmission.amenityIds.map((amenityId) => (
+                    <Tag key={amenityId} color="blue">Amenity #{amenityId}</Tag>
+                  ))}
+                </Space>
               </div>
             )}
 
             {viewingSubmission.rejectionReason && (
-              <div style={{ color: 'red', marginTop: 16 }}>
-                <strong>Rejection Reason:</strong> {viewingSubmission.rejectionReason}
+              <div style={{ color: 'red', marginTop: 16, padding: '12px', background: '#fff2f0', border: '1px solid #ffccc7' }}>
+                <strong>⚠️ Rejection Reason:</strong>
+                <p style={{ margin: '8px 0 0 0' }}>{viewingSubmission.rejectionReason}</p>
               </div>
             )}
 
-            {viewingSubmission.status === SubmissionStatus.Pending && (
-              <Space style={{ marginTop: 16 }}>
-                <Button onClick={() => setReviewModalOpen(true)} type="primary">
-                  Review Submission
-                </Button>
-              </Space>
+            {viewingSubmission.createdLocationId && (
+              <div style={{ color: '#52c41a', marginTop: 16, padding: '12px', background: '#f6ffed', border: '1px solid #b7eb8f' }}>
+                <strong>✓ Approved - Location Created</strong>
+                <p style={{ margin: '8px 0 0 0' }}>Location ID: {viewingSubmission.createdLocationId}</p>
+              </div>
             )}
           </div>
         )}
-      </Modal>
-
-      {/* Review Modal */}
-      <Modal
-        title="Review Submission"
-        open={reviewModalOpen}
-        onCancel={() => setReviewModalOpen(false)}
-        footer={null}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Button
-            block
-            type="primary"
-            size="large"
-            onClick={() => handleApprove(viewingSubmission)}
-          >
-            Approve
-          </Button>
-          <Button
-            block
-            danger
-            size="large"
-            onClick={() => {
-              setReviewModalOpen(false);
-              setTimeout(() => setReviewModalOpen(true), 100);
-            }}
-          >
-            Reject
-          </Button>
-          {reviewModalOpen && (
-            <div>
-              <label>Rejection Reason:</label>
-              <textarea
-                className="ant-input"
-                rows={4}
-                value={reviewData.rejectionReason}
-                onChange={(e) => setReviewData({ ...reviewData, rejectionReason: e.target.value })}
-                placeholder="Please provide a reason for rejection..."
-                style={{ width: '100%', marginTop: 8 }}
-              />
-              <Button
-                block
-                danger
-                type="primary"
-                onClick={handleReject}
-                style={{ marginTop: 8 }}
-              >
-                Confirm Rejection
-              </Button>
-            </div>
-          )}
-        </Space>
       </Modal>
     </Layout>
   );

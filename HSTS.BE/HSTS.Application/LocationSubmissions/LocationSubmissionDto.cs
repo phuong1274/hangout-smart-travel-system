@@ -2,7 +2,7 @@ namespace HSTS.Application.LocationSubmissions
 {
     public record LocationSubmissionDto(
         int Id,
-        string UserId,
+        int UserId,
         string Name,
         string? Description,
         double Latitude,

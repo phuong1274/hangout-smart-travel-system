@@ -198,6 +198,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
             submission.RejectionReason = request.RejectionReason;
             submission.ReviewedBy = request.ReviewedBy;
             submission.ReviewedAt = DateTime.UtcNow;
+            submission.UpdatedBy = request.ReviewedBy;
             submission.UpdatedAt = DateTime.UtcNow;
 
             await _submissionRepository.UpdateAsync(submission, cancellationToken);

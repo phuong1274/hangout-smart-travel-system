@@ -46,7 +46,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .IsRequired(false);
 
             builder.Property(x => x.UserId)
-                .HasMaxLength(450)
                 .IsRequired();
 
             builder.Property(x => x.MediaLinksJson)

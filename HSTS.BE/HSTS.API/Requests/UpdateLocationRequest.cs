@@ -19,6 +19,6 @@ namespace HSTS.API.Requests
         int? RecommendedDurationMinutes,
         List<int>? TagIds,
         List<string>? MediaLinks,
-        List<SocialLinkDto>? SocialLinks,
+        List<Application.Locations.Commands.SocialLinkDto>? SocialLinks,
         List<int>? AmenityIds);
 }

@@ -29,8 +29,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [mediaLinks, setMediaLinks] = useState([]);
   const [newMediaLink, setNewMediaLink] = useState('');
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
-  const [selectedTagIds, setSelectedTagIds] = useState([]);
-  const [selectedAmenityIds, setSelectedAmenityIds] = useState([]);
   const [socialLinks, setSocialLinks] = useState([]);
 
   const isEdit = !!location;
@@ -39,26 +37,41 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
+        console.log('Fetching dropdown data...');
         const [tagsRes, destinationsRes, typesRes, amenitiesRes] = await Promise.all([
           getAllTagsApi(),
           getAllDestinationsApi(),
           getAllLocationTypesApi(),
           getAllAmenitiesApi()
         ]);
-        
+
         console.log('Dropdown API responses:', {
           tags: tagsRes,
           destinations: destinationsRes,
           locationTypes: typesRes,
           amenities: amenitiesRes
         });
+
+        // Handle paginated responses (extract items array)
+        const tags = Array.isArray(tagsRes) ? tagsRes : (tagsRes?.items || []);
+        const destinations = Array.isArray(destinationsRes) ? destinationsRes : (destinationsRes?.items || []);
+        const locationTypes = Array.isArray(typesRes) ? typesRes : (typesRes?.items || []);
+        const amenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
+
+        setTags(tags);
+        setDestinations(destinations);
+        setLocationTypes(locationTypes);
+        setAmenities(amenities);
         
-        setTags(Array.isArray(tagsRes) ? tagsRes : []);
-        setDestinations(Array.isArray(destinationsRes) ? destinationsRes : []);
-        setLocationTypes(Array.isArray(typesRes) ? typesRes : []);
-        setAmenities(Array.isArray(amenitiesRes) ? amenitiesRes : []);
+        console.log('State updated:', {
+          tags,
+          destinations,
+          locationTypes,
+          amenities
+        });
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
+        message.error('Failed to load dropdown data');
       }
     };
     fetchDropdownData();
@@ -66,7 +79,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
   // Set form values when editing
   useEffect(() => {
-    if (location) {
+    if (location && tags.length > 0 && amenities.length > 0) {
       form.setFieldsValue({
         name: location.name,
         description: location.description,
@@ -81,25 +94,23 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         email: location.email,
         priceMinUsd: location.priceMinUsd,
         priceMaxUsd: location.priceMaxUsd,
-        recommendedDurationMinutes: location.recommendedDurationMinutes
+        recommendedDurationMinutes: location.recommendedDurationMinutes,
+        tagIds: location.tagIds || [],
+        amenityIds: location.amenityIds || []
       });
       setMediaLinks(location.mediaLinks || []);
-      setSelectedAmenityIds(location.amenityIds || []);
       // Map social links from BE format (with id) to form state
       setSocialLinks(location.socialLinks?.map(sl => ({
         id: sl.id,
         platform: sl.platform,
         url: sl.url
       })) || []);
-      setSelectedTagIds(location.tagIds || []);
-    } else {
+    } else if (!location) {
       form.resetFields();
       setMediaLinks([]);
-      setSelectedTagIds([]);
-      setSelectedAmenityIds([]);
       setSocialLinks([]);
     }
-  }, [location, form]);
+  }, [location, form, tags, amenities]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
@@ -111,13 +122,13 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             platform: sl.platform,
             url: sl.url
           }))
-        : undefined;
+        : [];
 
       const payload = {
         ...values,
-        tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
-        mediaLinks: mediaLinks.length > 0 ? mediaLinks : undefined,
-        amenityIds: selectedAmenityIds.length > 0 ? selectedAmenityIds : undefined,
+        tagIds: values.tagIds?.length > 0 ? values.tagIds : [],
+        mediaLinks: mediaLinks.length > 0 ? mediaLinks : [],
+        amenityIds: values.amenityIds?.length > 0 ? values.amenityIds : [],
         socialLinks: formattedSocialLinks
       };
 
@@ -387,12 +398,11 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         <Form.Item
           name="tagIds"
           label="Tags"
+          initialValue={[]}
         >
           <Select
             mode="multiple"
             placeholder="Select tags"
-            value={selectedTagIds}
-            onChange={setSelectedTagIds}
             style={{ width: '100%' }}
             maxTagCount="responsive"
           >
@@ -406,12 +416,11 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         <Form.Item
           name="amenityIds"
           label="Amenities"
+          initialValue={[]}
         >
           <Select
             mode="multiple"
             placeholder="Select amenities"
-            value={selectedAmenityIds}
-            onChange={setSelectedAmenityIds}
             style={{ width: '100%' }}
             maxTagCount="responsive"
           >

@@ -21,42 +21,13 @@ const HomePage = lazy(() => import('@/features/home/pages/Home'));
 // Global Pages
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
-
-const LoadingFallback = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-    <Spin size="large" tip="Loading page..." />
-  </div>
-);
-
-const SuspenseWrapper = ({ children }) => (
-  <Suspense fallback={<LoadingFallback />}>
-    {children}
-  </Suspense>
-);
-
-// Lazy load layouts
-const MainLayout = lazy(() => import('@/layouts/MainLayout'));
-const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
-
-// Lazy load auth pages
-const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
-const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
-const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
-const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
-const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
-
-// Lazy load feature pages
-const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
-const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const DestinationsPage = lazy(() => import('@/features/destinations/pages/DestinationsPage'));
 const TagsPage = lazy(() => import('@/features/tags/pages/TagsPage'));
 const LocationTypesPage = lazy(() => import('@/features/locationTypes/pages/LocationTypesPage'));
 const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPage'));
 const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPage'));
-
-// Global Pages
-const Error404 = lazy(() => import('@/components/Errors/Error404'));
-const Error403 = lazy(() => import('@/components/Errors/Error403'));
+const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
+const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
 
 // Dashboard overview component
 const DashboardOverview = () => (
@@ -71,6 +42,18 @@ const ScheduleManagement = () => (
   <div>
     <h2>Algorithm Scheduling Management</h2>
   </div>
+);
+
+const LoadingFallback = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    <Spin size="large" tip="Loading page..." />
+  </div>
+);
+
+const SuspenseWrapper = ({ children }) => (
+  <Suspense fallback={<LoadingFallback />}>
+    {children}
+  </Suspense>
 );
 
 export const router = createBrowserRouter([
@@ -111,10 +94,6 @@ export const router = createBrowserRouter([
     element: <SuspenseWrapper><LocationTypesPage /></SuspenseWrapper>
   },
   {
-    path: PATHS.LOCATIONS.replace('/', ''),
-    element: <SuspenseWrapper><LocationsPage /></SuspenseWrapper>
-  },
-  {
     path: PATHS.AMENITIES.replace('/', ''),
     element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
   },
@@ -133,6 +112,24 @@ export const router = createBrowserRouter([
           {
             path: PATHS.SCHEDULES,
             element: <div><h2>Algorithm Scheduling Management</h2></div>
+          },
+          {
+            path: '/my-locations',
+            element: <SubmissionsPage />
+          },
+          {
+            path: PATHS.LOCATIONS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <LocationsPage /> }
+            ]
+          },
+          {
+            path: '/admin/location-submissions',
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <LocationSubmissionsReviewPage /> }
+            ]
           },
           {
             path: PATHS.USERS,

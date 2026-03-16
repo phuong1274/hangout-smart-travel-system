@@ -7,7 +7,7 @@ namespace HSTS.Application.LocationSubmissions.Queries
 {
     public record LocationSubmissionPagedResponse(IEnumerable<LocationSubmissionDto> Items, int TotalCount);
 
-    public record GetMySubmissionsQuery(string UserId, int PageIndex = 1, int PageSize = 10)
+    public record GetMySubmissionsQuery(int UserId, int PageIndex = 1, int PageSize = 10)
         : IRequest<ErrorOr<LocationSubmissionPagedResponse>>;
 
     public class GetMySubmissionsQueryHandler : IRequestHandler<GetMySubmissionsQuery, ErrorOr<LocationSubmissionPagedResponse>>

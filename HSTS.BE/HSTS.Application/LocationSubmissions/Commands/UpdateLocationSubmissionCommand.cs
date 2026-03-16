@@ -26,17 +26,20 @@ namespace HSTS.Application.LocationSubmissions.Commands
         List<string>? MediaLinks,
         List<LocationSubmissionSocialLinkDto>? SocialLinks,
         List<int>? AmenityIds,
-        List<int>? TagIds,
-        string UserId
+        List<int>? TagIds
     ) : IRequest<ErrorOr<LocationSubmissionDto>>;
 
     public class UpdateLocationSubmissionCommandHandler : IRequestHandler<UpdateLocationSubmissionCommand, ErrorOr<LocationSubmissionDto>>
     {
         private readonly IRepository<LocationSubmission> _repository;
+        private readonly ICurrentUserService _currentUser;
 
-        public UpdateLocationSubmissionCommandHandler(IRepository<LocationSubmission> repository)
+        public UpdateLocationSubmissionCommandHandler(
+            IRepository<LocationSubmission> repository,
+            ICurrentUserService currentUser)
         {
             _repository = repository;
+            _currentUser = currentUser;
         }
 
         public async Task<ErrorOr<LocationSubmissionDto>> Handle(UpdateLocationSubmissionCommand request, CancellationToken cancellationToken)
@@ -49,21 +52,21 @@ namespace HSTS.Application.LocationSubmissions.Commands
             }
 
             // Check if user owns this submission
-            if (submission.UserId != request.UserId)
+            if (submission.UserId != _currentUser.UserId)
             {
                 return Error.Forbidden("LocationSubmission.NotOwner", "You can only update your own submissions.");
             }
 
             // Only pending or rejected submissions can be updated
-            if (submission.Status == Domain.Entities.SubmissionStatus.Approved || 
+            if (submission.Status == Domain.Entities.SubmissionStatus.Approved ||
                 submission.Status == Domain.Entities.SubmissionStatus.Published)
             {
-                return Error.Conflict("LocationSubmission.CannotUpdate", 
+                return Error.Conflict("LocationSubmission.CannotUpdate",
                     "Approved or published submissions cannot be updated. Please contact admin for changes.");
             }
 
             var existingSubmissionWithName = await _repository.Query()
-                .Where(x => x.Name == request.Name && x.Id != request.Id && x.UserId == request.UserId && !x.IsDeleted)
+                .Where(x => x.Name == request.Name && x.Id != request.Id && x.UserId == _currentUser.UserId && !x.IsDeleted)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (existingSubmissionWithName != null)
@@ -83,20 +86,21 @@ namespace HSTS.Application.LocationSubmissions.Commands
             submission.PriceMaxUsd = request.PriceMaxUsd;
             submission.DestinationId = request.DestinationId;
             submission.LocationTypeId = request.LocationTypeId;
+            submission.UpdatedBy = _currentUser.UserId.ToString();
             submission.UpdatedAt = DateTime.UtcNow;
 
             // Update JSON fields
-            submission.MediaLinksJson = request.MediaLinks != null && request.MediaLinks.Count > 0 
-                ? JsonSerializer.Serialize(request.MediaLinks) 
+            submission.MediaLinksJson = request.MediaLinks != null && request.MediaLinks.Count > 0
+                ? JsonSerializer.Serialize(request.MediaLinks)
                 : null;
-            submission.SocialLinksJson = request.SocialLinks != null && request.SocialLinks.Count > 0 
-                ? JsonSerializer.Serialize(request.SocialLinks) 
+            submission.SocialLinksJson = request.SocialLinks != null && request.SocialLinks.Count > 0
+                ? JsonSerializer.Serialize(request.SocialLinks)
                 : null;
-            submission.AmenityIdsJson = request.AmenityIds != null && request.AmenityIds.Count > 0 
-                ? JsonSerializer.Serialize(request.AmenityIds) 
+            submission.AmenityIdsJson = request.AmenityIds != null && request.AmenityIds.Count > 0
+                ? JsonSerializer.Serialize(request.AmenityIds)
                 : null;
-            submission.TagIdsJson = request.TagIds != null && request.TagIds.Count > 0 
-                ? JsonSerializer.Serialize(request.TagIds) 
+            submission.TagIdsJson = request.TagIds != null && request.TagIds.Count > 0
+                ? JsonSerializer.Serialize(request.TagIds)
                 : null;
 
             // Reset status to pending when updated
@@ -123,7 +127,6 @@ namespace HSTS.Application.LocationSubmissions.Commands
             RuleFor(x => x.Email).EmailAddress().MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Email));
             RuleFor(x => x.PriceMinUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMinUsd.HasValue);
             RuleFor(x => x.PriceMaxUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMaxUsd.HasValue);
-            RuleFor(x => x.UserId).NotEmpty();
 
             // Validate social links
             RuleForEach(x => x.SocialLinks).ChildRules(link =>

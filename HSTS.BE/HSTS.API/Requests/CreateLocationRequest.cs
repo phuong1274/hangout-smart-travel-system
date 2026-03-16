@@ -1,4 +1,5 @@
 using HSTS.Application.Locations.Commands;
+using static HSTS.Application.Locations.Commands.SocialLinkDto;
 
 namespace HSTS.API.Requests
 {
@@ -19,6 +20,6 @@ namespace HSTS.API.Requests
         int? RecommendedDurationMinutes,
         List<int>? TagIds,
         List<string>? MediaLinks,
-        List<SocialLinkDto>? SocialLinks,
+        List<Application.Locations.Commands.SocialLinkDto>? SocialLinks,
         List<int>? AmenityIds);
 }

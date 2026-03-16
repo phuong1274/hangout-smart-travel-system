@@ -189,7 +189,7 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
   }, [open]);
 
   const handleConfirm = () => {
-    onConfirm({ lat: latitude, lng: longitude });
+    onConfirm(latitude, longitude);
     onClose();
   };
 

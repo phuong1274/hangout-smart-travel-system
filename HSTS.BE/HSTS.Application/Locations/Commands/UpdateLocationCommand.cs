@@ -47,21 +47,17 @@ namespace HSTS.Application.Locations.Commands
 
         public async Task<ErrorOr<LocationDto>> Handle(UpdateLocationCommand request, CancellationToken cancellationToken)
         {
-            var location = await _locationRepository.GetAsync(request.Id, cancellationToken);
+            // Load location with all navigation properties for proper change tracking
+            var location = await _locationRepository.Query()
+                .Include(l => l.LocationTags)
+                .Include(l => l.LocationMedias)
+                .Include(l => l.SocialLinks)
+                .Include(l => l.LocationAmenities)
+                .FirstOrDefaultAsync(l => l.Id == request.Id && !l.IsDeleted, cancellationToken);
 
-            if (location == null || location.IsDeleted)
+            if (location == null)
             {
                 return Error.NotFound("Location.NotFound", $"Location with ID {request.Id} was not found.");
-            }
-
-            var existingLocationWithName = await _locationRepository.Query()
-                .Where(x => x.Name == request.Name && x.Id != request.Id && !x.IsDeleted)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (existingLocationWithName != null)
-            {
-                return Error.Conflict("Location.DuplicateName",
-                    $"A location with the name '{request.Name}' already exists.");
             }
 
             location.Name = request.Name;
@@ -80,7 +76,7 @@ namespace HSTS.Application.Locations.Commands
             location.RecommendedDurationMinutes = request.RecommendedDurationMinutes;
             location.UpdatedAt = DateTime.UtcNow;
 
-            // Update tags if provided
+            // Update tags if provided (empty array means clear all)
             if (request.TagIds != null)
             {
                 location.LocationTags.Clear();
@@ -106,7 +102,7 @@ namespace HSTS.Application.Locations.Commands
                 }
             }
 
-            // Update media links if provided
+            // Update media links if provided (empty array means clear all)
             if (request.MediaLinks != null)
             {
                 location.LocationMedias.Clear();
@@ -124,7 +120,7 @@ namespace HSTS.Application.Locations.Commands
                 }
             }
 
-            // Update social links if provided
+            // Update social links if provided (empty array means clear all)
             if (request.SocialLinks != null)
             {
                 location.SocialLinks.Clear();
@@ -143,7 +139,7 @@ namespace HSTS.Application.Locations.Commands
                 }
             }
 
-            // Update amenities if provided
+            // Update amenities if provided (empty array means clear all)
             if (request.AmenityIds != null)
             {
                 location.LocationAmenities.Clear();
