@@ -27,7 +27,10 @@ namespace HSTS.Application.Locations
                 location.PriceMinUsd,
                 location.PriceMaxUsd,
                 location.RecommendedDurationMinutes,
-                location.LocationAmenities.Select(la => la.AmenityId).ToList());
+                location.LocationAmenities.Select(la => la.AmenityId).ToList(),
+                location.CreatedAt,
+                location.UpdatedAt
+            );
         }
     }
 }

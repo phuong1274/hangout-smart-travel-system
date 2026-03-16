@@ -9,7 +9,10 @@ namespace HSTS.Application.Amenities
             return new AmenityDto(
                 amenity.Id,
                 amenity.Name,
-                amenity.Description);
+                amenity.Description,
+                amenity.CreatedAt,
+                amenity.UpdatedAt
+            );
         }
     }
 }

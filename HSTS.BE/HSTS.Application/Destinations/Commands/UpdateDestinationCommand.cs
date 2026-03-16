@@ -8,7 +8,17 @@ using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Application.Destinations.Commands
 {
-    public record UpdateDestinationCommand(int Id, string Name) : IRequest<ErrorOr<DestinationDto>>;
+    public record UpdateDestinationCommand(
+        int Id,
+        string Name,
+        string? EnglishName,
+        string? Code,
+        double? Latitude,
+        double? Longitude,
+        int? Type,
+        int? StateId,
+        string? CountryId
+    ) : IRequest<ErrorOr<DestinationDto>>;
 
     public class UpdateDestinationCommandHandler : IRequestHandler<UpdateDestinationCommand, ErrorOr<DestinationDto>>
     {
@@ -39,6 +49,13 @@ namespace HSTS.Application.Destinations.Commands
             }
 
             destination.Name = request.Name;
+            destination.EnglishName = request.EnglishName;
+            destination.Code = request.Code;
+            destination.Latitude = request.Latitude;
+            destination.Longitude = request.Longitude;
+            destination.Type = request.Type;
+            destination.StateId = request.StateId;
+            destination.CountryId = request.CountryId;
 
             await _repository.UpdateAsync(destination, cancellationToken);
             return destination.ToDto();
@@ -55,6 +72,23 @@ namespace HSTS.Application.Destinations.Commands
             RuleFor(x => x.Name)
                 .NotEmpty().WithMessage("Destination name cannot be empty.")
                 .MaximumLength(200).WithMessage("Destination name cannot exceed 200 characters.");
+
+            RuleFor(x => x.EnglishName)
+                .MaximumLength(200).WithMessage("English name cannot exceed 200 characters.");
+
+            RuleFor(x => x.Code)
+                .MaximumLength(50).WithMessage("Code cannot exceed 50 characters.");
+
+            RuleFor(x => x.Latitude)
+                .InclusiveBetween(-90, 90).When(x => x.Latitude.HasValue)
+                .WithMessage("Latitude must be between -90 and 90.");
+
+            RuleFor(x => x.Longitude)
+                .InclusiveBetween(-180, 180).When(x => x.Longitude.HasValue)
+                .WithMessage("Longitude must be between -180 and 180.");
+
+            RuleFor(x => x.CountryId)
+                .MaximumLength(50).WithMessage("Country ID cannot exceed 50 characters.");
         }
     }
 }

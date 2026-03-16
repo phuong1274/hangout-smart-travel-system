@@ -13,10 +13,12 @@ namespace HSTS.Application.Destinations.Commands
     public class DeleteDestinationCommandHandler : IRequestHandler<DeleteDestinationCommand, ErrorOr<Deleted>>
     {
         private readonly IRepository<Destination> _repository;
+        private readonly IRepository<Location> _locationRepository;
 
-        public DeleteDestinationCommandHandler(IRepository<Destination> repository)
+        public DeleteDestinationCommandHandler(IRepository<Destination> repository, IRepository<Location> locationRepository)
         {
             _repository = repository;
+            _locationRepository = locationRepository;
         }
 
         public async Task<ErrorOr<Deleted>> Handle(DeleteDestinationCommand request, CancellationToken cancellationToken)
@@ -29,10 +31,8 @@ namespace HSTS.Application.Destinations.Commands
             }
 
             // Check if any non-deleted locations are using this destination
-            var locationsUsingDestination = await _repository.Query()
-                .Where(d => d.Id == request.Id)
-                .SelectMany(d => d.Locations)
-                .Where(l => !l.IsDeleted)
+            var locationsUsingDestination = await _locationRepository.Query()
+                .Where(l => l.DestinationId == request.Id && !l.IsDeleted)
                 .AnyAsync(cancellationToken);
 
             if (locationsUsingDestination)

@@ -20,16 +20,24 @@ namespace HSTS.Application.Destinations.Queries
 
         public async Task<ErrorOr<DestinationPagedResponse>> Handle(GetDestinationsPagingQuery request, CancellationToken ct)
         {
-            var query = _repository.Query();
-
-            query = query.Where(d => !d.IsDeleted);
+            var query = _repository.Query()
+                .Where(d => !d.IsDeleted);
 
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
-                query = query.Where(d => d.Name.Contains(request.SearchTerm));
+                var searchTerm = request.SearchTerm.ToLower();
+                query = query.Where(d =>
+                    d.Name.ToLower().Contains(searchTerm) ||
+                    (d.EnglishName != null && d.EnglishName.ToLower().Contains(searchTerm)) ||
+                    (d.Code != null && d.Code.ToLower().Contains(searchTerm)) ||
+                    (d.State != null && d.State.Name.ToLower().Contains(searchTerm)) ||
+                    (d.Country != null && d.Country.Name.ToLower().Contains(searchTerm)));
             }
 
-            query = query.OrderByDescending(d => d.CreatedAt);
+            query = query
+                .OrderByDescending(d => d.CreatedAt)
+                .Include(d => d.State)
+                .Include(d => d.Country);
 
             var (items, total) = await _repository.GetPagedAsync(
                 request.PageIndex,

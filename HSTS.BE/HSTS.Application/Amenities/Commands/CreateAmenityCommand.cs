@@ -42,7 +42,7 @@ namespace HSTS.Application.Amenities.Commands
             await _amenityRepository.AddAsync(amenity, cancellationToken);
             await _amenityRepository.UpdateAsync(amenity, cancellationToken);
 
-            return new AmenityDto(amenity.Id, amenity.Name, amenity.Description);
+            return new AmenityDto(amenity.Id, amenity.Name, amenity.Description, amenity.CreatedAt, amenity.UpdatedAt);
         }
     }
 

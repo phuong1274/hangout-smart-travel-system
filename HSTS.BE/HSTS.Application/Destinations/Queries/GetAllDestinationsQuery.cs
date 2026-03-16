@@ -19,6 +19,8 @@ namespace HSTS.Application.Destinations.Queries
             var destinations = await _repository.Query()
                 .Where(d => !d.IsDeleted)
                 .OrderBy(d => d.Name)
+                .Include(d => d.State)
+                .Include(d => d.Country)
                 .Select(d => d.ToDto())
                 .ToListAsync(ct);
 

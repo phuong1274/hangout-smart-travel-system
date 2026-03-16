@@ -19,3 +19,12 @@ export const updateDestinationApi = (id, data) => {
 export const deleteDestinationApi = (id) => {
   return apiClient.delete(`/Destinations/${id}`).then(res => res.data);
 };
+
+export const getCountriesApi = () => {
+  return apiClient.get('/Locations/countries').then(res => res.data);
+};
+
+export const getStatesApi = (countryId) => {
+  const params = countryId ? { countryId } : {};
+  return apiClient.get('/Locations/states', { params }).then(res => res.data);
+};

@@ -25,6 +25,9 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Amenity> Amenities => Set<Amenity>();
         public DbSet<LocationAmenity> LocationAmenities => Set<LocationAmenity>();
         public DbSet<Destination> Destinations => Set<Destination>();
+        public DbSet<Country> Countries => Set<Country>();
+        public DbSet<State> States => Set<State>();
+        public DbSet<LocationSubmission> LocationSubmissions => Set<LocationSubmission>();
 
         #region Logging
         /// <summary>

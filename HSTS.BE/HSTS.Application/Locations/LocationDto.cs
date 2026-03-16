@@ -21,7 +21,10 @@ namespace HSTS.Application.Locations
         decimal? PriceMinUsd = null,
         decimal? PriceMaxUsd = null,
         int? RecommendedDurationMinutes = null,
-        List<int>? AmenityIds = null);
+        List<int>? AmenityIds = null,
+        DateTime CreatedAt = default,
+        DateTime? UpdatedAt = null
+    );
 
     public record LocationSocialLinkDto(
         int Id,

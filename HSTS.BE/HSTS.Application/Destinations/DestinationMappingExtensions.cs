@@ -7,7 +7,21 @@ namespace HSTS.Application.Destinations
     {
         public static DestinationDto ToDto(this Destination destination)
         {
-            return new DestinationDto(destination.Id, destination.Name);
+            return new DestinationDto(
+                destination.Id,
+                destination.Name,
+                destination.EnglishName,
+                destination.Code,
+                destination.Latitude,
+                destination.Longitude,
+                destination.Type,
+                destination.StateId,
+                destination.State?.Name,
+                destination.CountryId,
+                destination.Country?.Name,
+                destination.CreatedAt,
+                destination.UpdatedAt
+            );
         }
     }
 }

@@ -2,5 +2,10 @@ using HSTS.Domain.Entities;
 
 namespace HSTS.Application.Tags
 {
-    public record TagDto(int Id, string Name);
+    public record TagDto(
+        int Id,
+        string Name,
+        DateTime CreatedAt,
+        DateTime? UpdatedAt
+    );
 }

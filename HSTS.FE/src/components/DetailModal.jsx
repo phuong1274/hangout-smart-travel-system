@@ -166,6 +166,32 @@ const DetailModal = ({ open, onClose, data, type }) => {
           <Descriptions column={1} size="small" bordered>
             <Descriptions.Item label="ID">{data.id}</Descriptions.Item>
             <Descriptions.Item label="Name">{data.name}</Descriptions.Item>
+            <Descriptions.Item label="English Name">{data.englishName || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Code">
+              <Tag color="blue">{data.code || 'N/A'}</Tag>
+            </Descriptions.Item>
+            
+            <Descriptions.Item label="Coordinates">
+              <Space direction="vertical" size="small">
+                <div>Latitude: {data.latitude?.toFixed(6) || 'N/A'}</div>
+                <div>Longitude: {data.longitude?.toFixed(6) || 'N/A'}</div>
+              </Space>
+            </Descriptions.Item>
+            
+            <Descriptions.Item label="Type">
+              <Tag color="green">{data.type || 'N/A'}</Tag>
+            </Descriptions.Item>
+            
+            <Descriptions.Item label="State Information">
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                {data.stateName && <div><EnvironmentOutlined /> {data.stateName}</div>}
+                {data.stateId && <div>State ID: {data.stateId}</div>}
+                {!data.stateName && !data.stateId && 'N/A'}
+              </Space>
+            </Descriptions.Item>
+            
+            <Descriptions.Item label="Country ID">{data.countryId || 'N/A'}</Descriptions.Item>
+            
             <Descriptions.Item label="Created At">
               <CalendarOutlined /> {data.createdAt ? new Date(data.createdAt).toLocaleString() : 'N/A'}
             </Descriptions.Item>

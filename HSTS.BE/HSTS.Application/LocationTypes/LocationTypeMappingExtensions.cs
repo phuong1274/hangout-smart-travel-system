@@ -6,7 +6,12 @@ namespace HSTS.Application.LocationTypes
     {
         public static LocationTypeDto ToDto(this LocationType locationType)
         {
-            return new LocationTypeDto(locationType.Id, locationType.Name);
+            return new LocationTypeDto(
+                locationType.Id,
+                locationType.Name,
+                locationType.CreatedAt,
+                locationType.UpdatedAt
+            );
         }
     }
 }

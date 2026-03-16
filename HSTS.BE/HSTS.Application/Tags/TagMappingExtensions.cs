@@ -7,7 +7,12 @@ namespace HSTS.Application.Tags
     {
         public static TagDto ToDto(this Tag tag)
         {
-            return new TagDto(tag.Id, tag.Name);
+            return new TagDto(
+                tag.Id,
+                tag.Name,
+                tag.CreatedAt,
+                tag.UpdatedAt
+            );
         }
     }
 }

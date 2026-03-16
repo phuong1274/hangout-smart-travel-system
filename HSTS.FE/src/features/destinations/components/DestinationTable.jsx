@@ -17,6 +17,32 @@ const DestinationTable = ({ data, loading, pagination, onTableChange, onEdit, on
       key: 'name',
     },
     {
+      title: 'English Name',
+      dataIndex: 'englishName',
+      key: 'englishName',
+      width: 150,
+    },
+    {
+      title: 'Code',
+      dataIndex: 'code',
+      key: 'code',
+      width: 100,
+    },
+    {
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      width: 80,
+      render: (type) => type ?? '-',
+    },
+    {
+      title: 'State',
+      dataIndex: 'stateName',
+      key: 'stateName',
+      width: 150,
+      render: (stateName) => stateName ?? '-',
+    },
+    {
       title: 'Actions',
       key: 'actions',
       width: 180,

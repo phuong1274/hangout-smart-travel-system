@@ -61,7 +61,16 @@ namespace HSTS.API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(CreateDestinationRequest request)
         {
-            var command = new CreateDestinationCommand(request.Name);
+            var command = new CreateDestinationCommand(
+                request.Name,
+                request.EnglishName,
+                request.Code,
+                request.Latitude,
+                request.Longitude,
+                request.Type,
+                request.StateId,
+                request.CountryId
+            );
             var result = await _mediator.Send(command);
 
             return result.Match(
@@ -78,7 +87,17 @@ namespace HSTS.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, UpdateDestinationRequest request)
         {
-            var command = new UpdateDestinationCommand(id, request.Name);
+            var command = new UpdateDestinationCommand(
+                id,
+                request.Name,
+                request.EnglishName,
+                request.Code,
+                request.Latitude,
+                request.Longitude,
+                request.Type,
+                request.StateId,
+                request.CountryId
+            );
             var result = await _mediator.Send(command);
 
             return result.Match(
