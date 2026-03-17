@@ -1,5 +1,6 @@
 using ErrorOr;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using HSTS.API.Requests;
@@ -59,6 +60,7 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
         public async Task<IActionResult> Create(CreateTagRequest request)
         {
             var command = new CreateTagCommand(request.Name);
@@ -76,6 +78,7 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
         public async Task<IActionResult> Update(int id, UpdateTagRequest request)
         {
             var command = new UpdateTagCommand(id, request.Name);
@@ -94,6 +97,7 @@ namespace HSTS.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
         public async Task<IActionResult> Delete(int id)
         {
             var command = new DeleteTagCommand(id);

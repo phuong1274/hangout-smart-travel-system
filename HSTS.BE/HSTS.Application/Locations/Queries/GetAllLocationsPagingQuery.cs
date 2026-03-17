@@ -1,12 +1,11 @@
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
+using HSTS.Application.Locations.Queries;
 using Microsoft.EntityFrameworkCore;
 using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Application.Locations.Queries
 {
-    public record LocationPagedResponse(IEnumerable<LocationDto> Items, int TotalCount);
-
     /// <summary>
     /// Admin query - returns ALL locations including deleted ones
     /// </summary>

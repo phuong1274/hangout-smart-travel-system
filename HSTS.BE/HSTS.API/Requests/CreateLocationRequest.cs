@@ -18,6 +18,7 @@ namespace HSTS.API.Requests
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
         int? RecommendedDurationMinutes,
+        decimal? Score,
         List<int>? TagIds,
         List<string>? MediaLinks,
         List<Application.Locations.Commands.SocialLinkDto>? SocialLinks,

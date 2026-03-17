@@ -25,6 +25,7 @@ namespace HSTS.Application.Locations.Commands
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
         int? RecommendedDurationMinutes,
+        decimal? Score,
         List<int>? TagIds,
         List<string>? MediaLinks,
         List<SocialLinkDto>? SocialLinks,
@@ -73,7 +74,8 @@ namespace HSTS.Application.Locations.Commands
                 Email = request.Email,
                 PriceMinUsd = request.PriceMinUsd,
                 PriceMaxUsd = request.PriceMaxUsd,
-                RecommendedDurationMinutes = request.RecommendedDurationMinutes
+                RecommendedDurationMinutes = request.RecommendedDurationMinutes,
+                Score = request.Score
             };
 
             await _locationRepository.AddAsync(location, cancellationToken);

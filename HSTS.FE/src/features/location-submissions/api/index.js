@@ -43,3 +43,6 @@ export const getAllAmenitiesApi = () => {
 export const getAllTagsApi = () => {
   return apiClient.get('/api/Tags').then(res => res.data);
 };
+
+// Import from locations API for testing suggest edit
+export { getLocationByIdApi } from '@/features/locations/api';

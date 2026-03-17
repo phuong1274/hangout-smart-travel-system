@@ -60,6 +60,9 @@ namespace HSTS.Domain.Entities
 
         public int? RecommendedDurationMinutes { get; set; }
 
+        [Range(0, 5)]
+        public decimal? Score { get; set; }
+
         // Navigation properties
         public ICollection<LocationSocialLink> SocialLinks { get; set; } = new List<LocationSocialLink>();
         public ICollection<LocationTag> LocationTags { get; set; } = new List<LocationTag>();

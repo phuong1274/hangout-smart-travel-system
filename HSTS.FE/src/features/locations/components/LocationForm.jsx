@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Tag } from 'antd';
+import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Tag, Rate } from 'antd';
 import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, EnvironmentOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { createLocationApi, updateLocationApi, getAllTagsApi, getAllDestinationsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
 import { uploadImageToCloudinary } from '@/services/cloudinary';
@@ -365,6 +365,14 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           rules={[{ min: 0, type: 'integer', message: 'Duration must be >= 0' }]}
         >
           <InputNumber style={{ width: '100%' }} step={15} min={0} placeholder="e.g., 60" />
+        </Form.Item>
+
+        <Form.Item
+          name="score"
+          label="Score (0-5 stars)"
+          tooltip="Rate this location from 0 to 5 stars"
+        >
+          <Rate allowHalf style={{ fontSize: 24 }} />
         </Form.Item>
 
         <Space direction="horizontal" style={{ width: '100%' }} size="large">

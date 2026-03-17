@@ -118,6 +118,13 @@ export const router = createBrowserRouter([
             element: <SubmissionsPage />
           },
           {
+            path: PATHS.TAGS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <TagsPage /> }
+            ]
+          },
+          {
             path: PATHS.LOCATIONS,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
             children: [

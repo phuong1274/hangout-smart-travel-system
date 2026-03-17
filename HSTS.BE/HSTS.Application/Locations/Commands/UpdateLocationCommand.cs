@@ -24,6 +24,7 @@ namespace HSTS.Application.Locations.Commands
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
         int? RecommendedDurationMinutes,
+        decimal? Score,
         List<int>? TagIds,
         List<string>? MediaLinks,
         List<SocialLinkDto>? SocialLinks,
@@ -74,6 +75,7 @@ namespace HSTS.Application.Locations.Commands
             location.PriceMinUsd = request.PriceMinUsd;
             location.PriceMaxUsd = request.PriceMaxUsd;
             location.RecommendedDurationMinutes = request.RecommendedDurationMinutes;
+            location.Score = request.Score;
             location.UpdatedAt = DateTime.UtcNow;
 
             // Update tags if provided (empty array means clear all)

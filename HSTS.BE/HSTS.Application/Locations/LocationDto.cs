@@ -21,6 +21,7 @@ namespace HSTS.Application.Locations
         decimal? PriceMinUsd = null,
         decimal? PriceMaxUsd = null,
         int? RecommendedDurationMinutes = null,
+        decimal? Score = null,
         List<int>? AmenityIds = null,
         DateTime CreatedAt = default,
         DateTime? UpdatedAt = null

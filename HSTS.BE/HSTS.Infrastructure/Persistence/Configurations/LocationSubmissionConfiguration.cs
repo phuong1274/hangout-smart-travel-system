@@ -71,6 +71,13 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Status)
                 .IsRequired();
 
+            builder.Property(x => x.ProposedChangesJson)
+                .HasMaxLength(4000)
+                .IsRequired(false);
+
+            builder.Property(x => x.SubmissionType)
+                .IsRequired();
+
             // Configure relationship with Destination
             builder.HasOne(s => s.Destination)
                    .WithMany()
@@ -82,6 +89,18 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                    .WithMany()
                    .HasForeignKey(s => s.LocationTypeId)
                    .OnDelete(DeleteBehavior.SetNull);
+
+            // Configure relationship with existing Location (for edit submissions)
+            builder.HasOne(s => s.ExistingLocation)
+                   .WithMany()
+                   .HasForeignKey(s => s.ExistingLocationId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure relationship with created Location (for new location submissions)
+            builder.HasOne(s => s.CreatedLocation)
+                   .WithMany()
+                   .HasForeignKey(s => s.CreatedLocationId)
+                   .OnDelete(DeleteBehavior.Restrict);
 
             // Configure relationship with User (AspNetUsers)
             builder.HasOne(s => s.User)
