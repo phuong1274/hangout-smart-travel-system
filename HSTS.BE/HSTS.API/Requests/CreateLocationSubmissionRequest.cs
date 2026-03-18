@@ -10,12 +10,16 @@ namespace HSTS.API.Requests
         string? Email,
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
+        decimal? Score,
         int? DestinationId,
         int? LocationTypeId,
         List<string>? MediaLinks,
         List<SocialLinkRequest>? SocialLinks,
         List<int>? AmenityIds,
-        List<int>? TagIds
+        List<int>? TagIds,
+        Domain.Entities.SubmissionType SubmissionType = Domain.Entities.SubmissionType.NewLocation,
+        int? ExistingLocationId = null,
+        Dictionary<string, object>? ProposedChanges = null
     );
 
     public record SocialLinkRequest(

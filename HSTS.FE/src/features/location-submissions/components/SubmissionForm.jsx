@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Button, Space, Card, Divider } from 'antd';
+import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Button, Space, Card, Divider, Rate, Radio } from 'antd';
 import { PlusOutlined, DeleteOutlined, EnvironmentOutlined, HomeOutlined, PhoneOutlined, MailOutlined, DollarOutlined, PictureOutlined, LinkOutlined, TagsOutlined } from '@ant-design/icons';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
 import {
@@ -14,7 +14,7 @@ import {
 const { TextArea } = Input;
 const { Option } = Select;
 
-const SubmissionForm = ({ open, submission, onClose, onSuccess }) => {
+const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [destinations, setDestinations] = useState([]);
@@ -24,8 +24,10 @@ const SubmissionForm = ({ open, submission, onClose, onSuccess }) => {
   const [mediaLinks, setMediaLinks] = useState([]);
   const [socialLinks, setSocialLinks] = useState([]);
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [submissionType, setSubmissionType] = useState(0); // 0 = NewLocation, 1 = EditExisting
 
   const isEdit = !!submission;
+  const isEditExisting = submissionType === 1;
 
   // Fetch dropdown data
   useEffect(() => {
@@ -193,15 +195,15 @@ const SubmissionForm = ({ open, submission, onClose, onSuccess }) => {
                   extra="Describe your location and list all services you offer (e.g., room types, food services, activities with prices)"
                 >
                   <TextArea rows={6} placeholder={`Example:
-🏨 Accommodation:
+Accommodation:
 - Standard Room: $50/night (Double bed, city view)
 - Deluxe Room: $80/night (King bed, ocean view)
 
-🍽️ Food & Beverage:
+Food & Beverage:
 - Breakfast Buffet: $10/person
 - Room Service: Available 24/7
 
-🚗 Transportation:
+Transportation:
 - Airport Shuttle: $25/trip`} />
                 </Form.Item>
               </Col>
@@ -342,6 +344,24 @@ const SubmissionForm = ({ open, submission, onClose, onSuccess }) => {
                     prefix="$"
                     parser={value => value.replace(/\$\s?|(,*)/g, '')}
                   />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
+
+          {/* Section 3.5: Score */}
+          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+              <strong style={{ fontSize: 16 }}>Location Score</strong>
+            </div>
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item
+                  name="score"
+                  label="Score (0-5 stars)"
+                  tooltip="Rate this location from 0 to 5 stars"
+                >
+                  <Rate allowHalf style={{ fontSize: 24 }} />
                 </Form.Item>
               </Col>
             </Row>

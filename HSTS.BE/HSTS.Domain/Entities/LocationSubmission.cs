@@ -50,6 +50,9 @@ namespace HSTS.Domain.Entities
         [Range(0, 100000000)]
         public decimal? PriceMaxUsd { get; set; }
 
+        [Range(0, 5)]
+        public decimal? Score { get; set; }
+
         // Links
         public int? DestinationId { get; set; }
         public Destination? Destination { get; set; }
@@ -73,6 +76,10 @@ namespace HSTS.Domain.Entities
         [MaxLength(1000)]
         public string? TagIdsJson { get; set; }
 
+        // Proposed changes for edit submissions (stored as JSON)
+        [MaxLength(4000)]
+        public string? ProposedChangesJson { get; set; }
+
         // Status
         public SubmissionStatus Status { get; set; } = SubmissionStatus.Pending;
 
@@ -84,9 +91,16 @@ namespace HSTS.Domain.Entities
         [MaxLength(450)]
         public string? ReviewedBy { get; set; }
 
-        // Link to created Location (after approval)
+        // Link to existing location (for edit submissions)
+        public int? ExistingLocationId { get; set; }
+        public Location? ExistingLocation { get; set; }
+
+        // Link to created Location (after approval for new location submissions)
         public int? CreatedLocationId { get; set; }
         public Location? CreatedLocation { get; set; }
+
+        // Type of submission
+        public SubmissionType SubmissionType { get; set; } = SubmissionType.NewLocation;
     }
 
     public enum SubmissionStatus
@@ -95,5 +109,11 @@ namespace HSTS.Domain.Entities
         Approved = 1,
         Rejected = 2,
         Published = 3
+    }
+
+    public enum SubmissionType
+    {
+        NewLocation = 0,      // User submits a new location
+        EditExisting = 1,     // User suggests edits to existing location
     }
 }

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Card, Typography, Space, Button, Layout, message, Modal, Tag } from 'antd';
-import { PlusOutlined, HomeOutlined, PictureOutlined, LinkOutlined, TagsOutlined } from '@ant-design/icons';
+import { PlusOutlined, HomeOutlined, PictureOutlined, LinkOutlined, TagsOutlined, EditOutlined } from '@ant-design/icons';
 import { useSubmissions } from '../hooks/useSubmissions';
 import SubmissionTable from '../components/SubmissionTable';
 import SubmissionForm from '../components/SubmissionForm';
+import SuggestEditModal from '../components/SuggestEditModal';
 import { useNavigate } from 'react-router-dom';
-import { deleteLocationSubmissionApi, getSubmissionByIdApi } from '../api';
+import { deleteLocationSubmissionApi, getSubmissionByIdApi, getLocationByIdApi } from '../api';
 import { SubmissionStatus } from '../types';
 
 const { Title } = Typography;
@@ -25,6 +26,8 @@ const SubmissionsPage = () => {
   const [editingSubmission, setEditingSubmission] = useState(null);
   const [viewingSubmission, setViewingSubmission] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [suggestEditOpen, setSuggestEditOpen] = useState(false);
+  const [testLocation, setTestLocation] = useState(null);
 
   const handleCreate = () => {
     setEditingSubmission(null);
@@ -65,6 +68,22 @@ const SubmissionsPage = () => {
     }
   };
 
+  // Test function for SuggestEditModal - Fetches real location data
+  const handleTestSuggestEdit = async () => {
+    try {
+      // Fetch a REAL existing location from API
+      // You can change the location ID to test with different locations
+      const testLocationId = 7; // Change this to test different locations
+      const locationData = await getLocationByIdApi(testLocationId);
+      
+      setTestLocation(locationData);
+      setSuggestEditOpen(true);
+      message.success(`Loaded location: ${locationData.name}`);
+    } catch (error) {
+      message.error('Failed to load location. Make sure the API is running.');
+    }
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
@@ -80,9 +99,14 @@ const SubmissionsPage = () => {
         <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Title level={2} style={{ margin: 0 }}>Your Submissions</Title>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Submit New Location
-            </Button>
+            <Space>
+              <Button onClick={handleTestSuggestEdit} icon={<EditOutlined />}>
+                Test Suggest Edit
+              </Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                Submit New Location
+              </Button>
+            </Space>
           </div>
           <Card>
             <SubmissionTable
@@ -103,6 +127,19 @@ const SubmissionsPage = () => {
         submission={editingSubmission}
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
+      />
+
+      {/* Suggest Edit Modal for testing */}
+      <SuggestEditModal
+        location={testLocation}
+        open={suggestEditOpen}
+        onClose={() => {
+          setSuggestEditOpen(false);
+          setTestLocation(null);
+        }}
+        onSuccess={() => {
+          fetchSubmissions();
+        }}
       />
 
       {/* Detail Modal */}

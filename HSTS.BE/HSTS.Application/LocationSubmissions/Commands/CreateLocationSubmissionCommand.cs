@@ -20,12 +20,16 @@ namespace HSTS.Application.LocationSubmissions.Commands
         string? Email,
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
+        decimal? Score,
         int? DestinationId,
         int? LocationTypeId,
         List<string>? MediaLinks,
         List<LocationSubmissionSocialLinkDto>? SocialLinks,
         List<int>? AmenityIds,
-        List<int>? TagIds
+        List<int>? TagIds,
+        Domain.Entities.SubmissionType SubmissionType = Domain.Entities.SubmissionType.NewLocation,
+        int? ExistingLocationId = null,
+        Dictionary<string, object>? ProposedChanges = null
     ) : IRequest<ErrorOr<LocationSubmissionDto>>;
 
     public class CreateLocationSubmissionCommandHandler : IRequestHandler<CreateLocationSubmissionCommand, ErrorOr<LocationSubmissionDto>>
@@ -64,10 +68,13 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 Email = request.Email,
                 PriceMinUsd = request.PriceMinUsd,
                 PriceMaxUsd = request.PriceMaxUsd,
+                Score = request.Score,
                 DestinationId = request.DestinationId,
                 LocationTypeId = request.LocationTypeId,
                 UserId = _currentUser.UserId,
                 CreatedBy = _currentUser.UserId.ToString(),
+                SubmissionType = request.SubmissionType,
+                ExistingLocationId = request.ExistingLocationId,
                 Status = Domain.Entities.SubmissionStatus.Pending,
                 MediaLinksJson = request.MediaLinks != null && request.MediaLinks.Count > 0
                     ? JsonSerializer.Serialize(request.MediaLinks)
@@ -80,6 +87,9 @@ namespace HSTS.Application.LocationSubmissions.Commands
                     : null,
                 TagIdsJson = request.TagIds != null && request.TagIds.Count > 0
                     ? JsonSerializer.Serialize(request.TagIds)
+                    : null,
+                ProposedChangesJson = request.ProposedChanges != null && request.ProposedChanges.Count > 0
+                    ? JsonSerializer.Serialize(request.ProposedChanges)
                     : null
             };
 

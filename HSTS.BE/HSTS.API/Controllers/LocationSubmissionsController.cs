@@ -86,12 +86,16 @@ namespace HSTS.API.Controllers
                 request.Email,
                 request.PriceMinUsd,
                 request.PriceMaxUsd,
+                request.Score,
                 request.DestinationId,
                 request.LocationTypeId,
                 request.MediaLinks,
                 socialLinks,
                 request.AmenityIds,
-                request.TagIds
+                request.TagIds,
+                request.SubmissionType,
+                request.ExistingLocationId,
+                request.ProposedChanges
             );
 
             var result = await _mediator.Send(command, ct);
@@ -124,6 +128,7 @@ namespace HSTS.API.Controllers
                 request.Email,
                 request.PriceMinUsd,
                 request.PriceMaxUsd,
+                request.Score,
                 request.DestinationId,
                 request.LocationTypeId,
                 request.MediaLinks,

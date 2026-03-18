@@ -21,12 +21,14 @@ namespace HSTS.Application.LocationSubmissions.Commands
         string? Email,
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
+        decimal? Score,
         int? DestinationId,
         int? LocationTypeId,
         List<string>? MediaLinks,
         List<LocationSubmissionSocialLinkDto>? SocialLinks,
         List<int>? AmenityIds,
-        List<int>? TagIds
+        List<int>? TagIds,
+        Dictionary<string, object>? ProposedChanges = null
     ) : IRequest<ErrorOr<LocationSubmissionDto>>;
 
     public class UpdateLocationSubmissionCommandHandler : IRequestHandler<UpdateLocationSubmissionCommand, ErrorOr<LocationSubmissionDto>>
@@ -84,6 +86,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
             submission.Email = request.Email;
             submission.PriceMinUsd = request.PriceMinUsd;
             submission.PriceMaxUsd = request.PriceMaxUsd;
+            submission.Score = request.Score;
             submission.DestinationId = request.DestinationId;
             submission.LocationTypeId = request.LocationTypeId;
             submission.UpdatedBy = _currentUser.UserId.ToString();
@@ -101,6 +104,9 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 : null;
             submission.TagIdsJson = request.TagIds != null && request.TagIds.Count > 0
                 ? JsonSerializer.Serialize(request.TagIds)
+                : null;
+            submission.ProposedChangesJson = request.ProposedChanges != null && request.ProposedChanges.Count > 0
+                ? JsonSerializer.Serialize(request.ProposedChanges)
                 : null;
 
             // Reset status to pending when updated

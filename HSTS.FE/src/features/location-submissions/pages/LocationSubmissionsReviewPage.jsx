@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, Layout, message, Modal, Table, Tag, Input, Select, Row, Col, Descriptions, Divider } from 'antd';
+import { Card, Typography, Space, Button, Layout, message, Modal, Table, Tag, Input, Select, Row, Col } from 'antd';
 import { CheckOutlined, CloseOutlined, EyeOutlined, HomeOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getAllSubmissionsApi, reviewSubmissionApi } from '../api';
 import { SubmissionStatus } from '../types';
+import BeforeAfterComparison from '../components/BeforeAfterComparison';
 
 const { Title } = Typography;
 const { Header, Content } = Layout;
@@ -17,14 +18,13 @@ const LocationSubmissionsReviewPage = () => {
   const [viewingSubmission, setViewingSubmission] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [reviewAction, setReviewAction] = useState('approve'); // 'approve' or 'reject'
+  const [reviewAction, setReviewAction] = useState('approve');
   const [rejectionReason, setRejectionReason] = useState('');
   const [filters, setFilters] = useState({
     status: undefined,
     searchTerm: ''
   });
 
-  // Fetch submissions
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['location-submissions', filters],
     queryFn: () => getAllSubmissionsApi({
@@ -39,9 +39,8 @@ const LocationSubmissionsReviewPage = () => {
     })
   });
 
-  // Review mutation
   const reviewMutation = useMutation({
-    mutationFn: ({ id, status, rejectionReason }) => 
+    mutationFn: ({ id, status, rejectionReason }) =>
       reviewSubmissionApi(id, { status, rejectionReason }),
     onSuccess: () => {
       message.success(`Submission ${reviewAction === 'approve' ? 'approved' : 'rejected'} successfully`);
@@ -95,10 +94,19 @@ const LocationSubmissionsReviewPage = () => {
       width: 60
     },
     {
+      title: 'Type',
+      key: 'type',
+      width: 100,
+      render: (_, record) => (
+        <Tag color={record.submissionType === 0 ? 'blue' : 'purple'}>
+          {record.submissionType === 0 ? 'New' : 'Edit'}
+        </Tag>
+      )
+    },
+    {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      sorter: (a, b) => a.name.localeCompare(b.name)
     },
     {
       title: 'Address',
@@ -233,9 +241,13 @@ const LocationSubmissionsReviewPage = () => {
         </Space>
       </Content>
 
-      {/* Detail Modal */}
+      {/* Detail Modal with Before/After Comparison */}
       <Modal
-        title="Submission Details"
+        title={
+          viewingSubmission?.submissionType === 1 
+            ? "Review Suggested Edit (🔴 Red = Old, 🟢 Green = New)" 
+            : "Review New Location Submission"
+        }
         open={detailModalOpen}
         onCancel={() => {
           setDetailModalOpen(false);
@@ -261,110 +273,10 @@ const LocationSubmissionsReviewPage = () => {
             </Space>
           ) : null
         }
-        width={900}
+        width={1400}
       >
         {viewingSubmission && (
-          <div>
-            <Descriptions bordered column={2} size="small">
-              <Descriptions.Item label="ID">{viewingSubmission.id}</Descriptions.Item>
-              <Descriptions.Item label="Status">
-                <Tag color={
-                  viewingSubmission.status === SubmissionStatus.Pending ? 'warning' :
-                  viewingSubmission.status === SubmissionStatus.Approved ? 'success' :
-                  viewingSubmission.status === SubmissionStatus.Rejected ? 'error' : 'blue'
-                }>
-                  {SubmissionStatus[viewingSubmission.status]}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Name" span={2}>{viewingSubmission.name}</Descriptions.Item>
-              <Descriptions.Item label="Address" span={2}>{viewingSubmission.address}</Descriptions.Item>
-              <Descriptions.Item label="Coordinates">{viewingSubmission.latitude}, {viewingSubmission.longitude}</Descriptions.Item>
-              <Descriptions.Item label="Price Range">${viewingSubmission.priceMinUsd} - ${viewingSubmission.priceMaxUsd}</Descriptions.Item>
-              <Descriptions.Item label="Contact">{viewingSubmission.telephone || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label="Email">{viewingSubmission.email || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label="Location Type">{viewingSubmission.locationTypeName || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label="Destination">{viewingSubmission.destinationName || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label="Submitted By">User #{viewingSubmission.userId}</Descriptions.Item>
-              <Descriptions.Item label="Submitted At">{new Date(viewingSubmission.createdAt).toLocaleString()}</Descriptions.Item>
-            </Descriptions>
-
-            <Divider orientation="left">Description</Divider>
-            <p style={{ whiteSpace: 'pre-wrap' }}>{viewingSubmission.description || 'N/A'}</p>
-
-            {viewingSubmission.mediaLinks && viewingSubmission.mediaLinks.length > 0 && (
-              <>
-                <Divider orientation="left">Media Links</Divider>
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {viewingSubmission.mediaLinks.map((link, i) => (
-                    <a key={i} href={link} target="_blank" rel="noopener noreferrer">
-                      {link}
-                    </a>
-                  ))}
-                </Space>
-              </>
-            )}
-
-            {viewingSubmission.socialLinks && viewingSubmission.socialLinks.length > 0 && (
-              <>
-                <Divider orientation="left">Social Media Links</Divider>
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {viewingSubmission.socialLinks.map((social, i) => (
-                    <div key={i} style={{ display: 'flex', gap: '8px' }}>
-                      <strong>{social.platform}:</strong>
-                      <a href={social.url} target="_blank" rel="noopener noreferrer">{social.url}</a>
-                    </div>
-                  ))}
-                </Space>
-              </>
-            )}
-
-            {viewingSubmission.tagIds && viewingSubmission.tagIds.length > 0 && (
-              <>
-                <Divider orientation="left">Tags</Divider>
-                <Space wrap>
-                  {viewingSubmission.tagIds.map((tagId) => (
-                    <Tag key={tagId}>Tag #{tagId}</Tag>
-                  ))}
-                </Space>
-              </>
-            )}
-
-            {viewingSubmission.amenityIds && viewingSubmission.amenityIds.length > 0 && (
-              <>
-                <Divider orientation="left">Amenities</Divider>
-                <Space wrap>
-                  {viewingSubmission.amenityIds.map((amenityId) => (
-                    <Tag key={amenityId} color="blue">Amenity #{amenityId}</Tag>
-                  ))}
-                </Space>
-              </>
-            )}
-
-            {viewingSubmission.rejectionReason && (
-              <>
-                <Divider orientation="left">Rejection Reason</Divider>
-                <div style={{ padding: '12px', background: '#fff2f0', border: '1px solid #ffccc7', color: '#cf1322' }}>
-                  {viewingSubmission.rejectionReason}
-                </div>
-              </>
-            )}
-
-            {viewingSubmission.createdLocationId && (
-              <>
-                <Divider orientation="left">Approval Information</Divider>
-                <div style={{ padding: '12px', background: '#f6ffed', border: '1px solid #b7eb8f', color: '#389e0d' }}>
-                  <strong>✓ Location Created</strong>
-                  <div style={{ marginTop: '8px' }}>Location ID: {viewingSubmission.createdLocationId}</div>
-                  {viewingSubmission.reviewedAt && (
-                    <div style={{ marginTop: '8px' }}>Reviewed: {new Date(viewingSubmission.reviewedAt).toLocaleString()}</div>
-                  )}
-                  {viewingSubmission.reviewedBy && (
-                    <div style={{ marginTop: '8px' }}>Reviewed By: Admin #{viewingSubmission.reviewedBy}</div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+          <BeforeAfterComparison submission={viewingSubmission} />
         )}
       </Modal>
 
@@ -387,9 +299,15 @@ const LocationSubmissionsReviewPage = () => {
         {reviewAction === 'approve' ? (
           <div>
             <p>Are you sure you want to <strong>approve</strong> this submission?</p>
-            <p style={{ color: '#52c41a' }}>
-              <CheckOutlined /> This will create a new Location in the system.
-            </p>
+            {viewingSubmission?.submissionType === 0 ? (
+              <p style={{ color: '#52c41a' }}>
+                <CheckOutlined /> This will <strong>create a new location</strong> in the system.
+              </p>
+            ) : (
+              <p style={{ color: '#1890ff' }}>
+                <EyeOutlined /> This will <strong>update the existing location</strong> with the proposed changes.
+              </p>
+            )}
             <p><strong>Submission:</strong> {viewingSubmission?.name}</p>
           </div>
         ) : (
@@ -399,7 +317,7 @@ const LocationSubmissionsReviewPage = () => {
               rows={4}
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="e.g., Missing required information, Invalid location data, etc."
+              placeholder="e.g., Missing required information, Invalid location data, Inappropriate content, etc."
               autoFocus
             />
             <p style={{ color: '#ff4d4f', marginTop: 8 }}>

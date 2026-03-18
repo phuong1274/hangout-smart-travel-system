@@ -32,6 +32,13 @@ namespace HSTS.Application.LocationSubmissions
                 tagIds = JsonSerializer.Deserialize<List<int>>(submission.TagIdsJson);
             }
 
+            // Deserialize proposed changes for edit submissions
+            Dictionary<string, object>? proposedChanges = null;
+            if (!string.IsNullOrEmpty(submission.ProposedChangesJson))
+            {
+                proposedChanges = JsonSerializer.Deserialize<Dictionary<string, object>>(submission.ProposedChangesJson);
+            }
+
             return new LocationSubmissionDto(
                 submission.Id,
                 submission.UserId,
@@ -44,6 +51,7 @@ namespace HSTS.Application.LocationSubmissions
                 submission.Email,
                 submission.PriceMinUsd,
                 submission.PriceMaxUsd,
+                submission.Score,
                 submission.DestinationId,
                 submission.Destination?.Name,
                 submission.LocationTypeId,
@@ -53,6 +61,8 @@ namespace HSTS.Application.LocationSubmissions
                 amenityIds,
                 tagIds,
                 submission.Status,
+                submission.SubmissionType,
+                submission.ExistingLocationId,
                 submission.RejectionReason,
                 submission.ReviewedAt,
                 submission.ReviewedBy,
