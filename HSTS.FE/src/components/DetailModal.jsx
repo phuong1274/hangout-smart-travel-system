@@ -1,6 +1,6 @@
 import React from 'react';
-import { Modal, Descriptions, Tag, Space, Image, Divider } from 'antd';
-import { EnvironmentOutlined, DollarOutlined, UserOutlined, CalendarOutlined, LinkOutlined, PhoneOutlined, MailOutlined, ClockCircleOutlined, PictureOutlined } from '@ant-design/icons';
+import { Modal, Descriptions, Tag, Space, Image, Divider, Table } from 'antd';
+import { EnvironmentOutlined, DollarOutlined, UserOutlined, CalendarOutlined, LinkOutlined, PhoneOutlined, MailOutlined, ClockCircleOutlined, PictureOutlined, CloudOutlined } from '@ant-design/icons';
 
 /**
  * Reusable Detail Modal for displaying entity information
@@ -115,7 +115,7 @@ const DetailModal = ({ open, onClose, data, type }) => {
                 )}
               </Space>
             </Descriptions.Item>
-            
+
             <Descriptions.Item label="Images" span={2}>
               <Space wrap>
                 {data.mediaLinks && data.mediaLinks.length > 0 ? (
@@ -135,7 +135,91 @@ const DetailModal = ({ open, onClose, data, type }) => {
                 )}
               </Space>
             </Descriptions.Item>
-            
+
+            {/* Opening Hours */}
+            {data.openingHours && data.openingHours.length > 0 && (
+              <>
+                <Divider style={{ margin: '8px 0' }} />
+                <Descriptions.Item label="Opening Hours" span={2}>
+                  <Table
+                    dataSource={data.openingHours}
+                    pagination={false}
+                    size="small"
+                    rowKey="id"
+                    columns={[
+                      {
+                        title: 'Day',
+                        dataIndex: 'dayName',
+                        key: 'dayName',
+                        width: 120
+                      },
+                      {
+                        title: 'Open Time',
+                        dataIndex: 'openTime',
+                        key: 'openTime',
+                        render: (value) => value || 'N/A'
+                      },
+                      {
+                        title: 'Close Time',
+                        dataIndex: 'closeTime',
+                        key: 'closeTime',
+                        render: (value) => value || 'N/A'
+                      },
+                      {
+                        title: 'Status',
+                        dataIndex: 'isClosed',
+                        key: 'isClosed',
+                        render: (isClosed) => (
+                          <Tag color={isClosed ? 'red' : 'green'}>
+                            {isClosed ? 'Closed' : 'Open'}
+                          </Tag>
+                        )
+                      },
+                      {
+                        title: 'Note',
+                        dataIndex: 'note',
+                        key: 'note',
+                        render: (value) => value || '-'
+                      }
+                    ]}
+                  />
+                </Descriptions.Item>
+              </>
+            )}
+
+            {/* Seasonal Weather */}
+            {data.seasons && data.seasons.length > 0 && (
+              <>
+                <Divider style={{ margin: '8px 0' }} />
+                <Descriptions.Item label="Best Seasons to Visit" span={2}>
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    {data.seasons.map((season, index) => (
+                      <div key={index} style={{ padding: '12px', background: '#f5f5f5', borderRadius: '6px' }}>
+                        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                          <div><CloudOutlined /> <strong>{season.description || 'Season'}</strong></div>
+                          <div>
+                            <strong>Months:</strong>{' '}
+                            <Space wrap>
+                              {season.months && season.months.split(',').map((month, i) => {
+                                const monthNames = {
+                                  '1': 'Jan', '2': 'Feb', '3': 'Mar', '4': 'Apr',
+                                  '5': 'May', '6': 'Jun', '7': 'Jul', '8': 'Aug',
+                                  '9': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+                                };
+                                return (
+                                  <Tag key={i} color="blue">{monthNames[month.trim()] || month}</Tag>
+                                );
+                              })}
+                            </Space>
+                          </div>
+                        </Space>
+                      </div>
+                    ))}
+                  </Space>
+                </Descriptions.Item>
+              </>
+            )}
+
             <Divider style={{ margin: '8px 0' }} />
             
             <Descriptions.Item label="Created At">

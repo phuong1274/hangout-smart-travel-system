@@ -23,6 +23,8 @@ namespace HSTS.Application.Locations
         int? RecommendedDurationMinutes = null,
         decimal? Score = null,
         List<int>? AmenityIds = null,
+        List<LocationOpeningHourDto>? OpeningHours = null,
+        List<LocationSeasonDto>? Seasons = null,
         DateTime CreatedAt = default,
         DateTime? UpdatedAt = null
     );
@@ -31,4 +33,18 @@ namespace HSTS.Application.Locations
         int Id,
         string Platform,
         string Url);
+
+    public record LocationOpeningHourDto(
+        int Id,
+        int DayOfWeek,
+        string DayName,
+        TimeSpan? OpenTime,
+        TimeSpan? CloseTime,
+        bool IsClosed,
+        string? Note);
+
+    public record LocationSeasonDto(
+        int Id,
+        string Description,
+        string Months);
 }

@@ -63,10 +63,16 @@ namespace HSTS.Domain.Entities
         [Range(0, 5)]
         public decimal? Score { get; set; }
 
+        // Owner who created this location
+        public int? OwnerId { get; set; }
+        public User? Owner { get; set; }
+
         // Navigation properties
         public ICollection<LocationSocialLink> SocialLinks { get; set; } = new List<LocationSocialLink>();
         public ICollection<LocationTag> LocationTags { get; set; } = new List<LocationTag>();
         public ICollection<LocationMedia> LocationMedias { get; set; } = new List<LocationMedia>();
         public ICollection<LocationAmenity> LocationAmenities { get; set; } = new List<LocationAmenity>();
+        public ICollection<LocationOpeningHour> OpeningHours { get; set; } = new List<LocationOpeningHour>();
+        public ICollection<LocationSeason> Seasons { get; set; } = new List<LocationSeason>();
     }
 }

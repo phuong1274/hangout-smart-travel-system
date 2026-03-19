@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Tag, Rate } from 'antd';
-import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, EnvironmentOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Tag, Rate, Table, TimePicker, Card, Divider } from 'antd';
+import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, EnvironmentOutlined, MinusCircleOutlined, ClockCircleOutlined, CloudOutlined } from '@ant-design/icons';
 import { createLocationApi, updateLocationApi, getAllTagsApi, getAllDestinationsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
 import { uploadImageToCloudinary } from '@/services/cloudinary';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
@@ -30,6 +30,8 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [newMediaLink, setNewMediaLink] = useState('');
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [socialLinks, setSocialLinks] = useState([]);
+  const [openingHours, setOpeningHours] = useState([]);
+  const [seasons, setSeasons] = useState([]);
 
   const isEdit = !!location;
 
@@ -105,10 +107,16 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         platform: sl.platform,
         url: sl.url
       })) || []);
+      // Set opening hours
+      setOpeningHours(location.openingHours || []);
+      // Set seasons
+      setSeasons(location.seasons || []);
     } else if (!location) {
       form.resetFields();
       setMediaLinks([]);
       setSocialLinks([]);
+      setOpeningHours([]);
+      setSeasons([]);
     }
   }, [location, form, tags, amenities]);
 
@@ -129,7 +137,9 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         tagIds: values.tagIds?.length > 0 ? values.tagIds : [],
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : [],
         amenityIds: values.amenityIds?.length > 0 ? values.amenityIds : [],
-        socialLinks: formattedSocialLinks
+        socialLinks: formattedSocialLinks,
+        openingHours: openingHours.length > 0 ? openingHours : [],
+        seasons: seasons.length > 0 ? seasons : []
       };
 
       if (isEdit) {
@@ -207,6 +217,84 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
   const getUsedPlatforms = () => {
     return socialLinks.map(sl => sl.platform);
+  };
+
+  // Opening Hours handlers
+  const DAYS_OF_WEEK = [
+    { value: 0, label: 'Sunday' },
+    { value: 1, label: 'Monday' },
+    { value: 2, label: 'Tuesday' },
+    { value: 3, label: 'Wednesday' },
+    { value: 4, label: 'Thursday' },
+    { value: 5, label: 'Friday' },
+    { value: 6, label: 'Saturday' }
+  ];
+
+  const handleAddOpeningHour = (dayOfWeek) => {
+    if (!openingHours.find(oh => oh.dayOfWeek === dayOfWeek)) {
+      setOpeningHours([...openingHours, { 
+        id: 0, 
+        dayOfWeek, 
+        dayName: DAYS_OF_WEEK.find(d => d.value === dayOfWeek)?.label,
+        openTime: '08:00', 
+        closeTime: '17:00', 
+        isClosed: false, 
+        note: '' 
+      }]);
+    }
+  };
+
+  const handleAddAllOpeningHours = () => {
+    const allDays = DAYS_OF_WEEK.map(day => ({
+      id: 0,
+      dayOfWeek: day.value,
+      dayName: day.label,
+      openTime: '08:00',
+      closeTime: '17:00',
+      isClosed: false,
+      note: ''
+    }));
+    setOpeningHours(allDays);
+  };
+
+  const handleUpdateOpeningHour = (index, field, value) => {
+    const updated = [...openingHours];
+    updated[index] = { ...updated[index], [field]: value };
+    setOpeningHours(updated);
+  };
+
+  const handleRemoveOpeningHour = (index) => {
+    setOpeningHours(openingHours.filter((_, i) => i !== index));
+  };
+
+  // Seasons handlers
+  const MONTHS = [
+    { value: '1', label: 'January' },
+    { value: '2', label: 'February' },
+    { value: '3', label: 'March' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'May' },
+    { value: '6', label: 'June' },
+    { value: '7', label: 'July' },
+    { value: '8', label: 'August' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' }
+  ];
+
+  const handleAddSeason = () => {
+    setSeasons([...seasons, { id: 0, description: '', months: [] }]);
+  };
+
+  const handleUpdateSeason = (index, field, value) => {
+    const updated = [...seasons];
+    updated[index] = { ...updated[index], [field]: value };
+    setSeasons(updated);
+  };
+
+  const handleRemoveSeason = (index) => {
+    setSeasons(seasons.filter((_, i) => i !== index));
   };
 
   return (
@@ -529,6 +617,171 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                       onClick={() => handleRemoveSocialLink(index)}
                     />
                   </div>
+                ))}
+              </Space>
+            )}
+          </Space>
+        </Form.Item>
+
+        {/* Opening Hours Section */}
+        <Divider orientation="left"><ClockCircleOutlined /> Opening Hours</Divider>
+        <Form.Item label=" ">
+          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space>
+              <Button type="dashed" onClick={handleAddAllOpeningHours} icon={<PlusOutlined />}>
+                Add All Days
+              </Button>
+              <Select
+                placeholder="Add specific day"
+                onChange={handleAddOpeningHour}
+                value={null}
+                style={{ width: 200 }}
+              >
+                {DAYS_OF_WEEK
+                  .filter(day => !openingHours.find(oh => oh.dayOfWeek === day.value))
+                  .map(day => (
+                    <Option key={day.value} value={day.value}>{day.label}</Option>
+                  ))}
+              </Select>
+            </Space>
+
+            {openingHours.length > 0 && (
+              <Table
+                dataSource={openingHours}
+                pagination={false}
+                size="small"
+                rowKey={(record, index) => index}
+                columns={[
+                  {
+                    title: 'Day',
+                    dataIndex: 'dayName',
+                    key: 'dayName',
+                    width: 120
+                  },
+                  {
+                    title: 'Open Time',
+                    dataIndex: 'openTime',
+                    key: 'openTime',
+                    width: 130,
+                    render: (value, record, index) => (
+                      <TimePicker
+                        value={value}
+                        onChange={(time, timeString) => handleUpdateOpeningHour(index, 'openTime', timeString)}
+                        format="HH:mm"
+                        disabled={record.isClosed}
+                      />
+                    )
+                  },
+                  {
+                    title: 'Close Time',
+                    dataIndex: 'closeTime',
+                    key: 'closeTime',
+                    width: 130,
+                    render: (value, record, index) => (
+                      <TimePicker
+                        value={value}
+                        onChange={(time, timeString) => handleUpdateOpeningHour(index, 'closeTime', timeString)}
+                        format="HH:mm"
+                        disabled={record.isClosed}
+                      />
+                    )
+                  },
+                  {
+                    title: 'Closed',
+                    dataIndex: 'isClosed',
+                    key: 'isClosed',
+                    width: 80,
+                    render: (value, record, index) => (
+                      <input
+                        type="checkbox"
+                        checked={value}
+                        onChange={(e) => handleUpdateOpeningHour(index, 'isClosed', e.target.checked)}
+                      />
+                    )
+                  },
+                  {
+                    title: 'Note',
+                    dataIndex: 'note',
+                    key: 'note',
+                    render: (value, record, index) => (
+                      <Input
+                        value={value}
+                        onChange={(e) => handleUpdateOpeningHour(index, 'note', e.target.value)}
+                        placeholder="e.g., Lunch break"
+                        disabled={record.isClosed}
+                      />
+                    )
+                  },
+                  {
+                    title: 'Action',
+                    key: 'action',
+                    width: 80,
+                    render: (_, record, index) => (
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<MinusCircleOutlined />}
+                        onClick={() => handleRemoveOpeningHour(index)}
+                      />
+                    )
+                  }
+                ]}
+              />
+            )}
+          </Space>
+        </Form.Item>
+
+        {/* Seasonal Weather Section */}
+        <Divider orientation="left"><CloudOutlined /> Best Seasons to Visit</Divider>
+        <Form.Item label=" ">
+          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Button type="dashed" onClick={handleAddSeason} icon={<PlusOutlined />}>
+              Add Season
+            </Button>
+
+            {seasons.length > 0 && (
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                {seasons.map((season, index) => (
+                  <Card
+                    key={index}
+                    size="small"
+                    type="inner"
+                    title={`Season ${index + 1}`}
+                    extra={
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<MinusCircleOutlined />}
+                        onClick={() => handleRemoveSeason(index)}
+                      />
+                    }
+                    style={{ maxWidth: 800 }}
+                  >
+                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      <Form.Item label="Description" required>
+                        <Input
+                          value={season.description}
+                          onChange={(e) => handleUpdateSeason(index, 'description', e.target.value)}
+                          placeholder="e.g., Dry Season, Best time for beach activities"
+                        />
+                      </Form.Item>
+                      <Form.Item label="Months" required>
+                        <Select
+                          mode="multiple"
+                          value={season.months}
+                          onChange={(value) => handleUpdateSeason(index, 'months', value)}
+                          placeholder="Select months"
+                          style={{ width: '100%' }}
+                        >
+                          {MONTHS.map(month => (
+                            <Option key={month.value} value={month.value}>{month.label}</Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+                    </Space>
+                  </Card>
                 ))}
               </Space>
             )}

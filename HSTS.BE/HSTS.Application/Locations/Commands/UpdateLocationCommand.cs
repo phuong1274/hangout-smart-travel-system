@@ -28,7 +28,9 @@ namespace HSTS.Application.Locations.Commands
         List<int>? TagIds,
         List<string>? MediaLinks,
         List<SocialLinkDto>? SocialLinks,
-        List<int>? AmenityIds) : IRequest<ErrorOr<LocationDto>>;
+        List<int>? AmenityIds,
+        List<LocationOpeningHourDto>? OpeningHours,
+        List<LocationSeasonDto>? Seasons) : IRequest<ErrorOr<LocationDto>>;
 
     public class UpdateLocationCommandHandler : IRequestHandler<UpdateLocationCommand, ErrorOr<LocationDto>>
     {
@@ -54,6 +56,8 @@ namespace HSTS.Application.Locations.Commands
                 .Include(l => l.LocationMedias)
                 .Include(l => l.SocialLinks)
                 .Include(l => l.LocationAmenities)
+                .Include(l => l.OpeningHours)
+                .Include(l => l.Seasons)
                 .FirstOrDefaultAsync(l => l.Id == request.Id && !l.IsDeleted, cancellationToken);
 
             if (location == null)
@@ -163,6 +167,47 @@ namespace HSTS.Application.Locations.Commands
                                 AmenityId = amenity.Id
                             });
                         }
+                    }
+                }
+            }
+
+            // Update opening hours if provided (null means no change, empty array means clear all)
+            if (request.OpeningHours != null)
+            {
+                location.OpeningHours.Clear();
+
+                if (request.OpeningHours.Count > 0)
+                {
+                    foreach (var oh in request.OpeningHours)
+                    {
+                        location.OpeningHours.Add(new LocationOpeningHour
+                        {
+                            LocationId = location.Id,
+                            DayOfWeek = (DayOfWeek)oh.DayOfWeek,
+                            OpenTime = oh.OpenTime,
+                            CloseTime = oh.CloseTime,
+                            IsClosed = oh.IsClosed,
+                            Note = oh.Note
+                        });
+                    }
+                }
+            }
+
+            // Update seasons if provided (null means no change, empty array means clear all)
+            if (request.Seasons != null)
+            {
+                location.Seasons.Clear();
+
+                if (request.Seasons.Count > 0)
+                {
+                    foreach (var season in request.Seasons)
+                    {
+                        location.Seasons.Add(new LocationSeason
+                        {
+                            LocationId = location.Id,
+                            Description = season.Description,
+                            Months = season.Months
+                        });
                     }
                 }
             }

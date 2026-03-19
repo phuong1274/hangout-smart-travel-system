@@ -29,6 +29,20 @@ namespace HSTS.Application.Locations
                 location.RecommendedDurationMinutes,
                 location.Score,
                 location.LocationAmenities.Select(la => la.AmenityId).ToList(),
+                location.OpeningHours.Select(oh => new LocationOpeningHourDto(
+                    oh.Id,
+                    (int)oh.DayOfWeek,
+                    oh.DayOfWeek.ToString(),
+                    oh.OpenTime,
+                    oh.CloseTime,
+                    oh.IsClosed,
+                    oh.Note
+                )).ToList(),
+                location.Seasons.Select(s => new LocationSeasonDto(
+                    s.Id,
+                    s.Description,
+                    s.Months
+                )).ToList(),
                 location.CreatedAt,
                 location.UpdatedAt
             );

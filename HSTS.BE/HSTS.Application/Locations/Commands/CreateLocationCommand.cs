@@ -29,22 +29,27 @@ namespace HSTS.Application.Locations.Commands
         List<int>? TagIds,
         List<string>? MediaLinks,
         List<SocialLinkDto>? SocialLinks,
-        List<int>? AmenityIds) : IRequest<ErrorOr<LocationDto>>;
+        List<int>? AmenityIds,
+        List<LocationOpeningHourDto>? OpeningHours,
+        List<LocationSeasonDto>? Seasons) : IRequest<ErrorOr<LocationDto>>;
 
     public class CreateLocationCommandHandler : IRequestHandler<CreateLocationCommand, ErrorOr<LocationDto>>
     {
         private readonly IRepository<Location> _locationRepository;
         private readonly IRepository<Tag> _tagRepository;
         private readonly IRepository<Amenity> _amenityRepository;
+        private readonly ICurrentUserService _currentUser;
 
         public CreateLocationCommandHandler(
             IRepository<Location> locationRepository,
             IRepository<Tag> tagRepository,
-            IRepository<Amenity> amenityRepository)
+            IRepository<Amenity> amenityRepository,
+            ICurrentUserService currentUser)
         {
             _locationRepository = locationRepository;
             _tagRepository = tagRepository;
             _amenityRepository = amenityRepository;
+            _currentUser = currentUser;
         }
 
         public async Task<ErrorOr<LocationDto>> Handle(CreateLocationCommand request, CancellationToken cancellationToken)
@@ -75,7 +80,8 @@ namespace HSTS.Application.Locations.Commands
                 PriceMinUsd = request.PriceMinUsd,
                 PriceMaxUsd = request.PriceMaxUsd,
                 RecommendedDurationMinutes = request.RecommendedDurationMinutes,
-                Score = request.Score
+                Score = request.Score,
+                OwnerId = _currentUser.UserId
             };
 
             await _locationRepository.AddAsync(location, cancellationToken);
@@ -146,6 +152,37 @@ namespace HSTS.Application.Locations.Commands
                             AmenityId = amenity.Id
                         });
                     }
+                }
+            }
+
+            // Add opening hours if provided
+            if (request.OpeningHours != null && request.OpeningHours.Count > 0)
+            {
+                foreach (var oh in request.OpeningHours)
+                {
+                    location.OpeningHours.Add(new LocationOpeningHour
+                    {
+                        LocationId = location.Id,
+                        DayOfWeek = (DayOfWeek)oh.DayOfWeek,
+                        OpenTime = oh.OpenTime,
+                        CloseTime = oh.CloseTime,
+                        IsClosed = oh.IsClosed,
+                        Note = oh.Note
+                    });
+                }
+            }
+
+            // Add seasons if provided
+            if (request.Seasons != null && request.Seasons.Count > 0)
+            {
+                foreach (var season in request.Seasons)
+                {
+                    location.Seasons.Add(new LocationSeason
+                    {
+                        LocationId = location.Id,
+                        Description = season.Description,
+                        Months = season.Months
+                    });
                 }
             }
 

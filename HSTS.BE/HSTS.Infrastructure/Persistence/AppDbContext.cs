@@ -28,6 +28,8 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Country> Countries => Set<Country>();
         public DbSet<State> States => Set<State>();
         public DbSet<LocationSubmission> LocationSubmissions => Set<LocationSubmission>();
+        public DbSet<LocationOpeningHour> LocationOpeningHours => Set<LocationOpeningHour>();
+        public DbSet<LocationSeason> LocationSeasons => Set<LocationSeason>();
 
         #region Logging
         /// <summary>

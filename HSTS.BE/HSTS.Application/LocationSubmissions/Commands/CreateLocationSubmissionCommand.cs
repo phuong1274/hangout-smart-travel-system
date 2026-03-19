@@ -35,13 +35,16 @@ namespace HSTS.Application.LocationSubmissions.Commands
     public class CreateLocationSubmissionCommandHandler : IRequestHandler<CreateLocationSubmissionCommand, ErrorOr<LocationSubmissionDto>>
     {
         private readonly IRepository<LocationSubmission> _repository;
+        private readonly IRepository<Location> _locationRepository;
         private readonly ICurrentUserService _currentUser;
 
         public CreateLocationSubmissionCommandHandler(
             IRepository<LocationSubmission> repository,
+            IRepository<Location> locationRepository,
             ICurrentUserService currentUser)
         {
             _repository = repository;
+            _locationRepository = locationRepository;
             _currentUser = currentUser;
         }
 
@@ -55,6 +58,30 @@ namespace HSTS.Application.LocationSubmissions.Commands
             {
                 return Error.Conflict("LocationSubmission.DuplicateName",
                     $"A submission with the name '{request.Name}' already exists for this user.");
+            }
+
+            // Validate ownership for EditExisting submissions
+            if (request.SubmissionType == SubmissionType.EditExisting)
+            {
+                if (request.ExistingLocationId == null)
+                {
+                    return Error.Validation("Submission.LocationIdRequired",
+                        "ExistingLocationId is required for edit submissions.");
+                }
+
+                var location = await _locationRepository.GetAsync(request.ExistingLocationId.Value, cancellationToken);
+                
+                if (location == null)
+                {
+                    return Error.NotFound("Location.NotFound",
+                        $"Location with ID {request.ExistingLocationId} not found.");
+                }
+
+                if (location.OwnerId != _currentUser.UserId)
+                {
+                    return Error.Forbidden("Location.NotOwner",
+                        "Only the location owner can submit edit requests.");
+                }
             }
 
             var submission = new LocationSubmission

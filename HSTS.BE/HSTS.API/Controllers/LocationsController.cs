@@ -111,7 +111,9 @@ namespace HSTS.API.Controllers
                 request.TagIds,
                 request.MediaLinks,
                 request.SocialLinks,
-                request.AmenityIds
+                request.AmenityIds,
+                request.OpeningHours,
+                request.Seasons
             );
 
             var result = await _mediator.Send(command, ct);
@@ -151,7 +153,9 @@ namespace HSTS.API.Controllers
                 request.TagIds,
                 request.MediaLinks,
                 request.SocialLinks,
-                request.AmenityIds
+                request.AmenityIds,
+                request.OpeningHours,
+                request.Seasons
             );
 
             var result = await _mediator.Send(command, ct);
