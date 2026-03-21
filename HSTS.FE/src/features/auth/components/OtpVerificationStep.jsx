@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button, Input, Typography } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
-import styles from './OtpVerificationStep.module.css';
+import styles from '../styles/OtpVerificationStep.module.css';
 
 const { Title, Text } = Typography;
 

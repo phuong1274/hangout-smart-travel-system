@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useLogin, useGoogleLogin } from '../hooks/useAuth';
 import { PATHS } from '@/routes/paths';
 
-import styles from './LoginForm.module.css';
+import styles from '../styles/LoginForm.module.css';
 
 const { Title, Text } = Typography;
 

@@ -3,7 +3,7 @@ import { LeftOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useForgotPassword } from '../hooks/useAuth';
 import { PATHS } from '@/routes/paths';
-import styles from './ForgotPasswordForm.module.css';
+import styles from '../styles/ForgotPasswordForm.module.css';
 import forgotPasswordImg from '../assets/forgot_password_illustration.svg';
 
 const { Title, Text } = Typography;

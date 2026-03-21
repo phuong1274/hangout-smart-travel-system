@@ -5,7 +5,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useResetPassword, useResendOtp, useVerifyForgotPasswordOtp } from '../hooks/useAuth';
 import OtpVerificationStep from './OtpVerificationStep';
 import { PATHS } from '@/routes/paths';
-import styles from './ResetPasswordForm.module.css';
+import styles from '../styles/ResetPasswordForm.module.css';
 
 const { Title } = Typography;
 

@@ -6,7 +6,7 @@ import { useRegister, useGoogleLogin } from '../hooks/useAuth';
 import { PATHS } from '@/routes/paths';
 
 // Import CSS Modules
-import styles from './RegisterForm.module.css';
+import styles from '../styles/RegisterForm.module.css';
 
 const { Title, Text } = Typography;
 

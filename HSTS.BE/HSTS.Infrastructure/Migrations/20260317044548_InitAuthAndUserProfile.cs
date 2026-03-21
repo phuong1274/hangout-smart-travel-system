@@ -200,6 +200,10 @@ namespace HSTS.Infrastructure.Migrations
                     Gender = table.Column<int>(type: "int", nullable: true),
                     PhoneNumber = table.Column<string>(type: "varchar(15)", maxLength: 15, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    AvatarUrl = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Bio = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "timestamp", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     CreatedBy = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -282,13 +286,13 @@ namespace HSTS.Infrastructure.Migrations
 
             migrationBuilder.InsertData(
                 table: "Roles",
-                columns: new[] { "Id", "CreatedAt", "CreatedBy", "IsActive", "Name", "UpdatedBy" },
+                columns: new[] { "Id", "CreatedBy", "IsActive", "Name", "UpdatedBy" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5338), null, true, "ADMIN", null },
-                    { 2, new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5803), null, true, "CONTENT_MODERATOR", null },
-                    { 3, new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5805), null, true, "PARTNER", null },
-                    { 4, new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5806), null, true, "TRAVELER", null }
+                    { 1, null, true, "ADMIN", null },
+                    { 2, null, true, "CONTENT_MODERATOR", null },
+                    { 3, null, true, "PARTNER", null },
+                    { 4, null, true, "TRAVELER", null }
                 });
 
             migrationBuilder.CreateIndex(
