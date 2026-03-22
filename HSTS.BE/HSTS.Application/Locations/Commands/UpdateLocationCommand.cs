@@ -186,7 +186,6 @@ namespace HSTS.Application.Locations.Commands
                             DayOfWeek = (DayOfWeek)oh.DayOfWeek,
                             OpenTime = oh.OpenTime,
                             CloseTime = oh.CloseTime,
-                            IsClosed = oh.IsClosed,
                             Note = oh.Note
                         });
                     }

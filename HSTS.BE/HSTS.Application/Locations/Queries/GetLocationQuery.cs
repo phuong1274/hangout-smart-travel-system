@@ -23,6 +23,8 @@ namespace HSTS.Application.Locations.Queries
                 .Include(l => l.LocationMedias)
                 .Include(l => l.LocationAmenities).ThenInclude(la => la.Amenity)
                 .Include(l => l.SocialLinks)
+                .Include(l => l.OpeningHours)
+                .Include(l => l.Seasons)
                 .FirstOrDefaultAsync(l => l.Id == request.Id && !l.IsDeleted, ct);
 
             if (location is null)

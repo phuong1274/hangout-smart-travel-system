@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Button, Space, Card, Divider, Rate, Radio } from 'antd';
-import { PlusOutlined, DeleteOutlined, EnvironmentOutlined, HomeOutlined, PhoneOutlined, MailOutlined, DollarOutlined, PictureOutlined, LinkOutlined, TagsOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Button, Space, Card, Divider, Rate, Radio, Table, TimePicker } from 'antd';
+import { PlusOutlined, DeleteOutlined, EnvironmentOutlined, HomeOutlined, PhoneOutlined, MailOutlined, DollarOutlined, PictureOutlined, LinkOutlined, TagsOutlined, ClockCircleOutlined, CloudOutlined } from '@ant-design/icons';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
 import {
   createLocationSubmissionApi,
@@ -10,6 +10,7 @@ import {
   getAllAmenitiesApi,
   getAllTagsApi
 } from '../api';
+import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -23,6 +24,8 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
   const [tags, setTags] = useState([]);
   const [mediaLinks, setMediaLinks] = useState([]);
   const [socialLinks, setSocialLinks] = useState([]);
+  const [openingHours, setOpeningHours] = useState([]);
+  const [seasons, setSeasons] = useState([]);
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [submissionType, setSubmissionType] = useState(0); // 0 = NewLocation, 1 = EditExisting
 
@@ -82,22 +85,49 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
       if (submission.socialLinks) {
         setSocialLinks(submission.socialLinks);
       }
+      if (submission.openingHours) {
+        setOpeningHours(submission.openingHours);
+      }
+      if (submission.seasons) {
+        setSeasons(submission.seasons);
+      }
     } else {
       form.resetFields();
       setMediaLinks([]);
       setSocialLinks([]);
+      setOpeningHours([]);
+      setSeasons([]);
     }
   }, [submission, form]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
+      // Transform seasons to convert months array to comma-separated string
+      const formattedSeasons = seasons.length > 0
+        ? seasons.map(season => ({
+            id: season.id,
+            description: season.description,
+            months: Array.isArray(season.months) ? season.months.join(',') : season.months
+          }))
+        : null;
+
+      // Transform opening hours to ensure dayOfWeek is a number
+      const formattedOpeningHours = openingHours.length > 0
+        ? openingHours.map(oh => ({
+            ...oh,
+            dayOfWeek: typeof oh.dayOfWeek === 'string' ? parseInt(oh.dayOfWeek, 10) : oh.dayOfWeek
+          }))
+        : null;
+
       const payload = {
         ...values,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : null,
         socialLinks: socialLinks.length > 0 ? socialLinks : null,
         amenityIds: values.amenityIds?.length > 0 ? values.amenityIds : null,
-        tagIds: values.tagIds?.length > 0 ? values.tagIds : null
+        tagIds: values.tagIds?.length > 0 ? values.tagIds : null,
+        openingHours: formattedOpeningHours,
+        seasons: formattedSeasons
       };
 
       if (isEdit) {
@@ -151,6 +181,82 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
 
   const removeSocialLink = (index) => {
     setSocialLinks(socialLinks.filter((_, i) => i !== index));
+  };
+
+  // Opening Hours handlers
+  const DAYS_OF_WEEK = [
+    { value: 0, label: 'Sunday' },
+    { value: 1, label: 'Monday' },
+    { value: 2, label: 'Tuesday' },
+    { value: 3, label: 'Wednesday' },
+    { value: 4, label: 'Thursday' },
+    { value: 5, label: 'Friday' },
+    { value: 6, label: 'Saturday' }
+  ];
+
+  const addOpeningHour = (dayOfWeek) => {
+    if (!openingHours.find(oh => oh.dayOfWeek === dayOfWeek)) {
+      setOpeningHours([...openingHours, {
+        id: 0,
+        dayOfWeek: parseInt(dayOfWeek, 10),
+        dayName: DAYS_OF_WEEK.find(d => d.value === dayOfWeek)?.label,
+        openTime: '08:00',
+        closeTime: '17:00',
+        note: ''
+      }]);
+    }
+  };
+
+  const addAllOpeningHours = () => {
+    const allDays = DAYS_OF_WEEK.map(day => ({
+      id: 0,
+      dayOfWeek: day.value,
+      dayName: day.label,
+      openTime: '08:00',
+      closeTime: '17:00',
+      note: ''
+    }));
+    setOpeningHours(allDays);
+  };
+
+  const updateOpeningHour = (index, field, value) => {
+    const updated = [...openingHours];
+    updated[index] = { ...updated[index], [field]: field === 'dayOfWeek' ? parseInt(value, 10) : value };
+    setOpeningHours(updated);
+  };
+
+  const removeOpeningHour = (index) => {
+    setOpeningHours(openingHours.filter((_, i) => i !== index));
+  };
+
+  // Seasons handlers
+  const MONTHS = [
+    { value: '1', label: 'January' },
+    { value: '2', label: 'February' },
+    { value: '3', label: 'March' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'May' },
+    { value: '6', label: 'June' },
+    { value: '7', label: 'July' },
+    { value: '8', label: 'August' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' }
+  ];
+
+  const addSeason = () => {
+    setSeasons([...seasons, { id: 0, description: '', months: [] }]);
+  };
+
+  const updateSeason = (index, field, value) => {
+    const updated = [...seasons];
+    updated[index] = { ...updated[index], [field]: value };
+    setSeasons(updated);
+  };
+
+  const removeSeason = (index) => {
+    setSeasons(seasons.filter((_, i) => i !== index));
   };
 
   return (
@@ -541,6 +647,155 @@ Transportation:
                 No social links added yet
               </div>
             )}
+          </Card>
+
+          {/* Section 7: Opening Hours */}
+          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
+            <Divider orientation="left"><ClockCircleOutlined /> Opening Hours</Divider>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Space>
+                <Button type="dashed" onClick={addAllOpeningHours} icon={<PlusOutlined />}>
+                  Add All Days
+                </Button>
+                <Select
+                  placeholder="Add specific day"
+                  onChange={addOpeningHour}
+                  value={null}
+                  style={{ width: 200 }}
+                >
+                  {DAYS_OF_WEEK
+                    .filter(day => !openingHours.find(oh => oh.dayOfWeek === day.value))
+                    .map(day => (
+                      <Option key={day.value} value={day.value}>{day.label}</Option>
+                    ))}
+                </Select>
+              </Space>
+
+              {openingHours.length > 0 && (
+                <Table
+                  dataSource={openingHours}
+                  pagination={false}
+                  size="small"
+                  rowKey={(record, index) => index}
+                  columns={[
+                    {
+                      title: 'Day',
+                      dataIndex: 'dayName',
+                      key: 'dayName',
+                      width: 120
+                    },
+                    {
+                      title: 'Open Time',
+                      dataIndex: 'openTime',
+                      key: 'openTime',
+                      width: 130,
+                      render: (value, record, index) => (
+                        <TimePicker
+                          value={value ? dayjs(value, 'HH:mm') : null}
+                          onChange={(time, timeString) => updateOpeningHour(index, 'openTime', timeString)}
+                          format="HH:mm"
+                        />
+                      )
+                    },
+                    {
+                      title: 'Close Time',
+                      dataIndex: 'closeTime',
+                      key: 'closeTime',
+                      width: 130,
+                      render: (value, record, index) => (
+                        <TimePicker
+                          value={value ? dayjs(value, 'HH:mm') : null}
+                          onChange={(time, timeString) => updateOpeningHour(index, 'closeTime', timeString)}
+                          format="HH:mm"
+                        />
+                      )
+                    },
+                    {
+                      title: 'Note',
+                      dataIndex: 'note',
+                      key: 'note',
+                      render: (value, record, index) => (
+                        <Input
+                          value={value}
+                          onChange={(e) => updateOpeningHour(index, 'note', e.target.value)}
+                          placeholder="e.g., Lunch break"
+                        />
+                      )
+                    },
+                    {
+                      title: 'Action',
+                      key: 'action',
+                      width: 80,
+                      render: (_, record, index) => (
+                        <Button
+                          type="text"
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() => removeOpeningHour(index)}
+                        />
+                      )
+                    }
+                  ]}
+                />
+              )}
+            </Space>
+          </Card>
+
+          {/* Section 8: Best Seasons to Visit */}
+          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
+            <Divider orientation="left"><CloudOutlined /> Best Seasons to Visit</Divider>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Button type="dashed" onClick={addSeason} icon={<PlusOutlined />}>
+                Add Season
+              </Button>
+
+              {seasons.length > 0 && (
+                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  {seasons.map((season, index) => (
+                    <Card
+                      key={index}
+                      size="small"
+                      type="inner"
+                      title={`Season ${index + 1}`}
+                      extra={
+                        <Button
+                          type="text"
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() => removeSeason(index)}
+                        />
+                      }
+                      style={{ maxWidth: 800 }}
+                    >
+                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                        <Form.Item label="Description" required>
+                          <Input
+                            value={season.description}
+                            onChange={(e) => updateSeason(index, 'description', e.target.value)}
+                            placeholder="e.g., Dry Season, Best time for beach activities"
+                          />
+                        </Form.Item>
+                        <Form.Item label="Months" required>
+                          <Select
+                            mode="multiple"
+                            value={season.months}
+                            onChange={(value) => updateSeason(index, 'months', value)}
+                            placeholder="Select months"
+                            style={{ width: '100%' }}
+                          >
+                            {MONTHS.map(month => (
+                              <Option key={month.value} value={month.value}>{month.label}</Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </Space>
+                    </Card>
+                  ))}
+                </Space>
+              )}
+            </Space>
           </Card>
 
         </Form>

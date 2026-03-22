@@ -216,6 +216,66 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 }
             }
 
+            // Parse and add opening hours
+            if (!string.IsNullOrEmpty(submission.OpeningHoursJson))
+            {
+                var openingHoursData = JsonSerializer.Deserialize<List<JsonElement>>(submission.OpeningHoursJson);
+                if (openingHoursData != null)
+                {
+                    foreach (var ohData in openingHoursData)
+                    {
+                        var dayOfWeek = ohData.TryGetProperty("dayOfWeek", out var dowProp) 
+                            ? (DayOfWeek)dowProp.GetInt32() 
+                            : DayOfWeek.Monday;
+                        
+                        var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) && otProp.ValueKind != JsonValueKind.Null
+                            ? otProp.GetString()
+                            : "08:00";
+                        
+                        var closeTimeStr = ohData.TryGetProperty("closeTime", out var ctProp) && ctProp.ValueKind != JsonValueKind.Null
+                            ? ctProp.GetString()
+                            : "17:00";
+                        
+                        var note = ohData.TryGetProperty("note", out var noteProp) ? noteProp.GetString() : null;
+
+                        location.OpeningHours.Add(new LocationOpeningHour
+                        {
+                            LocationId = location.Id,
+                            DayOfWeek = dayOfWeek,
+                            OpenTime = !string.IsNullOrEmpty(openTimeStr) ? TimeSpan.Parse(openTimeStr) : TimeSpan.FromHours(8),
+                            CloseTime = !string.IsNullOrEmpty(closeTimeStr) ? TimeSpan.Parse(closeTimeStr) : TimeSpan.FromHours(17),
+                            Note = note
+                        });
+                    }
+                }
+            }
+
+            // Parse and add seasons
+            if (!string.IsNullOrEmpty(submission.SeasonsJson))
+            {
+                var seasonsData = JsonSerializer.Deserialize<List<JsonElement>>(submission.SeasonsJson);
+                if (seasonsData != null)
+                {
+                    foreach (var seasonData in seasonsData)
+                    {
+                        var description = seasonData.TryGetProperty("description", out var descProp) 
+                            ? descProp.GetString() 
+                            : "";
+                        
+                        var monthsJson = seasonData.TryGetProperty("months", out var monthsProp) 
+                            ? monthsProp.ToString() 
+                            : "";
+
+                        location.Seasons.Add(new LocationSeason
+                        {
+                            LocationId = location.Id,
+                            Description = description ?? "",
+                            Months = monthsJson ?? ""
+                        });
+                    }
+                }
+            }
+
             await _locationRepository.UpdateAsync(location, cancellationToken);
 
             // Update submission with created location ID
@@ -236,6 +296,10 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 throw new InvalidOperationException("Existing location not found.");
             }
 
+            // Load related collections for update
+            location.OpeningHours.Clear();
+            location.Seasons.Clear();
+
             // Deserialize and apply proposed changes
             var changes = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(submission.ProposedChangesJson);
 
@@ -246,10 +310,72 @@ namespace HSTS.Application.LocationSubmissions.Commands
 
             foreach (var change in changes)
             {
-                // Case-insensitive property matching (frontend sends "name", C# has "Name")
+                // Handle OpeningHours specially
+                if (change.Key.Equals("OpeningHours", StringComparison.OrdinalIgnoreCase))
+                {
+                    var openingHoursData = JsonSerializer.Deserialize<List<JsonElement>>(change.Value.ToString());
+                    if (openingHoursData != null)
+                    {
+                        foreach (var ohData in openingHoursData)
+                        {
+                            var dayOfWeek = ohData.TryGetProperty("dayOfWeek", out var dowProp) 
+                                ? (DayOfWeek)dowProp.GetInt32() 
+                                : DayOfWeek.Monday;
+                            
+                            var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) && otProp.ValueKind != JsonValueKind.Null
+                                ? otProp.GetString()
+                                : "08:00";
+                            
+                            var closeTimeStr = ohData.TryGetProperty("closeTime", out var ctProp) && ctProp.ValueKind != JsonValueKind.Null
+                                ? ctProp.GetString()
+                                : "17:00";
+                            
+                            var note = ohData.TryGetProperty("note", out var noteProp) ? noteProp.GetString() : null;
+
+                            location.OpeningHours.Add(new LocationOpeningHour
+                            {
+                                LocationId = location.Id,
+                                DayOfWeek = dayOfWeek,
+                                OpenTime = !string.IsNullOrEmpty(openTimeStr) ? TimeSpan.Parse(openTimeStr) : TimeSpan.FromHours(8),
+                                CloseTime = !string.IsNullOrEmpty(closeTimeStr) ? TimeSpan.Parse(closeTimeStr) : TimeSpan.FromHours(17),
+                                Note = note
+                            });
+                        }
+                    }
+                    continue;
+                }
+
+                // Handle Seasons specially
+                if (change.Key.Equals("Seasons", StringComparison.OrdinalIgnoreCase))
+                {
+                    var seasonsData = JsonSerializer.Deserialize<List<JsonElement>>(change.Value.ToString());
+                    if (seasonsData != null)
+                    {
+                        foreach (var seasonData in seasonsData)
+                        {
+                            var description = seasonData.TryGetProperty("description", out var descProp) 
+                                ? descProp.GetString() 
+                                : "";
+                            
+                            var monthsJson = seasonData.TryGetProperty("months", out var monthsProp) 
+                                ? monthsProp.ToString() 
+                                : "";
+
+                            location.Seasons.Add(new LocationSeason
+                            {
+                                LocationId = location.Id,
+                                Description = description ?? "",
+                                Months = monthsJson ?? ""
+                            });
+                        }
+                    }
+                    continue;
+                }
+
+                // Handle other properties via reflection
                 var property = typeof(Location).GetProperties()
                     .FirstOrDefault(p => p.Name.Equals(change.Key, StringComparison.OrdinalIgnoreCase));
-                
+
                 if (property != null && property.CanWrite)
                 {
                     try

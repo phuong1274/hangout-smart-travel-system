@@ -18,10 +18,10 @@ namespace HSTS.API
             {
                 options.AddFixedWindowLimiter(policyName: "fixed", opt =>
                 {
-                    opt.PermitLimit = 10;
+                    opt.PermitLimit = 100;
                     opt.Window = TimeSpan.FromSeconds(10);
                     opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                    opt.QueueLimit = 2;
+                    opt.QueueLimit = 20;
                 });
 
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

@@ -76,6 +76,23 @@ namespace HSTS.API.Controllers
         {
             var socialLinks = request.SocialLinks?.Select(s => new LocationSubmissionSocialLinkDto(s.Platform, s.Url)).ToList();
 
+            // Convert OpeningHours from request to DTO format
+            var openingHours = request.OpeningHours?.Select(oh => new LocationSubmissionOpeningHourDto(
+                oh.Id,
+                oh.DayOfWeek,
+                ((DayOfWeek)oh.DayOfWeek).ToString(),
+                !string.IsNullOrEmpty(oh.OpenTime) ? TimeSpan.Parse(oh.OpenTime) : null,
+                !string.IsNullOrEmpty(oh.CloseTime) ? TimeSpan.Parse(oh.CloseTime) : null,
+                oh.Note
+            )).ToList();
+
+            // Convert Seasons from request to DTO format
+            var seasons = request.Seasons?.Select(s => new LocationSubmissionSeasonDto(
+                s.Id,
+                s.Description,
+                s.Months
+            )).ToList();
+
             var command = new CreateLocationSubmissionCommand(
                 request.Name,
                 request.Description,
@@ -93,6 +110,8 @@ namespace HSTS.API.Controllers
                 socialLinks,
                 request.AmenityIds,
                 request.TagIds,
+                openingHours,
+                seasons,
                 request.SubmissionType,
                 request.ExistingLocationId,
                 request.ProposedChanges

@@ -15,6 +15,14 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
 
+  // Sync initial coordinates when modal opens or props change
+  useEffect(() => {
+    if (open) {
+      setLatitude(initialLat || 10.823099);
+      setLongitude(initialLng || 106.629664);
+    }
+  }, [open, initialLat, initialLng]);
+
   // Initialize map when modal opens
   useEffect(() => {
     if (!open) return;

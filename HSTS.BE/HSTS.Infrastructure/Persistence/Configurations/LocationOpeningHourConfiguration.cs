@@ -17,7 +17,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                    .OnDelete(DeleteBehavior.Cascade);
 
             builder.Property(x => x.DayOfWeek).IsRequired();
-            builder.Property(x => x.IsClosed).HasDefaultValue(false);
             builder.Property(x => x.Note).HasMaxLength(500);
 
             builder.HasIndex(x => new { x.LocationId, x.DayOfWeek });

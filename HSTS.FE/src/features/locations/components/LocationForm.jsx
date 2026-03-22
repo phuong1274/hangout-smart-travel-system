@@ -4,6 +4,7 @@ import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, Environm
 import { createLocationApi, updateLocationApi, getAllTagsApi, getAllDestinationsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
 import { uploadImageToCloudinary } from '@/services/cloudinary';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
+import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -109,8 +110,12 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       })) || []);
       // Set opening hours
       setOpeningHours(location.openingHours || []);
-      // Set seasons
-      setSeasons(location.seasons || []);
+      // Set seasons - convert comma-separated months string to array
+      setSeasons(location.seasons?.map(season => ({
+        id: season.id,
+        description: season.description,
+        months: typeof season.months === 'string' ? season.months.split(',').filter(m => m) : (season.months || [])
+      })) || []);
     } else if (!location) {
       form.resetFields();
       setMediaLinks([]);
@@ -132,6 +137,15 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           }))
         : [];
 
+      // Transform seasons to convert months array to comma-separated string
+      const formattedSeasons = seasons.length > 0
+        ? seasons.map(season => ({
+            id: season.id,
+            description: season.description,
+            months: Array.isArray(season.months) ? season.months.join(',') : season.months
+          }))
+        : [];
+
       const payload = {
         ...values,
         tagIds: values.tagIds?.length > 0 ? values.tagIds : [],
@@ -139,7 +153,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         amenityIds: values.amenityIds?.length > 0 ? values.amenityIds : [],
         socialLinks: formattedSocialLinks,
         openingHours: openingHours.length > 0 ? openingHours : [],
-        seasons: seasons.length > 0 ? seasons : []
+        seasons: formattedSeasons
       };
 
       if (isEdit) {
@@ -190,10 +204,10 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     return Upload.LIST_IGNORE; // Prevent default upload behavior
   };
 
-  const handleMapConfirm = ({ lat, lng }) => {
+  const handleMapConfirm = (lat, lng) => {
     form.setFieldsValue({
-      latitude: lat,
-      longitude: lng,
+      latitude: parseFloat(lat),
+      longitude: parseFloat(lng),
     });
     message.success('Location coordinates updated!');
   };
@@ -232,14 +246,13 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
   const handleAddOpeningHour = (dayOfWeek) => {
     if (!openingHours.find(oh => oh.dayOfWeek === dayOfWeek)) {
-      setOpeningHours([...openingHours, { 
-        id: 0, 
-        dayOfWeek, 
+      setOpeningHours([...openingHours, {
+        id: 0,
+        dayOfWeek,
         dayName: DAYS_OF_WEEK.find(d => d.value === dayOfWeek)?.label,
-        openTime: '08:00', 
-        closeTime: '17:00', 
-        isClosed: false, 
-        note: '' 
+        openTime: '08:00',
+        closeTime: '17:00',
+        note: ''
       }]);
     }
   };
@@ -251,7 +264,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       dayName: day.label,
       openTime: '08:00',
       closeTime: '17:00',
-      isClosed: false,
       note: ''
     }));
     setOpeningHours(allDays);
@@ -665,10 +677,9 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                     width: 130,
                     render: (value, record, index) => (
                       <TimePicker
-                        value={value}
+                        value={value ? dayjs(value, 'HH:mm') : null}
                         onChange={(time, timeString) => handleUpdateOpeningHour(index, 'openTime', timeString)}
                         format="HH:mm"
-                        disabled={record.isClosed}
                       />
                     )
                   },
@@ -679,23 +690,9 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                     width: 130,
                     render: (value, record, index) => (
                       <TimePicker
-                        value={value}
+                        value={value ? dayjs(value, 'HH:mm') : null}
                         onChange={(time, timeString) => handleUpdateOpeningHour(index, 'closeTime', timeString)}
                         format="HH:mm"
-                        disabled={record.isClosed}
-                      />
-                    )
-                  },
-                  {
-                    title: 'Closed',
-                    dataIndex: 'isClosed',
-                    key: 'isClosed',
-                    width: 80,
-                    render: (value, record, index) => (
-                      <input
-                        type="checkbox"
-                        checked={value}
-                        onChange={(e) => handleUpdateOpeningHour(index, 'isClosed', e.target.checked)}
                       />
                     )
                   },
@@ -708,7 +705,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                         value={value}
                         onChange={(e) => handleUpdateOpeningHour(index, 'note', e.target.value)}
                         placeholder="e.g., Lunch break"
-                        disabled={record.isClosed}
                       />
                     )
                   },

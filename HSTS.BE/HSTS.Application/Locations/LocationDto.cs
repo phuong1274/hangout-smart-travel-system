@@ -40,7 +40,6 @@ namespace HSTS.Application.Locations
         string DayName,
         TimeSpan? OpenTime,
         TimeSpan? CloseTime,
-        bool IsClosed,
         string? Note);
 
     public record LocationSeasonDto(

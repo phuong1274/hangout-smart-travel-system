@@ -141,48 +141,40 @@ const DetailModal = ({ open, onClose, data, type }) => {
               <>
                 <Divider style={{ margin: '8px 0' }} />
                 <Descriptions.Item label="Opening Hours" span={2}>
-                  <Table
-                    dataSource={data.openingHours}
-                    pagination={false}
-                    size="small"
-                    rowKey="id"
-                    columns={[
-                      {
-                        title: 'Day',
-                        dataIndex: 'dayName',
-                        key: 'dayName',
-                        width: 120
-                      },
-                      {
-                        title: 'Open Time',
-                        dataIndex: 'openTime',
-                        key: 'openTime',
-                        render: (value) => value || 'N/A'
-                      },
-                      {
-                        title: 'Close Time',
-                        dataIndex: 'closeTime',
-                        key: 'closeTime',
-                        render: (value) => value || 'N/A'
-                      },
-                      {
-                        title: 'Status',
-                        dataIndex: 'isClosed',
-                        key: 'isClosed',
-                        render: (isClosed) => (
-                          <Tag color={isClosed ? 'red' : 'green'}>
-                            {isClosed ? 'Closed' : 'Open'}
-                          </Tag>
-                        )
-                      },
-                      {
-                        title: 'Note',
-                        dataIndex: 'note',
-                        key: 'note',
-                        render: (value) => value || '-'
-                      }
-                    ]}
-                  />
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    {data.openingHours.map((oh, index) => (
+                      <div
+                        key={oh.id || index}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '8px 12px',
+                          background: index % 2 === 0 ? '#f5f5f5' : '#fff',
+                          borderRadius: '6px',
+                          border: '1px solid #e8e8e8'
+                        }}
+                      >
+                        <div style={{ width: 120, fontWeight: 600, color: '#1890ff' }}>
+                          {oh.dayName}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#52c41a' }}>
+                            <ClockCircleOutlined />
+                            <strong>Open:</strong> {oh.openTime || 'N/A'}
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ff4d4f' }}>
+                            <ClockCircleOutlined />
+                            <strong>Close:</strong> {oh.closeTime || 'N/A'}
+                          </span>
+                          {oh.note && (
+                            <span style={{ color: '#999', fontStyle: 'italic' }}>
+                              • {oh.note}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </Space>
                 </Descriptions.Item>
               </>
             )}

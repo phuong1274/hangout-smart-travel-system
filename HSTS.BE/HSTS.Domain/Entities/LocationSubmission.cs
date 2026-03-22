@@ -76,6 +76,14 @@ namespace HSTS.Domain.Entities
         [MaxLength(1000)]
         public string? TagIdsJson { get; set; }
 
+        // Opening hours (stored as JSON array)
+        [MaxLength(4000)]
+        public string? OpeningHoursJson { get; set; }
+
+        // Seasons (stored as JSON array)
+        [MaxLength(4000)]
+        public string? SeasonsJson { get; set; }
+
         // Proposed changes for edit submissions (stored as JSON)
         [MaxLength(4000)]
         public string? ProposedChangesJson { get; set; }

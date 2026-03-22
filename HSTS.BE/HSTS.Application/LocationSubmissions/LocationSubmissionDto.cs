@@ -21,6 +21,8 @@ namespace HSTS.Application.LocationSubmissions
         List<LocationSubmissionSocialLinkDto>? SocialLinks,
         List<int>? AmenityIds,
         List<int>? TagIds,
+        List<LocationSubmissionOpeningHourDto>? OpeningHours,
+        List<LocationSubmissionSeasonDto>? Seasons,
         Domain.Entities.SubmissionStatus Status,
         Domain.Entities.SubmissionType SubmissionType,
         int? ExistingLocationId,
@@ -35,5 +37,20 @@ namespace HSTS.Application.LocationSubmissions
     public record LocationSubmissionSocialLinkDto(
         string Platform,
         string Url
+    );
+
+    public record LocationSubmissionOpeningHourDto(
+        int Id,
+        int DayOfWeek,
+        string DayName,
+        TimeSpan? OpenTime,
+        TimeSpan? CloseTime,
+        string? Note
+    );
+
+    public record LocationSubmissionSeasonDto(
+        int Id,
+        string Description,
+        string Months
     );
 }

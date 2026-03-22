@@ -44,10 +44,46 @@ const processQueue = (error: unknown) => {
   failedQueue = [];
 };
 
+// Retry logic for 429 rate limit errors
+const retryRequest = async (config: any, maxRetries = 3) => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const delay = Math.min(1000 * Math.pow(2, i), 5000); // Exponential backoff: 1s, 2s, 4s (max 5s)
+      await new Promise(resolve => setTimeout(resolve, delay));
+      const response = await api(config);
+      return response;
+    } catch (error: any) {
+      if (error.response?.status !== 429 || i === maxRetries - 1) {
+        throw error;
+      }
+      // Continue retrying on 429
+    }
+  }
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Handle 429 Too Many Requests with retry
+    if (error.response?.status === 429 && !originalRequest._retryCount) {
+      originalRequest._retryCount = 0;
+    }
+
+    if (error.response?.status === 429 && (originalRequest._retryCount || 0) < 3) {
+      originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+      const retryCount = originalRequest._retryCount;
+      
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000);
+      
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          resolve(api(originalRequest));
+        }, delay);
+      });
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Don't retry refresh endpoint itself

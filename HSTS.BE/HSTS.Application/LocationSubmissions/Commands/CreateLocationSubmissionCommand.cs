@@ -27,6 +27,8 @@ namespace HSTS.Application.LocationSubmissions.Commands
         List<LocationSubmissionSocialLinkDto>? SocialLinks,
         List<int>? AmenityIds,
         List<int>? TagIds,
+        List<LocationSubmissionOpeningHourDto>? OpeningHours,
+        List<LocationSubmissionSeasonDto>? Seasons,
         Domain.Entities.SubmissionType SubmissionType = Domain.Entities.SubmissionType.NewLocation,
         int? ExistingLocationId = null,
         Dictionary<string, object>? ProposedChanges = null
@@ -114,6 +116,19 @@ namespace HSTS.Application.LocationSubmissions.Commands
                     : null,
                 TagIdsJson = request.TagIds != null && request.TagIds.Count > 0
                     ? JsonSerializer.Serialize(request.TagIds)
+                    : null,
+                OpeningHoursJson = request.OpeningHours != null && request.OpeningHours.Count > 0
+                    ? JsonSerializer.Serialize(request.OpeningHours.Select(oh => new
+                    {
+                        oh.Id,
+                        oh.DayOfWeek,
+                        OpenTime = oh.OpenTime?.ToString(@"hh\:mm"),
+                        CloseTime = oh.CloseTime?.ToString(@"hh\:mm"),
+                        oh.Note
+                    }))
+                    : null,
+                SeasonsJson = request.Seasons != null && request.Seasons.Count > 0
+                    ? JsonSerializer.Serialize(request.Seasons)
                     : null,
                 ProposedChangesJson = request.ProposedChanges != null && request.ProposedChanges.Count > 0
                     ? JsonSerializer.Serialize(request.ProposedChanges)
