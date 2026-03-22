@@ -17,6 +17,7 @@ const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPassword
 const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
 const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const HomePage = lazy(() => import('@/features/home/pages/Home'));
+const ItineraryPage = lazy(() => import('@/features/schedules/pages/ItineraryPage'));
 
 // Global Pages
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
@@ -69,6 +70,10 @@ export const router = createBrowserRouter([
           {
             path: PATHS.SCHEDULES,
             element: <div><h2>Algorithm Scheduling Management</h2></div>
+          },
+          {
+            path: PATHS.ITINERARY,
+            element: <ItineraryPage />,
           },
           {
             path: PATHS.USERS,

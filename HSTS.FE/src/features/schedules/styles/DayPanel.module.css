@@ -1,0 +1,93 @@
+.dayPanelContent {
+    padding: 0 8px;
+  }
+  
+  .dailyBudget {
+    background: #f6ffed;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    transition: all 0.3s;
+  }
+  
+  .dailyBudgetOver {
+    background: #fff2f0;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    transition: all 0.3s;
+  }
+  
+  .budgetInfo {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  
+  .budgetLabels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+  
+  .timelineContainer {
+    padding-left: 12px;
+  }
+  
+  .timeBlockGroup {
+    margin-bottom: 24px;
+  }
+  
+  .timeBlockHeader {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    color: #1890ff;
+  }
+  
+  .headerIcon {
+    font-size: 12px;
+    margin-right: 8px;
+  }
+  
+  .timeBlockTitle {
+    font-size: 15px;
+    color: #000;
+  }
+  
+  .antTimelineCustom {
+    margin-left: 6px;
+  }
+  
+  .antTimelineCustom :global(.ant-timeline-item-tail) {
+    border-left: 2px solid #e8e8e8;
+    left: 5px;
+  }
+  
+  .timelineDot {
+    width: 12px;
+    height: 12px;
+    background-color: #1890ff;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px #1890ff;
+  }
+  
+  .addLocationWrapper {
+    padding-left: 90px;
+    margin-top: -4px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .addBtnText {
+    color: #bfbfbf;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+  
+  .addBtnText:hover {
+    color: #1890ff;
+  }

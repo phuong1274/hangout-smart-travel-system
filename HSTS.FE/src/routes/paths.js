@@ -9,6 +9,7 @@ export const PATHS = {
   },
   DASHBOARD: '/dashboard',
   SCHEDULES: '/schedules',
+  ITINERARY: '/itinerary',
   USERS: '/users',
   PROFILE: '/profile',
   UNAUTHORIZED: '/403',
