@@ -96,7 +96,7 @@ public class GoogleLoginCommandTests
     }
 
     [Fact]
-    public async Task Handle_ExistingAccountByEmail_PendingVerification_GetsActivated()
+    public async Task Handle_ExistingPasswordAccountByEmail_ReturnsConflict()
     {
         _google.Setup(x => x.VerifyGoogleTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(FakeGoogleUser);
@@ -106,6 +106,7 @@ public class GoogleLoginCommandTests
             Id = 1,
             Email = FakeGoogleUser.Email,
             GoogleId = null,
+            PasswordHash = "hashed-password",
             Status = AccountStatus.PendingVerification,
             IsDeleted = false
         };
@@ -121,12 +122,12 @@ public class GoogleLoginCommandTests
 
         var result = await handler.Handle(new GoogleLoginCommand("valid-token"), CancellationToken.None);
 
-        result.IsError.Should().BeFalse();
-        account.Status.Should().Be(AccountStatus.Active);
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("Auth.GoogleLoginBlocked");
     }
 
     [Fact]
-    public async Task Handle_ExistingAccountByEmail_LinksGoogleId()
+    public async Task Handle_ExistingPasswordAccountByEmail_DoesNotLinkGoogleId()
     {
         _google.Setup(x => x.VerifyGoogleTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(FakeGoogleUser);
@@ -136,6 +137,7 @@ public class GoogleLoginCommandTests
             Id = 1,
             Email = FakeGoogleUser.Email,
             GoogleId = null,
+            PasswordHash = "hashed-password",
             Status = AccountStatus.Active,
             IsDeleted = false
         };
@@ -151,8 +153,39 @@ public class GoogleLoginCommandTests
 
         var result = await handler.Handle(new GoogleLoginCommand("valid-token"), CancellationToken.None);
 
-        result.IsError.Should().BeFalse();
-        account.GoogleId.Should().Be(FakeGoogleUser.GoogleId);
+        result.IsError.Should().BeTrue();
+        account.GoogleId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_ExistingPendingVerificationPasswordAccountByEmail_RemainsPending()
+    {
+        _google.Setup(x => x.VerifyGoogleTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FakeGoogleUser);
+
+        var account = new Account
+        {
+            Id = 1,
+            Email = FakeGoogleUser.Email,
+            GoogleId = null,
+            PasswordHash = "hashed-password",
+            Status = AccountStatus.PendingVerification,
+            IsDeleted = false
+        };
+        var role = AuthFakes.TravelerRole();
+        var user = AuthFakes.UserWithRole(account, role);
+
+        var ctx = MockDbContextFactory.Create()
+            .WithAccounts(account)
+            .WithUsers(user)
+            .WithRoles(role)
+            .Build();
+        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object);
+
+        var result = await handler.Handle(new GoogleLoginCommand("valid-token"), CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        account.Status.Should().Be(AccountStatus.PendingVerification);
     }
 
     [Fact]

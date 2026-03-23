@@ -10,6 +10,13 @@ namespace HSTS.Application.Auth.Commands
 
     public class LoginCommandHandler : IRequestHandler<LoginCommand, ErrorOr<AuthResult>>
     {
+        private enum VerificationOtpResult
+        {
+            Sent,
+            ExistingValidOtp,
+            RateLimited
+        }
+
         private const int MaxOtpSends = 4;
         private const int CooldownSeconds = 60;
         private const int RateLimitWindowMinutes = 15;
@@ -47,10 +54,16 @@ namespace HSTS.Application.Auth.Commands
 
             if (account.Status == AccountStatus.PendingVerification)
             {
-                var otpSent = await TrySendVerificationOtp(request.Email, cancellationToken);
-                var message = otpSent
-                    ? "Email not verified. A new verification code has been sent to your email."
-                    : "Email not verified. Please check your inbox for the verification code.";
+                var otpResult = await TrySendVerificationOtp(request.Email, cancellationToken);
+                var message = otpResult switch
+                {
+                    VerificationOtpResult.Sent =>
+                        "Email not verified. A new verification code has been sent to your email.",
+                    VerificationOtpResult.RateLimited =>
+                        "Email not verified. Please wait before you request a new code.",
+                    _ =>
+                        "Email not verified. Please check your inbox for the verification code."
+                };
                 return Error.Forbidden("Account.EmailNotVerified", message);
             }
 
@@ -90,7 +103,7 @@ namespace HSTS.Application.Auth.Commands
                 RefreshTokenExpiry: refreshTokenExpiry);
         }
 
-        private async Task<bool> TrySendVerificationOtp(string email, CancellationToken cancellationToken)
+        private async Task<VerificationOtpResult> TrySendVerificationOtp(string email, CancellationToken cancellationToken)
         {
             var otpType = OtpType.EmailVerification;
 
@@ -99,7 +112,7 @@ namespace HSTS.Application.Auth.Commands
                 .AnyAsync(o => o.Email == email && o.Type == otpType && !o.IsUsed && o.ExpiredAt > DateTime.UtcNow, cancellationToken);
 
             if (hasValidOtp)
-                return false;
+                return VerificationOtpResult.ExistingValidOtp;
 
             // Rate limit check
             var windowStart = DateTime.UtcNow.AddMinutes(-RateLimitWindowMinutes);
@@ -107,7 +120,7 @@ namespace HSTS.Application.Auth.Commands
                 .CountAsync(o => o.Email == email && o.Type == otpType && o.CreatedAt > windowStart, cancellationToken);
 
             if (recentOtpCount >= MaxOtpSends)
-                return false;
+                return VerificationOtpResult.RateLimited;
 
             // Cooldown check
             var lastOtp = await _context.Otps
@@ -116,7 +129,7 @@ namespace HSTS.Application.Auth.Commands
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (lastOtp is not null && (DateTime.UtcNow - lastOtp.CreatedAt).TotalSeconds < CooldownSeconds)
-                return false;
+                return VerificationOtpResult.RateLimited;
 
             // Invalidate previous OTPs
             var previousOtps = await _context.Otps
@@ -140,7 +153,7 @@ namespace HSTS.Application.Auth.Commands
 
             await _emailService.SendOtpEmailAsync(email, otpCode, otpType, cancellationToken);
 
-            return true;
+            return VerificationOtpResult.Sent;
         }
     }
 

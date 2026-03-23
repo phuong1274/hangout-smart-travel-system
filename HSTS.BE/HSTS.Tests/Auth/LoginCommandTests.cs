@@ -81,7 +81,12 @@ public class LoginCommandTests
         _hasher.Setup(x => x.Verify(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
         // 4 recent OTPs triggers rate limit
         var recentOtps = Enumerable.Range(0, 4)
-            .Select(_ => AuthFakes.ValidOtp(account.Email, OtpType.EmailVerification))
+            .Select(_ =>
+            {
+                var otp = AuthFakes.ValidOtp(account.Email, OtpType.EmailVerification);
+                otp.ExpiredAt = DateTime.UtcNow.AddMinutes(-1);
+                return otp;
+            })
             .ToArray();
         var ctx = MockDbContextFactory.Create().WithAccounts(account).WithOtps(recentOtps).Build();
         var handler = new LoginCommandHandler(ctx.Object, _jwt.Object, _hasher.Object, _email.Object);
