@@ -13,15 +13,18 @@ namespace HSTS.Application.Auth.Commands
         private readonly IAppDbContext _context;
         private readonly IJwtService _jwtService;
         private readonly IGoogleAuthService _googleAuthService;
+        private readonly IEmailDomainPolicy _emailDomainPolicy;
 
         public GoogleLoginCommandHandler(
             IAppDbContext context,
             IJwtService jwtService,
-            IGoogleAuthService googleAuthService)
+            IGoogleAuthService googleAuthService,
+            IEmailDomainPolicy emailDomainPolicy)
         {
             _context = context;
             _jwtService = jwtService;
             _googleAuthService = googleAuthService;
+            _emailDomainPolicy = emailDomainPolicy;
         }
 
         public async Task<ErrorOr<AuthResult>> Handle(GoogleLoginCommand request, CancellationToken cancellationToken)
@@ -30,6 +33,9 @@ namespace HSTS.Application.Auth.Commands
 
             if (googleUser is null)
                 return Error.Validation("Auth.InvalidGoogleToken", "Invalid Google ID token.");
+
+            if (!_emailDomainPolicy.IsAllowedEmail(googleUser.Email))
+                return Error.Validation("Email.DomainNotAllowed", "This email domain is not supported.");
 
             // Find linked Google account first. A password-based account with the same email
             // must not be auto-linked through Google sign-in.

@@ -99,6 +99,23 @@ public class LoginCommandTests
     }
 
     [Fact]
+    public async Task Handle_PendingVerification_EmailProviderFails_ReturnsForbiddenWithSafeMessage()
+    {
+        var account = AuthFakes.PendingAccount();
+        _hasher.Setup(x => x.Verify(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
+        _email.Setup(x => x.SendOtpEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OtpType>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("provider failure"));
+        var ctx = MockDbContextFactory.Create().WithAccounts(account).Build();
+        var handler = new LoginCommandHandler(ctx.Object, _jwt.Object, _hasher.Object, _email.Object);
+
+        var result = await handler.Handle(new LoginCommand(account.Email, "pass"), CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("Account.EmailNotVerified");
+        result.FirstError.Description.Should().Contain("could not send a new verification code");
+    }
+
+    [Fact]
     public async Task Handle_BannedAccount_ReturnsForbidden()
     {
         var account = AuthFakes.BannedAccount();

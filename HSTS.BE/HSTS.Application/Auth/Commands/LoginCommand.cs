@@ -14,7 +14,8 @@ namespace HSTS.Application.Auth.Commands
         {
             Sent,
             ExistingValidOtp,
-            RateLimited
+            RateLimited,
+            ProviderFailed
         }
 
         private const int MaxOtpSends = 4;
@@ -61,6 +62,8 @@ namespace HSTS.Application.Auth.Commands
                         "Email not verified. A new verification code has been sent to your email.",
                     VerificationOtpResult.RateLimited =>
                         "Email not verified. Please wait before you request a new code.",
+                    VerificationOtpResult.ProviderFailed =>
+                        "Email not verified. We could not send a new verification code right now. Please check your inbox or try again later.",
                     _ =>
                         "Email not verified. Please check your inbox for the verification code."
                 };
@@ -151,7 +154,14 @@ namespace HSTS.Application.Auth.Commands
             _context.Otps.Add(otp);
             await _context.SaveChangesAsync(cancellationToken);
 
-            await _emailService.SendOtpEmailAsync(email, otpCode, otpType, cancellationToken);
+            try
+            {
+                await _emailService.SendOtpEmailAsync(email, otpCode, otpType, cancellationToken);
+            }
+            catch
+            {
+                return VerificationOtpResult.ProviderFailed;
+            }
 
             return VerificationOtpResult.Sent;
         }

@@ -1,5 +1,6 @@
 using HSTS.Domain.Enums;
 using HSTS.Application.Interfaces;
+using HSTS.Application.Auth.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace HSTS.Application.Auth.Commands
@@ -9,14 +10,22 @@ namespace HSTS.Application.Auth.Commands
     public class VerifyForgotPasswordOtpCommandHandler : IRequestHandler<VerifyForgotPasswordOtpCommand, ErrorOr<string>>
     {
         private readonly IAppDbContext _context;
+        private readonly IEmailDomainPolicy _emailDomainPolicy;
 
-        public VerifyForgotPasswordOtpCommandHandler(IAppDbContext context)
+        public VerifyForgotPasswordOtpCommandHandler(IAppDbContext context, IEmailDomainPolicy emailDomainPolicy)
         {
             _context = context;
+            _emailDomainPolicy = emailDomainPolicy;
         }
 
         public async Task<ErrorOr<string>> Handle(VerifyForgotPasswordOtpCommand request, CancellationToken cancellationToken)
         {
+            var hasLegacyAccount = await _context.Accounts
+                .AnyAsync(a => a.Email == request.Email && !a.IsDeleted, cancellationToken);
+
+            if (!hasLegacyAccount && !_emailDomainPolicy.IsAllowedEmail(request.Email))
+                return Error.Validation("Email.DomainNotAllowed", "This email domain is not supported.");
+
             // Validate without consuming — reset-password will mark IsUsed when password is actually changed
             var otp = await _context.Otps
                 .Where(o => o.Email == request.Email
