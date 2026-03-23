@@ -6,6 +6,7 @@ namespace HSTS.Application.Users.Commands
 {
     public record UpdateMyInfoCommand(
         string FullName,
+        string? Bio,
         DateTime? DateOfBirth,
         Gender? Gender,
         string? PhoneNumber) : IRequest<ErrorOr<UserDto>>;
@@ -33,6 +34,7 @@ namespace HSTS.Application.Users.Commands
                 return Error.NotFound("User.NotFound", "User not found.");
 
             user.FullName = request.FullName;
+            user.Bio = request.Bio;
             user.DateOfBirth = request.DateOfBirth;
             user.Gender = request.Gender;
             user.PhoneNumber = request.PhoneNumber;
@@ -48,6 +50,7 @@ namespace HSTS.Application.Users.Commands
         public UpdateMyInfoCommandValidator()
         {
             RuleFor(x => x.FullName).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Bio).MaximumLength(300).When(x => x.Bio != null);
             RuleFor(x => x.PhoneNumber).MaximumLength(15).When(x => x.PhoneNumber != null);
         }
     }

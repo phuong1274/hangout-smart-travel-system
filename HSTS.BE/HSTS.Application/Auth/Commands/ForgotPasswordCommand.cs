@@ -16,17 +16,22 @@ namespace HSTS.Application.Auth.Commands
 
         private readonly IAppDbContext _context;
         private readonly IEmailService _emailService;
+        private readonly IEmailDomainPolicy _emailDomainPolicy;
 
-        public ForgotPasswordCommandHandler(IAppDbContext context, IEmailService emailService)
+        public ForgotPasswordCommandHandler(IAppDbContext context, IEmailService emailService, IEmailDomainPolicy emailDomainPolicy)
         {
             _context = context;
             _emailService = emailService;
+            _emailDomainPolicy = emailDomainPolicy;
         }
 
         public async Task<ErrorOr<OtpSendResult>> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
         {
             var account = await _context.Accounts
                 .FirstOrDefaultAsync(a => a.Email == request.Email && !a.IsDeleted, cancellationToken);
+
+            if (account is null && !_emailDomainPolicy.IsAllowedEmail(request.Email))
+                return Error.Validation("Email.DomainNotAllowed", "This email domain is not supported.");
 
             if (account is null)
                 return Error.NotFound("Account.NotFound", "No account found with this email.");

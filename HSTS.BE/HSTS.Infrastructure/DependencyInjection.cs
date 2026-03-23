@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using HSTS.Infrastructure.Persistence;
 using HSTS.Infrastructure.Repositories;
 using HSTS.Infrastructure.Services;
+using HSTS.Infrastructure.Settings;
 using HSTS.Application.Auth.Interfaces;
 using HSTS.Application.Interfaces;
 using static HSTS.Application.Interfaces.IRepository;
@@ -28,8 +29,18 @@ namespace HSTS.Infrastructure
             services.AddScoped<IPasswordHasher, PasswordHasher>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IGoogleAuthService, GoogleAuthService>();
-            services.AddScoped<IEmailService, EmailService>();
+            services.Configure<ResendSettings>(configuration.GetSection("Resend"));
+            services.Configure<EmailPolicySettings>(configuration.GetSection("EmailPolicy"));
+            services.AddSingleton<IEmailDomainPolicy, EmailDomainPolicy>();
+            services.AddHttpClient<IEmailService, EmailService>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.resend.com/");
+            });
             services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+            // Cloudinary
+            services.Configure<CloudinarySettings>(configuration.GetSection("Cloudinary"));
+            services.AddScoped<ICloudinaryService, CloudinaryService>();
 
             return services;
         }

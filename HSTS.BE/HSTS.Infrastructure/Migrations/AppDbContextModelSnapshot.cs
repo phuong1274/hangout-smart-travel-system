@@ -267,38 +267,34 @@ namespace HSTS.Infrastructure.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5338),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             IsActive = true,
                             IsDeleted = false,
-                            Name = "ADMIN",
-                            UpdatedAt = new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5340)
+                            Name = "ADMIN"
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5803),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             IsActive = true,
                             IsDeleted = false,
-                            Name = "CONTENT_MODERATOR",
-                            UpdatedAt = new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5803)
+                            Name = "CONTENT_MODERATOR"
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5805),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             IsActive = true,
                             IsDeleted = false,
-                            Name = "PARTNER",
-                            UpdatedAt = new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5805)
+                            Name = "PARTNER"
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5806),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             IsActive = true,
                             IsDeleted = false,
-                            Name = "TRAVELER",
-                            UpdatedAt = new DateTime(2026, 2, 11, 6, 49, 42, 779, DateTimeKind.Utc).AddTicks(5806)
+                            Name = "TRAVELER"
                         });
                 });
 
@@ -312,6 +308,12 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Property<int>("AccountId")
                         .HasColumnType("int");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Bio")
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()

@@ -1,33 +1,40 @@
 using HSTS.Application.Auth.Interfaces;
 using HSTS.Domain.Enums;
-using MailKit.Net.Smtp;
-using MailKit.Security;
-using Microsoft.Extensions.Configuration;
+using HSTS.Infrastructure.Settings;
 using Microsoft.Extensions.Logging;
-using MimeKit;
+using Microsoft.Extensions.Options;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 
 namespace HSTS.Infrastructure.Services
 {
     public class EmailService : IEmailService
     {
-        private readonly IConfiguration _configuration;
+        private readonly HttpClient _httpClient;
+        private readonly ResendSettings _settings;
         private readonly ILogger<EmailService> _logger;
 
-        public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
+        public EmailService(HttpClient httpClient, IOptions<ResendSettings> settings, ILogger<EmailService> logger)
         {
-            _configuration = configuration;
+            _httpClient = httpClient;
+            _settings = settings.Value;
             _logger = logger;
         }
 
         public async Task SendOtpEmailAsync(string toEmail, string otpCode, OtpType type, CancellationToken cancellationToken = default)
         {
-            var smtpHost = _configuration["Email:SmtpHost"] ?? "smtp.gmail.com";
-            var smtpPort = int.Parse(_configuration["Email:SmtpPort"] ?? "587");
-            var smtpUser = _configuration["Email:SmtpUser"]
-                ?? throw new InvalidOperationException("Email SmtpUser is not configured.");
-            var smtpPassword = _configuration["Email:SmtpPassword"]
-                ?? throw new InvalidOperationException("Email SmtpPassword is not configured.");
-            var fromName = _configuration["Email:FromName"] ?? "Hangout - Smart Travel System";
+            if (string.IsNullOrWhiteSpace(_settings.ApiKey))
+            {
+                _logger.LogError("Resend API key is not configured.");
+                throw new InvalidOperationException("Resend API key is not configured.");
+            }
+
+            if (string.IsNullOrWhiteSpace(_settings.FromEmail))
+            {
+                _logger.LogError("Resend sender email is not configured.");
+                throw new InvalidOperationException("Resend sender email is not configured.");
+            }
 
             var subject = type switch
             {
@@ -55,25 +62,57 @@ namespace HSTS.Infrastructure.Services
                     $"<p>This code will expire in 5 minutes.</p>"
             };
 
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(fromName, smtpUser));
-            message.To.Add(MailboxAddress.Parse(toEmail));
-            message.Subject = subject;
-            message.Body = new TextPart("html") { Text = body };
+            using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+            request.Content = JsonContent.Create(new ResendEmailRequest(
+                From: $"{_settings.FromName} <{_settings.FromEmail}>",
+                To: new[] { toEmail },
+                Subject: subject,
+                Html: body));
 
-            using var client = new SmtpClient();
-            try
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
             {
-                await client.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls, cancellationToken);
-                await client.AuthenticateAsync(smtpUser, smtpPassword, cancellationToken);
-                await client.SendAsync(message, cancellationToken);
-            }
-            finally
-            {
-                await client.DisconnectAsync(true, cancellationToken);
+                var error = await response.Content.ReadFromJsonAsync<ResendErrorResponse>(cancellationToken: cancellationToken);
+                var errorCode = error?.Name ?? "unknown_resend_error";
+                var errorMessage = error?.Message ?? "Resend email request failed.";
+
+                if (errorCode is "daily_quota_exceeded" or "monthly_quota_exceeded" or "rate_limit_exceeded")
+                {
+                    _logger.LogWarning(
+                        "Resend quota/rate limit error while sending OTP email to {Email}. Code: {Code}. Message: {Message}",
+                        toEmail,
+                        errorCode,
+                        errorMessage);
+                }
+                else if (errorCode is "missing_api_key" or "invalid_api_key")
+                {
+                    _logger.LogError(
+                        "Resend authentication/configuration error while sending OTP email to {Email}. Code: {Code}. Message: {Message}",
+                        toEmail,
+                        errorCode,
+                        errorMessage);
+                }
+                else
+                {
+                    _logger.LogError(
+                        "Resend provider HTTP failure while sending OTP email to {Email}. Status: {StatusCode}. Code: {Code}. Message: {Message}",
+                        toEmail,
+                        (int)response.StatusCode,
+                        errorCode,
+                        errorMessage);
+                }
+
+                throw new InvalidOperationException($"Resend send failed: {errorCode} - {errorMessage}");
             }
 
             _logger.LogInformation("OTP email sent to {Email} for {Type}", toEmail, type);
         }
+
+        private sealed record ResendEmailRequest(string From, string[] To, string Subject, string Html);
+
+        private sealed record ResendErrorResponse(
+            [property: JsonPropertyName("name")] string? Name,
+            [property: JsonPropertyName("message")] string? Message);
     }
 }

@@ -1,0 +1,153 @@
+/* LoginForm.module.css */
+.loginContainer {
+    display: flex;
+    max-width: 850px;
+    margin: 60px auto;
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #d9d9d9;
+    overflow: hidden;
+    min-height: 500px;
+  }
+  
+  .loginLeft {
+    flex: 1;
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .loginTitle {
+    margin-bottom: 24px !important;
+    font-weight: 700 !important;
+    white-space: nowrap; 
+    text-align: center;  
+  }
+  
+  .googleLoginWrapper {
+    margin-bottom: 16px;
+  }
+  
+  .loginDividerText {
+    margin-bottom: 24px;
+  }
+  
+  .loginForm {
+    width: 100%;
+    max-width: 320px;
+  }
+  
+  .loginInput {
+    background-color: #f5f5f5 !important;
+    border: none !important;
+    border-radius: 4px !important;
+  }
+  
+  .loginIcon {
+    color: rgba(0, 0, 0, 0.45);
+  }
+  
+  .forgotPassword {
+    text-align: center;
+    margin-bottom: 24px;
+    margin-top: -8px;
+  }
+  
+  .forgotPassword a {
+    color: #000;
+  }
+  
+  .btnSignin {
+    background-color: #000 !important;
+    color: #fff !important;
+    width: 150px;
+    font-weight: 600 !important;
+  }
+  
+  .loginRight {
+    flex: 1;
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-left: 1px solid #d9d9d9;
+    text-align: center;
+  }
+  
+  .welcomeTitle {
+    margin-bottom: 16px !important;
+    font-weight: 700 !important;
+  }
+  
+  .welcomeText {
+    margin-bottom: 40px;
+    font-size: 16px;
+  }
+  
+  .btnSignup {
+    width: 150px;
+    font-weight: 600 !important;
+    border-color: #000 !important;
+    color: #000 !important;
+  }
+
+  @media (max-width: 768px) {
+  .loginContainer {
+    flex-direction: column; /* Đổi hướng flex thành xếp dọc */
+    margin: 24px 16px; /* Giảm margin 2 bên để vừa màn hình điện thoại */
+    min-height: auto; /* Để chiều cao tự động giãn theo nội dung */
+  }
+
+  .loginLeft, 
+  .loginRight {
+    padding: 32px 24px; /* Giảm bớt padding bên trong cho gọn */
+  }
+
+  .loginRight {
+    border-left: none; /* Bỏ đường kẻ dọc chia đôi */
+    border-top: 1px solid #d9d9d9; /* Thay bằng đường kẻ ngang */
+  }
+}
+
+/* (Tùy chọn) Dành cho màn hình điện thoại cực nhỏ */
+@media (max-width: 480px) {
+  .loginTitle, .welcomeTitle {
+    font-size: 24px !important; /* Thu nhỏ tiêu đề một chút */
+  }
+  
+  .loginLeft, 
+  .loginRight {
+    padding: 24px 16px; 
+  }
+}
+
+@media (max-width: 768px) {
+    .loginContainer {
+      flex-direction: column;
+      margin: 24px 16px;
+      min-height: auto;
+    }
+  
+    .loginLeft, 
+    .loginRight {
+      padding: 32px 24px;
+    }
+  
+    .loginRight {
+      border-left: none;
+      border-top: 1px solid #d9d9d9;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .loginTitle, .welcomeTitle {
+      font-size: 24px !important;
+    }
+    
+    .loginLeft, 
+    .loginRight {
+      padding: 24px 16px; 
+    }
+  }

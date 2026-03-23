@@ -12,16 +12,25 @@ namespace HSTS.Application.Auth.Commands
         private readonly IAppDbContext _context;
         private readonly IEmailService _emailService;
         private readonly IPasswordHasher _passwordHasher;
+        private readonly IEmailDomainPolicy _emailDomainPolicy;
 
-        public RegisterCommandHandler(IAppDbContext context, IEmailService emailService, IPasswordHasher passwordHasher)
+        public RegisterCommandHandler(
+            IAppDbContext context,
+            IEmailService emailService,
+            IPasswordHasher passwordHasher,
+            IEmailDomainPolicy emailDomainPolicy)
         {
             _context = context;
             _emailService = emailService;
             _passwordHasher = passwordHasher;
+            _emailDomainPolicy = emailDomainPolicy;
         }
 
         public async Task<ErrorOr<string>> Handle(RegisterCommand request, CancellationToken cancellationToken)
         {
+            if (!_emailDomainPolicy.IsAllowedEmail(request.Email))
+                return Error.Validation("Email.DomainNotAllowed", "This email domain is not supported.");
+
             var emailExists = await _context.Accounts
                 .AnyAsync(a => a.Email == request.Email && !a.IsDeleted, cancellationToken);
 

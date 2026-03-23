@@ -1,30 +1,46 @@
-import { Col, Row, Typography } from 'antd';
+import { useState } from 'react';
+import { Tabs, Typography } from 'antd';
+import ProfileHeader from '../components/ProfileHeader';
 import UserInfoCard from '../components/UserInfoCard';
 import ProfileList from '../components/ProfileList';
 import ChangePasswordForm from '../components/ChangePasswordForm';
-import { useAuthStore } from '@/store/authStore';
+import { useMyInfo } from '../hooks/useUserProfile';
 
 const { Title } = Typography;
 
 const ProfilePage = () => {
-  const { user } = useAuthStore();
+  const { data: myInfo, loading, refetch } = useMyInfo();
+  const [activeTab, setActiveTab] = useState('personal');
+
+  const tabs = [
+    {
+      key: 'personal',
+      label: 'Personal Info',
+      children: <UserInfoCard user={myInfo} loading={loading} refetch={refetch} />,
+    },
+    {
+      key: 'profiles',
+      label: 'Travel Profiles',
+      children: <ProfileList />,
+    },
+    ...(myInfo?.hasPassword
+      ? [{
+          key: 'security',
+          label: 'Security',
+          children: <ChangePasswordForm />,
+        }]
+      : []),
+  ];
 
   return (
     <div>
       <Title level={2}>My Profile</Title>
-      <Row gutter={[24, 24]}>
-        <Col xs={24} lg={12}>
-          <UserInfoCard />
-        </Col>
-        <Col xs={24} lg={12}>
-          <ProfileList />
-        </Col>
-        {user?.hasPassword && (
-          <Col xs={24} lg={12}>
-            <ChangePasswordForm />
-          </Col>
-        )}
-      </Row>
+      <ProfileHeader user={myInfo} onAvatarUploaded={refetch} />
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={tabs}
+      />
     </div>
   );
 };

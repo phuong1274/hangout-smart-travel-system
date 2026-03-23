@@ -1,8 +1,8 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { Spin } from 'antd';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
+import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
 
@@ -16,24 +16,17 @@ const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswo
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
 const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
 const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
+const HomePage = lazy(() => import('@/features/home/pages/Home'));
 
 // Global Pages
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
 
-const LoadingFallback = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-    <Spin size="large" tip="Loading page..." />
-  </div>
-);
-
-const SuspenseWrapper = ({ children }) => (
-  <Suspense fallback={<LoadingFallback />}>
-    {children}
-  </Suspense>
-);
-
 export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <SuspenseWrapper><HomePage /></SuspenseWrapper>,
+  },
   {
     element: <SuspenseWrapper><PublicRoute /></SuspenseWrapper>,
     children: [
@@ -55,38 +48,32 @@ export const router = createBrowserRouter([
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
       {
-        path: PATHS.DASHBOARD,
         element: <MainLayout />,
         children: [
-          { 
-            index: true, 
-            element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div> 
-          },
-          { 
-            path: PATHS.SCHEDULES.replace('/', ''), 
-            element: <div><h2>Algorithm Scheduling Management</h2></div> 
+          {
+            path: PATHS.DASHBOARD,
+            element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div>
           },
           {
-            path: PATHS.USERS.replace('/', ''),
+            path: PATHS.SCHEDULES,
+            element: <div><h2>Algorithm Scheduling Management</h2></div>
+          },
+          {
+            path: PATHS.USERS,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
             children: [
               { index: true, element: <UsersPage /> }
             ]
           },
           {
-            path: PATHS.PROFILE.replace('/', ''),
+            path: PATHS.PROFILE,
             element: <ProfilePage />,
           },
           // Error 403 shown within Layout when user doesn't have permissions
           {
-            path: PATHS.UNAUTHORIZED.replace('/', ''),
+            path: PATHS.UNAUTHORIZED,
             element: <Error403 />
           },
-          // Catch-all 404 for dashboard children
-          {
-            path: '*',
-            element: <Error404 />
-          }
         ]
       }
     ]

@@ -1,0 +1,61 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, or SHA to deploy (must resolve to a commit on main)'
+        required: true
+        type: string
+      deploy_backend:
+        description: 'Deploy backend'
+        required: true
+        type: boolean
+        default: true
+      deploy_frontend:
+        description: 'Deploy frontend'
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, prod]
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Validate ref is on main
+        run: |
+          git fetch origin main --depth=1
+          TARGET_SHA="$(git rev-parse HEAD)"
+          git merge-base --is-ancestor "$TARGET_SHA" origin/main
+          echo "Deploying $TARGET_SHA from main lineage"
+
+      - name: Make CI scripts executable
+        run: chmod +x scripts/ci/*.sh
+
+      - name: Validate production env
+        env:
+          DEPLOY_DIR: /root/hsts
+        run: scripts/ci/check-prod-env.sh
+
+      - name: Deploy selected services
+        env:
+          DEPLOY_DIR: /root/hsts
+          DEPLOY_BACKEND: ${{ inputs.deploy_backend }}
+          DEPLOY_FRONTEND: ${{ inputs.deploy_frontend }}
+        run: scripts/ci/deploy-prod.sh
+
+      - name: Run smoke checks
+        run: scripts/ci/smoke-prod.sh
