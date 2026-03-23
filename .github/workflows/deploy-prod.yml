@@ -18,6 +18,9 @@ on:
         type: boolean
         default: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: production
   cancel-in-progress: false
@@ -30,7 +33,7 @@ jobs:
     runs-on: [self-hosted, linux, prod]
     environment: production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
