@@ -1,0 +1,71 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      shared: ${{ steps.filter.outputs.shared }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'HSTS.BE/**'
+            frontend:
+              - 'HSTS.FE/**'
+            shared:
+              - '.github/workflows/**'
+              - 'docker-compose*.yml'
+              - '.env.example'
+              - 'HSTS.BE/Dockerfile'
+              - 'HSTS.FE/Dockerfile'
+
+  backend-tests:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Run backend tests
+        working-directory: HSTS.BE
+        run: dotnet test HSTS.Tests --nologo --verbosity minimal
+
+  frontend-checks:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: HSTS.FE/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: HSTS.FE
+        run: npm ci
+      - name: Lint frontend
+        working-directory: HSTS.FE
+        run: npm run lint
+      - name: Build frontend
+        working-directory: HSTS.FE
+        run: npm run build
