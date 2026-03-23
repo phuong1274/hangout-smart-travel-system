@@ -40,19 +40,13 @@ run_root rsync -a --delete \
 
 pushd "$DEPLOY_DIR" >/dev/null
 
-build_targets=()
-up_targets=()
-
 if [[ "$DEPLOY_BACKEND" == "true" ]]; then
-  build_targets+=("backend")
-  up_targets+=("backend")
+  run_root docker compose -f "$COMPOSE_FILE" build backend
 fi
 
 if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
-  build_targets+=("nginx")
+  run_root docker compose -f "$COMPOSE_FILE" build nginx
 fi
-
-run_root docker compose -f "$COMPOSE_FILE" build "${build_targets[@]}"
 
 if [[ "$DEPLOY_BACKEND" == "true" ]]; then
   run_root docker compose -f "$COMPOSE_FILE" up -d backend
