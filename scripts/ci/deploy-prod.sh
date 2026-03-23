@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_DIR="${DEPLOY_DIR:-/root/hsts}"
+DEPLOY_DIR="${DEPLOY_DIR:-/home/nullbox/hsts}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 SOURCE_DIR="${SOURCE_DIR:-$PWD}"
 DEPLOY_BACKEND="${DEPLOY_BACKEND:-true}"
