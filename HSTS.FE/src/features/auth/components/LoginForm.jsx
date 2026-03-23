@@ -12,7 +12,7 @@ const { Title, Text } = Typography;
 const LoginForm = () => {
   const [form] = Form.useForm();
   const { login, loading } = useLogin();
-  const { googleLogin, loading: googleLoading } = useGoogleLogin();
+  const { googleLogin } = useGoogleLogin();
   const navigate = useNavigate();
 
   return (
