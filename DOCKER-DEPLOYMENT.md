@@ -42,6 +42,8 @@ Open `.env` and fill in all values. Key notes:
 | `CORS_ALLOWED_ORIGIN` | `https://hangout.io.vn` for prod; your domain/IP for test |
 | `GOOGLE_CLIENT_ID` | Must match `VITE_GOOGLE_OAUTH_CLIENT_ID` exactly |
 | `VITE_GOOGLE_OAUTH_CLIENT_ID` | Must match `GOOGLE_CLIENT_ID` exactly |
+| `RESEND_API_KEY` | Resend API key for transactional OTP delivery |
+| `RESEND_FROM_EMAIL` | Verified sender email/domain configured in Resend |
 | `VITE_API_BASE_URL` | Leave empty — axios uses relative paths via nginx |
 | `MYSQL_EXPOSED_PORT` | Default `3307` avoids conflict with local MySQL on port 3306 |
 

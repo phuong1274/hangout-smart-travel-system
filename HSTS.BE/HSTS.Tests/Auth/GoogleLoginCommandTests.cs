@@ -12,6 +12,7 @@ public class GoogleLoginCommandTests
 {
     private readonly Mock<IJwtService> _jwt = new();
     private readonly Mock<IGoogleAuthService> _google = new();
+    private readonly Mock<IEmailDomainPolicy> _policy = EmailPolicyMockFactory.AllowAll();
 
     private static readonly GoogleUserInfo FakeGoogleUser =
         new("google@test.com", "google-id-123", "Google User");
@@ -29,7 +30,7 @@ public class GoogleLoginCommandTests
         _google.Setup(x => x.VerifyGoogleTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((GoogleUserInfo?)null);
         var ctx = MockDbContextFactory.Create().Build();
-        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object);
+        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object, _policy.Object);
 
         var result = await handler.Handle(new GoogleLoginCommand("bad-token"), CancellationToken.None);
 
@@ -38,13 +39,27 @@ public class GoogleLoginCommandTests
     }
 
     [Fact]
+    public async Task Handle_DisallowedGoogleEmail_ReturnsValidation()
+    {
+        _google.Setup(x => x.VerifyGoogleTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FakeGoogleUser);
+        var policy = EmailPolicyMockFactory.AllowOnly("allowed@gmail.com");
+        var ctx = MockDbContextFactory.Create().Build();
+        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object, policy.Object);
+
+        var result = await handler.Handle(new GoogleLoginCommand("valid-token"), CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("Email.DomainNotAllowed");
+    }
+
+    [Fact]
     public async Task Handle_NewUser_RoleNotFound_ReturnsFailure()
     {
         _google.Setup(x => x.VerifyGoogleTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(FakeGoogleUser);
-        // No accounts, no roles seeded
         var ctx = MockDbContextFactory.Create().Build();
-        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object);
+        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object, _policy.Object);
 
         var result = await handler.Handle(new GoogleLoginCommand("valid-token"), CancellationToken.None);
 
@@ -59,10 +74,6 @@ public class GoogleLoginCommandTests
             .ReturnsAsync(FakeGoogleUser);
 
         var role = AuthFakes.TravelerRole();
-
-        // The handler creates `new User { Account = account }` inline — both get Id = 0 (mock, no DB).
-        // The re-query is `FirstOrDefaultAsync(u => u.Id == user.Id)` i.e. Id == 0.
-        // Seed a user with Id = 0, AccountId = 0 so the re-query finds it with roles loaded.
         var newAccount = new Account
         {
             Id = 0,
@@ -80,12 +91,11 @@ public class GoogleLoginCommandTests
             UserRoles = new List<UserRole> { userRole }
         };
 
-        // No accounts seeded — handler takes the "new user" branch.
         var ctx = MockDbContextFactory.Create()
             .WithRoles(role)
             .WithUsers(newUser)
             .Build();
-        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object);
+        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object, _policy.Object);
 
         var result = await handler.Handle(new GoogleLoginCommand("valid-token"), CancellationToken.None);
 
@@ -96,7 +106,7 @@ public class GoogleLoginCommandTests
     }
 
     [Fact]
-    public async Task Handle_ExistingAccountByEmail_PendingVerification_GetsActivated()
+    public async Task Handle_ExistingPasswordAccountByEmail_ReturnsConflict()
     {
         _google.Setup(x => x.VerifyGoogleTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(FakeGoogleUser);
@@ -106,6 +116,7 @@ public class GoogleLoginCommandTests
             Id = 1,
             Email = FakeGoogleUser.Email,
             GoogleId = null,
+            PasswordHash = "hashed-password",
             Status = AccountStatus.PendingVerification,
             IsDeleted = false
         };
@@ -117,16 +128,16 @@ public class GoogleLoginCommandTests
             .WithUsers(user)
             .WithRoles(role)
             .Build();
-        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object);
+        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object, _policy.Object);
 
         var result = await handler.Handle(new GoogleLoginCommand("valid-token"), CancellationToken.None);
 
-        result.IsError.Should().BeFalse();
-        account.Status.Should().Be(AccountStatus.Active);
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("Auth.GoogleLoginBlocked");
     }
 
     [Fact]
-    public async Task Handle_ExistingAccountByEmail_LinksGoogleId()
+    public async Task Handle_ExistingPasswordAccountByEmail_DoesNotLinkGoogleId()
     {
         _google.Setup(x => x.VerifyGoogleTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(FakeGoogleUser);
@@ -136,6 +147,7 @@ public class GoogleLoginCommandTests
             Id = 1,
             Email = FakeGoogleUser.Email,
             GoogleId = null,
+            PasswordHash = "hashed-password",
             Status = AccountStatus.Active,
             IsDeleted = false
         };
@@ -147,12 +159,43 @@ public class GoogleLoginCommandTests
             .WithUsers(user)
             .WithRoles(role)
             .Build();
-        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object);
+        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object, _policy.Object);
 
         var result = await handler.Handle(new GoogleLoginCommand("valid-token"), CancellationToken.None);
 
-        result.IsError.Should().BeFalse();
-        account.GoogleId.Should().Be(FakeGoogleUser.GoogleId);
+        result.IsError.Should().BeTrue();
+        account.GoogleId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_ExistingPendingVerificationPasswordAccountByEmail_RemainsPending()
+    {
+        _google.Setup(x => x.VerifyGoogleTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FakeGoogleUser);
+
+        var account = new Account
+        {
+            Id = 1,
+            Email = FakeGoogleUser.Email,
+            GoogleId = null,
+            PasswordHash = "hashed-password",
+            Status = AccountStatus.PendingVerification,
+            IsDeleted = false
+        };
+        var role = AuthFakes.TravelerRole();
+        var user = AuthFakes.UserWithRole(account, role);
+
+        var ctx = MockDbContextFactory.Create()
+            .WithAccounts(account)
+            .WithUsers(user)
+            .WithRoles(role)
+            .Build();
+        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object, _policy.Object);
+
+        var result = await handler.Handle(new GoogleLoginCommand("valid-token"), CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        account.Status.Should().Be(AccountStatus.PendingVerification);
     }
 
     [Fact]
@@ -177,7 +220,7 @@ public class GoogleLoginCommandTests
             .WithUsers(user)
             .WithRoles(role)
             .Build();
-        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object);
+        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object, _policy.Object);
 
         var result = await handler.Handle(new GoogleLoginCommand("valid-token"), CancellationToken.None);
 
@@ -203,7 +246,7 @@ public class GoogleLoginCommandTests
         var ctx = MockDbContextFactory.Create()
             .WithAccounts(account)
             .Build();
-        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object);
+        var handler = new GoogleLoginCommandHandler(ctx.Object, _jwt.Object, _google.Object, _policy.Object);
 
         var result = await handler.Handle(new GoogleLoginCommand("valid-token"), CancellationToken.None);
 
