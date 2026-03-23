@@ -23,8 +23,6 @@ namespace HSTS.Domain.Entities
         [Range(-180, 180)]
         public double? Longitude { get; set; }
 
-        public int? Type { get; set; }
-
         [ForeignKey(nameof(State))]
         public int? StateId { get; set; }
         public State? State { get; set; }

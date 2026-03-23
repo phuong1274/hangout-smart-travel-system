@@ -1,4 +1,4 @@
 namespace HSTS.API.Requests
 {
-    public record UpdateTagRequest(string Name);
+    public record UpdateTagRequest(string Name, int? ParentTagId = null);
 }

@@ -27,8 +27,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Longitude)
                 .HasPrecision(11, 8);
 
-            builder.Property(x => x.Type);
-
             builder.HasOne(d => d.State)
                 .WithMany(s => s.Destinations)
                 .HasForeignKey(d => d.StateId)

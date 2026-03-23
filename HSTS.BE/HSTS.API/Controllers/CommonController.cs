@@ -5,6 +5,7 @@ using HSTS.Application.Tags.Queries;
 using HSTS.Application.Destinations.Queries;
 using HSTS.Application.LocationTypes.Queries;
 using HSTS.Application.Amenities.Queries;
+using HSTS.Application.States.Queries;
 
 namespace HSTS.API.Controllers
 {
@@ -54,6 +55,26 @@ namespace HSTS.API.Controllers
         public async Task<IActionResult> GetAllAmenities()
         {
             var result = await _mediator.Send(new GetAllAmenitiesQuery());
+            return result.Match<IActionResult>(
+                Ok,
+                errors => NotFound(errors.First().Description)
+            );
+        }
+
+        [HttpGet("states")]
+        public async Task<IActionResult> GetAllStates()
+        {
+            var result = await _mediator.Send(new GetAllStatesQuery());
+            return result.Match<IActionResult>(
+                Ok,
+                errors => NotFound(errors.First().Description)
+            );
+        }
+
+        [HttpGet("countries/{countryId}/states")]
+        public async Task<IActionResult> GetStatesByCountry(string countryId)
+        {
+            var result = await _mediator.Send(new GetStatesByCountryQuery(countryId));
             return result.Match<IActionResult>(
                 Ok,
                 errors => NotFound(errors.First().Description)

@@ -19,3 +19,12 @@ export const updateTagApi = (id, data) => {
 export const deleteTagApi = (id) => {
   return apiClient.delete(`/api/Tags/${id}`).then(res => res.data);
 };
+
+// New hierarchical tag APIs
+export const getRootTagsApi = () => {
+  return apiClient.get('/api/Tags/root').then(res => res.data);
+};
+
+export const getChildTagsApi = (parentTagId) => {
+  return apiClient.get(`/api/Tags/parent/${parentTagId}`).then(res => res.data);
+};

@@ -14,7 +14,6 @@ namespace HSTS.Application.Destinations.Commands
         string? Code,
         double? Latitude,
         double? Longitude,
-        int? Type,
         int? StateId,
         string? CountryId
     ) : IRequest<ErrorOr<DestinationDto>>;
@@ -47,7 +46,6 @@ namespace HSTS.Application.Destinations.Commands
                 Code = request.Code,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
-                Type = request.Type,
                 StateId = request.StateId,
                 CountryId = request.CountryId
             };

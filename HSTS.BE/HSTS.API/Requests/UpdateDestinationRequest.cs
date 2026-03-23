@@ -6,7 +6,6 @@ namespace HSTS.API.Requests
         string? Code,
         double? Latitude,
         double? Longitude,
-        int? Type,
         int? StateId,
         string? CountryId
     );

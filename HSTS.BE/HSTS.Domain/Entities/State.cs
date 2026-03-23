@@ -12,6 +12,9 @@ namespace HSTS.Domain.Entities
         [MaxLength(200)]
         public string Name { get; set; } = null!;
 
+        [MaxLength(200)]
+        public string? EnglishName { get; set; }
+
         [MaxLength(50)]
         public string? Code { get; set; }
 

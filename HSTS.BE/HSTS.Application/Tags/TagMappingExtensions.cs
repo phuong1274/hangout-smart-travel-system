@@ -10,6 +10,9 @@ namespace HSTS.Application.Tags
             return new TagDto(
                 tag.Id,
                 tag.Name,
+                tag.ParentTagId,
+                tag.ParentTag?.Name,
+                tag.Level,
                 tag.CreatedAt,
                 tag.UpdatedAt
             );

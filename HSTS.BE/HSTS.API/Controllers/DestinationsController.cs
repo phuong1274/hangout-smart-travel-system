@@ -67,7 +67,6 @@ namespace HSTS.API.Controllers
                 request.Code,
                 request.Latitude,
                 request.Longitude,
-                request.Type,
                 request.StateId,
                 request.CountryId
             );
@@ -94,7 +93,6 @@ namespace HSTS.API.Controllers
                 request.Code,
                 request.Latitude,
                 request.Longitude,
-                request.Type,
                 request.StateId,
                 request.CountryId
             );

@@ -19,7 +19,7 @@ namespace HSTS.Application.States.Queries
             var states = await _repository.Query()
                 .Where(s => !s.IsDeleted && s.CountryId == request.CountryId)
                 .OrderBy(s => s.Name)
-                .Select(s => new StateDto(s.Id, s.Name, s.Code, s.CountryId, s.CreatedAt, s.UpdatedAt))
+                .Select(s => new StateDto(s.Id, s.Name, s.EnglishName, s.Code, s.CountryId, s.CreatedAt, s.UpdatedAt))
                 .ToListAsync(ct);
 
             return states;

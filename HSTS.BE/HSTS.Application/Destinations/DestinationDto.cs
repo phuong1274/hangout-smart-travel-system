@@ -7,7 +7,6 @@ namespace HSTS.Application.Destinations
         string? Code,
         double? Latitude,
         double? Longitude,
-        int? Type,
         int? StateId,
         string? StateName,
         string? CountryId,

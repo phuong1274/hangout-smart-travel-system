@@ -14,6 +14,15 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Name)
                 .HasMaxLength(100)
                 .IsRequired();
+
+            // Hierarchical tag configuration
+            builder.Property(x => x.Level)
+                .HasDefaultValue(1);
+
+            builder.HasOne(x => x.ParentTag)
+                .WithMany(x => x.ChildTags)
+                .HasForeignKey(x => x.ParentTagId)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent cascade delete cycles
         }
     }
 }

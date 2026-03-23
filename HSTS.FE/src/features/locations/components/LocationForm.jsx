@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Tag, Rate, Table, TimePicker, Card, Divider } from 'antd';
 import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, EnvironmentOutlined, MinusCircleOutlined, ClockCircleOutlined, CloudOutlined } from '@ant-design/icons';
-import { createLocationApi, updateLocationApi, getAllTagsApi, getAllDestinationsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
+import { createLocationApi, updateLocationApi, getAllDestinationsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
+import { getRootTagsApi, getChildTagsApi } from '@/features/tags/api';
 import { uploadImageToCloudinary } from '@/services/cloudinary';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
 import dayjs from 'dayjs';
@@ -23,16 +24,20 @@ const SOCIAL_PLATFORMS = [
 const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [tags, setTags] = useState([]);
+  const [rootTags, setRootTags] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [selectedRootTagIds, setSelectedRootTagIds] = useState([]);
   const [destinations, setDestinations] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
   const [amenities, setAmenities] = useState([]);
+  const [tags, setTags] = useState([]);
   const [mediaLinks, setMediaLinks] = useState([]);
   const [newMediaLink, setNewMediaLink] = useState('');
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [socialLinks, setSocialLinks] = useState([]);
   const [openingHours, setOpeningHours] = useState([]);
   const [seasons, setSeasons] = useState([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
 
   const isEdit = !!location;
 
@@ -40,49 +45,105 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        console.log('Fetching dropdown data...');
-        const [tagsRes, destinationsRes, typesRes, amenitiesRes] = await Promise.all([
-          getAllTagsApi(),
+        setTagsLoading(true);
+        const [rootTagsRes, destinationsRes, typesRes, amenitiesRes] = await Promise.all([
+          getRootTagsApi(),
           getAllDestinationsApi(),
           getAllLocationTypesApi(),
           getAllAmenitiesApi()
         ]);
 
-        console.log('Dropdown API responses:', {
-          tags: tagsRes,
-          destinations: destinationsRes,
-          locationTypes: typesRes,
-          amenities: amenitiesRes
-        });
-
         // Handle paginated responses (extract items array)
-        const tags = Array.isArray(tagsRes) ? tagsRes : (tagsRes?.items || []);
+        const rootTags = Array.isArray(rootTagsRes) ? rootTagsRes : (rootTagsRes?.items || []);
         const destinations = Array.isArray(destinationsRes) ? destinationsRes : (destinationsRes?.items || []);
         const locationTypes = Array.isArray(typesRes) ? typesRes : (typesRes?.items || []);
         const amenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
 
-        setTags(tags);
+        setRootTags(rootTags);
+        setAvailableTags(rootTags); // Initially show all root tags
         setDestinations(destinations);
         setLocationTypes(locationTypes);
         setAmenities(amenities);
-        
-        console.log('State updated:', {
-          tags,
-          destinations,
-          locationTypes,
-          amenities
-        });
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
         message.error('Failed to load dropdown data');
+      } finally {
+        setTagsLoading(false);
       }
     };
     fetchDropdownData();
   }, []);
 
+  // Load child tags when a root tag is selected
+  const handleRootTagChange = async (selectedRootIds) => {
+    setSelectedRootTagIds(selectedRootIds);
+    
+    // Get previously selected child tags
+    const currentChildTagIds = form.getFieldValue('tagIds') || [];
+    
+    // Find which root tags were deselected
+    const deselectedRootIds = selectedRootTagIds.filter(id => !selectedRootIds.includes(id));
+    
+    // Load children for deselected root tags to know which child tags to remove
+    const childrenOfDeselectedRoots = new Set();
+    for (const tagId of deselectedRootIds) {
+      try {
+        const childTagsRes = await getChildTagsApi(tagId);
+        const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
+        childTags.forEach(ct => childrenOfDeselectedRoots.add(ct.id));
+      } catch (error) {
+        console.error('Failed to fetch child tags:', error);
+      }
+    }
+    
+    // Remove only child tags whose own parent was deselected
+    const filteredChildTagIds = currentChildTagIds.filter(id => 
+      !childrenOfDeselectedRoots.has(id)
+    );
+    
+    // Update form if child tags were removed
+    if (filteredChildTagIds.length !== currentChildTagIds.length) {
+      form.setFieldValue('tagIds', filteredChildTagIds);
+    }
+    
+    // Load children for ALL currently selected root tags to rebuild available options
+    const allChildTagsFromSelectedRoots = [];
+    for (const tagId of selectedRootIds) {
+      try {
+        const childTagsRes = await getChildTagsApi(tagId);
+        const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
+        allChildTagsFromSelectedRoots.push(...childTags);
+      } catch (error) {
+        console.error('Failed to fetch child tags:', error);
+      }
+    }
+    
+    // Rebuild available tags from scratch: root tags + ALL children from selected roots
+    // Remove duplicate child tags (same child might appear under multiple roots)
+    const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
+      (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
+    );
+    
+    setAvailableTags([...rootTags, ...uniqueChildTags]);
+  };
+
+  // Handle child tag selection
+  const handleChildTagChange = (selectedChildIds) => {
+    form.setFieldValue('tagIds', selectedChildIds);
+  };
+
   // Set form values when editing
   useEffect(() => {
-    if (location && tags.length > 0 && amenities.length > 0) {
+    if (location && location.tagIds && location.tagIds.length > 0) {
+      // Set selected root tag IDs from existing tags
+      const rootIds = location.tagIds.filter(id => {
+        const tag = rootTags.find(t => t.id === id);
+        return tag && tag.level === 1;
+      });
+      setSelectedRootTagIds(rootIds);
+    }
+    
+    if (location && rootTags.length > 0 && amenities.length > 0) {
       form.setFieldsValue({
         name: location.name,
         description: location.description,
@@ -503,19 +564,50 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           </Form.Item>
         </Space>
 
+        {/* Tags Selector - Root Tags Section */}
+        <Form.Item
+          label="Root Tags"
+          tooltip="Select root categories. Child tags will load automatically."
+        >
+          <Select
+            mode="multiple"
+            placeholder="Select root tags"
+            value={selectedRootTagIds}
+            style={{ width: '100%', marginBottom: 16 }}
+            onChange={handleRootTagChange}
+            optionFilterProp="children"
+            showSearch
+          >
+            {rootTags.map(tag => (
+              <Option key={tag.id} value={tag.id}>
+                {tag.name} <span style={{ color: '#52c41a' }}>(Root)</span>
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        {/* Tags Selector - Child Tags Section */}
         <Form.Item
           name="tagIds"
-          label="Tags"
+          label="Child Tags"
+          tooltip="Select child tags from chosen root categories"
           initialValue={[]}
         >
           <Select
             mode="multiple"
-            placeholder="Select tags"
+            placeholder={selectedRootTagIds.length > 0 ? "Select child tags" : "Select root tags first to see child tags"}
             style={{ width: '100%' }}
             maxTagCount="responsive"
+            loading={tagsLoading}
+            onChange={handleChildTagChange}
+            optionFilterProp="children"
+            showSearch
+            disabled={selectedRootTagIds.length === 0}
           >
-            {tags.map(tag => (
-              <Option key={tag.id} value={tag.id}>{tag.name}</Option>
+            {availableTags.filter(t => t.level > 1).map(tag => (
+              <Option key={tag.id} value={tag.id}>
+                {tag.name} <span style={{ color: '#1677ff' }}>(Child)</span>
+              </Option>
             ))}
           </Select>
         </Form.Item>

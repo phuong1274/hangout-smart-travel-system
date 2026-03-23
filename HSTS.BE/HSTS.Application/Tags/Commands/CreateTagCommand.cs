@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HSTS.Application.Tags.Commands
 {
-    public record CreateTagCommand(string Name) : IRequest<ErrorOr<TagDto>>;
+    public record CreateTagCommand(string Name, int? ParentTagId = null) : IRequest<ErrorOr<TagDto>>;
 
     public class CreateTagCommandHandler : IRequestHandler<CreateTagCommand, ErrorOr<TagDto>>
     {
@@ -22,10 +22,9 @@ namespace HSTS.Application.Tags.Commands
 
         public async Task<ErrorOr<TagDto>> Handle(CreateTagCommand request, CancellationToken cancellationToken)
         {
-            var tag = new Tag { Name = request.Name };
             var existingTag = await _repository.Query()
-    .Where(x => x.Name == request.Name && !x.IsDeleted)
-    .FirstOrDefaultAsync(cancellationToken);
+                .Where(x => x.Name == request.Name && !x.IsDeleted)
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (existingTag != null)
             {
@@ -33,9 +32,26 @@ namespace HSTS.Application.Tags.Commands
                     $"A tag with the name '{request.Name}' already exists.");
             }
 
+            // Determine level based on parent
+            int level = 1;
+            if (request.ParentTagId.HasValue)
+            {
+                var parentTag = await _repository.GetAsync(request.ParentTagId.Value, cancellationToken);
+                if (parentTag != null)
+                {
+                    level = parentTag.Level + 1;
+                }
+            }
+
+            var tag = new Tag 
+            { 
+                Name = request.Name,
+                ParentTagId = request.ParentTagId,
+                Level = level
+            };
+
             await _repository.AddAsync(tag, cancellationToken);
             return tag.ToDto();
-
         }
     }
 
@@ -46,6 +62,10 @@ namespace HSTS.Application.Tags.Commands
             RuleFor(x => x.Name)
                 .NotEmpty().WithMessage("Tag name cannot be empty.")
                 .MaximumLength(100).WithMessage("Tag name cannot exceed 100 characters.");
+            
+            RuleFor(x => x.ParentTagId)
+                .NotEmpty().When(x => x.ParentTagId.HasValue)
+                .WithMessage("Parent tag must exist if specified.");
         }
     }
 }

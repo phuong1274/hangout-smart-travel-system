@@ -5,7 +5,6 @@ export interface Destination {
   code?: string;
   latitude?: number;
   longitude?: number;
-  type?: number;
   stateId?: number;
   stateName?: string;
   countryId?: string;
@@ -21,6 +20,7 @@ export interface Country {
 export interface State {
   id: number;
   name: string;
+  englishName?: string;
   code?: string;
   countryId: string;
 }

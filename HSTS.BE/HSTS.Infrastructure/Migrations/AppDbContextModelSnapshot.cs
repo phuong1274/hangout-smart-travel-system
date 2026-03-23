@@ -257,9 +257,6 @@ namespace HSTS.Infrastructure.Migrations
                     b.Property<int?>("StateId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("Type")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("timestamp")
@@ -333,6 +330,9 @@ namespace HSTS.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
 
+                    b.Property<int?>("OwnerId")
+                        .HasColumnType("int");
+
                     b.Property<decimal?>("PriceMaxUsd")
                         .HasColumnType("decimal(18,2)");
 
@@ -341,6 +341,9 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Property<int?>("RecommendedDurationMinutes")
                         .HasColumnType("int");
+
+                    b.Property<decimal?>("Score")
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<string>("Telephone")
                         .HasMaxLength(50)
@@ -364,6 +367,8 @@ namespace HSTS.Infrastructure.Migrations
                     b.HasIndex("DestinationId");
 
                     b.HasIndex("LocationTypeId");
+
+                    b.HasIndex("OwnerId");
 
                     b.ToTable("Locations", (string)null);
                 });
@@ -452,6 +457,111 @@ namespace HSTS.Infrastructure.Migrations
                     b.ToTable("LocationMedias", (string)null);
                 });
 
+            modelBuilder.Entity("HSTS.Domain.Entities.LocationOpeningHour", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<TimeSpan?>("CloseTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("LocationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<TimeSpan?>("OpenTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId", "DayOfWeek");
+
+                    b.ToTable("LocationOpeningHours", (string)null);
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.LocationSeason", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("LocationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Months")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.ToTable("LocationSeasons", (string)null);
+                });
+
             modelBuilder.Entity("HSTS.Domain.Entities.LocationSocialLink", b =>
                 {
                     b.Property<int>("Id")
@@ -501,6 +611,149 @@ namespace HSTS.Infrastructure.Migrations
                     b.HasIndex("LocationId");
 
                     b.ToTable("LocationSocialLinks", (string)null);
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.LocationSubmission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("AmenityIdsJson")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("CreatedLocationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<int?>("DestinationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int?>("ExistingLocationId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double");
+
+                    b.Property<int?>("LocationTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double");
+
+                    b.Property<string>("MediaLinksJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("OpeningHoursJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<decimal?>("PriceMaxUsd")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PriceMinUsd")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProposedChangesJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ReviewedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("varchar(450)");
+
+                    b.Property<decimal?>("Score")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("SeasonsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<string>("SocialLinksJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmissionType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TagIdsJson")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("Telephone")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedLocationId");
+
+                    b.HasIndex("DestinationId");
+
+                    b.HasIndex("ExistingLocationId");
+
+                    b.HasIndex("LocationTypeId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("LocationSubmissions", (string)null);
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.LocationTag", b =>
@@ -785,6 +1038,10 @@ namespace HSTS.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("EnglishName")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
@@ -833,10 +1090,18 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false);
 
+                    b.Property<int>("Level")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
+
+                    b.Property<int?>("ParentTagId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .ValueGeneratedOnAddOrUpdate()
@@ -849,6 +1114,8 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ParentTagId");
 
                     b.ToTable("Tags", (string)null);
                 });
@@ -1075,9 +1342,15 @@ namespace HSTS.Infrastructure.Migrations
                         .HasForeignKey("LocationTypeId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("HSTS.Domain.Entities.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId");
+
                     b.Navigation("Destination");
 
                     b.Navigation("LocationType");
+
+                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.LocationAmenity", b =>
@@ -1110,6 +1383,28 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("Location");
                 });
 
+            modelBuilder.Entity("HSTS.Domain.Entities.LocationOpeningHour", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.Location", "Location")
+                        .WithMany("OpeningHours")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.LocationSeason", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.Location", "Location")
+                        .WithMany("Seasons")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+                });
+
             modelBuilder.Entity("HSTS.Domain.Entities.LocationSocialLink", b =>
                 {
                     b.HasOne("HSTS.Domain.Entities.Location", "Location")
@@ -1119,6 +1414,45 @@ namespace HSTS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.LocationSubmission", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.Location", "CreatedLocation")
+                        .WithMany()
+                        .HasForeignKey("CreatedLocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HSTS.Domain.Entities.Destination", "Destination")
+                        .WithMany()
+                        .HasForeignKey("DestinationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HSTS.Domain.Entities.Location", "ExistingLocation")
+                        .WithMany()
+                        .HasForeignKey("ExistingLocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HSTS.Domain.Entities.LocationType", "LocationType")
+                        .WithMany()
+                        .HasForeignKey("LocationTypeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HSTS.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedLocation");
+
+                    b.Navigation("Destination");
+
+                    b.Navigation("ExistingLocation");
+
+                    b.Navigation("LocationType");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.LocationTag", b =>
@@ -1160,6 +1494,16 @@ namespace HSTS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Country");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.Tag", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.Tag", "ParentTag")
+                        .WithMany("ChildTags")
+                        .HasForeignKey("ParentTagId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ParentTag");
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.User", b =>
@@ -1224,6 +1568,10 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Navigation("LocationTags");
 
+                    b.Navigation("OpeningHours");
+
+                    b.Navigation("Seasons");
+
                     b.Navigation("SocialLinks");
                 });
 
@@ -1244,6 +1592,8 @@ namespace HSTS.Infrastructure.Migrations
 
             modelBuilder.Entity("HSTS.Domain.Entities.Tag", b =>
                 {
+                    b.Navigation("ChildTags");
+
                     b.Navigation("LocationTags");
                 });
 

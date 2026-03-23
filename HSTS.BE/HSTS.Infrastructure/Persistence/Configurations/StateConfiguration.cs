@@ -15,6 +15,9 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasMaxLength(200)
                 .IsRequired();
 
+            builder.Property(x => x.EnglishName)
+                .HasMaxLength(200);
+
             builder.Property(x => x.Code)
                 .HasMaxLength(50);
 

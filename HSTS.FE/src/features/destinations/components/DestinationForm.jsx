@@ -71,7 +71,6 @@ const DestinationForm = ({ open, destination, onClose, onSuccess }) => {
         code: destination.code,
         latitude: destination.latitude,
         longitude: destination.longitude,
-        type: destination.type,
         stateId: destination.stateId,
         countryId: destination.countryId,
       });
@@ -151,18 +150,6 @@ const DestinationForm = ({ open, destination, onClose, onSuccess }) => {
               ]}
             >
               <Input placeholder="e.g., AGG" />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="type"
-              label="Type"
-            >
-              <InputNumber
-                style={{ width: '100%' }}
-                placeholder="e.g., 3"
-                min={1}
-              />
             </Form.Item>
           </Col>
         </Row>

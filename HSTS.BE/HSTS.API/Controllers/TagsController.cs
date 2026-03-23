@@ -63,7 +63,7 @@ namespace HSTS.API.Controllers
         [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
         public async Task<IActionResult> Create(CreateTagRequest request)
         {
-            var command = new CreateTagCommand(request.Name);
+            var command = new CreateTagCommand(request.Name, request.ParentTagId);
             var result = await _mediator.Send(command);
 
             return result.Match(
@@ -81,7 +81,7 @@ namespace HSTS.API.Controllers
         [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
         public async Task<IActionResult> Update(int id, UpdateTagRequest request)
         {
-            var command = new UpdateTagCommand(id, request.Name);
+            var command = new UpdateTagCommand(id, request.Name, request.ParentTagId);
             var result = await _mediator.Send(command);
 
             return result.Match(
@@ -105,6 +105,40 @@ namespace HSTS.API.Controllers
 
             return result.Match(
                 tagDto => Ok("Deleted successfully"),
+                errors => errors.First().Type switch
+                {
+                    ErrorType.NotFound => NotFound(errors.First().Description),
+                    _ => Problem(errors.First().Description)
+                }
+            );
+        }
+
+        /// <summary>
+        /// Get all root tags (Level 1 - no parent)
+        /// </summary>
+        [HttpGet("root")]
+        public async Task<IActionResult> GetRootTags(CancellationToken ct)
+        {
+            var result = await _mediator.Send(new GetRootTagsQuery());
+            return result.Match(
+                Ok,
+                errors => errors.First().Type switch
+                {
+                    ErrorType.NotFound => NotFound(errors.First().Description),
+                    _ => Problem(errors.First().Description)
+                }
+            );
+        }
+
+        /// <summary>
+        /// Get child tags by parent tag ID
+        /// </summary>
+        [HttpGet("parent/{parentTagId}")]
+        public async Task<IActionResult> GetChildTags(int parentTagId, CancellationToken ct)
+        {
+            var result = await _mediator.Send(new GetChildTagsByParentIdQuery(parentTagId));
+            return result.Match(
+                Ok,
                 errors => errors.First().Type switch
                 {
                     ErrorType.NotFound => NotFound(errors.First().Description),

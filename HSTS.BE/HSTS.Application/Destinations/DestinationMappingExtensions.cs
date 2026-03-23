@@ -14,7 +14,6 @@ namespace HSTS.Application.Destinations
                 destination.Code,
                 destination.Latitude,
                 destination.Longitude,
-                destination.Type,
                 destination.StateId,
                 destination.State?.Name,
                 destination.CountryId,

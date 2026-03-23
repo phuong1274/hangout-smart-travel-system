@@ -1,6 +1,6 @@
 import React from 'react';
-import { Table, Button, Space, Popconfirm } from 'antd';
-import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Popconfirm, Tag } from 'antd';
+import { EditOutlined, DeleteOutlined, EyeOutlined, ApartmentOutlined } from '@ant-design/icons';
 import { PAGINATION } from '@/config/constants';
 
 const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView }) => {
@@ -15,6 +15,36 @@ const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, 
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
+      render: (name, record) => (
+        <span style={{ paddingLeft: record.level > 1 ? 20 : 0 }}>
+          {record.level > 1 && <span style={{ color: '#1677ff', marginRight: 4 }}>└</span>}
+          {name}
+        </span>
+      ),
+    },
+    {
+      title: 'Level',
+      dataIndex: 'level',
+      key: 'level',
+      width: 100,
+      render: (level) => (
+        <Tag color={level === 1 ? 'green' : 'blue'}>
+          <ApartmentOutlined /> Level {level}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Parent Tag',
+      dataIndex: 'parentTagName',
+      key: 'parentTagName',
+      width: 150,
+      render: (parentTagName, record) => (
+        record.level > 1 ? (
+          parentTagName || 'N/A'
+        ) : (
+          <span style={{ color: '#999' }}>—</span>
+        )
+      ),
     },
     {
       title: 'Actions',
