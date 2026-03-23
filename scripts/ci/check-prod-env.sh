@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_DIR="${DEPLOY_DIR:-/root/hsts}"
+DEPLOY_DIR="${DEPLOY_DIR:-/home/nullbox/hsts}"
 ENV_FILE="${ENV_FILE:-$DEPLOY_DIR/.env}"
 
-if [[ ! -f "$ENV_FILE" ]]; then
+run_root() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    "$@"
+  else
+    sudo "$@"
+  fi
+}
+
+if ! run_root test -f "$ENV_FILE"; then
   echo "Missing production env file: $ENV_FILE" >&2
   exit 1
 fi
@@ -28,7 +36,7 @@ required_keys=(
 )
 
 for key in "${required_keys[@]}"; do
-  if ! grep -Eq "^${key}=.+" "$ENV_FILE"; then
+  if ! run_root grep -Eq "^${key}=.+" "$ENV_FILE"; then
     echo "Missing required key in $ENV_FILE: $key" >&2
     exit 1
   fi

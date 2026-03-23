@@ -47,12 +47,12 @@ jobs:
 
       - name: Validate production env
         env:
-          DEPLOY_DIR: /root/hsts
+          DEPLOY_DIR: /home/nullbox/hsts
         run: scripts/ci/check-prod-env.sh
 
       - name: Deploy selected services
         env:
-          DEPLOY_DIR: /root/hsts
+          DEPLOY_DIR: /home/nullbox/hsts
           DEPLOY_BACKEND: ${{ inputs.deploy_backend }}
           DEPLOY_FRONTEND: ${{ inputs.deploy_frontend }}
         run: scripts/ci/deploy-prod.sh
