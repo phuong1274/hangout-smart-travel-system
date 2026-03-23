@@ -1,8 +1,8 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { Spin } from 'antd';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
+import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
 
@@ -21,18 +21,6 @@ const HomePage = lazy(() => import('@/features/home/pages/Home'));
 // Global Pages
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
-
-const LoadingFallback = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-    <Spin size="large" tip="Loading page..." />
-  </div>
-);
-
-const SuspenseWrapper = ({ children }) => (
-  <Suspense fallback={<LoadingFallback />}>
-    {children}
-  </Suspense>
-);
 
 export const router = createBrowserRouter([
   {
