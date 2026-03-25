@@ -1,4 +1,5 @@
 using HSTS.Application.Interfaces;
+using HSTS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace HSTS.Infrastructure.Persistence
@@ -16,6 +17,13 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<Otp> Otps => Set<Otp>();
         public DbSet<AccountRefreshToken> AccountRefreshTokens => Set<AccountRefreshToken>();
+
+        public DbSet<Country> Countries => Set<Country>();
+        public DbSet<Province> Provinces => Set<Province>();
+        public DbSet<District> Districts => Set<District>();
+        public DbSet<Location> Locations => Set<Location>();
+        public DbSet<OpeningHours> OpeningHours => Set<OpeningHours>();
+        public DbSet<RoomType> RoomTypes => Set<RoomType>();
 
         #region Logging
         /// <summary>
