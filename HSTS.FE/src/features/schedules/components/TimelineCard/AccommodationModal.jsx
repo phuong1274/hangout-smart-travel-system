@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Tag, Button, Collapse, Modal, Tabs } from 'antd';
-import { 
-  HomeOutlined, 
-  CheckCircleOutlined, 
-  CloseCircleOutlined 
-} from '@ant-design/icons';
+import { HomeOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import styles from '../../styles/TimelineCard.module.css';
 
 const { Text } = Typography;
@@ -21,7 +17,6 @@ const AccommodationModal = ({
   setActiveHotel, 
   activeRoomIdx, 
   setActiveRoomIdx,
-  baseHotelName,
   currentRooms,
   accmTitle
 }) => {
@@ -33,23 +28,22 @@ const AccommodationModal = ({
     }
   }, [visible]);
 
-  // Hàm render chung cho thẻ Room, nhận cờ showSelectBtn để quyết định có hiện nút chọn phòng hay không
   const renderRoomOption = (opt, idx, showSelectBtn, isSelected) => (
     <div key={idx} className={styles.roomCard}>
       <div className={styles.roomHeader}>
         <div>
-          <Text strong className={styles.roomTitle}>{opt.roomType}</Text>
-          {opt.recommended && <Tag color="success" className={styles.roomRecTag}>Recommended</Tag>}
+          <span className={styles.roomTitle}>{opt.roomType}</span>
+          {opt.recommended && <Tag className={styles.luxuryRecTag}>RECOMMENDED</Tag>}
         </div>
         <div className={styles.roomPriceBox}>
-          <Text strong className={styles.roomTotal}>{formatVND(opt.totalCost)}</Text>
+          <span className={styles.roomTotal}>{formatVND(opt.totalCost)}</span>
           {opt.pricePerNight > 0 && (
-            <Text type="secondary" className={styles.roomPerNight}>{formatVND(opt.pricePerNight)} / night</Text>
+            <span className={styles.roomPerNight}>{formatVND(opt.pricePerNight)} / night</span>
           )}
         </div>
       </div>
       
-      <Text className={styles.roomDesc}>{opt.description}</Text>
+      <span className={styles.roomDesc}>{opt.description}</span>
       
       <div className={styles.amenitiesList}>
         {opt.amenities?.map((am, i) => <Tag key={i} className={styles.amTag}>{am}</Tag>)}
@@ -59,25 +53,24 @@ const AccommodationModal = ({
         {opt.pros && (
           <div className={styles.proItem}>
             <CheckCircleOutlined className={styles.proIcon} />
-            <Text type="success" style={{fontSize: 13}}>{opt.pros}</Text>
+            <Text className={styles.proText}>{opt.pros}</Text>
           </div>
         )}
         {opt.cons && (
           <div className={styles.conItem}>
             <CloseCircleOutlined className={styles.conIcon} />
-            <Text type="danger" style={{fontSize: 13}}>{opt.cons}</Text>
+            <Text className={styles.conText}>{opt.cons}</Text>
           </div>
         )}
       </div>
       
       {showSelectBtn && (
         <Button 
-          type={isSelected ? "primary" : "default"} 
+          className={`${styles.roomSelectBtn} ${isSelected ? styles.roomSelected : ''}`}
           block 
-          style={{marginTop: 12}}
           onClick={() => setActiveRoomIdx(idx)}
         >
-          {isSelected ? 'Selected Room' : 'Select this room'}
+          {isSelected ? 'SELECTED' : 'SELECT ROOM'}
         </Button>
       )}
     </div>
@@ -85,72 +78,68 @@ const AccommodationModal = ({
 
   return (
     <Modal
+      className={styles.luxuryModal}
       title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <HomeOutlined style={{ color: '#faad14' }} />
-          <span>{accmTitle.replace('Hotel Check-in: ', '').replace('Accommodation: ', '')}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <HomeOutlined style={{ color: '#1A1A1A', fontSize: '20px' }} />
+          <span style={{ fontFamily: "'Lora', serif", fontSize: '22px', fontWeight: 400, color: '#1A1A1A' }}>
+            {accmTitle.replace('Hotel Check-in: ', '').replace('Accommodation: ', '')}
+          </span>
         </div>
       }
       open={visible}
       onCancel={onClose}
       footer={null}
       width={750}
-      bodyStyle={{ padding: '0 24px 24px 24px' }}
     >
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <TabPane tab="Room Options" key="1">
+      <Tabs activeKey={activeTab} onChange={setActiveTab} className={styles.customTabs}>
+        <TabPane tab="ROOM OPTIONS" key="1">
           <div className={styles.modalScrollArea}>
-            {/* Tab 1: Luôn hiện nút chọn phòng */}
             {currentRooms?.map((opt, idx) => renderRoomOption(opt, idx, true, activeRoomIdx === idx))}
           </div>
         </TabPane>
         
-        <TabPane tab="Alternative Hotels" key="2">
+        <TabPane tab="ALTERNATIVE HOTELS" key="2">
           <div className={styles.modalScrollArea}>
             <Collapse ghost className={styles.altAccmCollapse}>
               {event.alternativeAccommodations?.map((alt, altIdx) => {
                 const isCurrentlySelectedHotel = activeHotel.isAlternative && activeHotel.altIndex === altIdx;
 
-                // CHỈNH SỬA TẠI ĐÂY: Tạo khối Header mới, tích hợp nút "Select Hotel" vào cùng dòng
                 const newHeader = (
                   <div className={styles.altHotelHeader}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <Text strong style={{ fontSize: '15px' }}>{alt.name}</Text>
-                      <Tag color="cyan" style={{ border: 'none', marginLeft: '8px' }}>
+                      <span className={styles.altHotelTitle}>{alt.name}</span>
+                      <Tag className={styles.altHotelDistance}>
                         {alt.distance} km away
                       </Tag>
                     </div>
                     
-                    {/* Nút Chọn Khách sạn, di chuyển lên đây */}
                     <Button 
-                      type={isCurrentlySelectedHotel ? "primary" : "default"} 
-                      size="small" // Kích thước nhỏ để vừa với dòng header
-                      style={{ marginLeft: 'auto' }} // Đẩy nút về sát góc phải
+                      size="small"
+                      className={`${styles.altSelectBtn} ${isCurrentlySelectedHotel ? styles.altSelected : ''}`}
                       onClick={(e) => {
-                        e.stopPropagation(); // CỰC KỲ QUAN TRỌNG: Ngăn chặn Collapse bị toggle
+                        e.stopPropagation();
                         if (!isCurrentlySelectedHotel) {
                           setActiveHotel({ isAlternative: true, altIndex: altIdx });
-                          setActiveRoomIdx(0); // Reset về phòng đầu tiên của KS mới
-                          setActiveTab("1");   // Nhảy về Tab 1 để confirm room
+                          setActiveRoomIdx(0);
+                          setActiveTab("1");
                         }
                       }}
                     >
-                      {isCurrentlySelectedHotel ? 'Currently Selected' : 'Select Hotel'}
+                      {isCurrentlySelectedHotel ? 'SELECTED' : 'SELECT HOTEL'}
                     </Button>
                   </div>
                 );
 
                 return (
                   <Panel 
-                    header={newHeader} // Sử dụng Header mới đã tích hợp nút
+                    header={newHeader}
                     key={altIdx}
                     className={styles.altPanel}
                   >
-                    {/* Phần thân của Panel cũ (các thông tin "Recommended Room", "From" và Button cũ) ĐÃ ĐƯỢC XÓA BỎ BỞI VÌ ĐÃ LÊN HEADER HOẶC KHÔNG CẦN THIẾT */}
-                    
-                    <Text strong style={{display: 'block', marginBottom: 12, paddingLeft: 4}}>Available Rooms (Preview):</Text>
-
-                    {/* Danh sách phòng xem trước (Không hiện nút chọn) */}
+                    <Text style={{ display: 'block', marginBottom: 20, fontSize: 13, color: '#8C8C8C', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                      Available Rooms (Preview)
+                    </Text>
                     {alt.options?.map((opt, optIdx) => renderRoomOption(opt, optIdx, false, false))}
                   </Panel>
                 );

@@ -1,68 +1,210 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@400;500;600;700&display=swap');
+
+.otpPageWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #FAFAFA;
+  font-family: 'Inter', sans-serif;
+  padding: 48px 24px;
+  box-sizing: border-box;
+}
+
 .otpContainer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    max-width: 500px;
-    margin: 60px auto;
-    padding: 32px 40px; 
-    background: #fff;
-    border-radius: 16px;
-    border: 1px solid #d9d9d9;
-    text-align: center;
+  background: #FFFFFF;
+  border-radius: 0 !important;
+  border: 1px solid #EAECEC;
+  width: 100%;
+  max-width: 500px;
+  height: fit-content;
+  flex-shrink: 0;
+  box-shadow: none;
+  transition: all 0.4s ease;
+}
+
+.otpContainer:hover {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.03);
+  transform: translateY(-2px);
+}
+
+.otpContent {
+  padding: 64px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.otpTitle {
+  font-family: 'Lora', serif !important;
+  color: #1A1A1A !important;
+  margin-bottom: 24px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px;
+}
+
+.otpDesc {
+  font-family: 'Inter', sans-serif;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: #8C8C8C;
+  line-height: 1.8;
+}
+
+.emailHighlight {
+  color: #1A1A1A;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.expiryText {
+  margin-bottom: 32px;
+  min-height: 22px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+}
+
+.timerText {
+  color: #B89D71;
+}
+
+.expiredAlert {
+  color: #1A1A1A;
+}
+
+.otpInputWrapper {
+  margin-bottom: 40px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+:global(.ant-input-otp) {
+  gap: 12px;
+}
+
+:global(.ant-input-otp .ant-input) {
+  background-color: #FAFAFA !important;
+  border: 1px solid #EAECEC !important;
+  border-radius: 0 !important;
+  width: 48px !important;
+  height: 56px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: #1A1A1A !important;
+  box-shadow: none !important;
+  transition: all 0.3s ease !important;
+}
+
+:global(.ant-input-otp .ant-input-focused),
+:global(.ant-input-otp .ant-input:focus),
+:global(.ant-input-otp .ant-input:hover) {
+  border-color: #B89D71 !important;
+  background-color: #FFFFFF !important;
+  box-shadow: none !important;
+}
+
+.btnVerify {
+  background-color: #1A1A1A !important;
+  color: #FFFFFF !important;
+  width: 100%;
+  max-width: 320px;
+  height: 48px;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: all 0.3s ease !important;
+  margin-bottom: 32px;
+}
+
+.btnVerify:hover:not(:disabled) {
+  background-color: #B89D71 !important;
+  color: #FFFFFF !important;
+}
+
+.btnVerify:disabled {
+  background-color: #F5F5F5 !important;
+  color: #BFBFBF !important;
+}
+
+.resendWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top: 1px solid #EAECEC;
+  width: 100%;
+  max-width: 320px;
+  padding-top: 32px;
+}
+
+.btnResend {
+  color: #8C8C8C !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500 !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  transition: color 0.3s ease !important;
+}
+
+.btnResend:hover:not(:disabled) {
+  color: #B89D71 !important;
+}
+
+.btnResend:disabled {
+  color: #EAECEC !important;
+}
+
+.resendIcon {
+  font-size: 12px;
+}
+
+@media (max-width: 480px) {
+  .otpPageWrapper {
+    padding: 24px 16px; 
+  }
+
+  .otpContainer {
+    border: none;
+    background: transparent;
   }
   
+  .otpContent {
+    padding: 24px 0; 
+  }
+
   .otpTitle {
-    margin-bottom: 16px !important;
-    font-weight: 700 !important;
+    font-size: 24px !important;
   }
   
-  .otpDesc {
-    margin-bottom: 16px;
-    font-size: 15px;
-    color: #333;
-    line-height: 1.5;
+  :global(.ant-input-otp .ant-input) {
+    width: 40px !important;
+    height: 48px !important;
+    font-size: 18px !important;
   }
   
-  .expiryText {
-    margin-bottom: 24px;
-    min-height: 22px;
+  :global(.ant-input-otp) {
+    gap: 8px;
   }
-  
-  .otpInputWrapper {
-    margin-bottom: 24px; 
+
+  .resendWrapper {
+    border-top: none;
   }
-  
-  .btnVerify {
-    background-color: #000 !important;
-    color: #fff !important;
-    width: 200px;
-    font-weight: 600 !important;
-    margin-bottom: 16px;
-  }
-  
-  .btnResend {
-    color: #666 !important;
-    font-weight: 500 !important;
-  }
-  
-  .btnResend:hover:not(:disabled) {
-    color: #000 !important;
-  }
-  
-  @media (max-width: 768px) {
-    .otpContainer {
-      margin: 24px 16px;
-      padding: 24px; 
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .otpTitle {
-      font-size: 24px !important;
-    }
-    
-    .otpContainer {
-      padding: 20px 16px; 
-    }
-  }
+}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Progress, Typography, Timeline, Button } from 'antd';
-import { PlusCircleOutlined, CaretRightOutlined, CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
+import { PlusCircleOutlined } from '@ant-design/icons';
 import TimelineCard from '../TimelineCard/TimelineCard';
 import styles from '../../styles/DayPanel.module.css';
 
@@ -42,20 +42,21 @@ const DayPanel = ({ dayData }) => {
     <div className={styles.dayPanelContent}>
       <div className={isOverBudget ? styles.dailyBudgetOver : styles.dailyBudget}>
         <div className={styles.budgetInfo}>
-          <Text type={isOverBudget ? "danger" : "success"} strong>
-            {isOverBudget ? <CloseCircleFilled /> : <CheckCircleFilled />} 
-            {isOverBudget ? ' Over Budget!' : ' Daily Budget On Track'}
+          <Text style={{ color: isOverBudget ? '#DC2626' : '#111827', fontWeight: 600 }}>
+            {isOverBudget ? 'Budget Exceeded' : 'Budget On Track'}
           </Text>
-          <Text type="secondary">{budgetPercent.toFixed(0)}% of ceiling</Text>
+          <Text type="secondary">{budgetPercent.toFixed(0)}% used</Text>
         </div>
         <Progress 
           percent={Math.min(budgetPercent, 100)} 
           showInfo={false} 
-          strokeColor={isOverBudget ? "#ff4d4f" : "#52c41a"} 
+          strokeColor={isOverBudget ? "#DC2626" : "#111827"} 
+          trailColor="#F3F4F6"
+          size="small"
         />
         <div className={styles.budgetLabels}>
           <Text type="secondary" style={{fontSize: 12}}>Spent: {(dailyBudgetStatus.spent / 1000000).toFixed(1)}M</Text>
-          <Text type="secondary" style={{fontSize: 12}}>Ceiling: {(dailyBudgetStatus.ceiling / 1000000).toFixed(1)}M</Text>
+          <Text type="secondary" style={{fontSize: 12}}>Limit: {(dailyBudgetStatus.ceiling / 1000000).toFixed(1)}M</Text>
         </div>
       </div>
 
@@ -63,8 +64,7 @@ const DayPanel = ({ dayData }) => {
         {Object.keys(groupedTimeline).map((timeBlock) => (
           <div key={timeBlock} className={styles.timeBlockGroup}>
             <div className={styles.timeBlockHeader}>
-              <CaretRightOutlined className={styles.headerIcon} />
-              <Text strong className={styles.timeBlockTitle}>{timeBlock}</Text>
+              <Text className={styles.timeBlockTitle}>{timeBlock}</Text>
             </div>
             
             <Timeline className={styles.antTimelineCustom}>

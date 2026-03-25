@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { useForgotPassword } from '../hooks/useAuth';
 import { PATHS } from '@/routes/paths';
 import styles from '../styles/ForgotPasswordForm.module.css';
-import forgotPasswordImg from '../assets/forgot_password_illustration.svg';
 
 const { Title, Text } = Typography;
 
@@ -13,45 +12,49 @@ const ForgotPasswordForm = () => {
   const { forgotPassword, loading } = useForgotPassword();
 
   return (
-    <div className={styles.forgotContainer}>
-      <div className={styles.forgotLeft}>
-        <img src={forgotPasswordImg} alt="Forgot Password Illustration" className={styles.forgotImage} />
-      </div>
+    <div className={styles.forgotPageWrapper}>
+      <div className={styles.forgotContainer}>
+        <div className={styles.forgotContent}>
+          <Title level={2} className={styles.forgotTitle}>Forgot password?</Title>
+          
+          <Text className={styles.forgotDesc}>
+            Enter your email address below and we'll send you a link to get back on track with your journey.
+          </Text>
 
-      <div className={styles.forgotRight}>
-        <Title level={2} className={styles.forgotTitle}>Forgot password?</Title>
-        <div className={styles.forgotDesc}>
-          Enter your email address below and we'll send you a link to get back on track with your journey.
-        </div>
-
-        <Form form={form} layout="vertical" onFinish={forgotPassword} autoComplete="off" className={styles.forgotForm}>
-          <Form.Item
-            name="email"
-            rules={[
-              { required: true, message: 'Please enter your email' },
-              { type: 'email', message: 'Invalid email address' },
-            ]}
-          >
-            <Input placeholder="Email" size="large" className={styles.forgotInput} />
-          </Form.Item>
-
-          <Form.Item style={{ textAlign: 'center' }}>
-            <Button 
-              htmlType="submit" 
-              size="large" 
-              loading={loading}
-              shape="round"
-              className={styles.btnReset}
+          <Form form={form} layout="vertical" onFinish={forgotPassword} autoComplete="off" className={styles.forgotForm}>
+            <Form.Item
+              name="email"
+              className={styles.formItemLabel}
+              rules={[
+                { required: true, message: 'Please enter your email' },
+                { type: 'email', message: 'Invalid email address' },
+              ]}
             >
-              RESET PASSWORD
-            </Button>
-          </Form.Item>
-        </Form>
+              <Input 
+                placeholder="EMAIL ADDRESS" 
+                size="large" 
+                className={styles.forgotInput} 
+              />
+            </Form.Item>
 
-        <div className={styles.backLinkWrapper}>
-          <Link to={PATHS.AUTH.LOGIN} className={styles.backLink}>
-            <LeftOutlined /> Back to Sign-in
-          </Link>
+            <Form.Item style={{ textAlign: 'center', margin: 0 }}>
+              <Button 
+                type="primary"
+                htmlType="submit" 
+                size="large" 
+                loading={loading}
+                className={styles.btnReset}
+              >
+                RESET PASSWORD
+              </Button>
+            </Form.Item>
+          </Form>
+
+          <div className={styles.backLinkWrapper}>
+            <Link to={PATHS.AUTH.LOGIN} className={styles.backLink}>
+              <LeftOutlined className={styles.backIcon} /> BACK TO SIGN-IN
+            </Link>
+          </div>
         </div>
       </div>
     </div>

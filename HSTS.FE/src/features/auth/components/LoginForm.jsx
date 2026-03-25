@@ -18,7 +18,6 @@ const LoginForm = () => {
   return (
     <div className={styles.loginContainer}>
       
-    
       <div className={styles.loginLeft}>
         <Title level={2} className={styles.loginTitle}>Sign in to Hangout</Title>
 
@@ -27,12 +26,12 @@ const LoginForm = () => {
             onSuccess={(res) => googleLogin(res.credential)}
             onError={() => {}}
             useOneTap={false}
-            shape="pill" 
+            shape="square" 
           />
         </div>
 
-        <Text type="secondary" className={styles.loginDividerText}>
-          or use your email account:
+        <Text className={styles.loginDividerText}>
+          or use your email account
         </Text>
 
         <Form 
@@ -75,13 +74,12 @@ const LoginForm = () => {
             </Link>
           </div>
 
-          <Form.Item style={{ textAlign: 'center' }}>
+          <Form.Item style={{ textAlign: 'center', margin: 0 }}>
             <Button 
               type="primary" 
               htmlType="submit" 
               size="large" 
               loading={loading}
-              shape="round"
               className={styles.btnSignin}
             >
               SIGN IN
@@ -90,7 +88,6 @@ const LoginForm = () => {
         </Form>
       </div>
 
-      
       <div className={styles.loginRight}>
         <Title level={2} className={styles.welcomeTitle}>Hello, Friend!</Title>
         <Text className={styles.welcomeText}>
@@ -99,7 +96,6 @@ const LoginForm = () => {
         
         <Button 
           size="large" 
-          shape="round" 
           onClick={() => navigate(PATHS.AUTH.REGISTER)}
           className={styles.btnSignup}
         >

@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { useRegister, useGoogleLogin } from '../hooks/useAuth';
 import { PATHS } from '@/routes/paths';
 
-// Import CSS Modules
 import styles from '../styles/RegisterForm.module.css';
 
 const { Title, Text } = Typography;
@@ -23,7 +22,6 @@ const RegisterForm = () => {
   return (
     <div className={styles.registerContainer}>
 
-      
       <div className={styles.registerLeft}>
         <Title level={2} className={styles.welcomeTitle}>Welcome Back!</Title>
         <Text className={styles.welcomeText}>
@@ -32,7 +30,6 @@ const RegisterForm = () => {
 
         <Button
           size="large"
-          shape="round"
           onClick={() => navigate(PATHS.AUTH.LOGIN)}
           className={styles.btnSignin}
         >
@@ -40,7 +37,6 @@ const RegisterForm = () => {
         </Button>
       </div>
 
-      
       <div className={styles.registerRight}>
         <Title level={2} className={styles.registerTitle}>Create Account</Title>
 
@@ -49,12 +45,12 @@ const RegisterForm = () => {
             onSuccess={(res) => googleLogin(res.credential)}
             onError={() => { }}
             useOneTap={false}
-            shape="pill"
+            shape="square"
           />
         </div>
 
-        <Text type="secondary" className={styles.registerDividerText}>
-          or use your email for registration:
+        <Text className={styles.registerDividerText}>
+          or use your email for registration
         </Text>
 
         <Form
@@ -65,15 +61,15 @@ const RegisterForm = () => {
           className={styles.registerForm}
         >
           <Form.Item
-            name="fullName"
+            name="username"
             rules={[
-              { required: true, message: 'Please enter your full name' },
-              { max: 100, message: 'Full name must be at most 100 characters' },
+              { required: true, message: 'Please enter your username' },
+              { max: 100, message: 'Username must be at most 100 characters' },
             ]}
           >
             <Input
               prefix={<UserOutlined className={styles.registerIcon} />}
-              placeholder="Name"
+              placeholder="Username"
               size="large"
               className={styles.registerInput}
             />
@@ -130,13 +126,12 @@ const RegisterForm = () => {
             />
           </Form.Item>
 
-          <Form.Item style={{ textAlign: 'center' }}>
+          <Form.Item style={{ textAlign: 'center', margin: 0 }}>
             <Button
               type="primary"
               htmlType="submit"
               size="large"
               loading={loading}
-              shape="round"
               className={styles.btnSignup}
             >
               SIGN UP

@@ -71,13 +71,22 @@ const Sidebar = () => {
       theme="light"
       collapsed={collapsed} 
       onCollapse={(value) => setCollapsed(value)}
+      className={styles.sidebarWrapper}
+      width={260}
     >
       <Dropdown menu={{ items: userDropdownItems }} placement="bottomRight" trigger={['click']}>
         <div className={styles.profileContainer}>
           <Avatar
             size={collapsed ? 40 : 64}
             src={user?.avatarUrl ?? null}
-            style={{ backgroundColor: '#1677ff', flexShrink: 0, transition: 'all 0.2s' }}
+            style={{ 
+              backgroundColor: '#1A1A1A', 
+              color: '#B89D71',
+              flexShrink: 0, 
+              transition: 'all 0.4s ease',
+              fontFamily: "'Lora', serif",
+              fontSize: collapsed ? '18px' : '28px'
+            }}
           >
             {!user?.avatarUrl && initials}
           </Avatar>

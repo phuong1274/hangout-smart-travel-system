@@ -1,99 +1,212 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@400;500;600;700&display=swap');
+
 .registerContainer {
-    display: flex;
-    max-width: 850px;
-    margin: 60px auto;
-    background: #fff;
-    border-radius: 16px;
-    border: 1px solid #d9d9d9;
-    overflow: hidden;
-    min-height: 500px;
+  display: flex;
+  max-width: 900px;
+  margin: 80px auto;
+  background: #FFFFFF;
+  border-radius: 0 !important;
+  border: 1px solid #EAECEC;
+  overflow: hidden;
+  min-height: 560px;
+  font-family: 'Inter', sans-serif;
+  box-shadow: none;
+  transition: box-shadow 0.4s ease;
+}
+
+.registerContainer:hover {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.03);
+}
+
+.registerLeft {
+  flex: 1;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #FAFAFA;
+  border-right: 1px solid #EAECEC;
+}
+
+.welcomeTitle {
+  font-family: 'Lora', serif !important;
+  color: #1A1A1A !important;
+  margin-bottom: 24px !important;
+  font-weight: 600 !important;
+  white-space: nowrap; 
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.welcomeText {
+  color: #8C8C8C !important;
+  margin-bottom: 48px;
+  font-size: 14px !important;
+  line-height: 1.8;
+  font-family: 'Inter', sans-serif;
+  text-align: center;
+  max-width: 250px;
+}
+
+.btnSignin {
+  width: 100%;
+  max-width: 200px;
+  height: 48px;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-radius: 0 !important;
+  border: 1px solid #1A1A1A !important;
+  background-color: transparent !important;
+  color: #1A1A1A !important;
+  box-shadow: none !important;
+  transition: all 0.3s ease !important;
+}
+
+.btnSignin:hover {
+  border-color: #B89D71 !important;
+  color: #B89D71 !important;
+  background-color: transparent !important;
+}
+
+.registerRight {
+  flex: 1.2;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background-color: #FFFFFF;
+}
+
+.registerTitle {
+  font-family: 'Lora', serif !important;
+  color: #1A1A1A !important;
+  margin-bottom: 32px !important;
+  font-weight: 600 !important;
+  white-space: nowrap; 
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.googleLoginWrapper {
+  margin-bottom: 32px;
+}
+
+.registerDividerText {
+  margin-bottom: 32px;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 500;
+  color: #8C8C8C !important;
+}
+
+.registerForm {
+  width: 100%;
+  max-width: 320px;
+}
+
+.registerInput {
+  background-color: #FAFAFA !important;
+  border: 1px solid #EAECEC !important;
+  border-radius: 0 !important;
+  padding: 12px 16px !important;
+  font-family: 'Inter', sans-serif;
+  box-shadow: none !important;
+}
+
+.registerInput input {
+  background-color: transparent !important;
+  color: #1A1A1A !important;
+  font-size: 12px !important;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.registerInput input::placeholder {
+  color: #8C8C8C !important;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.registerIcon {
+  color: #B89D71 !important;
+  font-size: 14px;
+}
+
+.btnSignup {
+  background-color: #1A1A1A !important;
+  color: #FFFFFF !important;
+  width: 100%;
+  max-width: 200px;
+  height: 48px;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: all 0.3s ease !important;
+  margin-top: 16px;
+}
+
+.btnSignup:hover {
+  background-color: #B89D71 !important;
+  color: #FFFFFF !important;
+}
+
+:global(.ant-input-affix-wrapper-focused) {
+  border-color: #B89D71 !important;
+  box-shadow: none !important;
+}
+
+:global(.ant-input-affix-wrapper:hover) {
+  border-color: #B89D71 !important;
+}
+
+:global(.ant-btn-primary) {
+  background-color: #1A1A1A;
+}
+
+:global(.ant-form-item-explain-error) {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #B89D71 !important; 
+  margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .registerContainer {
+    flex-direction: column-reverse;
+    margin: 24px 16px;
+    min-height: auto;
   }
-  
-  
+
   .registerLeft {
-    flex: 1;
-    padding: 48px 40px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    background-color: #fafafa; 
+    border-right: none;
+    border-top: 1px solid #EAECEC;
+    padding: 32px 24px;
   }
-  
-  .welcomeTitle {
-    margin-bottom: 16px !important;
-    font-weight: 700 !important;
-    white-space: nowrap;
-  }
-  
-  .welcomeText {
-    margin-bottom: 40px;
-    font-size: 16px;
-  }
-  
-  .btnSignin {
-    width: 150px;
-    font-weight: 600 !important;
-    border-color: #000 !important;
-    color: #000 !important;
-  }
-  
-  
+
   .registerRight {
-    flex: 1.2; 
-    padding: 48px 40px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    border-left: 1px solid #d9d9d9;
+    padding: 32px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcomeTitle, .registerTitle {
+    font-size: 24px !important;
   }
   
-  .registerTitle {
-    margin-bottom: 24px !important;
-    font-weight: 700 !important;
-    white-space: nowrap; 
-    text-align: center;
+  .registerLeft, 
+  .registerRight {
+    padding: 24px 16px; 
   }
-  
-  .googleLoginWrapper {
-    margin-bottom: 16px;
-  }
-  
-  .registerDividerText {
-    margin-bottom: 24px;
-  }
-  
-  .registerForm {
-    width: 100%;
-    max-width: 320px;
-  }
-  
-  .registerInput {
-    background-color: #f5f5f5 !important;
-    border: none !important;
-    border-radius: 4px !important;
-  }
-  
-  .registerIcon {
-    color: rgba(0, 0, 0, 0.45);
-  }
-  
-  .btnSignup {
-    background-color: #000 !important;
-    color: #fff !important;
-    width: 150px;
-    font-weight: 600 !important;
-  }
-  
-  
-  @media (max-width: 768px) {
-    .registerContainer {
-      flex-direction: column-reverse; 
-      margin: 20px;
-    }
-    .registerRight {
-      border-left: none;
-      border-bottom: 1px solid #d9d9d9;
-    }
-  }
+}

@@ -1,45 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+.sidebarWrapper {
+  background-color: #FFFFFF !important;
+  border-right: 1px solid #EAECEC;
+}
+
 .profileContainer {
-    margin: 16px;
-    padding: 16px 8px;
-    border-radius: 6px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    cursor: pointer;
-    transition: background 0.3s;
-    overflow: hidden;
-  }
-  
-  .profileContainer:hover {
-    background: rgba(0, 0, 0, 0.05);
-  }
-  
-  .userInfo {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-  }
-  
-  .username {
-    font-size: 16px;
-    font-weight: 600;
-    color: #333;
-    text-align: center;
-    width: 100%;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-  }
-  
-  .email {
-    font-size: 12px;
-    color: #888;
-    text-align: center;
-    width: 100%;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-  }
+  margin: 32px 16px 24px 16px;
+  padding: 0 8px 32px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: opacity 0.4s ease;
+  border-bottom: 1px solid #EAECEC;
+}
+
+.profileContainer:hover {
+  opacity: 0.7;
+}
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.username {
+  font-family: 'Lora', serif;
+  font-size: 18px;
+  font-weight: 400;
+  color: #1A1A1A;
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.email {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #8C8C8C;
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  letter-spacing: 0.5px;
+}
+
+.sidebarWrapper :global(.ant-layout-sider-children) {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarWrapper :global(.ant-menu) {
+  background: transparent !important;
+  border-right: none !important;
+}
+
+.sidebarWrapper :global(.ant-menu-item) {
+  border-radius: 0 !important;
+  margin: 4px 16px !important;
+  width: calc(100% - 32px) !important;
+  height: 48px !important;
+  line-height: 48px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase !important;
+  color: #6B6B6B !important;
+  transition: all 0.4s ease !important;
+}
+
+.sidebarWrapper :global(.ant-menu-item .anticon) {
+  font-size: 16px !important;
+  color: #8C8C8C !important;
+  transition: all 0.4s ease !important;
+}
+
+.sidebarWrapper :global(.ant-menu-item:hover) {
+  background-color: transparent !important;
+  color: #1A1A1A !important;
+}
+
+.sidebarWrapper :global(.ant-menu-item:hover .anticon) {
+  color: #B89D71 !important;
+  transform: translateX(4px);
+}
+
+.sidebarWrapper :global(.ant-menu-item-selected) {
+  background-color: #1A1A1A !important;
+  color: #FFFFFF !important;
+}
+
+.sidebarWrapper :global(.ant-menu-item-selected .anticon) {
+  color: #B89D71 !important;
+}
+
+.sidebarWrapper :global(.ant-layout-sider-trigger) {
+  background-color: #FFFFFF !important;
+  color: #1A1A1A !important;
+  border-top: 1px solid #EAECEC;
+  border-right: 1px solid #EAECEC;
+  transition: all 0.4s ease;
+}
+
+.sidebarWrapper :global(.ant-layout-sider-trigger:hover) {
+  color: #B89D71 !important;
+  background-color: #FAFAFA !important;
+}

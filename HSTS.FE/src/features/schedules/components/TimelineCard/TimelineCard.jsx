@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Typography, Tag, Button, Collapse, Radio, Space } from 'antd';
+import { Card, Typography, Tag, Button, Collapse, Radio, Space, Carousel, Image } from 'antd';
 import { 
   HomeOutlined, 
   CarOutlined, 
@@ -32,14 +32,14 @@ const TimelineCard = ({ event }) => {
       case 'CheckIn':
       case 'Accommodation':
       case 'CheckOut':
-        return { icon: <HomeOutlined />, color: '#faad14', bg: '#fffbe6' };
+        return { icon: <HomeOutlined /> };
       case 'Transport':
-        return { icon: <CarOutlined />, color: '#1890ff', bg: '#e6f7ff' };
+        return { icon: <CarOutlined /> };
       case 'Rest':
-        return { icon: <CoffeeOutlined />, color: '#722ed1', bg: '#f9f0ff' };
+        return { icon: <CoffeeOutlined /> };
       case 'Visit':
       default:
-        return { icon: <EnvironmentOutlined />, color: '#52c41a', bg: '#f6ffed' };
+        return { icon: <EnvironmentOutlined /> };
     }
   };
 
@@ -66,50 +66,94 @@ const TimelineCard = ({ event }) => {
     accmCost = currentRooms[activeRoomIdx].totalCost;
   }
 
+  const ticketCost = event.ticketCost || 0;
+  const extraCost = event.extraSpendingCost || 0;
+  const photos = event.photos || [];
+
   const mainTitle = isTransport && hasTransportOptions ? currentTransport.description : accmTitle;
-  const displayCost = isTransport && hasTransportOptions ? currentTransport.totalCost : accmCost;
+  
+  let displayCost = 0;
+  if (isTransport && hasTransportOptions) {
+    displayCost = currentTransport.totalCost;
+  } else if (isAccommodation) {
+    displayCost = accmCost;
+  } else if (event.type === 'Visit') {
+    displayCost = ticketCost + extraCost;
+  } else {
+    displayCost = event.cost || 0;
+  }
+  
   const displayMethod = hasTransportOptions ? currentTransport.method : (event.transportOptions?.[0]?.method || 'Taxi');
 
   const cardHeaderContent = (
     <div className={styles.cardHeader}>
       <div className={styles.titleArea}>
-        <div 
-          className={styles.iconBox} 
-          style={{ backgroundColor: config.bg, color: config.color }}
-        >
+        <div className={styles.iconBox}>
           {config.icon}
         </div>
         <div className={styles.titleContent}>
-          <Text strong className={styles.mainTitle}>{mainTitle}</Text>
+          <Text className={styles.mainTitle}>{mainTitle}</Text>
           
           {event.type === 'Visit' && (
-            <div className={styles.rating}>
-              <StarFilled style={{ color: '#fadb14', fontSize: 12, marginRight: 4 }} />
-              <Text style={{ fontSize: 12 }}>4.5 (1,248 Reviews)</Text>
+            <div style={{ marginTop: 4 }}>
+              <StarFilled style={{ color: '#B89D71', fontSize: 12, marginRight: 6 }} />
+              <Text style={{ fontSize: 12, color: '#6B6B6B' }}>4.5 (1,248 Reviews)</Text>
             </div>
           )}
           
           {event.type === 'CheckIn' && (
-            <Tag color="warning" icon={<WarningOutlined />} className={styles.customTag}>
+            <Tag icon={<WarningOutlined />} className={styles.customTag}>
               Early arrival: Check-in at {event.checkInTime || '14:00'}
             </Tag>
           )}
 
           {isTransport && (
-            <Tag color="blue" className={styles.customTag}>
+            <Tag className={styles.customTag}>
               Booked externally: {displayMethod}
             </Tag>
+          )}
+
+          {event.type === 'Visit' && (
+            <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {event.ticketCost !== null && event.ticketCost !== undefined && (
+                <span className={styles.customTag} style={{ marginTop: 0 }}>
+                  TICKET: {event.ticketCost === 0 ? 'FREE' : formatVND(event.ticketCost)}
+                </span>
+              )}
+              {extraCost > 0 && (
+                <span className={styles.customTag} style={{ marginTop: 0 }}>
+                  EXTRA: {formatVND(extraCost)}
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
       
       <div className={styles.rightArea}>
         {(event.type === 'Visit' || event.type === 'Accommodation' || event.type === 'CheckIn') && (
-          <div className={styles.imagePlaceholder}></div>
+          photos && photos.length > 0 ? (
+            <div className={styles.imageSliderContainer}>
+              <Carousel autoplay dots={false} effect="fade">
+                {photos.map((photo, index) => (
+                  <div key={index}>
+                    <Image 
+                      src={photo} 
+                      alt={`Location photo ${index + 1}`}
+                      className={styles.sliderImage}
+                      preview={false}
+                    />
+                  </div>
+                ))}
+              </Carousel>
+            </div>
+          ) : (
+            <div className={styles.imagePlaceholderSmall} />
+          )
         )}
         
         {displayCost > 0 && (
-          <Text strong className={styles.costText}>{formatVND(displayCost)}</Text>
+          <Text className={styles.costText}>{formatVND(displayCost)}</Text>
         )}
       </div>
     </div>
@@ -120,12 +164,12 @@ const TimelineCard = ({ event }) => {
       <div className={styles.cardOuterWrapper}>
         <div className={styles.cardContainer}>
           <div className={styles.timeCol}>
-            <Text type="secondary" className={styles.timeText}>{event.time}</Text>
+            <Text className={styles.timeText}>{event.time}</Text>
           </div>
           
           <Card 
             className={`${styles.eventCard} ${isTransport ? styles.transportCard : ''}`} 
-            bodyStyle={{ padding: isTransport ? '6px 16px' : '12px 16px' }}
+            bodyStyle={{ padding: isTransport ? '12px 32px' : '16px 24px' }}
           >
             {hasTransportOptions && event.transportOptions.length > 1 ? (
               <Collapse ghost expandIconPosition="end" className={styles.transportCollapse}>
@@ -140,15 +184,15 @@ const TimelineCard = ({ event }) => {
                         <Radio value={idx} key={idx} className={styles.radioItem}>
                           <div className={styles.optionDetails}>
                             <div className={styles.optionTextInfo}>
-                              <Text strong>{opt.method}</Text>
-                              {opt.recommended && <Tag color="success" className={styles.recTag}>Recommended</Tag>}
+                              <Text style={{ fontFamily: "'Lora', serif", fontSize: 16 }}>{opt.method}</Text>
+                              {opt.recommended && <Tag className={styles.luxuryRecTag}>RECOMMENDED</Tag>}
                               <div className={styles.subInfo}>
-                                <Text type="secondary" style={{fontSize: 12}}>
-                                  ⏱ {Math.round(opt.travelTimeMinutes)} mins • {opt.pros}
+                                <Text style={{fontSize: 13, color: '#8C8C8C'}}>
+                                  {Math.round(opt.travelTimeMinutes)} mins • {opt.pros}
                                 </Text>
                               </div>
                             </div>
-                            <Text strong className={styles.optionCost}>
+                            <Text className={styles.optionCost}>
                               {opt.totalCost === 0 ? 'Free' : formatVND(opt.totalCost)}
                             </Text>
                           </div>
@@ -163,8 +207,8 @@ const TimelineCard = ({ event }) => {
                 {cardHeaderContent}
                 {isAccommodation && (event.accommodationOptions || event.alternativeAccommodations) && (
                   <div className={styles.accmActionBtn}>
-                    <Button block onClick={() => setIsAccmModalVisible(true)}>
-                      View Room Options & Change Hotel
+                    <Button block className={styles.manageAccmBtn} onClick={() => setIsAccmModalVisible(true)}>
+                      Manage Accommodation
                     </Button>
                   </div>
                 )}
@@ -175,7 +219,7 @@ const TimelineCard = ({ event }) => {
 
         {!isTransport && (
           <div className={styles.deleteAction}>
-            <Button type="text" danger icon={<DeleteOutlined />} shape="circle" />
+            <Button type="text" style={{ color: '#DC2626' }} icon={<DeleteOutlined />} shape="circle" />
           </div>
         )}
       </div>

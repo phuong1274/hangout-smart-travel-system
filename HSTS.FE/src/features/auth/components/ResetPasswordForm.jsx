@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Button, Card, Form, Input, Typography } from 'antd';
-import { LockOutlined } from '@ant-design/icons';
+import { Button, Form, Input, Typography } from 'antd';
+import { LeftOutlined } from '@ant-design/icons';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useResetPassword, useResendOtp, useVerifyForgotPasswordOtp } from '../hooks/useAuth';
 import OtpVerificationStep from './OtpVerificationStep';
@@ -51,84 +51,90 @@ const ResetPasswordForm = () => {
   if (!email) return <Navigate to={PATHS.AUTH.FORGOT_PASSWORD} replace />;
 
   return (
-    <Card>
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <Title level={3}>Reset Password</Title>
-      </div>
+    <div className={styles.resetPageWrapper}>
+      <div className={styles.resetContainer}>
+        <div className={styles.resetContent}>
+          
+          <Title level={2} className={styles.resetTitle}>Reset Password</Title>
 
-      {step === 1 ? (
-        <OtpVerificationStep
-          email={email}
-          onSubmitOtp={handleOtpSubmit}
-          onResendOtp={handleResendOtp}
-          isSubmitting={verifyLoading}
-          isResending={resendLoading}
-          initialCooldownSeconds={initialCooldownSeconds}
-          initialRemainingResends={initialRemainingResends}
-        />
-      ) : (
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handlePasswordSubmit}
-          autoComplete="off"
-          className={styles.resetForm}
-        >
-          <Form.Item
-            name="newPassword"
-            rules={[
-              { required: true, message: 'Please enter a new password' },
-              { min: 8, message: 'Password must be at least 8 characters' },
-            ]}
-          >
-            <Input.Password
-              placeholder="New Password"
-              size="large"
-              className={styles.resetInput}
+          {step === 1 ? (
+            <OtpVerificationStep
+              email={email}
+              onSubmitOtp={handleOtpSubmit}
+              onResendOtp={handleResendOtp}
+              isSubmitting={verifyLoading}
+              isResending={resendLoading}
+              initialCooldownSeconds={initialCooldownSeconds}
+              initialRemainingResends={initialRemainingResends}
             />
-          </Form.Item>
-
-          <Form.Item
-            name="confirmPassword"
-            dependencies={['newPassword']}
-            rules={[
-              { required: true, message: 'Please confirm your password' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
-                  return Promise.reject(new Error('Passwords do not match'));
-                },
-              }),
-            ]}
-          >
-            <Input.Password
-              placeholder="Confirm New Password"
-              size="large"
-              className={styles.resetInput}
-            />
-          </Form.Item>
-
-          <Form.Item style={{ textAlign: 'center', marginBottom: 0 }}>
-            <Button
-              htmlType="submit"
-              size="large"
-              block
-              loading={resetLoading}
-              shape="round"
-              className={styles.btnReset}
+          ) : (
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handlePasswordSubmit}
+              autoComplete="off"
+              className={styles.resetForm}
             >
-              Reset Password
-            </Button>
-          </Form.Item>
-        </Form>
-      )}
+              <Form.Item
+                name="newPassword"
+                className={styles.formItemLabel}
+                rules={[
+                  { required: true, message: 'Please enter a new password' },
+                  { min: 8, message: 'Password must be at least 8 characters' },
+                ]}
+              >
+                <Input.Password
+                  placeholder="NEW PASSWORD"
+                  size="large"
+                  className={styles.resetInput}
+                />
+              </Form.Item>
 
-      <div>
-        <Link to={PATHS.AUTH.LOGIN} className={styles.backLink}>
-          <LeftOutlined /> Back to Login
-        </Link>
+              <Form.Item
+                name="confirmPassword"
+                dependencies={['newPassword']}
+                className={styles.formItemLabel}
+                rules={[
+                  { required: true, message: 'Please confirm your password' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
+                      return Promise.reject(new Error('Passwords do not match'));
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password
+                  placeholder="CONFIRM NEW PASSWORD"
+                  size="large"
+                  className={styles.resetInput}
+                />
+              </Form.Item>
+
+              <Form.Item style={{ textAlign: 'center', marginBottom: 0 }}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  size="large"
+                  block
+                  loading={resetLoading}
+                  className={styles.btnReset}
+                >
+                  RESET PASSWORD
+                </Button>
+              </Form.Item>
+            </Form>
+          )}
+
+          <div className={styles.backLinkWrapper}>
+            <Link to={PATHS.AUTH.LOGIN} className={styles.backLink}>
+              <LeftOutlined className={styles.backIcon} /> BACK TO LOGIN
+            </Link>
+          </div>
+
+        </div>
       </div>
-    </Card>
+    </div>
   );
 };
 
