@@ -53,8 +53,23 @@ namespace HSTS.Application.Itineraries.Commands
             var visitedLocationIds = new HashSet<int>();
             var currentLocation = new { Lat = request.StartLat, Lon = request.StartLon, ProvinceId = -1 };
 
+            // Dynamic Budget Allocation
+            int totalDays = (request.EndDate.Date - request.StartDate.Date).Days + 1;
+            double baseStepBudget = result.BudgetBreakdown.ActivitiesAllocation / (totalDays * 1.5);
+
             for (var date = request.StartDate.Date; date <= request.EndDate.Date; date = date.AddDays(1))
             {
+                int dayIndex = (date - request.StartDate.Date).Days;
+                double weight = 1.0;
+                if (dayIndex == 0) weight = 1.3;
+                else if (dayIndex == 1) weight = 1.1;
+                else if (dayIndex == totalDays - 1) weight = 1.2;
+
+                if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+                    weight *= 1.15;
+
+                double dailyStepBudget = baseStepBudget * weight;
+
                 var dayDto = new ItineraryDayDto { Date = date };
 
                 // Daily Blocks: Morning (08:00), Lunch (12:00), Afternoon (13:00), Evening (18:00)
@@ -78,7 +93,7 @@ namespace HSTS.Application.Itineraries.Commands
                         currentLocation.Lat, 
                         currentLocation.Lon, 
                         date, 
-                        result.BudgetBreakdown.ActivitiesAllocation / 10); // Simple daily limit
+                        dailyStepBudget); // Dynamic daily limit
 
                     if (bestLocation != null)
                     {
@@ -125,7 +140,7 @@ namespace HSTS.Application.Itineraries.Commands
             double currentLat, 
             double currentLon, 
             DateTime date,
-            double remainingBudget)
+            double idealCostLimit)
         {
             Location? best = null;
             double highestScore = -1;
@@ -143,7 +158,7 @@ namespace HSTS.Application.Itineraries.Commands
                 double timeEff = 1.0 / (1.0 + dist / 20.0);
 
                 // CostEfficiency (0.15)
-                double costEff = loc.AverageBudget <= remainingBudget ? 1.0 : remainingBudget / loc.AverageBudget;
+                double costEff = loc.AverageBudget <= idealCostLimit ? 1.0 : idealCostLimit / loc.AverageBudget;
 
                 // WeatherFactor (0.15)
                 double weatherFactor = await _weatherService.GetWeatherFactorAsync(loc.Latitude, loc.Longitude, date);
