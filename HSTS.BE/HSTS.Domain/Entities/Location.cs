@@ -12,6 +12,7 @@ namespace HSTS.Domain.Entities
         public double Longitude { get; set; }
         public int AverageStayDuration { get; set; } // in minutes
         public double AverageBudget { get; set; }
+        public double Rating { get; set; }
         public int DistrictId { get; set; }
         public List<string> Tags { get; set; } = new List<string>();
 

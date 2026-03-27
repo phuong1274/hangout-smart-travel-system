@@ -5,6 +5,6 @@ namespace HSTS.Application.Interfaces
 {
     public interface IDistanceService
     {
-        Task<RouteInfo> GetRouteInfoAsync(double startLat, double startLon, double endLat, double endLon, string mode);
+        Task<RouteInfo> GetRouteInfoAsync(double lat1, double lon1, double lat2, double lon2);
     }
 }

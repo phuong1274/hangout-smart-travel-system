@@ -42,6 +42,10 @@ namespace HSTS.Infrastructure
             services.Configure<CloudinarySettings>(configuration.GetSection("Cloudinary"));
             services.AddScoped<ICloudinaryService, CloudinaryService>();
 
+            // Itinerary Services
+            services.AddScoped<IDistanceService, GoogleMapsDistanceService>();
+            services.AddScoped<IWeatherService, OpenMeteoWeatherService>();
+
             return services;
         }
     }
