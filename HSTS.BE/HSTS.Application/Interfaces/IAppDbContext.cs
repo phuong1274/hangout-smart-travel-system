@@ -16,7 +16,9 @@ namespace HSTS.Application.Interfaces
         DbSet<Country> Countries { get; }
         DbSet<Province> Provinces { get; }
         DbSet<District> Districts { get; }
+        DbSet<LocationType> LocationTypes { get; }
         DbSet<Location> Locations { get; }
+        DbSet<LocationMedia> LocationMedias { get; }
         DbSet<LocationTag> LocationTags { get; }
         DbSet<RoomType> RoomTypes { get; }
         DbSet<TransportMode> TransportModes { get; }
