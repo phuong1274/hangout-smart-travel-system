@@ -82,6 +82,8 @@ namespace HSTS.Application.Itineraries.Commands
                 .Where(x => destinationIds.Contains(x.ProvinceId) && !x.IsDeleted)
                 .Include(x => x.LocationTags)
                     .ThenInclude(x => x.Tag)
+                .Include(x => x.LocationType)
+                .Include(x => x.LocationMedias)
                 .Include(x => x.RoomTypes)
                 .ToListAsync(cancellationToken);
 
@@ -298,7 +300,7 @@ namespace HSTS.Application.Itineraries.Commands
             }
 
             var available = attractions
-                .Where(x => !visitedLocationIds.Contains(x.Location.Id))
+                .Where(x => !visitedLocationIds.Contains(x.Location.LocationId))
                 .ToList();
 
             if (available.Count == 0)
@@ -332,16 +334,14 @@ namespace HSTS.Application.Itineraries.Commands
                             ? 20
                             : Math.Max(8, (int)Math.Ceiling(distanceKm / 28d * 60d));
 
-                        var stayMinutes = x.Location.AverageStayDurationMinutes > 0
-                            ? x.Location.AverageStayDurationMinutes
-                            : 60;
+                                    var stayMinutes = GetRecommendedDurationMinutes(x.Location);
 
                         var startAt = currentTime.AddMinutes(travelMinutes);
                         var endAt = startAt.AddMinutes(stayMinutes);
                         var visitFitsTime = endAt <= dayEnd;
                         var visitIsOpen = IsOpenAtTime(x.Location, startAt, endAt);
 
-                        var ticketCost = Math.Max(0m, x.Location.AverageBudget) * groupSize;
+                        var ticketCost = GetTicketPricePerPerson(x.Location) * groupSize;
                         var extraSpending = EstimateExtraSpending(x.Location, tripSegment, groupSize);
                         var totalCost = RoundMoney(ticketCost + extraSpending);
 
@@ -379,8 +379,8 @@ namespace HSTS.Application.Itineraries.Commands
                     .ToList();
 
                 activities.Add(new ActivityPlanDto(
-                    candidate.Scored.Location.Id,
-                    candidate.Scored.Location.Name,
+                    candidate.Scored.Location.LocationId,
+                    candidate.Scored.Location.LocationName,
                     candidate.StartAt,
                     candidate.EndAt,
                     candidate.TicketCost,
@@ -389,8 +389,8 @@ namespace HSTS.Application.Itineraries.Commands
                     Math.Round(candidate.DynamicScore, 2),
                     tags));
 
-                visitedLocationIds.Add(candidate.Scored.Location.Id);
-                available.RemoveAll(x => x.Location.Id == candidate.Scored.Location.Id);
+                visitedLocationIds.Add(candidate.Scored.Location.LocationId);
+                available.RemoveAll(x => x.Location.LocationId == candidate.Scored.Location.LocationId);
 
                 remainingBudget -= candidate.TotalCost;
                 previousLocation = candidate.Scored.Location;
@@ -420,7 +420,11 @@ namespace HSTS.Application.Itineraries.Commands
 
             var (minPrice, maxPrice) = GetHotelPriceRange(hotelPreference);
             var preferredHotels = hotels
-                .Where(x => x.Location.AverageBudget >= minPrice && x.Location.AverageBudget <= maxPrice)
+                .Where(x =>
+                {
+                    var price = GetLocationAveragePrice(x.Location);
+                    return price > 0m && price >= minPrice && price <= maxPrice;
+                })
                 .ToList();
 
             var source = preferredHotels.Count > 0 ? preferredHotels : hotels;
@@ -439,7 +443,7 @@ namespace HSTS.Application.Itineraries.Commands
                         (double)hotel.Location.Longitude);
 
                     var distanceScore = Math.Max(0d, 100d - (distanceKm * 15d));
-                    var refCost = recommended?.TotalCost ?? Math.Max(1m, hotel.Location.AverageBudget * Math.Max(1, (int)Math.Ceiling(groupSize / 2d)));
+                    var refCost = recommended?.TotalCost ?? Math.Max(1m, GetLocationAveragePrice(hotel.Location) * Math.Max(1, (int)Math.Ceiling(groupSize / 2d)));
                     var budgetScore = Math.Max(0d, 100d - ((double)(refCost / Math.Max(dayBudget, 1m)) * 100d));
                     var roomsNeeded = recommended?.RoomsNeeded ?? Math.Max(1, (int)Math.Ceiling(groupSize / 2d));
                     var groupScore = Math.Max(0d, 100d - ((roomsNeeded - 1) * 20d));
@@ -469,16 +473,16 @@ namespace HSTS.Application.Itineraries.Commands
             var alternatives = scored
                 .Skip(1)
                 .Select(x => new AlternativeAccommodationDto(
-                    x.Hotel.Id,
-                    x.Hotel.Name,
+                    x.Hotel.LocationId,
+                    x.Hotel.LocationName,
                     Math.Round(x.Score, 2),
                     x.Recommended,
                     x.RoomOptions))
                 .ToList();
 
             return new AccommodationRecommendationDto(
-                best.Hotel.Id,
-                best.Hotel.Name,
+                best.Hotel.LocationId,
+                best.Hotel.LocationName,
                 Math.Round(best.Score, 2),
                 best.Recommended,
                 best.RoomOptions,
@@ -493,13 +497,18 @@ namespace HSTS.Application.Itineraries.Commands
             {
                 var fallbackOccupancy = Math.Min(Math.Max(groupSize, 2), 4);
                 var fallbackRoomsNeeded = Math.Max(1, (int)Math.Ceiling(groupSize / (double)fallbackOccupancy));
-                var fallbackTotal = RoundMoney(fallbackRoomsNeeded * hotel.AverageBudget);
+                var fallbackRoomPrice = GetLocationAveragePrice(hotel);
+                if (fallbackRoomPrice <= 0m)
+                {
+                    fallbackRoomPrice = 500_000m;
+                }
+                var fallbackTotal = RoundMoney(fallbackRoomsNeeded * fallbackRoomPrice);
 
                 options.Add(new RoomOptionDto(
                     "Standard",
                     fallbackOccupancy,
                     fallbackRoomsNeeded,
-                    RoundMoney(hotel.AverageBudget),
+                    RoundMoney(fallbackRoomPrice),
                     fallbackTotal,
                     20,
                     null,
@@ -602,7 +611,7 @@ namespace HSTS.Application.Itineraries.Commands
                 if (hotelsByProvince.TryGetValue(destinationId, out var hotels) && hotels.Count > 0)
                 {
                     averageNightly = hotels
-                        .Select(x => x.Location.AverageBudget)
+                        .Select(x => GetLocationAveragePrice(x.Location))
                         .Where(x => x > 0)
                         .DefaultIfEmpty(fallbackNightly)
                         .Average();
@@ -741,12 +750,16 @@ namespace HSTS.Application.Itineraries.Commands
 
         private static decimal EstimateExtraSpending(Location location, TripSegment segment, int groupSize)
         {
-            var (min, max) = segment switch
+            var (min, max) = GetLocationPriceRange(location);
+            if (min <= 0m && max <= 0m)
             {
-                TripSegment.Budget => (50_000m, 150_000m),
-                TripSegment.Luxury => (400_000m, 1_000_000m),
-                _ => (150_000m, 400_000m)
-            };
+                (min, max) = segment switch
+                {
+                    TripSegment.Budget => (50_000m, 150_000m),
+                    TripSegment.Luxury => (400_000m, 1_000_000m),
+                    _ => (150_000m, 400_000m)
+                };
+            }
 
             var shoppingFoodTags = new HashSet<string>(new[] { "shopping", "food", "market", "restaurant" }, StringComparer.OrdinalIgnoreCase);
             var hasSpendingTag = location.LocationTags.Any(x => shoppingFoodTags.Contains(x.Tag.Title));
@@ -759,6 +772,13 @@ namespace HSTS.Application.Itineraries.Commands
 
         private static bool IsAccommodationLocation(Location location)
         {
+            if (location.LocationType is not null &&
+                !string.IsNullOrWhiteSpace(location.LocationType.TypeName) &&
+                AccommodationTags.Contains(location.LocationType.TypeName))
+            {
+                return true;
+            }
+
             return location.LocationTags.Any(x => AccommodationTags.Contains(x.Tag.Title));
         }
 
@@ -775,16 +795,15 @@ namespace HSTS.Application.Itineraries.Commands
                 ? 0
                 : locationTags.Count(normalizedFavoriteTags.Contains);
 
+            var baseQuality = NormalizeLocationScore(location.Score, 50d);
             var quality = normalizedFavoriteTags.Count == 0
-                ? 50d
-                : Math.Min(100d, 50d + matchCount * 10d);
+                ? baseQuality
+                : Math.Min(100d, baseQuality + matchCount * 10d);
 
-            var stayMinutes = location.AverageStayDurationMinutes > 0
-                ? location.AverageStayDurationMinutes
-                : 60d;
+            var stayMinutes = GetRecommendedDurationMinutes(location);
 
             var timeEfficiency = Math.Max(0d, 100d - ((stayMinutes - 30d) / 3d));
-            var costEfficiency = Math.Max(0d, 100d - ((double)location.AverageBudget / 5_000d));
+            var costEfficiency = Math.Max(0d, 100d - ((double)GetLocationAveragePrice(location) / 5_000d));
             var score = quality * 0.4d + timeEfficiency * 0.35d + costEfficiency * 0.25d;
 
             return new ScoredLocation(location, Math.Round(score, 2));
@@ -809,26 +828,79 @@ namespace HSTS.Application.Itineraries.Commands
 
         private static bool IsOpenAtTime(Location location, TimeOnly start, TimeOnly end)
         {
-            if (location.IsOpen24Hours)
+            return true;
+        }
+
+        private static int GetRecommendedDurationMinutes(Location location)
+        {
+            return location.RecommentDurations.HasValue && location.RecommentDurations.Value > 0
+                ? location.RecommentDurations.Value
+                : 60;
+        }
+
+        private static decimal GetTicketPricePerPerson(Location location)
+        {
+            return location.TicketPrice > 0m ? location.TicketPrice : 0m;
+        }
+
+        private static (decimal Min, decimal Max) GetLocationPriceRange(Location location)
+        {
+            var min = Math.Max(0m, location.PriceMin);
+            var max = Math.Max(0m, location.PriceMax);
+
+            if (min <= 0m && max <= 0m && location.TicketPrice > 0m)
             {
-                return true;
+                min = location.TicketPrice;
+                max = location.TicketPrice;
             }
 
-            if (location.OpenTime is null || location.CloseTime is null)
+            if (min <= 0m && max > 0m)
             {
-                return true;
+                min = max;
             }
 
-            var open = location.OpenTime.Value;
-            var close = location.CloseTime.Value;
-
-            if (open <= close)
+            if (max <= 0m && min > 0m)
             {
-                return start >= open && end <= close;
+                max = min;
             }
 
-            // Overnight opening window (e.g., 20:00 - 02:00)
-            return start >= open || end <= close;
+            if (max < min)
+            {
+                (min, max) = (max, min);
+            }
+
+            return (min, max);
+        }
+
+        private static decimal GetLocationAveragePrice(Location location)
+        {
+            var (min, max) = GetLocationPriceRange(location);
+            if (min <= 0m && max <= 0m)
+            {
+                return 0m;
+            }
+
+            return (min + max) / 2m;
+        }
+
+        private static double NormalizeLocationScore(decimal score, double fallback)
+        {
+            if (score <= 0m)
+            {
+                return fallback;
+            }
+
+            var raw = (double)score;
+            if (raw <= 5d)
+            {
+                raw *= 20d;
+            }
+            else if (raw <= 10d)
+            {
+                raw *= 10d;
+            }
+
+            return Math.Min(100d, raw);
         }
 
         private static double CalculateDistanceKm(decimal fromLat, decimal fromLon, decimal toLat, decimal toLon)

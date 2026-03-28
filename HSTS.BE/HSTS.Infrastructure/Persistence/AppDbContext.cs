@@ -21,7 +21,9 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Country> Countries => Set<Country>();
         public DbSet<Province> Provinces => Set<Province>();
         public DbSet<District> Districts => Set<District>();
+        public DbSet<LocationType> LocationTypes => Set<LocationType>();
         public DbSet<Location> Locations => Set<Location>();
+        public DbSet<LocationMedia> LocationMedias => Set<LocationMedia>();
         public DbSet<LocationTag> LocationTags => Set<LocationTag>();
         public DbSet<RoomType> RoomTypes => Set<RoomType>();
         public DbSet<TransportMode> TransportModes => Set<TransportMode>();
