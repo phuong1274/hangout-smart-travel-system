@@ -17,6 +17,18 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Otp> Otps => Set<Otp>();
         public DbSet<AccountRefreshToken> AccountRefreshTokens => Set<AccountRefreshToken>();
 
+        public DbSet<Tag> Tags => Set<Tag>();
+        public DbSet<Country> Countries => Set<Country>();
+        public DbSet<Province> Provinces => Set<Province>();
+        public DbSet<District> Districts => Set<District>();
+        public DbSet<Location> Locations => Set<Location>();
+        public DbSet<LocationTag> LocationTags => Set<LocationTag>();
+        public DbSet<RoomType> RoomTypes => Set<RoomType>();
+        public DbSet<TransportMode> TransportModes => Set<TransportMode>();
+        public DbSet<TransportModePricing> TransportModePricings => Set<TransportModePricing>();
+        public DbSet<TransitHubType> TransitHubTypes => Set<TransitHubType>();
+        public DbSet<TransitHub> TransitHubs => Set<TransitHub>();
+
         #region Logging
         /// <summary>
         /// Logging config

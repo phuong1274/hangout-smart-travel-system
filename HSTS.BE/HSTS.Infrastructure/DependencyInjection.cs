@@ -6,6 +6,7 @@ using HSTS.Infrastructure.Services;
 using HSTS.Infrastructure.Settings;
 using HSTS.Application.Auth.Interfaces;
 using HSTS.Application.Interfaces;
+using HSTS.Application.Itineraries.Interfaces;
 using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Infrastructure
@@ -41,6 +42,9 @@ namespace HSTS.Infrastructure
             // Cloudinary
             services.Configure<CloudinarySettings>(configuration.GetSection("Cloudinary"));
             services.AddScoped<ICloudinaryService, CloudinaryService>();
+
+            // Smart itinerary services
+            services.AddScoped<IInterCityRouteEstimator, HeuristicInterCityRouteEstimator>();
 
             return services;
         }
