@@ -27,6 +27,7 @@ namespace HSTS.Application.Itineraries
         decimal RolloverToNextDay,
         IList<string> Notes,
         IList<ActivityPlanDto> Activities,
+        IList<TravelLegDto> TravelLegs,
         AccommodationRecommendationDto? Accommodation,
         InterCityTransportOptionDto? TransferFromPreviousDestination);
 
@@ -37,9 +38,32 @@ namespace HSTS.Application.Itineraries
         TimeOnly EndTime,
         decimal TicketCost,
         decimal ExtraSpendingCost,
+        decimal TravelCost,
         decimal TotalCost,
         double CompositeScore,
         IList<string> Tags);
+
+    public record TravelLegDto(
+        int? FromLocationId,
+        string FromLocationName,
+        int ToLocationId,
+        string ToLocationName,
+        TimeOnly DepartureTime,
+        TimeOnly ArrivalTime,
+        double DistanceKm,
+        string SelectedMethod,
+        int SelectedTravelTimeMinutes,
+        decimal SelectedTotalCost,
+        IList<LocalTransportOptionDto> TransportOptions);
+
+    public record LocalTransportOptionDto(
+        string Method,
+        decimal TotalCost,
+        int TravelTimeMinutes,
+        int VehiclesNeeded,
+        string Pros,
+        string Cons,
+        bool Recommended);
 
     public record AccommodationRecommendationDto(
         int LocationId,

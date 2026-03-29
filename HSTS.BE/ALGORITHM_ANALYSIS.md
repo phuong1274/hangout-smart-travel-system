@@ -4,6 +4,13 @@
 
 Hệ thống sử dụng thuật toán **Dynamic Budget Partitioning** kết hợp với **Multi-Factor Location Scoring** để tạo lịch trình du lịch tối ưu cho nhóm khách dựa trên ngân sách, sở thích và thời gian.
 
+## 📌 Quy Ước Data Đầu Vào (Quan Trọng)
+
+- `Location.Score`: là **điểm chất lượng dịch vụ** (service quality rating), không phải phân loại luxury/budget.
+- `Location.PriceMin` và `Location.PriceMax`: là **mức chi phí theo đầu người** dao động trong khoảng đó.
+- Chi phí nhóm được tính bằng công thức: `groupCost = perPersonCost × groupSize`.
+- `TripSegment` (budget/midrange/luxury) chỉ dùng làm **preferential fallback** khi thiếu dữ liệu giá, không ghi đè ý nghĩa của `Score`.
+
 ---
 
 ## 🏗️ Kiến Trúc Thuật Toán
@@ -176,12 +183,17 @@ candidates = allLocations
 
 #### a) Quality Score (40%)
 ```csharp
-// Dựa trên khớp với sở thích người dùng
-int tagScore = favoriteTags == null ? 50 
-    : matchingTags.Count × 10 + 50;
+// Điểm nền lấy trực tiếp từ Location.Score (quality rating)
+double baseQuality = NormalizeLocationScore(location.Score, fallback: 50);
+
+// Tăng điểm theo mức khớp sở thích người dùng
+double qualityScore = favoriteTags == null
+    ? baseQuality
+    : Min(100, baseQuality + matchingTags.Count × 10);
 
 // Ví dụ: User thích ["Food", "Culture"]
-// Location có tags ["Food", "History"] → 1 match → tagScore = 60
+// Location.Score = 4.2/5 => baseQuality ≈ 84
+// Location có tags ["Food", "History"] → +10 => qualityScore ≈ 94
 ```
 
 #### b) Time Efficiency Score (35%)
@@ -331,6 +343,42 @@ foreach (dest in destinationWeights.Keys)
 │  └─ Accommodation với Room Options                         │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**Cấu trúc mới trong output API (có chặng di chuyển):**
+
+```json
+{
+    "dayNumber": 1,
+    "activities": [
+        {
+            "locationName": "Bảo tàng",
+            "startTime": "09:10:00",
+            "endTime": "10:40:00",
+            "travelCost": 54000,
+            "totalCost": 394000
+        }
+    ],
+    "travelLegs": [
+        {
+            "fromLocationName": "Accommodation / city center",
+            "toLocationName": "Bảo tàng",
+            "departureTime": "08:30:00",
+            "arrivalTime": "09:10:00",
+            "distanceKm": 6.4,
+            "selectedMethod": "Taxi 4-seat",
+            "selectedTravelTimeMinutes": 40,
+            "selectedTotalCost": 96000,
+            "transportOptions": [
+                { "method": "Ride-hailing bike", "recommended": false },
+                { "method": "Taxi 4-seat", "recommended": true },
+                { "method": "7-seat car", "recommended": false }
+            ]
+        }
+    ]
+}
+```
+
+Ý nghĩa: mỗi lần di chuyển giữa 2 điểm đều có thời gian đi, khoảng cách, phương tiện đề xuất và danh sách phương tiện thay thế để người dùng chọn.
 
 ### 4. Cơ Chế Check-In/Check-Out
 
@@ -550,6 +598,24 @@ options.Add(new TransportOption {
 });
 ```
 
+### 3. Daily Transport Guidance (trong Notes)
+
+**Ngoài danh sách option, mỗi ngày có ghi chú chỉ dẫn phương tiện:**
+
+```csharp
+if (transferFromPrevious is not null)
+{
+    note = $"Transport guidance: {method} from {departureHub} to {arrivalHub}. " +
+           $"Estimated {travelMinutes} minutes, total {totalCost:N0} (~{perPersonCost:N0}/person).";
+
+    tip = $"Tip: {pros} Caution: {cons}";
+}
+else
+{
+    note = "Local transport guidance: walk under 1km, use ride-hailing/taxi for 1-15km, and use 7/16-seat vans for larger groups.";
+}
+```
+
 ---
 
 ## 🎫 Cơ Chế Tính Extra Spending Cost
@@ -565,21 +631,29 @@ Ticket Cost: Vé tham quan (cố định, biết trước)
 Extra Spending: Ăn uống, mua sắm, tip (biến động)
 ```
 
-### 2. Tính Extra Spending Theo Segment
+### 2. Tính Extra Spending Theo Giá Dữ Liệu (Per Person)
 
 ```csharp
-(double min, double max) = tripSegment switch
+// Ưu tiên lấy trực tiếp từ data Location (giá/người)
+(decimal min, decimal max) = (location.PriceMin, location.PriceMax);
+
+if (min <= 0 && max <= 0)
 {
-    "budget"   => (50.000, 150.000),    // 50k-150k/người
-    "midrange" => (150.000, 400.000),   // 150k-400k/người
-    "luxury"   => (400.000, 1.000.000)  // 400k-1M/người
-};
+    // Chỉ fallback theo segment nếu thiếu dữ liệu giá
+    (min, max) = tripSegment switch
+    {
+        "budget"   => (50.000, 150.000),
+        "midrange" => (150.000, 400.000),
+        "luxury"   => (400.000, 1.000.000)
+    };
+}
 
 // Nhân hệ số theo loại địa điểm
 double multiplier = location.Tags.Any(t => 
     new[] { "Shopping", "Food", "Market", "Restaurant" }.Contains(t)
 ) ? 1.2 : 1.0;  // +20% cho địa điểm mua sắm/ăn uống
 
+// min/max là giá/người => nhân groupSize để ra chi phí nhóm
 extraSpendingCost = (min + random × (max - min)) × multiplier × groupSize;
 ```
 
@@ -620,6 +694,8 @@ visitedCountMap[location.Id] = count + 1;  // Đánh dấu đã thăm
 | **Usable Budget** | `totalBudget - contingencyFund` | Budget thực tế để chi |
 | **Activity Budget** | `usableBudget - transport - hotel` | Còn lại cho hoạt động |
 | **Location Score** | `40% Quality + 35% Time + 25% Cost` | Composite score |
+| **Data Quality Score** | `Location.Score` (chuẩn hóa về thang 100) | Điểm chất lượng dịch vụ |
+| **Price Range** | `PriceMin/PriceMax` (per person) | Giá dao động theo đầu người |
 | **Time Efficiency** | `100 - (stayDuration - 30) / 3` | Ưu tiên địa điểm ngắn |
 | **Cost Efficiency** | `100 - averageBudget / 5000` | Ưu tiên địa điểm rẻ |
 | **Hotel Score** | `25% Dist + 35% Budget + 25% Group + 15% Amenities` | |
@@ -636,7 +712,7 @@ Thuật toán sử dụng **đa yếu tố** để tối ưu hóa:
 2. **Địa điểm:** Chấm điểm composite để cân bằng chất lượng, thời gian, chi phí
 3. **Thời gian:** Sắp xếp hợp lý với buffer cho di chuyển và nghỉ ngơi
 4. **Lưu trú:** Gợi ý khách sạn với room types chi tiết
-5. **Di chuyển:** Hiển thị airport/station names thực tế
+5. **Di chuyển:** Hiển thị airport/station names thực tế + chỉ dẫn phương tiện theo ngày
 6. **Anti-duplicate:** Theo dõi xuyên suốt để không thăm lại
 
 Hệ thống được thiết kế để **tối đa hóa trải nghiệm** trong khi **tối thiểu hóa chi phí** và **đảm bảo tính khả thi** của lịch trình.

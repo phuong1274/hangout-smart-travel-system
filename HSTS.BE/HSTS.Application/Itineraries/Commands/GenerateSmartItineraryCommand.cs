@@ -191,13 +191,16 @@ namespace HSTS.Application.Itineraries.Commands
                 var floor = RoundMoney(weightedDailyBudget * 0.7m);
                 var limit = RoundMoney(weightedDailyBudget * 1.3m);
 
-                var activities = BuildActivitiesForDay(
+                var dayPlan = BuildActivitiesForDay(
                     destination,
                     attractionsByProvince,
                     visitedLocationIds,
                     request.GroupSize,
                     request.TripSegment,
                     limit);
+
+                var activities = dayPlan.Activities;
+                var travelLegs = dayPlan.TravelLegs;
 
                 var accommodation = BuildAccommodationRecommendation(
                     destination,
@@ -210,7 +213,7 @@ namespace HSTS.Application.Itineraries.Commands
                 var estimatedSpend = RoundMoney(activities.Sum(x => x.TotalCost));
                 estimatedActivitySpendTotal += estimatedSpend;
 
-                var notes = BuildDailyNotes(dayIndex, totalDays, dayDestinations, transferFromPrevious);
+                var notes = BuildDailyNotes(dayIndex, totalDays, dayDestinations, transferFromPrevious, request.GroupSize);
 
                 var nextDayWeightedBudget = dayIndex + 1 < totalDays
                     ? RoundMoney(baseDailyBudget * (decimal)dayWeights[dayIndex + 1])
@@ -235,6 +238,7 @@ namespace HSTS.Application.Itineraries.Commands
                     RoundMoney(rolloverOut),
                     notes,
                     activities,
+                    travelLegs,
                     accommodation,
                     transferFromPrevious));
             }
@@ -259,7 +263,8 @@ namespace HSTS.Application.Itineraries.Commands
             int dayIndex,
             int totalDays,
             IList<Province> dayDestinations,
-            InterCityTransportOptionDto? transferFromPrevious)
+            InterCityTransportOptionDto? transferFromPrevious,
+            int groupSize)
         {
             var notes = new List<string>();
 
@@ -273,9 +278,14 @@ namespace HSTS.Application.Itineraries.Commands
                 notes.Add("08:00 - 08:30 Check-out from previous accommodation.");
                 if (transferFromPrevious is not null)
                 {
-                    notes.Add($"Inter-city transfer by {transferFromPrevious.Method} ({transferFromPrevious.TravelTimeMinutes} minutes).");
+                    notes.Add(BuildTransportGuidanceNote(transferFromPrevious, groupSize));
+                    notes.Add($"Tip: {transferFromPrevious.Pros} Caution: {transferFromPrevious.Cons}");
                 }
                 notes.Add("Arrival and check-in at new destination before afternoon activities.");
+            }
+            else
+            {
+                notes.Add("Local transport guidance: each travel leg now includes transport options so travelers can choose method per movement.");
             }
 
             if (dayIndex == totalDays - 1)
@@ -286,7 +296,23 @@ namespace HSTS.Application.Itineraries.Commands
             return notes;
         }
 
-        private static List<ActivityPlanDto> BuildActivitiesForDay(
+        private static string BuildTransportGuidanceNote(InterCityTransportOptionDto transfer, int groupSize)
+        {
+            var departure = string.IsNullOrWhiteSpace(transfer.DepartureHub)
+                ? transfer.FromProvinceName
+                : transfer.DepartureHub;
+
+            var arrival = string.IsNullOrWhiteSpace(transfer.ArrivalHub)
+                ? transfer.ToProvinceName
+                : transfer.ArrivalHub;
+
+            var safeGroupSize = Math.Max(1, groupSize);
+            var perPersonCost = RoundMoney(transfer.TotalCost / safeGroupSize);
+
+            return $"Transport guidance: {transfer.Method} from {departure} to {arrival}. Estimated {transfer.TravelTimeMinutes} minutes, total {transfer.TotalCost:N0} (~{perPersonCost:N0}/person).";
+        }
+
+        private static DayActivityBuildResult BuildActivitiesForDay(
             Province destination,
             IDictionary<int, List<ScoredLocation>> attractionsByProvince,
             HashSet<int> visitedLocationIds,
@@ -296,7 +322,7 @@ namespace HSTS.Application.Itineraries.Commands
         {
             if (!attractionsByProvince.TryGetValue(destination.Id, out var attractions) || attractions.Count == 0)
             {
-                return new List<ActivityPlanDto>();
+                return DayActivityBuildResult.Empty;
             }
 
             var available = attractions
@@ -305,10 +331,11 @@ namespace HSTS.Application.Itineraries.Commands
 
             if (available.Count == 0)
             {
-                return new List<ActivityPlanDto>();
+                return DayActivityBuildResult.Empty;
             }
 
             var activities = new List<ActivityPlanDto>();
+            var travelLegs = new List<TravelLegDto>();
             var dayStart = new TimeOnly(8, 30);
             var dayEnd = new TimeOnly(21, 30);
             var currentTime = dayStart;
@@ -330,12 +357,16 @@ namespace HSTS.Application.Itineraries.Commands
                             ? 2d
                             : CalculateDistanceKm(previousLocation.Latitude, previousLocation.Longitude, x.Location.Latitude, x.Location.Longitude);
 
-                        var travelMinutes = previousLocation is null
-                            ? 20
-                            : Math.Max(8, (int)Math.Ceiling(distanceKm / 28d * 60d));
+                        var transportOptions = BuildLocalTransportOptions(distanceKm, groupSize);
+                        var selectedTransport = transportOptions.FirstOrDefault(option => option.Recommended)
+                            ?? transportOptions.OrderBy(option => option.TotalCost).ThenBy(option => option.TravelTimeMinutes).First();
 
-                                    var stayMinutes = GetRecommendedDurationMinutes(x.Location);
+                        var travelMinutes = selectedTransport.TravelTimeMinutes;
+                        var travelCost = selectedTransport.TotalCost;
 
+                        var stayMinutes = GetRecommendedDurationMinutes(x.Location);
+
+                        var departureAt = currentTime;
                         var startAt = currentTime.AddMinutes(travelMinutes);
                         var endAt = startAt.AddMinutes(stayMinutes);
                         var visitFitsTime = endAt <= dayEnd;
@@ -343,7 +374,7 @@ namespace HSTS.Application.Itineraries.Commands
 
                         var ticketCost = GetTicketPricePerPerson(x.Location) * groupSize;
                         var extraSpending = EstimateExtraSpending(x.Location, tripSegment, groupSize);
-                        var totalCost = RoundMoney(ticketCost + extraSpending);
+                        var totalCost = RoundMoney(ticketCost + extraSpending + travelCost);
 
                         var distanceScore = Math.Max(0d, 100d - (distanceKm * 10d));
                         var timeEfficiency = Math.Max(0d, 100d - ((travelMinutes + stayMinutes) / Math.Max(1d, remainingMinutes.TotalMinutes) * 100d));
@@ -354,11 +385,18 @@ namespace HSTS.Application.Itineraries.Commands
                             Scored = x,
                             TravelMinutes = travelMinutes,
                             StayMinutes = stayMinutes,
+                            DepartureAt = departureAt,
                             StartAt = startAt,
                             EndAt = endAt,
+                            DistanceKm = distanceKm,
+                            FromLocationId = previousLocation?.LocationId,
+                            FromLocationName = previousLocation?.LocationName ?? "Accommodation / city center",
+                            TravelCost = RoundMoney(travelCost),
                             TotalCost = totalCost,
                             TicketCost = RoundMoney(ticketCost),
                             ExtraSpending = RoundMoney(extraSpending),
+                            TransportOptions = transportOptions,
+                            SelectedTransport = selectedTransport,
                             DynamicScore = dynamicScore,
                             Fits = totalCost <= remainingBudget && visitFitsTime && visitIsOpen
                         };
@@ -385,9 +423,23 @@ namespace HSTS.Application.Itineraries.Commands
                     candidate.EndAt,
                     candidate.TicketCost,
                     candidate.ExtraSpending,
+                    candidate.TravelCost,
                     candidate.TotalCost,
                     Math.Round(candidate.DynamicScore, 2),
                     tags));
+
+                travelLegs.Add(new TravelLegDto(
+                    candidate.FromLocationId,
+                    candidate.FromLocationName,
+                    candidate.Scored.Location.LocationId,
+                    candidate.Scored.Location.LocationName,
+                    candidate.DepartureAt,
+                    candidate.StartAt,
+                    Math.Round(candidate.DistanceKm, 2),
+                    candidate.SelectedTransport.Method,
+                    candidate.SelectedTransport.TravelTimeMinutes,
+                    candidate.SelectedTransport.TotalCost,
+                    candidate.TransportOptions));
 
                 visitedLocationIds.Add(candidate.Scored.Location.LocationId);
                 available.RemoveAll(x => x.Location.LocationId == candidate.Scored.Location.LocationId);
@@ -402,7 +454,92 @@ namespace HSTS.Application.Itineraries.Commands
                 }
             }
 
-            return activities;
+            return new DayActivityBuildResult(activities, travelLegs);
+        }
+
+        private static List<LocalTransportOptionDto> BuildLocalTransportOptions(double distanceKm, int groupSize)
+        {
+            var safeDistance = Math.Max(0.2d, distanceKm);
+            var safeGroupSize = Math.Max(1, groupSize);
+            var options = new List<LocalTransportOptionDto>();
+
+            if (safeDistance <= 2.0d)
+            {
+                options.Add(new LocalTransportOptionDto(
+                    "Walking",
+                    0m,
+                    CalculateTravelMinutes(safeDistance, 4d, 0),
+                    0,
+                    "Free and healthy for short hops.",
+                    "Not ideal in bad weather or with heavy luggage.",
+                    safeDistance <= 1.2d));
+            }
+
+            var bikeVehicles = Math.Max(1, (int)Math.Ceiling(safeGroupSize / 2d));
+            options.Add(new LocalTransportOptionDto(
+                "Ride-hailing bike",
+                RoundMoney((decimal)(9_000d * safeDistance * bikeVehicles)),
+                CalculateTravelMinutes(safeDistance, 28d, 5),
+                bikeVehicles,
+                "Fast in dense traffic and easy to call.",
+                "Limited luggage and less comfortable in rain.",
+                safeGroupSize <= 2 && safeDistance <= 15d));
+
+            var taxiVehicles = Math.Max(1, (int)Math.Ceiling(safeGroupSize / 4d));
+            options.Add(new LocalTransportOptionDto(
+                "Taxi 4-seat",
+                RoundMoney((decimal)(15_000d * safeDistance * taxiVehicles)),
+                CalculateTravelMinutes(safeDistance, 30d, 6),
+                taxiVehicles,
+                "Door-to-door and comfortable for small groups.",
+                "Cost increases when multiple cars are needed.",
+                safeGroupSize > 2 && safeGroupSize <= 4));
+
+            var car7Vehicles = Math.Max(1, (int)Math.Ceiling(safeGroupSize / 7d));
+            options.Add(new LocalTransportOptionDto(
+                "7-seat car",
+                RoundMoney((decimal)(20_000d * safeDistance * car7Vehicles)),
+                CalculateTravelMinutes(safeDistance, 32d, 8),
+                car7Vehicles,
+                "Good balance of comfort and group capacity.",
+                "Availability can vary during peak hours.",
+                safeGroupSize > 4 && safeGroupSize <= 7));
+
+            var vanVehicles = Math.Max(1, (int)Math.Ceiling(safeGroupSize / 16d));
+            options.Add(new LocalTransportOptionDto(
+                "16-seat van",
+                RoundMoney((decimal)(35_000d * safeDistance * vanVehicles)),
+                CalculateTravelMinutes(safeDistance, 25d, 10),
+                vanVehicles,
+                "Best when the whole group wants to move together.",
+                "Higher base cost for shorter trips.",
+                safeGroupSize > 7));
+
+            if (options.Count > 0 && options.All(option => !option.Recommended))
+            {
+                var cheapest = options
+                    .OrderBy(option => option.TotalCost)
+                    .ThenBy(option => option.TravelTimeMinutes)
+                    .First();
+
+                var cheapestIndex = options.FindIndex(option =>
+                    option.Method == cheapest.Method
+                    && option.TotalCost == cheapest.TotalCost
+                    && option.TravelTimeMinutes == cheapest.TravelTimeMinutes);
+
+                if (cheapestIndex >= 0)
+                {
+                    options[cheapestIndex] = cheapest with { Recommended = true };
+                }
+            }
+
+            return options;
+        }
+
+        private static int CalculateTravelMinutes(double distanceKm, double speedKmh, int staticBufferMinutes)
+        {
+            var travelMinutes = (int)Math.Ceiling((distanceKm / Math.Max(1d, speedKmh)) * 60d);
+            return Math.Max(5, travelMinutes + Math.Max(0, staticBufferMinutes));
         }
 
         private static AccommodationRecommendationDto? BuildAccommodationRecommendation(
@@ -443,7 +580,7 @@ namespace HSTS.Application.Itineraries.Commands
                         (double)hotel.Location.Longitude);
 
                     var distanceScore = Math.Max(0d, 100d - (distanceKm * 15d));
-                    var refCost = recommended?.TotalCost ?? Math.Max(1m, GetLocationAveragePrice(hotel.Location) * Math.Max(1, (int)Math.Ceiling(groupSize / 2d)));
+                    var refCost = recommended?.TotalCost ?? Math.Max(1m, GetLocationAveragePrice(hotel.Location) * Math.Max(1, groupSize));
                     var budgetScore = Math.Max(0d, 100d - ((double)(refCost / Math.Max(dayBudget, 1m)) * 100d));
                     var roomsNeeded = recommended?.RoomsNeeded ?? Math.Max(1, (int)Math.Ceiling(groupSize / 2d));
                     var groupScore = Math.Max(0d, 100d - ((roomsNeeded - 1) * 20d));
@@ -497,23 +634,23 @@ namespace HSTS.Application.Itineraries.Commands
             {
                 var fallbackOccupancy = Math.Min(Math.Max(groupSize, 2), 4);
                 var fallbackRoomsNeeded = Math.Max(1, (int)Math.Ceiling(groupSize / (double)fallbackOccupancy));
-                var fallbackRoomPrice = GetLocationAveragePrice(hotel);
-                if (fallbackRoomPrice <= 0m)
+                var fallbackPerPersonPrice = GetLocationAveragePrice(hotel);
+                if (fallbackPerPersonPrice <= 0m)
                 {
-                    fallbackRoomPrice = 500_000m;
+                    fallbackPerPersonPrice = 500_000m;
                 }
-                var fallbackTotal = RoundMoney(fallbackRoomsNeeded * fallbackRoomPrice);
+                var fallbackTotal = RoundMoney(Math.Max(1, groupSize) * fallbackPerPersonPrice);
 
                 options.Add(new RoomOptionDto(
                     "Standard",
                     fallbackOccupancy,
                     fallbackRoomsNeeded,
-                    RoundMoney(fallbackRoomPrice),
+                    RoundMoney(fallbackPerPersonPrice),
                     fallbackTotal,
                     20,
                     null,
                     fallbackTotal <= dayBudget,
-                    new List<string> { "Simple fallback option based on average location budget." },
+                    new List<string> { "Estimated from location per-person price range (PriceMin/PriceMax)." },
                     new List<string>()));
 
                 return options;
@@ -605,7 +742,6 @@ namespace HSTS.Application.Itineraries.Commands
             {
                 var destinationId = kvp.Key;
                 var nights = Math.Max(1, kvp.Value);
-                var roomCount = Math.Max(1, (int)Math.Ceiling(groupSize / 2d));
 
                 decimal averageNightly = fallbackNightly;
                 if (hotelsByProvince.TryGetValue(destinationId, out var hotels) && hotels.Count > 0)
@@ -617,7 +753,7 @@ namespace HSTS.Application.Itineraries.Commands
                         .Average();
                 }
 
-                total += nights * averageNightly * roomCount;
+                total += nights * averageNightly * Math.Max(1, groupSize);
             }
 
             return RoundMoney(total);
@@ -929,6 +1065,11 @@ namespace HSTS.Application.Itineraries.Commands
         private static decimal RoundMoney(decimal value)
         {
             return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+        }
+
+        private sealed record DayActivityBuildResult(IList<ActivityPlanDto> Activities, IList<TravelLegDto> TravelLegs)
+        {
+            public static DayActivityBuildResult Empty { get; } = new(new List<ActivityPlanDto>(), new List<TravelLegDto>());
         }
 
         private sealed record ScoredLocation(Location Location, double Score);
