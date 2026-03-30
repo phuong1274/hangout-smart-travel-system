@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HSTS.Domain.Enums;
 
 namespace HSTS.Domain.Entities
 {
@@ -8,8 +9,7 @@ namespace HSTS.Domain.Entities
         public int Id { get; set; }
 
         [Required]
-        [MaxLength(50)]
-        public string Platform { get; set; } = null!;  // e.g., "Facebook", "Instagram", "Website", "TikTok"
+        public SocialPlatform Platform { get; set; }
 
         [Required]
         [MaxLength(500)]

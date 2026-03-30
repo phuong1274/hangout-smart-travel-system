@@ -15,7 +15,7 @@ namespace HSTS.Application.LocationSubmissions
         decimal? Score,
         int? DestinationId,
         string? DestinationName,
-        int? LocationTypeId,
+        Domain.Enums.LocationType? LocationTypeId,
         string? LocationTypeName,
         List<string>? MediaLinks,
         List<LocationSubmissionSocialLinkDto>? SocialLinks,
@@ -35,7 +35,7 @@ namespace HSTS.Application.LocationSubmissions
     );
 
     public record LocationSubmissionSocialLinkDto(
-        string Platform,
+        Domain.Enums.SocialPlatform Platform,
         string Url
     );
 

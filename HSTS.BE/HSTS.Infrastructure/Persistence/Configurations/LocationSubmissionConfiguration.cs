@@ -84,12 +84,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                    .HasForeignKey(s => s.DestinationId)
                    .OnDelete(DeleteBehavior.SetNull);
 
-            // Configure relationship with LocationType
-            builder.HasOne(s => s.LocationType)
-                   .WithMany()
-                   .HasForeignKey(s => s.LocationTypeId)
-                   .OnDelete(DeleteBehavior.SetNull);
-
             // Configure relationship with existing Location (for edit submissions)
             builder.HasOne(s => s.ExistingLocation)
                    .WithMany()

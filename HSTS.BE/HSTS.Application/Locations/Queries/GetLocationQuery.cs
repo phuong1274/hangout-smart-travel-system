@@ -17,7 +17,6 @@ namespace HSTS.Application.Locations.Queries
         public async Task<ErrorOr<LocationDto>> Handle(GetLocationQuery request, CancellationToken ct)
         {
             var location = await _repository.Query()
-                .Include(l => l.LocationType)
                 .Include(l => l.Destination)
                 .Include(l => l.LocationTags).ThenInclude(lt => lt.Tag)
                 .Include(l => l.LocationMedias)

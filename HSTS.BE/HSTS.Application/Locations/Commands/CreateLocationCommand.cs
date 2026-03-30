@@ -3,12 +3,13 @@ using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
+using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Application.Locations.Commands
 {
-    public record SocialLinkDto(string Platform, string Url);
+    public record SocialLinkDto(Domain.Enums.SocialPlatform Platform, string Url);
 
     public record CreateLocationCommand(
         string Name,
@@ -18,7 +19,7 @@ namespace HSTS.Application.Locations.Commands
         decimal TicketPrice,
         int MinimumAge,
         string Address,
-        int LocationTypeId,
+        LocationType LocationTypeId,
         int DestinationId,
         string? Telephone,
         string? Email,
@@ -208,12 +209,17 @@ namespace HSTS.Application.Locations.Commands
             RuleFor(x => x.Email).EmailAddress().MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Email));
             RuleFor(x => x.PriceMinUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMinUsd.HasValue);
             RuleFor(x => x.PriceMaxUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMaxUsd.HasValue);
+            RuleFor(x => x.PriceMaxUsd)
+                .GreaterThanOrEqualTo(x => x.PriceMinUsd)
+                .When(x => x.PriceMinUsd.HasValue && x.PriceMaxUsd.HasValue)
+                .WithMessage("PriceMaxUsd must be greater than or equal to PriceMinUsd");
             RuleFor(x => x.RecommendedDurationMinutes).GreaterThanOrEqualTo(0).When(x => x.RecommendedDurationMinutes.HasValue);
+            RuleFor(x => x.Score).InclusiveBetween(0, 5).When(x => x.Score.HasValue);
 
             // Validate social links
             RuleForEach(x => x.SocialLinks).ChildRules(link =>
             {
-                link.RuleFor(x => x.Platform).NotEmpty().MaximumLength(50);
+                link.RuleFor(x => x.Platform).IsInEnum();
                 link.RuleFor(x => x.Url).NotEmpty().MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Url));
             });
         }

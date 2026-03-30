@@ -16,7 +16,6 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<LocationMedia> LocationMedias => Set<LocationMedia>();
         public DbSet<LocationTag> LocationTags => Set<LocationTag>();
         public DbSet<Tag> Tags => Set<Tag>();
-        public DbSet<LocationType> LocationTypes => Set<LocationType>();
         public DbSet<Profile> Profiles => Set<Profile>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<UserRole> UserRoles => Set<UserRole>();

@@ -1,4 +1,5 @@
 ﻿using HSTS.Domain.Entities;
+using HSTS.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -47,8 +48,8 @@ namespace HSTS.Domain.Entities
         public int DestinationId { get; set; }
         public Destination? Destination { get; set; }
 
-        public int? LocationTypeId { get; set; }
-        public LocationType? LocationType { get; set; }
+        // Keep field name LocationTypeId for debugging (stored as int in DB)
+        public LocationType? LocationTypeId { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         [Range(0, 100000000)]

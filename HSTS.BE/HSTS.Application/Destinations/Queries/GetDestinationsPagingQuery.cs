@@ -8,7 +8,7 @@ namespace HSTS.Application.Destinations.Queries
 {
     public record DestinationPagedResponse(IEnumerable<DestinationDto> Items, int TotalCount);
 
-    public record GetDestinationsPagingQuery(string? SearchTerm, int PageIndex, int PageSize)
+    public record GetDestinationsPagingQuery(string? SearchTerm, DateTime? FromDate, DateTime? ToDate, int PageIndex, int PageSize)
         : IRequest<ErrorOr<DestinationPagedResponse>>;
 
     public class GetDestinationsPagingQueryHandler : IRequestHandler<GetDestinationsPagingQuery, ErrorOr<DestinationPagedResponse>>
@@ -32,6 +32,16 @@ namespace HSTS.Application.Destinations.Queries
                     (d.Code != null && d.Code.ToLower().Contains(searchTerm)) ||
                     (d.State != null && d.State.Name.ToLower().Contains(searchTerm)) ||
                     (d.Country != null && d.Country.Name.ToLower().Contains(searchTerm)));
+            }
+
+            // Filter by date range (CreatedAt)
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(d => d.CreatedAt >= request.FromDate.Value);
+            }
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(d => d.CreatedAt <= request.ToDate.Value);
             }
 
             query = query

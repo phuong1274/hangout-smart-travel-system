@@ -1,3 +1,5 @@
+using HSTS.Domain.Enums;
+
 namespace HSTS.API.Requests
 {
     public record CreateLocationSubmissionRequest(
@@ -12,7 +14,7 @@ namespace HSTS.API.Requests
         decimal? PriceMaxUsd,
         decimal? Score,
         int? DestinationId,
-        int? LocationTypeId,
+        LocationType? LocationTypeId,
         List<string>? MediaLinks,
         List<SocialLinkRequest>? SocialLinks,
         List<int>? AmenityIds,
@@ -25,7 +27,7 @@ namespace HSTS.API.Requests
     );
 
     public record SocialLinkRequest(
-        string Platform,
+        Domain.Enums.SocialPlatform Platform,
         string Url
     );
 

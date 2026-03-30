@@ -5,8 +5,13 @@ using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Application.LocationSubmissions.Queries
 {
-    public record GetAllSubmissionsPagingQuery(string? SearchTerm, SubmissionStatus? Status, int PageIndex = 1, int PageSize = 10)
-        : IRequest<ErrorOr<LocationSubmissionPagedResponse>>;
+    public record GetAllSubmissionsPagingQuery(
+        string? SearchTerm,
+        SubmissionStatus? Status,
+        DateTime? FromDate,
+        DateTime? ToDate,
+        int PageIndex = 1,
+        int PageSize = 10) : IRequest<ErrorOr<LocationSubmissionPagedResponse>>;
 
     public class GetAllSubmissionsPagingQueryHandler : IRequestHandler<GetAllSubmissionsPagingQuery, ErrorOr<LocationSubmissionPagedResponse>>
     {
@@ -19,7 +24,6 @@ namespace HSTS.Application.LocationSubmissions.Queries
         {
             var query = _repository.Query()
                 .Include(s => s.Destination)
-                .Include(s => s.LocationType)
                 .AsQueryable();
 
             query = query.Where(s => !s.IsDeleted);
@@ -36,6 +40,16 @@ namespace HSTS.Application.LocationSubmissions.Queries
                     s.Name.ToLower().Contains(searchTerm) ||
                     (s.Description != null && s.Description.ToLower().Contains(searchTerm)) ||
                     s.Address.ToLower().Contains(searchTerm));
+            }
+
+            // Filter by date range (CreatedAt)
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(s => s.CreatedAt >= request.FromDate.Value);
+            }
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(s => s.CreatedAt <= request.ToDate.Value);
             }
 
             query = query.OrderByDescending(s => s.CreatedAt);

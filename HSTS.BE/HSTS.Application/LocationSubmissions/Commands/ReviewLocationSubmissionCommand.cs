@@ -3,6 +3,7 @@ using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
+using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Reflection;
@@ -40,7 +41,6 @@ namespace HSTS.Application.LocationSubmissions.Commands
         {
             var submission = await _submissionRepository.Query()
                 .Include(s => s.Destination)
-                .Include(s => s.LocationType)
                 .Include(s => s.ExistingLocation)
                 .FirstOrDefaultAsync(s => s.Id == request.Id && !s.IsDeleted, cancellationToken);
 

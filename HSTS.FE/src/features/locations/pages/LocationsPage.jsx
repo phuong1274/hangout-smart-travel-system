@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Typography, Space, Button, Layout, message } from 'antd';
 import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
-import SearchFilter from '@/components/UI/SearchFilter';
+import LocationFilter from '@/components/UI/LocationFilter';
 import { useLocations } from '../hooks/useLocations';
 import LocationTable from '../components/LocationTable';
 import LocationForm from '../components/LocationForm';
@@ -88,7 +88,7 @@ const LocationsPage = () => {
             </Button>
           </div>
           <Card>
-            <SearchFilter
+            <LocationFilter
               onSearch={handleSearch}
               loading={loading}
               placeholder="Search locations..."

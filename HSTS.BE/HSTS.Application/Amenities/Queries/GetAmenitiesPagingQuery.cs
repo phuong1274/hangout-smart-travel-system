@@ -7,7 +7,7 @@ namespace HSTS.Application.Amenities.Queries
 {
     public record AmenityPagedResponse(IEnumerable<AmenityDto> Items, int TotalCount);
 
-    public record GetAmenitiesPagingQuery(string? SearchTerm, int PageIndex, int PageSize)
+    public record GetAmenitiesPagingQuery(string? SearchTerm, DateTime? FromDate, DateTime? ToDate, int PageIndex, int PageSize)
         : IRequest<ErrorOr<AmenityPagedResponse>>;
 
     public class GetAmenitiesPagingQueryHandler : IRequestHandler<GetAmenitiesPagingQuery, ErrorOr<AmenityPagedResponse>>
@@ -26,8 +26,18 @@ namespace HSTS.Application.Amenities.Queries
 
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
-                query = query.Where(a => a.Name.Contains(request.SearchTerm) || 
+                query = query.Where(a => a.Name.Contains(request.SearchTerm) ||
                     (a.Description != null && a.Description.Contains(request.SearchTerm)));
+            }
+
+            // Filter by date range (CreatedAt)
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(a => a.CreatedAt >= request.FromDate.Value);
+            }
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(a => a.CreatedAt <= request.ToDate.Value);
             }
 
             query = query.OrderByDescending(a => a.CreatedAt);

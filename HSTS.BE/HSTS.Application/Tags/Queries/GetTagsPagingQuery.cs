@@ -8,7 +8,7 @@ namespace HSTS.Application.Tags.Queries
 {
     public record TagPagedResponse(IEnumerable<TagDto> Items, int TotalCount);
 
-    public record GetTagsPagingQuery(string? SearchTerm, int PageIndex, int PageSize)
+    public record GetTagsPagingQuery(string? SearchTerm, DateTime? FromDate, DateTime? ToDate, int PageIndex, int PageSize)
         : IRequest<ErrorOr<TagPagedResponse>>;
 
     public class GetTagsPagingQueryHandler : IRequestHandler<GetTagsPagingQuery, ErrorOr<TagPagedResponse>>
@@ -27,6 +27,16 @@ namespace HSTS.Application.Tags.Queries
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
                 query = query.Where(t => t.Name.Contains(request.SearchTerm));
+            }
+
+            // Filter by date range (CreatedAt)
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(t => t.CreatedAt >= request.FromDate.Value);
+            }
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(t => t.CreatedAt <= request.ToDate.Value);
             }
 
             query = query.OrderByDescending(t => t.CreatedAt);

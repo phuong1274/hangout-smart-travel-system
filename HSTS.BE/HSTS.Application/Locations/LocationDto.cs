@@ -9,9 +9,9 @@ namespace HSTS.Application.Locations
         decimal TicketPrice,
         int MinimumAge,
         string Address,
-        int? LocationTypeId,
+        Domain.Enums.LocationType? LocationTypeId,
         int DestinationId,
-        string? LocationTypeName = null,
+        string? LocationTypeName,
         string? DestinationName = null,
         List<int>? TagIds = null,
         List<string>? MediaLinks = null,
@@ -31,7 +31,7 @@ namespace HSTS.Application.Locations
 
     public record LocationSocialLinkDto(
         int Id,
-        string Platform,
+        Domain.Enums.SocialPlatform Platform,
         string Url);
 
     public record LocationOpeningHourDto(

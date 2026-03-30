@@ -62,9 +62,9 @@ namespace HSTS.Application.LocationSubmissions
                 if (seasonsList != null)
                 {
                     seasons = seasonsList.Select(s => new LocationSubmissionSeasonDto(
-                        s.TryGetProperty("id", out var idProp) ? idProp.GetInt32() : 0,
-                        s.TryGetProperty("description", out var descProp) ? descProp.GetString() : "",
-                        s.TryGetProperty("months", out var monthsProp) ? monthsProp.ToString() : ""
+                        s.TryGetProperty("id", out var idProp) && idProp.TryGetInt32(out var idValue) ? idValue : 0,
+                        s.TryGetProperty("description", out var descProp) ? descProp.GetString() ?? "" : "",
+                        s.TryGetProperty("months", out var monthsProp) ? monthsProp.ToString() ?? "" : ""
                     )).ToList();
                 }
             }
@@ -92,7 +92,7 @@ namespace HSTS.Application.LocationSubmissions
                 submission.DestinationId,
                 submission.Destination?.Name,
                 submission.LocationTypeId,
-                submission.LocationType?.Name,
+                submission.LocationTypeId?.ToString(),
                 mediaLinks,
                 socialLinks,
                 amenityIds,

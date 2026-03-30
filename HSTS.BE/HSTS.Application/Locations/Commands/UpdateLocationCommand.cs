@@ -3,6 +3,7 @@ using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
+using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using static HSTS.Application.Interfaces.IRepository;
 
@@ -17,7 +18,7 @@ namespace HSTS.Application.Locations.Commands
         decimal TicketPrice,
         int MinimumAge,
         string Address,
-        int LocationTypeId,
+        LocationType LocationTypeId,
         int DestinationId,
         string? Telephone,
         string? Email,
@@ -240,7 +241,7 @@ namespace HSTS.Application.Locations.Commands
             // Validate social links
             RuleForEach(x => x.SocialLinks).ChildRules(link =>
             {
-                link.RuleFor(x => x.Platform).NotEmpty().MaximumLength(50);
+                link.RuleFor(x => x.Platform).IsInEnum();
                 link.RuleFor(x => x.Url).NotEmpty().MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Url));
             });
         }

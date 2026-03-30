@@ -17,7 +17,7 @@ namespace HSTS.Application.Locations
                 location.Address,
                 location.LocationTypeId,
                 location.DestinationId,
-                location.LocationType?.Name,
+                location.LocationTypeId?.ToString(),
                 location.Destination?.Name,
                 location.LocationTags?.Select(lt => lt.TagId).ToList() ?? [],
                 location.LocationMedias?.Select(lm => lm.Link).ToList() ?? [],

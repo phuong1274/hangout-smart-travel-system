@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using HSTS.Application.Tags.Queries;
 using HSTS.Application.Destinations.Queries;
-using HSTS.Application.LocationTypes.Queries;
+using HSTS.Domain.Enums;
 using HSTS.Application.Amenities.Queries;
 using HSTS.Application.States.Queries;
 
@@ -42,13 +42,15 @@ namespace HSTS.API.Controllers
         }
 
         [HttpGet("location-types")]
-        public async Task<IActionResult> GetAllLocationTypes()
+        public IActionResult GetAllLocationTypes()
         {
-            var result = await _mediator.Send(new GetAllLocationTypesQuery());
-            return result.Match<IActionResult>(
-                Ok,
-                errors => NotFound(errors.First().Description)
-            );
+            var locationTypes = Enum.GetValues(typeof(LocationType))
+                .Cast<LocationType>()
+                .Select(x => new { 
+                    Id = (int)x, 
+                    Name = x.ToString() 
+                });
+            return Ok(locationTypes);
         }
 
         [HttpGet("amenities")]

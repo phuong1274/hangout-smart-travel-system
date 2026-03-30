@@ -1,5 +1,6 @@
 using HSTS.Application.Locations.Commands;
 using HSTS.Application.Locations;
+using HSTS.Domain.Enums;
 
 namespace HSTS.API.Requests
 {
@@ -11,7 +12,7 @@ namespace HSTS.API.Requests
         decimal TicketPrice,
         int MinimumAge,
         string Address,
-        int LocationTypeId,
+        LocationType LocationTypeId,
         int DestinationId,
         string? Telephone,
         string? Email,

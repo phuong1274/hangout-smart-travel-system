@@ -12,7 +12,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.HasKey(x => x.Id);
 
             builder.Property(x => x.Platform)
-                .HasMaxLength(50)
                 .IsRequired();
 
             builder.Property(x => x.Url)

@@ -366,8 +366,6 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.HasIndex("DestinationId");
 
-                    b.HasIndex("LocationTypeId");
-
                     b.HasIndex("OwnerId");
 
                     b.ToTable("Locations", (string)null);
@@ -586,10 +584,8 @@ namespace HSTS.Infrastructure.Migrations
                     b.Property<int>("LocationId")
                         .HasColumnType("int");
 
-                    b.Property<string>("Platform")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
+                    b.Property<int>("Platform")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .ValueGeneratedOnAddOrUpdate()
@@ -749,8 +745,6 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.HasIndex("ExistingLocationId");
 
-                    b.HasIndex("LocationTypeId");
-
                     b.HasIndex("UserId");
 
                     b.ToTable("LocationSubmissions", (string)null);
@@ -792,47 +786,6 @@ namespace HSTS.Infrastructure.Migrations
                     b.HasIndex("TagId");
 
                     b.ToTable("LocationTags", (string)null);
-                });
-
-            modelBuilder.Entity("HSTS.Domain.Entities.LocationType", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("timestamp")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("LocationTypes", (string)null);
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.Otp", b =>
@@ -1337,18 +1290,11 @@ namespace HSTS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("HSTS.Domain.Entities.LocationType", "LocationType")
-                        .WithMany("Locations")
-                        .HasForeignKey("LocationTypeId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("HSTS.Domain.Entities.User", "Owner")
                         .WithMany()
                         .HasForeignKey("OwnerId");
 
                     b.Navigation("Destination");
-
-                    b.Navigation("LocationType");
 
                     b.Navigation("Owner");
                 });
@@ -1433,11 +1379,6 @@ namespace HSTS.Infrastructure.Migrations
                         .HasForeignKey("ExistingLocationId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("HSTS.Domain.Entities.LocationType", "LocationType")
-                        .WithMany()
-                        .HasForeignKey("LocationTypeId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("HSTS.Domain.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -1449,8 +1390,6 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("Destination");
 
                     b.Navigation("ExistingLocation");
-
-                    b.Navigation("LocationType");
 
                     b.Navigation("User");
                 });
@@ -1573,11 +1512,6 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("Seasons");
 
                     b.Navigation("SocialLinks");
-                });
-
-            modelBuilder.Entity("HSTS.Domain.Entities.LocationType", b =>
-                {
-                    b.Navigation("Locations");
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.Role", b =>

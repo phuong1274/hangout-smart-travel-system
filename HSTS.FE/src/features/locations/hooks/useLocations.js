@@ -5,9 +5,7 @@ import { getLocationsApi } from '../api';
 export const useLocations = () => {
   const {
     pagination,
-    searchTerm,
     handleTableChange,
-    handleSearch,
     setTotal,
     pageIndex,
     pageSize
@@ -15,15 +13,18 @@ export const useLocations = () => {
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({});
 
   const fetchLocations = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await getLocationsApi({
+      const params = {
         pageIndex,
         pageSize,
-        searchTerm: searchTerm || undefined
-      });
+        ...filters
+      };
+
+      const response = await getLocationsApi(params);
 
       // response is already the data object due to .then(res => res.data) in API
       setData(response.items || response.Items || []);
@@ -33,11 +34,15 @@ export const useLocations = () => {
     } finally {
       setLoading(false);
     }
-  }, [pageIndex, pageSize, searchTerm, setTotal]);
+  }, [pageIndex, pageSize, filters, setTotal]);
 
   useEffect(() => {
     fetchLocations();
   }, [fetchLocations]);
+
+  const handleSearch = (newFilters) => {
+    setFilters(newFilters);
+  };
 
   return {
     data,

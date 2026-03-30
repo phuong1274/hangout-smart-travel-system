@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Security.Claims;
 using HSTS.API.Requests;
 using HSTS.Application.Locations.Commands;
 using HSTS.Application.Locations.Queries;
@@ -10,6 +11,7 @@ using HSTS.Application.Countries.Queries;
 using HSTS.Application.States.Queries;
 using HSTS.Application.Countries;
 using HSTS.Application.States;
+using HSTS.Domain.Enums;
 
 namespace HSTS.API.Controllers
 {
@@ -28,11 +30,16 @@ namespace HSTS.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetLocations(
             [FromQuery] string? searchTerm,
+            [FromQuery] List<int>? tagIds,
+            [FromQuery] List<LocationType>? locationTypeIds,
+            [FromQuery] List<int>? destinationIds,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
         {
-            var query = new GetLocationsPagingQuery(searchTerm, pageIndex, pageSize);
+            var query = new GetLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, destinationIds, fromDate, toDate, pageIndex, pageSize);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(
@@ -51,12 +58,48 @@ namespace HSTS.API.Controllers
         [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
         public async Task<IActionResult> GetAllLocations(
             [FromQuery] string? searchTerm,
+            [FromQuery] List<int>? tagIds,
+            [FromQuery] List<LocationType>? locationTypeIds,
+            [FromQuery] List<int>? destinationIds,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
             [FromQuery] bool includeDeleted = false,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
         {
-            var query = new GetAllLocationsPagingQuery(searchTerm, includeDeleted, pageIndex, pageSize);
+            var query = new GetAllLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, destinationIds, fromDate, toDate, includeDeleted, pageIndex, pageSize);
+            var result = await _mediator.Send(query, ct);
+
+            return result.Match(
+                response => Ok(response),
+                errors => errors.First().Type switch
+                {
+                    ErrorType.NotFound => NotFound(errors.First().Description),
+                    ErrorType.Validation => BadRequest(errors),
+                    ErrorType.Conflict => Conflict(errors.First().Description),
+                    _ => Problem(errors.First().Description)
+                }
+            );
+        }
+
+        [HttpGet("partner/my")]
+        [Authorize]
+        public async Task<IActionResult> GetPartnerLocations(
+            [FromQuery] string? searchTerm,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                return Unauthorized();
+            }
+
+            var query = new GetPartnerLocationsPagingQuery(userId, searchTerm, fromDate, toDate, pageIndex, pageSize);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(

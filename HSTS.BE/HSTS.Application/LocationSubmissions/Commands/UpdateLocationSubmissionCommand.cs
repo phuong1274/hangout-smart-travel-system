@@ -3,6 +3,7 @@ using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
+using HSTS.Domain.Enums;
 using HSTS.Application.LocationSubmissions;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -23,7 +24,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
         decimal? PriceMaxUsd,
         decimal? Score,
         int? DestinationId,
-        int? LocationTypeId,
+        LocationType? LocationTypeId,
         List<string>? MediaLinks,
         List<LocationSubmissionSocialLinkDto>? SocialLinks,
         List<int>? AmenityIds,
@@ -137,7 +138,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
             // Validate social links
             RuleForEach(x => x.SocialLinks).ChildRules(link =>
             {
-                link.RuleFor(x => x.Platform).NotEmpty().MaximumLength(50);
+                link.RuleFor(x => x.Platform).IsInEnum();
                 link.RuleFor(x => x.Url).NotEmpty().MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Url));
             });
         }

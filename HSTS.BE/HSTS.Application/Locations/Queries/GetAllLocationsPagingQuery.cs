@@ -1,6 +1,6 @@
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
-using HSTS.Application.Locations.Queries;
+using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using static HSTS.Application.Interfaces.IRepository;
 
@@ -9,8 +9,16 @@ namespace HSTS.Application.Locations.Queries
     /// <summary>
     /// Admin query - returns ALL locations including deleted ones
     /// </summary>
-    public record GetAllLocationsPagingQuery(string? SearchTerm, bool IncludeDeleted = false, int PageIndex = 1, int PageSize = 10)
-        : IRequest<ErrorOr<LocationPagedResponse>>;
+    public record GetAllLocationsPagingQuery(
+        string? SearchTerm,
+        List<int>? TagIds,
+        List<LocationType>? LocationTypeIds,
+        List<int>? DestinationIds,
+        DateTime? FromDate,
+        DateTime? ToDate,
+        bool IncludeDeleted = false,
+        int PageIndex = 1,
+        int PageSize = 10) : IRequest<ErrorOr<LocationPagedResponse>>;
 
     public class GetAllLocationsPagingQueryHandler : IRequestHandler<GetAllLocationsPagingQuery, ErrorOr<LocationPagedResponse>>
     {
@@ -22,7 +30,6 @@ namespace HSTS.Application.Locations.Queries
         public async Task<ErrorOr<LocationPagedResponse>> Handle(GetAllLocationsPagingQuery request, CancellationToken ct)
         {
             var query = _repository.Query()
-                .Include(l => l.LocationType)
                 .Include(l => l.Destination)
                 .Include(l => l.LocationTags).ThenInclude(lt => lt.Tag)
                 .Include(l => l.LocationMedias)
@@ -36,10 +43,39 @@ namespace HSTS.Application.Locations.Queries
                 query = query.Where(l => !l.IsDeleted);
             }
 
+            // Filter by search term (Name, Description)
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
                 query = query.Where(l => l.Name.Contains(request.SearchTerm) ||
                     (l.Description != null && l.Description.Contains(request.SearchTerm)));
+            }
+
+            // Filter by Tag IDs (multiple select - locations must have ANY of the selected tags)
+            if (request.TagIds != null && request.TagIds.Count > 0)
+            {
+                query = query.Where(l => l.LocationTags.Any(lt => request.TagIds.Contains(lt.TagId)));
+            }
+
+            // Filter by Location Type IDs (multiple select - ANY of the selected types)
+            if (request.LocationTypeIds != null && request.LocationTypeIds.Count > 0)
+            {
+                query = query.Where(l => l.LocationTypeId.HasValue && request.LocationTypeIds.Contains(l.LocationTypeId.Value));
+            }
+
+            // Filter by Destination IDs (multiple select - ANY of the selected destinations)
+            if (request.DestinationIds != null && request.DestinationIds.Count > 0)
+            {
+                query = query.Where(l => request.DestinationIds.Contains(l.DestinationId));
+            }
+
+            // Filter by date range (CreatedAt)
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(l => l.CreatedAt >= request.FromDate.Value);
+            }
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(l => l.CreatedAt <= request.ToDate.Value);
             }
 
             query = query.OrderByDescending(l => l.CreatedAt);
@@ -47,7 +83,7 @@ namespace HSTS.Application.Locations.Queries
             var (items, total) = await _repository.GetPagedAsync(
                 request.PageIndex,
                 request.PageSize,
-                query,
+                query ?? _repository.Query(),
                 ct);
 
             var locationDtos = items.Select(l => l.ToDto()).ToList();

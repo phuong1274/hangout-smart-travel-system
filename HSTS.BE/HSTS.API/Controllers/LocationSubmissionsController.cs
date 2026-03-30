@@ -27,6 +27,9 @@ namespace HSTS.API.Controllers
         [HttpGet("my")]
         [Authorize]
         public async Task<IActionResult> GetMySubmissions(
+            [FromQuery] SubmissionStatus? status,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
@@ -37,7 +40,7 @@ namespace HSTS.API.Controllers
                 return Unauthorized();
             }
 
-            var query = new GetMySubmissionsQuery(userId, pageIndex, pageSize);
+            var query = new GetMySubmissionsQuery(userId, status, fromDate, toDate, pageIndex, pageSize);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(
@@ -229,11 +232,13 @@ namespace HSTS.API.Controllers
         public async Task<IActionResult> GetAllSubmissions(
             [FromQuery] string? searchTerm,
             [FromQuery] SubmissionStatus? status,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
         {
-            var query = new GetAllSubmissionsPagingQuery(searchTerm, status, pageIndex, pageSize);
+            var query = new GetAllSubmissionsPagingQuery(searchTerm, status, fromDate, toDate, pageIndex, pageSize);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(

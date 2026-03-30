@@ -22,11 +22,13 @@ namespace HSTS.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAmenities(
             [FromQuery] string? searchTerm,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
         {
-            var query = new GetAmenitiesPagingQuery(searchTerm, pageIndex, pageSize);
+            var query = new GetAmenitiesPagingQuery(searchTerm, fromDate, toDate, pageIndex, pageSize);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(

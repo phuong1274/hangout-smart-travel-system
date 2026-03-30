@@ -18,7 +18,6 @@ namespace HSTS.Application.LocationSubmissions.Queries
         {
             var submission = await _repository.Query()
                 .Include(s => s.Destination)
-                .Include(s => s.LocationType)
                 .FirstOrDefaultAsync(s => s.Id == request.Id && !s.IsDeleted, ct);
 
             if (submission is null)
