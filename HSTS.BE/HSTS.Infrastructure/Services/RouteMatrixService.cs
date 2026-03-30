@@ -9,6 +9,8 @@ namespace HSTS.Infrastructure.Services
 {
     public class RouteMatrixService : IRouteMatrixService
     {
+        private const string OsrmProvider = "OSRM";
+
         private static readonly HashSet<string> DistanceKmKeys = new(StringComparer.OrdinalIgnoreCase)
         {
             "distancekm", "distance_km", "distanceinkm", "km"
@@ -58,6 +60,11 @@ namespace HSTS.Infrastructure.Services
             string to,
             CancellationToken cancellationToken = default)
         {
+            if (IsOsrmProvider())
+            {
+                return Task.FromResult<RouteEstimate?>(null);
+            }
+
             var query = new Dictionary<string, string>
             {
                 ["from"] = from,
@@ -74,6 +81,11 @@ namespace HSTS.Infrastructure.Services
             double toLongitude,
             CancellationToken cancellationToken = default)
         {
+            if (IsOsrmProvider())
+            {
+                return EstimateOsrmAsync(fromLatitude, fromLongitude, toLatitude, toLongitude, cancellationToken);
+            }
+
             var query = new Dictionary<string, string>
             {
                 ["fromLat"] = fromLatitude.ToString(CultureInfo.InvariantCulture),
@@ -83,6 +95,57 @@ namespace HSTS.Infrastructure.Services
             };
 
             return EstimateInternalAsync(query, cancellationToken);
+        }
+
+        private async Task<RouteEstimate?> EstimateOsrmAsync(
+            double fromLatitude,
+            double fromLongitude,
+            double toLatitude,
+            double toLongitude,
+            CancellationToken cancellationToken)
+        {
+            var endpointPath = string.IsNullOrWhiteSpace(_settings.EndpointPath)
+                ? "route/v1/driving"
+                : _settings.EndpointPath;
+
+            var fromCoordinate = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{fromLongitude},{fromLatitude}");
+            var toCoordinate = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{toLongitude},{toLatitude}");
+
+            var queryString = string.IsNullOrWhiteSpace(_settings.DefaultQueryString)
+                ? "overview=false"
+                : _settings.DefaultQueryString.TrimStart('?');
+
+            var endpoint = $"{endpointPath.TrimStart('/')}/{fromCoordinate};{toCoordinate}?{queryString}";
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+
+            if (!string.IsNullOrWhiteSpace(_settings.ApiKeyHeaderName) && !string.IsNullOrWhiteSpace(_settings.ApiKey))
+            {
+                request.Headers.Remove(_settings.ApiKeyHeaderName);
+                request.Headers.Add(_settings.ApiKeyHeaderName, _settings.ApiKey);
+            }
+
+            try
+            {
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("OSRM route request failed with status {StatusCode}.", (int)response.StatusCode);
+                    return null;
+                }
+
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var document = JsonDocument.Parse(content);
+                return ParseOsrmRouteEstimate(document.RootElement);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "OSRM route request failed and fallback will be used.");
+                return null;
+            }
         }
 
         private async Task<RouteEstimate?> EstimateInternalAsync(
@@ -136,7 +199,7 @@ namespace HSTS.Infrastructure.Services
             }
             else if (TryGetDouble(root, DistanceGenericKeys, out var genericDistance))
             {
-                distanceKm = genericDistance;
+                distanceKm = genericDistance > 1000d ? genericDistance / 1000d : genericDistance;
             }
 
             var durationMinutes = 0;
@@ -161,6 +224,65 @@ namespace HSTS.Infrastructure.Services
             }
 
             return new RouteEstimate(distanceKm, durationMinutes, "external-route-api");
+        }
+
+        private static RouteEstimate? ParseOsrmRouteEstimate(JsonElement root)
+        {
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            if (root.TryGetProperty("code", out var codeElement) &&
+                codeElement.ValueKind == JsonValueKind.String &&
+                !string.Equals(codeElement.GetString(), "Ok", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            if (!root.TryGetProperty("routes", out var routesElement) ||
+                routesElement.ValueKind != JsonValueKind.Array ||
+                routesElement.GetArrayLength() == 0)
+            {
+                return null;
+            }
+
+            var firstRoute = routesElement[0];
+            if (!firstRoute.TryGetProperty("distance", out var distanceElement) ||
+                !TryReadDouble(distanceElement, out var distanceMeters) ||
+                distanceMeters <= 0)
+            {
+                return null;
+            }
+
+            if (!firstRoute.TryGetProperty("duration", out var durationElement) ||
+                !TryReadDouble(durationElement, out var durationSeconds) ||
+                durationSeconds <= 0)
+            {
+                return null;
+            }
+
+            return new RouteEstimate(
+                distanceMeters / 1000d,
+                Math.Max(1, (int)Math.Round(durationSeconds / 60d)),
+                "osrm");
+        }
+
+        private static bool TryReadDouble(JsonElement element, out double value)
+        {
+            if (element.ValueKind == JsonValueKind.Number && element.TryGetDouble(out value))
+            {
+                return true;
+            }
+
+            if (element.ValueKind == JsonValueKind.String &&
+                double.TryParse(element.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out value))
+            {
+                return true;
+            }
+
+            value = 0;
+            return false;
         }
 
         private static bool TryGetDouble(JsonElement root, HashSet<string> keys, out double value)
@@ -225,6 +347,11 @@ namespace HSTS.Infrastructure.Services
             return string.IsNullOrWhiteSpace(queryString)
                 ? endpoint
                 : $"{endpoint}?{queryString}";
+        }
+
+        private bool IsOsrmProvider()
+        {
+            return string.Equals(_settings.Provider, OsrmProvider, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

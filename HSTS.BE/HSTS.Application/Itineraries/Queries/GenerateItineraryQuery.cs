@@ -88,8 +88,14 @@ namespace HSTS.Application.Itineraries.Queries
     {
         public GenerateItineraryQueryValidator()
         {
-            RuleFor(x => x.From).NotEmpty().MaximumLength(200);
-            RuleFor(x => x.To).NotEmpty().MaximumLength(200);
+            RuleFor(x => x.From)
+                .NotEmpty()
+                .MaximumLength(20)
+                .WithMessage("From must be a province code.");
+            RuleFor(x => x.To)
+                .NotEmpty()
+                .MaximumLength(20)
+                .WithMessage("To must be a province code.");
             RuleFor(x => x.ReturnDate)
                 .GreaterThanOrEqualTo(x => x.DepartDate)
                 .WithMessage("ReturnDate must be greater than or equal to DepartDate.");
@@ -140,6 +146,18 @@ namespace HSTS.Application.Itineraries.Queries
                 return Error.Validation("Itinerary.Dates", "Trip duration is invalid.");
             }
 
+            var fromProvince = await ResolveProvinceByCodeAsync(request.From, cancellationToken);
+            if (fromProvince is null)
+            {
+                return Error.Validation("Itinerary.From", "From must be a valid province code.");
+            }
+
+            var toProvince = await ResolveProvinceByCodeAsync(request.To, cancellationToken);
+            if (toProvince is null)
+            {
+                return Error.Validation("Itinerary.To", "To must be a valid province code.");
+            }
+
             var routeBaseQuery = _context.Locations
                 .AsNoTracking()
                 .Where(x => x.Score >= 0);
@@ -153,6 +171,11 @@ namespace HSTS.Application.Itineraries.Queries
             {
                 routeBaseQuery = routeBaseQuery.Where(x => x.District.ProvinceId == request.ProvinceId.Value);
                 notes.Add("Optimized by province filter before loading related data.");
+            }
+            else
+            {
+                routeBaseQuery = routeBaseQuery.Where(x => x.District.ProvinceId == toProvince.Id);
+                notes.Add($"Optimized by destination province code: {toProvince.Code}.");
             }
 
             if (request.MinTravelerAge.HasValue)
@@ -213,10 +236,14 @@ namespace HSTS.Application.Itineraries.Queries
 
             var selectedAccommodation = SelectAccommodation(accommodations, sortedAttractions);
 
-            var origin = await ResolveGeoPointAsync(request.From, cancellationToken)
-                ?? EstimateCentroid(sortedAttractions.Select(x => x.Location).ToList(), request.From);
-            var destination = await ResolveGeoPointAsync(request.To, cancellationToken)
-                ?? EstimateCentroid(sortedAttractions.Select(x => x.Location).ToList(), request.To);
+            var weatherLocation = await ResolveWeatherLocationAsync(request, locations, toProvince.Name, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(weatherLocation))
+            {
+                notes.Add($"Weather advisory is resolved by province/location: {weatherLocation}.");
+            }
+
+            var origin = new GeoPoint(fromProvince.Name, fromProvince.Latitude, fromProvince.Longitude);
+            var destination = new GeoPoint(toProvince.Name, toProvince.Latitude, toProvince.Longitude);
 
             var transportModes = await _context.TransportModes
                 .AsNoTracking()
@@ -272,10 +299,10 @@ namespace HSTS.Application.Itineraries.Queries
                 var dayAccommodationCost = 0m;
                 var dayActivityCost = 0m;
 
-                var weather = await _weatherAdvisoryService.GetAdviceAsync(request.To, date, cancellationToken);
+                var weather = await _weatherAdvisoryService.GetAdviceAsync(weatherLocation, date, cancellationToken);
                 if (weather is { IsOutdoorFriendly: false })
                 {
-                    notes.Add($"{date:yyyy-MM-dd}: weather suggests reducing outdoor activities.");
+                    notes.Add($"{date:yyyy-MM-dd}: weather in {weatherLocation} suggests reducing outdoor activities.");
                 }
 
                 var currentTime = date.ToDateTime(new TimeOnly(6, 30));
@@ -505,7 +532,7 @@ namespace HSTS.Application.Itineraries.Queries
                 days.Add(new ItineraryDayDto(
                     dayIndex + 1,
                     date,
-                    weather?.Summary,
+                    weather is null ? null : $"{weatherLocation}: {weather.Summary}",
                     dayTransportCost + dayAccommodationCost + dayActivityCost,
                     timeline.OrderBy(x => x.StartTime).ToList(),
                     travelLegs.OrderBy(x => x.DepartureTime).ToList()));
@@ -527,6 +554,75 @@ namespace HSTS.Application.Itineraries.Queries
                 notes);
 
             return output;
+        }
+
+        private async Task<string> ResolveWeatherLocationAsync(
+            GenerateItineraryQuery request,
+            IList<Location> locations,
+            string defaultLocation,
+            CancellationToken cancellationToken)
+        {
+            if (request.ProvinceId.HasValue)
+            {
+                var provinceName = await _context.Provinces
+                    .AsNoTracking()
+                    .Where(x => x.Id == request.ProvinceId.Value)
+                    .Select(x => x.Name)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (!string.IsNullOrWhiteSpace(provinceName))
+                {
+                    return provinceName.Trim();
+                }
+            }
+
+            if (request.DistrictId.HasValue)
+            {
+                var districtProvinceName = await _context.Districts
+                    .AsNoTracking()
+                    .Where(x => x.Id == request.DistrictId.Value && x.ProvinceId.HasValue)
+                    .Select(x => x.Province.Name)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (!string.IsNullOrWhiteSpace(districtProvinceName))
+                {
+                    return districtProvinceName.Trim();
+                }
+            }
+
+            var mostCommonProvince = locations
+                .Select(x => x.District?.Province?.Name)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(x => x.Count())
+                .ThenBy(x => x.Key.Length)
+                .Select(x => x.Key)
+                .FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(mostCommonProvince))
+            {
+                return mostCommonProvince;
+            }
+
+            return string.IsNullOrWhiteSpace(defaultLocation)
+                ? "Ha Noi"
+                : defaultLocation.Trim();
+        }
+
+        private async Task<Province?> ResolveProvinceByCodeAsync(string provinceCode, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(provinceCode))
+            {
+                return null;
+            }
+
+            var normalized = provinceCode.Trim().ToUpperInvariant();
+
+            return await _context.Provinces
+                .AsNoTracking()
+                .Where(x => x.Code.ToUpper() == normalized)
+                .FirstOrDefaultAsync(cancellationToken);
         }
 
         private async Task<List<string>> ResolvePreferredTagKeywordsAsync(
@@ -694,71 +790,6 @@ namespace HSTS.Application.Itineraries.Queries
                 selected.EstimatedTotalCost,
                 options,
                 routeEstimate?.Source ?? "local-transport-metrics");
-        }
-
-        private async Task<GeoPoint?> ResolveGeoPointAsync(string keyword, CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrWhiteSpace(keyword))
-            {
-                return null;
-            }
-
-            var normalized = keyword.Trim();
-
-            var hub = await _context.TransitHubs
-                .AsNoTracking()
-                .Where(x => x.Name.Contains(normalized) || x.Code.Contains(normalized))
-                .OrderBy(x => x.Name.Length)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (hub is not null)
-            {
-                return new GeoPoint(hub.Name, hub.Latitude, hub.Longitude);
-            }
-
-            var district = await _context.Districts
-                .AsNoTracking()
-                .Where(x => x.Name.Contains(normalized))
-                .OrderBy(x => x.Name.Length)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (district is not null)
-            {
-                return new GeoPoint(district.Name, district.Latitude, district.Longitude);
-            }
-
-            var province = await _context.Provinces
-                .AsNoTracking()
-                .Where(x => x.Code.Contains(normalized))
-                .OrderBy(x => x.Code.Length)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (province is not null)
-            {
-                return new GeoPoint(province.Code, province.Latitude, province.Longitude);
-            }
-
-            var location = await _context.Locations
-                .AsNoTracking()
-                .Where(x => x.Name.Contains(normalized))
-                .OrderBy(x => x.Name.Length)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            return location is null
-                ? null
-                : new GeoPoint(location.Name, location.Latitude, location.Longitude);
-        }
-
-        private static GeoPoint EstimateCentroid(IList<Location> locations, string fallbackName)
-        {
-            if (locations.Count == 0)
-            {
-                return new GeoPoint(fallbackName, 21.0285, 105.8542);
-            }
-
-            var lat = locations.Average(x => x.Latitude);
-            var lng = locations.Average(x => x.Longitude);
-            return new GeoPoint(fallbackName, lat, lng);
         }
 
         private static decimal GetPerPersonPrice(Location location)
