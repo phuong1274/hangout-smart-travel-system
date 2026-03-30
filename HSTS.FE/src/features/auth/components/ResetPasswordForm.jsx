@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Button, Form, Input, Typography } from 'antd';
-import { LeftOutlined } from '@ant-design/icons';
+import { Button, Card, Form, Input, Typography } from 'antd';
+import { LeftOutlined, LockOutlined } from '@ant-design/icons';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useResetPassword, useResendOtp, useVerifyForgotPasswordOtp } from '../hooks/useAuth';
 import OtpVerificationStep from './OtpVerificationStep';

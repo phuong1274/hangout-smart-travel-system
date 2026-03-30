@@ -15,7 +15,9 @@ const RegisterForm = () => {
   const { googleLogin } = useGoogleLogin();
   const navigate = useNavigate();
 
-  const onFinish = ({ confirmPassword: _confirmPassword, ...data }) => {
+  const onFinish = (values) => {
+    const data = { ...values };
+    delete data.confirmPassword;
     register(data);
   };
 

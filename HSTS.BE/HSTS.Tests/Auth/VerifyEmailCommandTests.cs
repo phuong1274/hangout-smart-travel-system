@@ -1,5 +1,6 @@
 using FluentAssertions;
 using HSTS.Application.Auth.Commands;
+using HSTS.Application.Auth.Interfaces;
 using HSTS.Domain.Enums;
 using HSTS.Tests.Helpers;
 using Moq;
@@ -8,11 +9,13 @@ namespace HSTS.Tests.Auth;
 
 public class VerifyEmailCommandTests
 {
+    private readonly Mock<IEmailDomainPolicy> _policy = EmailPolicyMockFactory.AllowAll();
+
     [Fact]
     public async Task Handle_InvalidOrExpiredOtp_ReturnsValidation()
     {
         var ctx = MockDbContextFactory.Create().Build();
-        var handler = new VerifyEmailCommandHandler(ctx.Object);
+        var handler = new VerifyEmailCommandHandler(ctx.Object, _policy.Object);
 
         var result = await handler.Handle(new VerifyEmailCommand("user@test.com", "000000"), CancellationToken.None);
 
@@ -21,12 +24,25 @@ public class VerifyEmailCommandTests
     }
 
     [Fact]
+    public async Task Handle_DisallowedUnknownEmail_ReturnsValidation()
+    {
+        var policy = EmailPolicyMockFactory.AllowOnly("allowed@gmail.com");
+        var ctx = MockDbContextFactory.Create().Build();
+        var handler = new VerifyEmailCommandHandler(ctx.Object, policy.Object);
+
+        var result = await handler.Handle(new VerifyEmailCommand("trash@disposable.test", "123456"), CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("Email.DomainNotAllowed");
+    }
+
+    [Fact]
     public async Task Handle_ValidOtp_AccountNotFound_ReturnsNotFound()
     {
         var otp = AuthFakes.ValidOtp("user@test.com", OtpType.EmailVerification);
         otp.Code = "123456";
         var ctx = MockDbContextFactory.Create().WithOtps(otp).Build();
-        var handler = new VerifyEmailCommandHandler(ctx.Object);
+        var handler = new VerifyEmailCommandHandler(ctx.Object, _policy.Object);
 
         var result = await handler.Handle(new VerifyEmailCommand("user@test.com", "123456"), CancellationToken.None);
 
@@ -41,7 +57,7 @@ public class VerifyEmailCommandTests
         var otp = AuthFakes.ValidOtp("user@test.com", OtpType.EmailVerification);
         otp.Code = "123456";
         var ctx = MockDbContextFactory.Create().WithAccounts(account).WithOtps(otp).Build();
-        var handler = new VerifyEmailCommandHandler(ctx.Object);
+        var handler = new VerifyEmailCommandHandler(ctx.Object, _policy.Object);
 
         var result = await handler.Handle(new VerifyEmailCommand("user@test.com", "123456"), CancellationToken.None);
 

@@ -29,7 +29,13 @@ namespace HSTS.Infrastructure
             services.AddScoped<IPasswordHasher, PasswordHasher>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IGoogleAuthService, GoogleAuthService>();
-            services.AddScoped<IEmailService, EmailService>();
+            services.Configure<ResendSettings>(configuration.GetSection("Resend"));
+            services.Configure<EmailPolicySettings>(configuration.GetSection("EmailPolicy"));
+            services.AddSingleton<IEmailDomainPolicy, EmailDomainPolicy>();
+            services.AddHttpClient<IEmailService, EmailService>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.resend.com/");
+            });
             services.AddScoped<ICurrentUserService, CurrentUserService>();
 
             // Cloudinary
