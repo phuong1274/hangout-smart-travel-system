@@ -11,6 +11,7 @@ public class RegisterCommandTests
 {
     private readonly Mock<IEmailService> _email = new();
     private readonly Mock<IPasswordHasher> _hasher = new();
+    private readonly Mock<IEmailDomainPolicy> _policy = EmailPolicyMockFactory.AllowAll();
 
     public RegisterCommandTests()
     {
@@ -22,7 +23,7 @@ public class RegisterCommandTests
     {
         var account = AuthFakes.ActiveAccount("user@test.com");
         var ctx = MockDbContextFactory.Create().WithAccounts(account).WithRoles(AuthFakes.TravelerRole()).Build();
-        var handler = new RegisterCommandHandler(ctx.Object, _email.Object, _hasher.Object);
+        var handler = new RegisterCommandHandler(ctx.Object, _email.Object, _hasher.Object, _policy.Object);
 
         var result = await handler.Handle(new RegisterCommand("user@test.com", "password123", "Test"), CancellationToken.None);
 
@@ -34,7 +35,7 @@ public class RegisterCommandTests
     public async Task Handle_RoleNotFound_ReturnsFailure()
     {
         var ctx = MockDbContextFactory.Create().Build();
-        var handler = new RegisterCommandHandler(ctx.Object, _email.Object, _hasher.Object);
+        var handler = new RegisterCommandHandler(ctx.Object, _email.Object, _hasher.Object, _policy.Object);
 
         var result = await handler.Handle(new RegisterCommand("new@test.com", "password123", "Test"), CancellationToken.None);
 
@@ -46,7 +47,7 @@ public class RegisterCommandTests
     public async Task Handle_ValidRequest_SavesAndReturnsSuccess()
     {
         var ctx = MockDbContextFactory.Create().WithRoles(AuthFakes.TravelerRole()).Build();
-        var handler = new RegisterCommandHandler(ctx.Object, _email.Object, _hasher.Object);
+        var handler = new RegisterCommandHandler(ctx.Object, _email.Object, _hasher.Object, _policy.Object);
 
         var result = await handler.Handle(new RegisterCommand("new@test.com", "password123", "Test User"), CancellationToken.None);
 
@@ -61,11 +62,24 @@ public class RegisterCommandTests
         var ctx = MockDbContextFactory.Create().WithRoles(AuthFakes.TravelerRole()).Build();
         _email.Setup(x => x.SendOtpEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OtpType>(), It.IsAny<CancellationToken>()))
               .ThrowsAsync(new Exception("SMTP error"));
-        var handler = new RegisterCommandHandler(ctx.Object, _email.Object, _hasher.Object);
+        var handler = new RegisterCommandHandler(ctx.Object, _email.Object, _hasher.Object, _policy.Object);
 
         var result = await handler.Handle(new RegisterCommand("new@test.com", "password123", "Test User"), CancellationToken.None);
 
         result.IsError.Should().BeTrue();
         result.FirstError.Code.Should().Be("Email.SendFailed");
+    }
+
+    [Fact]
+    public async Task Handle_DomainNotAllowed_ReturnsValidation()
+    {
+        var policy = EmailPolicyMockFactory.AllowOnly("allowed@gmail.com");
+        var ctx = MockDbContextFactory.Create().WithRoles(AuthFakes.TravelerRole()).Build();
+        var handler = new RegisterCommandHandler(ctx.Object, _email.Object, _hasher.Object, policy.Object);
+
+        var result = await handler.Handle(new RegisterCommand("trash@disposable.test", "password123", "Test User"), CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("Email.DomainNotAllowed");
     }
 }

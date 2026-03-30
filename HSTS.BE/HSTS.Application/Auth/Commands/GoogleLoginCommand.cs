@@ -13,15 +13,18 @@ namespace HSTS.Application.Auth.Commands
         private readonly IAppDbContext _context;
         private readonly IJwtService _jwtService;
         private readonly IGoogleAuthService _googleAuthService;
+        private readonly IEmailDomainPolicy _emailDomainPolicy;
 
         public GoogleLoginCommandHandler(
             IAppDbContext context,
             IJwtService jwtService,
-            IGoogleAuthService googleAuthService)
+            IGoogleAuthService googleAuthService,
+            IEmailDomainPolicy emailDomainPolicy)
         {
             _context = context;
             _jwtService = jwtService;
             _googleAuthService = googleAuthService;
+            _emailDomainPolicy = emailDomainPolicy;
         }
 
         public async Task<ErrorOr<AuthResult>> Handle(GoogleLoginCommand request, CancellationToken cancellationToken)
@@ -31,13 +34,30 @@ namespace HSTS.Application.Auth.Commands
             if (googleUser is null)
                 return Error.Validation("Auth.InvalidGoogleToken", "Invalid Google ID token.");
 
-            // Try find by GoogleId first, then by email
+            if (!_emailDomainPolicy.IsAllowedEmail(googleUser.Email))
+                return Error.Validation("Email.DomainNotAllowed", "This email domain is not supported.");
+
+            // Find linked Google account first. A password-based account with the same email
+            // must not be auto-linked through Google sign-in.
             var account = await _context.Accounts
-                .FirstOrDefaultAsync(a => a.GoogleId == googleUser.GoogleId && !a.IsDeleted, cancellationToken)
-                ?? await _context.Accounts
+                .FirstOrDefaultAsync(a => a.GoogleId == googleUser.GoogleId && !a.IsDeleted, cancellationToken);
+
+            if (account is null)
+            {
+                var emailAccount = await _context.Accounts
                     .FirstOrDefaultAsync(a => a.Email == googleUser.Email && !a.IsDeleted, cancellationToken);
 
-            User user;
+                if (emailAccount is not null && emailAccount.PasswordHash is not null)
+                {
+                    return Error.Conflict(
+                        "Auth.GoogleLoginBlocked",
+                        "This email is already registered using the standard login method. Please log in using your email and password.");
+                }
+
+                account = emailAccount;
+            }
+
+            User? user;
 
             if (account is null)
             {
@@ -67,7 +87,7 @@ namespace HSTS.Application.Auth.Commands
             }
             else
             {
-                // Existing account — link Google if not already linked
+                // Existing Google-capable account — link Google if this is a non-password account
                 if (account.GoogleId is null)
                 {
                     account.GoogleId = googleUser.GoogleId;
@@ -88,11 +108,13 @@ namespace HSTS.Application.Auth.Commands
             }
 
             // Load roles
-            user = await _context.Users
+            var reloadedUser = await _context.Users
                 .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
-                .FirstOrDefaultAsync(u => u.Id == user.Id, cancellationToken);
-            if (user is null)
+                .FirstOrDefaultAsync(u => u.Id == user!.Id, cancellationToken);
+            if (reloadedUser is null)
                 return Error.NotFound("User.NotFound", "User account is incomplete.");
+
+            user = reloadedUser;
 
             var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
 
