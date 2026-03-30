@@ -46,6 +46,7 @@ namespace HSTS.Infrastructure
             services.Configure<RouteApiSettings>(configuration.GetSection("TravelApis:Route"));
             services.Configure<WeatherApiSettings>(configuration.GetSection("TravelApis:Weather"));
             services.Configure<SandboxTravelApiSettings>(configuration.GetSection("TravelApis:Sandbox"));
+            services.Configure<FixedIntercityApiSettings>(configuration.GetSection("TravelApis:FixedIntercity"));
 
             services.AddHttpClient<IRouteMatrixService, RouteMatrixService>((serviceProvider, client) =>
             {
@@ -72,6 +73,17 @@ namespace HSTS.Infrastructure
             services.AddHttpClient<ISandboxTravelSearchService, SandboxTravelSearchService>((serviceProvider, client) =>
             {
                 var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<SandboxTravelApiSettings>>().Value;
+                if (Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var uri))
+                {
+                    client.BaseAddress = uri;
+                }
+
+                client.Timeout = TimeSpan.FromSeconds(25);
+            });
+
+            services.AddHttpClient<IFixedIntercityTransportService, FixedIntercityTransportService>((serviceProvider, client) =>
+            {
+                var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<FixedIntercityApiSettings>>().Value;
                 if (Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var uri))
                 {
                     client.BaseAddress = uri;

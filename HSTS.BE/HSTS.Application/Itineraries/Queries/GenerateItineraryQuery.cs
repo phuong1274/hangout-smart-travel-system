@@ -118,17 +118,20 @@ namespace HSTS.Application.Itineraries.Queries
         private readonly IRouteMatrixService _routeMatrixService;
         private readonly IWeatherAdvisoryService _weatherAdvisoryService;
         private readonly ISandboxTravelSearchService _sandboxTravelSearchService;
+        private readonly IFixedIntercityTransportService _fixedIntercityTransportService;
 
         public GenerateItineraryQueryHandler(
             IAppDbContext context,
             IRouteMatrixService routeMatrixService,
             IWeatherAdvisoryService weatherAdvisoryService,
-            ISandboxTravelSearchService sandboxTravelSearchService)
+            ISandboxTravelSearchService sandboxTravelSearchService,
+            IFixedIntercityTransportService fixedIntercityTransportService)
         {
             _context = context;
             _routeMatrixService = routeMatrixService;
             _weatherAdvisoryService = weatherAdvisoryService;
             _sandboxTravelSearchService = sandboxTravelSearchService;
+            _fixedIntercityTransportService = fixedIntercityTransportService;
         }
 
         public async Task<ErrorOr<GeneratedItineraryDto>> Handle(GenerateItineraryQuery request, CancellationToken cancellationToken)
@@ -256,12 +259,25 @@ namespace HSTS.Application.Itineraries.Queries
                 return Error.NotFound("Itinerary.TransportModes", "No transport mode metrics were found.");
             }
 
+            var outboundIntercityRequest = new FixedIntercitySearchRequest(
+                null,
+                fromProvince.Latitude,
+                fromProvince.Longitude,
+                null,
+                toProvince.Latitude,
+                toProvince.Longitude,
+                request.DepartDate,
+                null,
+                request.Page,
+                request.PageSize);
+
             var intercityTransport = await BuildTransportRecommendationAsync(
                 origin,
                 destination,
                 groupSize,
                 transportModes,
                 useExternalRouteApi: true,
+                outboundIntercityRequest,
                 cancellationToken);
 
             var sandboxSearch = await _sandboxTravelSearchService.SearchAsync(
@@ -409,6 +425,7 @@ namespace HSTS.Application.Itineraries.Queries
                         groupSize,
                         transportModes,
                         useExternalRouteApi: false,
+                        null,
                         cancellationToken);
 
                     var activityArrival = AddMinutes(currentTime, localTransport.SelectedTravelTimeMinutes);
@@ -486,12 +503,25 @@ namespace HSTS.Application.Itineraries.Queries
 
                 if (dayIndex == totalDays - 1)
                 {
+                    var returnIntercityRequest = new FixedIntercitySearchRequest(
+                        null,
+                        currentPoint.Latitude,
+                        currentPoint.Longitude,
+                        null,
+                        origin.Latitude,
+                        origin.Longitude,
+                        date,
+                        null,
+                        request.Page,
+                        request.PageSize);
+
                     var returnTransport = await BuildTransportRecommendationAsync(
                         currentPoint,
                         origin,
                         groupSize,
                         transportModes,
                         useExternalRouteApi: true,
+                        returnIntercityRequest,
                         cancellationToken);
 
                     var returnDeparture = Max(currentTime, date.ToDateTime(new TimeOnly(17, 0)));
@@ -712,6 +742,7 @@ namespace HSTS.Application.Itineraries.Queries
             int groupSize,
             IList<TransportMode> transportModes,
             bool useExternalRouteApi,
+            FixedIntercitySearchRequest? fixedIntercityRequest,
             CancellationToken cancellationToken)
         {
             RouteEstimate? routeEstimate = null;
@@ -728,6 +759,52 @@ namespace HSTS.Application.Itineraries.Queries
 
             if (useExternalRouteApi)
             {
+                if (fixedIntercityRequest is not null)
+                {
+                    var busResult = await _fixedIntercityTransportService.SearchBusAsync(fixedIntercityRequest, cancellationToken);
+                    if (busResult.IsSuccess && busResult.RecommendedOption is not null)
+                    {
+                        var busOption = busResult.RecommendedOption;
+                        var intercityMinutes = busOption.EstimatedTravelMinutes > 0
+                            ? busOption.EstimatedTravelMinutes
+                            : routeEstimate?.DurationMinutes ?? fallbackDuration;
+
+                        var selectedOption = new TransportOptionDto(
+                            busOption.Method,
+                            intercityMinutes,
+                            busOption.EstimatedTotalCost,
+                            true,
+                            busOption.Note);
+
+                        return new TransportRecommendationDto(
+                            from.DisplayName,
+                            to.DisplayName,
+                            distanceKm,
+                            selectedOption.Method,
+                            selectedOption.EstimatedTravelMinutes,
+                            selectedOption.EstimatedTotalCost,
+                            new List<TransportOptionDto> { selectedOption },
+                            busResult.Source);
+                    }
+
+                    var fallbackBusOption = new TransportOptionDto(
+                        "Bus",
+                        routeEstimate?.DurationMinutes ?? fallbackDuration,
+                        0,
+                        true,
+                        busResult.ErrorMessage ?? "Bus API did not return a parsable option.");
+
+                    return new TransportRecommendationDto(
+                        from.DisplayName,
+                        to.DisplayName,
+                        distanceKm,
+                        fallbackBusOption.Method,
+                        fallbackBusOption.EstimatedTravelMinutes,
+                        fallbackBusOption.EstimatedTotalCost,
+                        new List<TransportOptionDto> { fallbackBusOption },
+                        busResult.Source);
+                }
+
                 var pendingOption = new TransportOptionDto(
                     "FixedIntercity",
                     routeEstimate?.DurationMinutes ?? fallbackDuration,
