@@ -1,5 +1,6 @@
 using System.Globalization;
 using HSTS.Application.Interfaces;
+using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace HSTS.Application.Itineraries.Queries
@@ -248,7 +249,6 @@ namespace HSTS.Application.Itineraries.Queries
             var transportModes = await _context.TransportModes
                 .AsNoTracking()
                 .Include(x => x.LocalTransportMetrics)
-                .Where(x => x.LocalTransportMetrics != null)
                 .ToListAsync(cancellationToken);
 
             if (transportModes.Count == 0)
@@ -726,8 +726,28 @@ namespace HSTS.Application.Itineraries.Queries
                 ?? HaversineKm(from.Latitude, from.Longitude, to.Latitude, to.Longitude);
             var fallbackDuration = Math.Max(10, (int)Math.Round(distanceKm / 35d * 60d));
 
+            if (useExternalRouteApi)
+            {
+                var pendingOption = new TransportOptionDto(
+                    "FixedIntercity",
+                    routeEstimate?.DurationMinutes ?? fallbackDuration,
+                    0,
+                    true,
+                    "FixedIntercity will use external API and is not integrated yet.");
+
+                return new TransportRecommendationDto(
+                    from.DisplayName,
+                    to.DisplayName,
+                    distanceKm,
+                    pendingOption.Method,
+                    pendingOption.EstimatedTravelMinutes,
+                    pendingOption.EstimatedTotalCost,
+                    new List<TransportOptionDto> { pendingOption },
+                    routeEstimate?.Source ?? "fixed-intercity-pending");
+            }
+
             var candidates = transportModes
-                .Where(x => x.LocalTransportMetrics is not null)
+                .Where(x => x.Category == CategoryTransport.DynamicLocal && x.LocalTransportMetrics is not null)
                 .Select(x =>
                 {
                     var metrics = x.LocalTransportMetrics!;
@@ -752,10 +772,10 @@ namespace HSTS.Application.Itineraries.Queries
             {
                 var unknownOption = new TransportOptionDto(
                     "Unknown",
-                    routeEstimate?.DurationMinutes ?? fallbackDuration,
+                    fallbackDuration,
                     0,
                     true,
-                    "No transport metric data");
+                    "No DynamicLocal transport metric data");
 
                 return new TransportRecommendationDto(
                     from.DisplayName,
@@ -765,11 +785,11 @@ namespace HSTS.Application.Itineraries.Queries
                     unknownOption.EstimatedTravelMinutes,
                     unknownOption.EstimatedTotalCost,
                     new List<TransportOptionDto> { unknownOption },
-                    routeEstimate?.Source ?? "haversine-fallback");
+                        "haversine-fallback");
             }
 
             var selected = candidates.First();
-            var selectedTravelMinutes = routeEstimate?.DurationMinutes ?? selected.EstimatedTravelMinutes;
+                    var selectedTravelMinutes = selected.EstimatedTravelMinutes;
 
             var options = candidates
                 .Take(4)
@@ -789,7 +809,7 @@ namespace HSTS.Application.Itineraries.Queries
                 selectedTravelMinutes,
                 selected.EstimatedTotalCost,
                 options,
-                routeEstimate?.Source ?? "local-transport-metrics");
+                "local-transport-metrics");
         }
 
         private static decimal GetPerPersonPrice(Location location)
