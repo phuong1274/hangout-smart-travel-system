@@ -211,7 +211,7 @@ namespace HSTS.Infrastructure.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
-                    b.Property<int>("ProvinceId")
+                    b.Property<int?>("ProvinceId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -1104,8 +1104,7 @@ namespace HSTS.Infrastructure.Migrations
                     b.HasOne("HSTS.Domain.Entities.Province", "Province")
                         .WithMany("Districts")
                         .HasForeignKey("ProvinceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Province");
                 });
