@@ -63,7 +63,7 @@ const RegisterForm = () => {
           className={styles.registerForm}
         >
           <Form.Item
-            name="username"
+            name="FullName"
             rules={[
               { required: true, message: 'Please enter your username' },
               { max: 100, message: 'Username must be at most 100 characters' },
