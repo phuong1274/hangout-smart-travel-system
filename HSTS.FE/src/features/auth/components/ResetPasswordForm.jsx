@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Button, Card, Form, Input, Typography } from 'antd';
+import { Button, Form, Input, Typography } from 'antd';
 import { LeftOutlined, LockOutlined } from '@ant-design/icons';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useResetPassword, useResendOtp, useVerifyForgotPasswordOtp } from '../hooks/useAuth';
@@ -51,90 +51,93 @@ const ResetPasswordForm = () => {
   if (!email) return <Navigate to={PATHS.AUTH.FORGOT_PASSWORD} replace />;
 
   return (
-    <div className={styles.resetPageWrapper}>
-      <div className={styles.resetContainer}>
-        <div className={styles.resetContent}>
-          
-          <Title level={2} className={styles.resetTitle}>Reset Password</Title>
+    <>
+      {step === 1 ? (
+        <OtpVerificationStep
+          email={email}
+          onSubmitOtp={handleOtpSubmit}
+          onResendOtp={handleResendOtp}
+          isSubmitting={verifyLoading}
+          isResending={resendLoading}
+          initialCooldownSeconds={initialCooldownSeconds}
+          initialRemainingResends={initialRemainingResends}
+        />
+      ) : (
+        <div className={styles.resetPageWrapper}>
+          <div className={styles.resetContainer}>
+            <div className={styles.resetContent}>
+              
+              <div className={styles.subHeading}>Create new key</div>
+              <Title level={2} className={styles.resetTitle}>Reset Password</Title>
 
-          {step === 1 ? (
-            <OtpVerificationStep
-              email={email}
-              onSubmitOtp={handleOtpSubmit}
-              onResendOtp={handleResendOtp}
-              isSubmitting={verifyLoading}
-              isResending={resendLoading}
-              initialCooldownSeconds={initialCooldownSeconds}
-              initialRemainingResends={initialRemainingResends}
-            />
-          ) : (
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handlePasswordSubmit}
-              autoComplete="off"
-              className={styles.resetForm}
-            >
-              <Form.Item
-                name="newPassword"
-                className={styles.formItemLabel}
-                rules={[
-                  { required: true, message: 'Please enter a new password' },
-                  { min: 8, message: 'Password must be at least 8 characters' },
-                ]}
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={handlePasswordSubmit}
+                autoComplete="off"
+                className={styles.resetForm}
               >
-                <Input.Password
-                  placeholder="NEW PASSWORD"
-                  size="large"
-                  className={styles.resetInput}
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="confirmPassword"
-                dependencies={['newPassword']}
-                className={styles.formItemLabel}
-                rules={[
-                  { required: true, message: 'Please confirm your password' },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
-                      return Promise.reject(new Error('Passwords do not match'));
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password
-                  placeholder="CONFIRM NEW PASSWORD"
-                  size="large"
-                  className={styles.resetInput}
-                />
-              </Form.Item>
-
-              <Form.Item style={{ textAlign: 'center', marginBottom: 0 }}>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  size="large"
-                  block
-                  loading={resetLoading}
-                  className={styles.btnReset}
+                <Form.Item
+                  name="newPassword"
+                  rules={[
+                    { required: true, message: 'Please enter a new password' },
+                    { min: 8, message: 'Password must be at least 8 characters' },
+                  ]}
                 >
-                  RESET PASSWORD
-                </Button>
-              </Form.Item>
-            </Form>
-          )}
+                  <Input.Password
+                    prefix={<LockOutlined className={styles.resetIcon} />}
+                    placeholder="New Password"
+                    size="large"
+                    className={styles.resetInput}
+                  />
+                </Form.Item>
 
-          <div className={styles.backLinkWrapper}>
-            <Link to={PATHS.AUTH.LOGIN} className={styles.backLink}>
-              <LeftOutlined className={styles.backIcon} /> BACK TO LOGIN
-            </Link>
+                <Form.Item
+                  name="confirmPassword"
+                  dependencies={['newPassword']}
+                  rules={[
+                    { required: true, message: 'Please confirm your password' },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
+                        return Promise.reject(new Error('Passwords do not match'));
+                      },
+                    }),
+                  ]}
+                >
+                  <Input.Password
+                    prefix={<LockOutlined className={styles.resetIcon} />}
+                    placeholder="Confirm New Password"
+                    size="large"
+                    className={styles.resetInput}
+                  />
+                </Form.Item>
+
+                <Form.Item style={{ textAlign: 'center', marginBottom: 0 }}>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    size="large"
+                    block
+                    loading={resetLoading}
+                    className={styles.btnReset}
+                  >
+                    RESET PASSWORD
+                  </Button>
+                </Form.Item>
+              </Form>
+
+              <div className={styles.backLinkWrapper}>
+                <Link to={PATHS.AUTH.LOGIN} className={styles.backLink}>
+                  <LeftOutlined className={styles.backIcon} /> BACK TO LOGIN
+                </Link>
+              </div>
+
+            </div>
           </div>
-
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 };
 

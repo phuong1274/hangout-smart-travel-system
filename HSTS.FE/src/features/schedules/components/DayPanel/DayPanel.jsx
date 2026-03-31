@@ -42,21 +42,21 @@ const DayPanel = ({ dayData }) => {
     <div className={styles.dayPanelContent}>
       <div className={isOverBudget ? styles.dailyBudgetOver : styles.dailyBudget}>
         <div className={styles.budgetInfo}>
-          <Text style={{ color: isOverBudget ? '#DC2626' : '#111827', fontWeight: 600 }}>
+          <Text style={{ color: isOverBudget ? '#FF6B6B' : '#1A535C', fontWeight: 700 }}>
             {isOverBudget ? 'Budget Exceeded' : 'Budget On Track'}
           </Text>
-          <Text type="secondary">{budgetPercent.toFixed(0)}% used</Text>
+          <Text style={{ color: '#1A535C', fontWeight: 500 }}>{budgetPercent.toFixed(0)}% used</Text>
         </div>
         <Progress 
           percent={Math.min(budgetPercent, 100)} 
           showInfo={false} 
-          strokeColor={isOverBudget ? "#DC2626" : "#111827"} 
-          trailColor="#F3F4F6"
+          strokeColor={isOverBudget ? "#FF6B6B" : "#4ECDC4"} 
+          trailColor="#F7F9F9"
           size="small"
         />
         <div className={styles.budgetLabels}>
-          <Text type="secondary" style={{fontSize: 12}}>Spent: {(dailyBudgetStatus.spent / 1000000).toFixed(1)}M</Text>
-          <Text type="secondary" style={{fontSize: 12}}>Limit: {(dailyBudgetStatus.ceiling / 1000000).toFixed(1)}M</Text>
+          <Text style={{fontSize: 13, fontWeight: 500}}>Spent: {(dailyBudgetStatus.spent / 1000000).toFixed(1)}M</Text>
+          <Text style={{fontSize: 13, fontWeight: 500}}>Limit: {(dailyBudgetStatus.ceiling / 1000000).toFixed(1)}M</Text>
         </div>
       </div>
 

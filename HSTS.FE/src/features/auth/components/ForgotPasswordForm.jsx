@@ -1,5 +1,5 @@
 import { Button, Form, Input, Typography } from 'antd';
-import { LeftOutlined } from '@ant-design/icons';
+import { LeftOutlined, MailOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useForgotPassword } from '../hooks/useAuth';
 import { PATHS } from '@/routes/paths';
@@ -15,6 +15,7 @@ const ForgotPasswordForm = () => {
     <div className={styles.forgotPageWrapper}>
       <div className={styles.forgotContainer}>
         <div className={styles.forgotContent}>
+          <div className={styles.subHeading}>Don't worry</div>
           <Title level={2} className={styles.forgotTitle}>Forgot password?</Title>
           
           <Text className={styles.forgotDesc}>
@@ -31,7 +32,8 @@ const ForgotPasswordForm = () => {
               ]}
             >
               <Input 
-                placeholder="EMAIL ADDRESS" 
+                prefix={<MailOutlined className={styles.forgotIcon} />}
+                placeholder="Email Address" 
                 size="large" 
                 className={styles.forgotInput} 
               />

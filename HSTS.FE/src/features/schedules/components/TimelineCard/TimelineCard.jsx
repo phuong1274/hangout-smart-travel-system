@@ -96,8 +96,8 @@ const TimelineCard = ({ event }) => {
           
           {event.type === 'Visit' && (
             <div style={{ marginTop: 4 }}>
-              <StarFilled style={{ color: '#B89D71', fontSize: 12, marginRight: 6 }} />
-              <Text style={{ fontSize: 12, color: '#6B6B6B' }}>4.5 (1,248 Reviews)</Text>
+              <StarFilled style={{ color: '#FF6B6B', fontSize: 14, marginRight: 6 }} />
+              <Text style={{ fontSize: 13, color: '#1A535C', fontWeight: 500 }}>4.5 (1,248 Reviews)</Text>
             </div>
           )}
           
@@ -169,7 +169,7 @@ const TimelineCard = ({ event }) => {
           
           <Card 
             className={`${styles.eventCard} ${isTransport ? styles.transportCard : ''}`} 
-            bodyStyle={{ padding: isTransport ? '12px 32px' : '16px 24px' }}
+            bodyStyle={{ padding: isTransport ? '12px 32px' : '24px 32px' }}
           >
             {hasTransportOptions && event.transportOptions.length > 1 ? (
               <Collapse ghost expandIconPosition="end" className={styles.transportCollapse}>
@@ -184,10 +184,10 @@ const TimelineCard = ({ event }) => {
                         <Radio value={idx} key={idx} className={styles.radioItem}>
                           <div className={styles.optionDetails}>
                             <div className={styles.optionTextInfo}>
-                              <Text style={{ fontFamily: "'Lora', serif", fontSize: 16 }}>{opt.method}</Text>
+                              <Text style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 16, fontWeight: 600, color: '#1A535C' }}>{opt.method}</Text>
                               {opt.recommended && <Tag className={styles.luxuryRecTag}>RECOMMENDED</Tag>}
                               <div className={styles.subInfo}>
-                                <Text style={{fontSize: 13, color: '#8C8C8C'}}>
+                                <Text style={{fontSize: 13, color: '#1A535C'}}>
                                   {Math.round(opt.travelTimeMinutes)} mins • {opt.pros}
                                 </Text>
                               </div>
@@ -219,7 +219,7 @@ const TimelineCard = ({ event }) => {
 
         {!isTransport && (
           <div className={styles.deleteAction}>
-            <Button type="text" style={{ color: '#DC2626' }} icon={<DeleteOutlined />} shape="circle" />
+            <Button type="text" style={{ color: '#FF6B6B' }} icon={<DeleteOutlined />} shape="circle" className={styles.deleteIconPop} />
           </div>
         )}
       </div>

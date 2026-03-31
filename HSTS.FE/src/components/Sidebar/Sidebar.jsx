@@ -77,15 +77,17 @@ const Sidebar = () => {
       <Dropdown menu={{ items: userDropdownItems }} placement="bottomRight" trigger={['click']}>
         <div className={styles.profileContainer}>
           <Avatar
-            size={collapsed ? 40 : 64}
+            size={collapsed ? 48 : 72}
             src={user?.avatarUrl ?? null}
             style={{ 
-              backgroundColor: '#1A1A1A', 
-              color: '#B89D71',
+              backgroundColor: '#FFE66D', 
+              color: '#FF6B6B',
               flexShrink: 0, 
-              transition: 'all 0.4s ease',
-              fontFamily: "'Lora', serif",
-              fontSize: collapsed ? '18px' : '28px'
+              transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontWeight: 700,
+              fontSize: collapsed ? '20px' : '32px',
+              boxShadow: '0 8px 24px rgba(255, 107, 107, 0.2)'
             }}
           >
             {!user?.avatarUrl && initials}

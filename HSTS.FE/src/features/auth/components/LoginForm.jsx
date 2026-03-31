@@ -19,6 +19,7 @@ const LoginForm = () => {
     <div className={styles.loginContainer}>
       
       <div className={styles.loginLeft}>
+        <div className={styles.subHeading}>Welcome back</div>
         <Title level={2} className={styles.loginTitle}>Sign in to Hangout</Title>
 
         <div className={styles.googleLoginWrapper}>
@@ -26,7 +27,7 @@ const LoginForm = () => {
             onSuccess={(res) => googleLogin(res.credential)}
             onError={() => {}}
             useOneTap={false}
-            shape="square" 
+            shape="pill" 
           />
         </div>
 
@@ -89,6 +90,7 @@ const LoginForm = () => {
       </div>
 
       <div className={styles.loginRight}>
+        <div className={styles.subHeadingRight}>New here?</div>
         <Title level={2} className={styles.welcomeTitle}>Hello, Friend!</Title>
         <Text className={styles.welcomeText}>
           Enter your personal details and start<br />journey with us

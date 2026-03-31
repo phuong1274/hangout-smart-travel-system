@@ -81,8 +81,8 @@ const AccommodationModal = ({
       className={styles.luxuryModal}
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <HomeOutlined style={{ color: '#1A1A1A', fontSize: '20px' }} />
-          <span style={{ fontFamily: "'Lora', serif", fontSize: '22px', fontWeight: 400, color: '#1A1A1A' }}>
+          <HomeOutlined style={{ color: '#FF6B6B', fontSize: '24px' }} className={styles.modalIconPop} />
+          <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '24px', fontWeight: 700, color: '#1A535C' }}>
             {accmTitle.replace('Hotel Check-in: ', '').replace('Accommodation: ', '')}
           </span>
         </div>
@@ -137,7 +137,7 @@ const AccommodationModal = ({
                     key={altIdx}
                     className={styles.altPanel}
                   >
-                    <Text style={{ display: 'block', marginBottom: 20, fontSize: 13, color: '#8C8C8C', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    <Text style={{ display: 'block', marginBottom: 20, fontSize: 13, color: '#1A535C', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>
                       Available Rooms (Preview)
                     </Text>
                     {alt.options?.map((opt, optIdx) => renderRoomOption(opt, optIdx, false, false))}

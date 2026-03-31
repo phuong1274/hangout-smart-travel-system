@@ -10,6 +10,7 @@ const StorySection = () => {
     <section className={styles.sectionContainer}>
       <Row className={styles.rowWrapper} align="middle">
         <Col xs={24} md={13} className={styles.leftContent}>
+          <div className={styles.storySubHeading}>Our Journey</div>
           <Title level={2} className={styles.mainTitle}>
             Vietnam – Where Every Path Tells a Story
           </Title>
@@ -21,11 +22,10 @@ const StorySection = () => {
             with smart technology to craft itineraries designed just for you.
           </Paragraph>
 
-          <Text italic className={styles.quoteText}>
+          <Text className={styles.quoteText}>
             "Once you have loved it, you will love it forever."
           </Text>
         </Col>
-
         
         <Col xs={24} md={11} className={styles.rightImageWrapper}>
           <img 

@@ -59,6 +59,7 @@ const OtpVerificationStep = ({
     <div className={styles.otpPageWrapper}>
       <div className={styles.otpContainer}>
         <div className={styles.otpContent}>
+          <div className={styles.subHeading}>Almost there</div>
           <Title level={2} className={styles.otpTitle}>Verify OTP</Title>
           
           <div className={styles.otpDesc}>

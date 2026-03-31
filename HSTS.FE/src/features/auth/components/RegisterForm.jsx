@@ -25,6 +25,7 @@ const RegisterForm = () => {
     <div className={styles.registerContainer}>
 
       <div className={styles.registerLeft}>
+        <div className={styles.subHeadingLeft}>Already a member?</div>
         <Title level={2} className={styles.welcomeTitle}>Welcome Back!</Title>
         <Text className={styles.welcomeText}>
           To keep connected with us please login with your personal info
@@ -40,6 +41,7 @@ const RegisterForm = () => {
       </div>
 
       <div className={styles.registerRight}>
+        <div className={styles.subHeadingRight}>Join the adventure</div>
         <Title level={2} className={styles.registerTitle}>Create Account</Title>
 
         <div className={styles.googleLoginWrapper}>
@@ -47,7 +49,7 @@ const RegisterForm = () => {
             onSuccess={(res) => googleLogin(res.credential)}
             onError={() => { }}
             useOneTap={false}
-            shape="square"
+            shape="pill"
           />
         </div>
 

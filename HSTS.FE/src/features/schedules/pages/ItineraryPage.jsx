@@ -31,39 +31,39 @@ const ItineraryPage = () => {
       </div>
 
       <div className={styles.header}>
-        <div className={styles.titleSection}>
-          <Title level={3} className={styles.title}>10 Days Trip: Hanoi ➝ Da Nang ➝ HCMC</Title>
-          <Text type="secondary">Upcoming • Updated Yesterday</Text>
-        </div>
-        
-        <div className={styles.budgetSummary}>
-          <div className={styles.budgetHeader}>
-            <div className={styles.statBlock}>
-              <Text className={styles.statLabel}>ACTUAL SPENT</Text>
-              <Text className={styles.statSpent} style={{ color: isOverEstimate ? '#DC2626' : '#1A1A1A' }}>
-                {formatVND(spentAmount)}
-              </Text>
-            </div>
-            <div className={styles.statBlockRight}>
-              <Text className={styles.statLabel}>ESTIMATED COST</Text>
-              <Text className={styles.statEstimate}>{formatVND(estimateAmount)}</Text>
-            </div>
+        <Title level={3} className={styles.title}>10 Days Trip: Hanoi ➝ Da Nang ➝ HCMC</Title>
+        <Text className={styles.subtitleText}>Upcoming • Updated Yesterday</Text>
+      </div>
+
+      <div className={styles.budgetDashboard}>
+        <div className={styles.budgetRow}>
+          <div className={styles.statBlock}>
+            <Text className={styles.statLabel}>ACTUAL SPENT</Text>
+            <Text className={styles.statSpent} style={{ color: isOverEstimate ? '#FF6B6B' : '#1A535C' }}>
+              {formatVND(spentAmount)}
+            </Text>
           </div>
 
-          <Progress 
-            percent={Math.min(percent, 100)} 
-            showInfo={false} 
-            strokeColor={isOverEstimate ? "#DC2626" : "#1A1A1A"} 
-            trailColor="#EAECEC"
-            size="small"
-            style={{ margin: 0 }}
-          />
+          <div className={styles.progressWrapper}>
+            <Progress 
+              percent={Math.min(percent, 100)} 
+              showInfo={false} 
+              strokeColor={isOverEstimate ? "#FF6B6B" : "#4ECDC4"} 
+              trailColor="#F7F9F9"
+              strokeWidth={10}
+              style={{ margin: 0 }}
+            />
+            {isOverEstimate && (
+              <div className={styles.overBudgetLabel}>
+                Over estimate by {formatVND(overAmount)}
+              </div>
+            )}
+          </div>
 
-          {isOverEstimate && (
-            <div className={styles.overBudgetLabel}>
-              Over estimate by {formatVND(overAmount)}
-            </div>
-          )}
+          <div className={styles.statBlockRight}>
+            <Text className={styles.statLabel}>ESTIMATED COST</Text>
+            <Text className={styles.statEstimate}>{formatVND(estimateAmount)}</Text>
+          </div>
         </div>
       </div>
 

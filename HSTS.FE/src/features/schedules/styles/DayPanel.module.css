@@ -1,37 +1,45 @@
 .dayPanelContent {
-  padding: 16px;
+  padding: clamp(16px, 3vw, 32px);
 }
 
 .dailyBudget, .dailyBudgetOver {
   background: #FFFFFF;
-  padding: 32px;
-  border-radius: 0;
-  border: 1px solid #EAECEC;
-  margin-bottom: 48px;
-  transition: all 0.4s ease;
+  padding: clamp(24px, 4vw, 32px);
+  border-radius: 20px;
+  border: none;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08);
+  margin-bottom: clamp(40px, 6vw, 80px);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dailyBudget:hover, .dailyBudgetOver:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 32px rgba(26, 83, 92, 0.12);
 }
 
 .budgetInfo {
   display: flex;
   justify-content: space-between;
   margin-bottom: 16px;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
   letter-spacing: 0.5px;
+  font-weight: 600;
 }
 
 .budgetLabels {
   display: flex;
   justify-content: space-between;
   margin-top: 12px;
+  color: #1A535C;
 }
 
 .timelineContainer {
-  padding-left: 24px;
+  padding-left: clamp(12px, 3vw, 24px);
 }
 
 .timeBlockGroup {
-  margin-bottom: 48px;
+  margin-bottom: clamp(40px, 6vw, 80px);
 }
 
 .timeBlockHeader {
@@ -41,11 +49,10 @@
 }
 
 .timeBlockTitle {
-  font-family: 'Lora', serif;
-  font-size: 20px;
-  font-weight: 400;
-  color: #1A1A1A;
-  font-style: italic;
+  font-family: 'Caveat', cursive;
+  font-size: clamp(32px, 4vw, 42px);
+  font-weight: 700;
+  color: #FF6B6B;
 }
 
 .antTimelineCustom {
@@ -53,23 +60,54 @@
 }
 
 .antTimelineCustom :global(.ant-timeline-item-tail) {
-  border-left: 1px solid #EAECEC;
+  border-left: 2px dashed #4ECDC4;
   left: 5px;
 }
 
 .timelineDot {
-  width: 11px;
-  height: 11px;
+  width: 14px;
+  height: 14px;
   background-color: #FFFFFF;
   border-radius: 50%;
-  border: 2px solid #B89D71;
-  box-shadow: 0 0 0 6px #FFFFFF;
+  border: 3px solid #FF6B6B;
+  box-shadow: 0 0 0 6px #F7F9F9;
   position: relative;
   z-index: 1;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.timelineDot:active {
+  transform: scale(1.2);
+}
+
+.timelineItem {
+  animation: waveFadeUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+.timelineItem:nth-child(1) { animation-delay: 0.1s; }
+.timelineItem:nth-child(2) { animation-delay: 0.2s; }
+.timelineItem:nth-child(3) { animation-delay: 0.3s; }
+.timelineItem:nth-child(4) { animation-delay: 0.4s; }
+.timelineItem:nth-child(5) { animation-delay: 0.5s; }
+.timelineItem:nth-child(6) { animation-delay: 0.6s; }
+.timelineItem:nth-child(7) { animation-delay: 0.7s; }
+.timelineItem:nth-child(8) { animation-delay: 0.8s; }
+.timelineItem:nth-child(n+9) { animation-delay: 0.9s; }
+
+@keyframes waveFadeUp {
+  0% {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .addLocationWrapper {
-  padding-left: 80px;
+  padding-left: clamp(40px, 6vw, 80px);
   margin-top: 16px;
   margin-bottom: 32px;
   display: flex;
@@ -77,14 +115,21 @@
 }
 
 .addBtnText {
-  color: #A0A0A0;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 1.5px;
+  color: #1A535C;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
   text-transform: uppercase;
-  transition: color 0.4s ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-radius: 8px;
 }
 
 .addBtnText:hover {
-  color: #B89D71;
+  color: #FFFFFF !important;
+  background-color: #4ECDC4 !important;
+  transform: scale(1.05);
 }
