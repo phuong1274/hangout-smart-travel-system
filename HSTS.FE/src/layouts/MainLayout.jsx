@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import { Avatar, Dropdown, Layout, Menu, Spin } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { DashboardOutlined, ScheduleOutlined, CompassOutlined, TagsOutlined, AppstoreOutlined, EnvironmentOutlined, UserOutlined, LogoutOutlined, GoldOutlined } from '@ant-design/icons';
+import { DashboardOutlined, ScheduleOutlined, CompassOutlined, TagsOutlined, AppstoreOutlined, EnvironmentOutlined, UserOutlined, LogoutOutlined, GoldOutlined, ShopOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/features/auth/hooks/useAuth';
 import { PATHS } from '@/routes/paths';
@@ -59,6 +59,12 @@ const MainLayout = () => {
       icon: <GoldOutlined />,
       label: 'Amenities',
       onClick: () => navigate(PATHS.AMENITIES)
+    },
+    {
+      key: PATHS.PARTNER_LOCATIONS,
+      icon: <ShopOutlined />,
+      label: 'My Locations',
+      onClick: () => navigate(PATHS.PARTNER_LOCATIONS)
     },
     {
       onClick: () => navigate(PATHS.SCHEDULES),

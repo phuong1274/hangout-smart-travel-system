@@ -16,6 +16,7 @@ export const PATHS = {
   AMENITIES: '/amenities',
   USERS: '/users',
   PROFILE: '/profile',
+  PARTNER_LOCATIONS: '/partner/locations',
   UNAUTHORIZED: '/403',
   NOT_FOUND: '*',
 };

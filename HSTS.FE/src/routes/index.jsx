@@ -44,6 +44,9 @@ const ScheduleManagement = () => (
   </div>
 );
 
+// Partner locations page
+const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
+
 export const router = createBrowserRouter([
   // Public Routes (Auth pages)
   {
@@ -104,6 +107,10 @@ export const router = createBrowserRouter([
           {
             path: '/my-locations',
             element: <SubmissionsPage />
+          },
+          {
+            path: PATHS.PARTNER_LOCATIONS,
+            element: <PartnerLocationsPage />
           },
           {
             path: PATHS.TAGS,

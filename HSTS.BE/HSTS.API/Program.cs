@@ -65,7 +65,8 @@ namespace HSTS.API
                 options.AddPolicy("AllowFrontend", policy =>
                 {
                     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                        ?? new[] { "http://localhost:3000" };
+                        ?? new[] { "http://localhost:3000",
+    "http://localhost:5173" };
 
                     policy.WithOrigins(origins)
                         .AllowAnyHeader()

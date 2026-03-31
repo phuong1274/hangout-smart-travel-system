@@ -8,6 +8,10 @@ export const getLocationByIdApi = (id) => {
   return apiClient.get(`/api/Locations/${id}`).then(res => res.data);
 };
 
+export const getPartnerLocationsApi = (params) => {
+  return apiClient.get('/api/Locations/partner/my', { params }).then(res => res.data);
+};
+
 export const createLocationApi = (data) => {
   return apiClient.post('/api/Locations', data).then(res => res.data);
 };
@@ -36,3 +40,6 @@ export const getAllLocationTypesApi = () => {
 export const getAllAmenitiesApi = () => {
   return apiClient.get('/api/Amenities').then(res => res.data);
 };
+
+// Import from location-submissions for SuggestEditModal
+export { createLocationSubmissionApi } from '@/features/location-submissions/api';
