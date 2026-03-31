@@ -1,0 +1,79 @@
+﻿using HSTS.Domain.Entities;
+using HSTS.Domain.Enums;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace HSTS.Domain.Entities
+{
+    public class Location : BaseEntity
+    {
+        [Key]
+        public int Id { get; set; }
+
+        [Required]
+        [MaxLength(200)]
+        public string Name { get; set; } = null!;
+
+        [MaxLength(2000)]
+        public string? Description { get; set; }
+
+        [Required]
+        [Range(-90, 90)]
+        public double Latitude { get; set; }
+
+        [Required]
+        [Range(-180, 180)]
+        public double Longitude { get; set; }
+
+        [Required]
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(0, 100000000)]
+        public decimal TicketPrice { get; set; }
+
+        [Range(0, 120)]
+        public int MinimumAge { get; set; }
+
+        [Required]
+        [MaxLength(300)]
+        public string Address { get; set; } = null!;
+
+        [MaxLength(50)]
+        public string? Telephone { get; set; }
+
+        [EmailAddress]
+        [MaxLength(200)]
+        public string? Email { get; set; }
+
+        [Required]
+        public int DestinationId { get; set; }
+        public Destination? Destination { get; set; }
+
+        // Keep field name LocationTypeId for debugging (stored as int in DB)
+        public LocationType? LocationTypeId { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(0, 100000000)]
+        public decimal? PriceMinUsd { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(0, 100000000)]
+        public decimal? PriceMaxUsd { get; set; }
+
+        public int? RecommendedDurationMinutes { get; set; }
+
+        [Range(0, 5)]
+        public decimal? Score { get; set; }
+
+        // Owner who created this location
+        public int? OwnerId { get; set; }
+        public User? Owner { get; set; }
+
+        // Navigation properties
+        public ICollection<LocationSocialLink> SocialLinks { get; set; } = new List<LocationSocialLink>();
+        public ICollection<LocationTag> LocationTags { get; set; } = new List<LocationTag>();
+        public ICollection<LocationMedia> LocationMedias { get; set; } = new List<LocationMedia>();
+        public ICollection<LocationAmenity> LocationAmenities { get; set; } = new List<LocationAmenity>();
+        public ICollection<LocationOpeningHour> OpeningHours { get; set; } = new List<LocationOpeningHour>();
+        public ICollection<LocationSeason> Seasons { get; set; } = new List<LocationSeason>();
+    }
+}

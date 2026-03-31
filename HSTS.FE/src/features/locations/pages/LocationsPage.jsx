@@ -1,0 +1,129 @@
+import React, { useState } from 'react';
+import { Card, Typography, Space, Button, Layout, message } from 'antd';
+import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
+import LocationFilter from '@/components/UI/LocationFilter';
+import { useLocations } from '../hooks/useLocations';
+import LocationTable from '../components/LocationTable';
+import LocationForm from '../components/LocationForm';
+import DetailModal from '@/components/DetailModal';
+import { useNavigate } from 'react-router-dom';
+import { PATHS } from '@/routes/paths';
+import { deleteLocationApi, getLocationByIdApi } from '../api';
+
+const { Title } = Typography;
+const { Header, Content } = Layout;
+
+const LocationsPage = () => {
+  const navigate = useNavigate();
+  const {
+    data,
+    loading,
+    pagination,
+    handleTableChange,
+    handleSearch,
+    fetchLocations,
+  } = useLocations();
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(null);
+  const [viewingLocation, setViewingLocation] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  const handleCreate = () => {
+    setEditingLocation(null);
+    setFormOpen(true);
+  };
+
+  const handleEdit = (location) => {
+    setEditingLocation(location);
+    setFormOpen(true);
+  };
+
+  const handleFormClose = () => {
+    setFormOpen(false);
+    setEditingLocation(null);
+  };
+
+  const handleFormSuccess = () => {
+    fetchLocations();
+  };
+
+  const handleView = async (location) => {
+    try {
+      const detail = await getLocationByIdApi(location.id);
+      setViewingLocation(detail);
+      setDetailModalOpen(true);
+    } catch (error) {
+      message.error('Failed to load location details');
+    }
+  };
+
+  const handleDelete = async (location) => {
+    try {
+      await deleteLocationApi(location.id);
+      message.success('Location deleted successfully');
+      fetchLocations();
+    } catch (error) {
+      // Handled by global interceptor
+    }
+  };
+
+  return (
+    <Layout style={{ minHeight: '100vh' }}>
+      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
+          <Title level={3} style={{ margin: 0 }}>Hangout - Locations</Title>
+        </div>
+        <Button type="primary" onClick={() => navigate(PATHS.AUTH.LOGIN)}>
+          Login
+        </Button>
+      </Header>
+      <Content style={{ padding: '24px', background: '#f0f2f5' }}>
+        <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Title level={2} style={{ margin: 0 }}>Location Management</Title>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+              Add Location
+            </Button>
+          </div>
+          <Card>
+            <LocationFilter
+              onSearch={handleSearch}
+              loading={loading}
+              placeholder="Search locations..."
+            />
+            <LocationTable
+              data={data}
+              loading={loading}
+              pagination={pagination}
+              onTableChange={handleTableChange}
+              onEdit={handleEdit}
+              onView={handleView}
+              onDelete={handleDelete}
+            />
+          </Card>
+        </Space>
+      </Content>
+      <LocationForm
+        open={formOpen}
+        location={editingLocation}
+        onClose={handleFormClose}
+        onSuccess={handleFormSuccess}
+      />
+
+      {/* Detail Modal */}
+      <DetailModal
+        open={detailModalOpen}
+        onClose={() => {
+          setDetailModalOpen(false);
+          setViewingLocation(null);
+        }}
+        data={viewingLocation}
+        type="location"
+      />
+    </Layout>
+  );
+};
+
+export default LocationsPage;
