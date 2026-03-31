@@ -19,4 +19,8 @@ export default defineConfig({
       'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
     },
   },
+  build: {
+    sourcemap: false,
+    minify: 'esbuild',
+  },
 })

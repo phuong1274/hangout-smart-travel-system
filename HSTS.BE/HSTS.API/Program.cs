@@ -66,7 +66,7 @@ namespace HSTS.API
                 {
                     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
                         ?? new[] { "http://localhost:3000" };
-
+                   
                     policy.WithOrigins(origins)
                         .AllowAnyHeader()
                         .AllowAnyMethod()
