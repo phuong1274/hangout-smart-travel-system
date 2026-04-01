@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
 import { Layout, Menu, Avatar, Dropdown } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { DashboardOutlined, ScheduleOutlined, UserOutlined, LogoutOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { 
+  DashboardOutlined, 
+  ScheduleOutlined, 
+  EnvironmentOutlined, 
+  CompassOutlined, 
+  TagsOutlined, 
+  AppstoreOutlined, 
+  GoldOutlined, 
+  ShopOutlined, 
+  UserOutlined, 
+  LogoutOutlined 
+} from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/features/auth/hooks/useAuth';
 import { PATHS } from '@/routes/paths';
@@ -19,6 +30,7 @@ const Sidebar = () => {
 
   const role = user?.roles?.[0];
 
+  // Đã gộp đầy đủ menu từ cả 2 nhánh
   const sideMenuItems = [
     {
       key: PATHS.DASHBOARD,
@@ -33,10 +45,46 @@ const Sidebar = () => {
       onClick: () => navigate(PATHS.SCHEDULES),
     },
     {
-      key: PATHS.ITINERARY,
+      key: PATHS.ITINERARY, 
       icon: <EnvironmentOutlined />,
       label: 'Itinerary',
       onClick: () => navigate(PATHS.ITINERARY),
+    },
+    {
+      key: PATHS.DESTINATIONS,
+      icon: <CompassOutlined />,
+      label: 'Destinations',
+      onClick: () => navigate(PATHS.DESTINATIONS)
+    },
+    {
+      key: PATHS.LOCATIONS,
+      icon: <EnvironmentOutlined />,
+      label: 'Locations',
+      onClick: () => navigate(PATHS.LOCATIONS)
+    },
+    {
+      key: PATHS.TAGS,
+      icon: <TagsOutlined />,
+      label: 'Tags',
+      onClick: () => navigate(PATHS.TAGS)
+    },
+    {
+      key: PATHS.LOCATION_TYPES,
+      icon: <AppstoreOutlined />,
+      label: 'Location Types',
+      onClick: () => navigate(PATHS.LOCATION_TYPES)
+    },
+    {
+      key: PATHS.AMENITIES,
+      icon: <GoldOutlined />,
+      label: 'Amenities',
+      onClick: () => navigate(PATHS.AMENITIES)
+    },
+    {
+      key: PATHS.PARTNER_LOCATIONS,
+      icon: <ShopOutlined />,
+      label: 'My Locations',
+      onClick: () => navigate(PATHS.PARTNER_LOCATIONS)
     },
     {
       key: PATHS.USERS,
@@ -63,7 +111,7 @@ const Sidebar = () => {
     },
   ];
 
-  const initials = user?.username?.charAt(0)?.toUpperCase() ?? '?';
+  const initials = (user?.username || user?.fullName)?.charAt(0)?.toUpperCase() ?? '?';
 
   return (
     <Sider 
@@ -95,7 +143,7 @@ const Sidebar = () => {
           
           {!collapsed && (
             <div className={styles.userInfo}>
-              <div className={styles.username}>{user?.username}</div>
+              <div className={styles.username}>{user?.username || user?.fullName}</div>
               <div className={styles.email}>{user?.email}</div>
             </div>
           )}
