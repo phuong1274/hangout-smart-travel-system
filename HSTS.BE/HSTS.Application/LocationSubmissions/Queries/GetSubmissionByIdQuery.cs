@@ -17,7 +17,7 @@ namespace HSTS.Application.LocationSubmissions.Queries
         public async Task<ErrorOr<LocationSubmissionDto>> Handle(GetSubmissionByIdQuery request, CancellationToken ct)
         {
             var submission = await _repository.Query()
-                .Include(s => s.Destination)
+                .Include(s => s.District)
                 .FirstOrDefaultAsync(s => s.Id == request.Id && !s.IsDeleted, ct);
 
             if (submission is null)

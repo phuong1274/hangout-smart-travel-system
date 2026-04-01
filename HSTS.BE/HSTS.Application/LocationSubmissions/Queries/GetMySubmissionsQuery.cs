@@ -25,7 +25,7 @@ namespace HSTS.Application.LocationSubmissions.Queries
         public async Task<ErrorOr<LocationSubmissionPagedResponse>> Handle(GetMySubmissionsQuery request, CancellationToken ct)
         {
             var query = _repository.Query()
-                .Include(s => s.Destination)
+                .Include(s => s.District)
                 .AsQueryable();
 
             query = query.Where(s => !s.IsDeleted && s.UserId == request.UserId);

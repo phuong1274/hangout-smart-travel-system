@@ -4,7 +4,7 @@ import { EnvironmentOutlined, DollarOutlined, UserOutlined, CalendarOutlined, Li
 
 /**
  * Reusable Detail Modal for displaying entity information
- * Supports: locations, tags, destinations, locationTypes, amenities
+ * Supports: locations, tags, districts, locationTypes, amenities
  */
 const DetailModal = ({ open, onClose, data, type }) => {
   if (!data) return null;
@@ -19,12 +19,12 @@ const DetailModal = ({ open, onClose, data, type }) => {
             <Descriptions.Item label="Description" span={2}>
               {data.description || 'N/A'}
             </Descriptions.Item>
-            
+
             <Descriptions.Item label="Location Type">
               <Tag color="blue">{data.locationTypeName || 'N/A'}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Destination">
-              <Tag color="green">{data.destinationName || 'N/A'}</Tag>
+            <Descriptions.Item label="District">
+              <Tag color="green">{data.districtName || 'N/A'}</Tag>
             </Descriptions.Item>
             
             <Descriptions.Item label="Address">
@@ -237,7 +237,7 @@ const DetailModal = ({ open, onClose, data, type }) => {
           </Descriptions>
         );
 
-      case 'destination':
+      case 'district':
         return (
           <Descriptions column={1} size="small" bordered>
             <Descriptions.Item label="ID">{data.id}</Descriptions.Item>
@@ -246,28 +246,18 @@ const DetailModal = ({ open, onClose, data, type }) => {
             <Descriptions.Item label="Code">
               <Tag color="blue">{data.code || 'N/A'}</Tag>
             </Descriptions.Item>
-            
+
             <Descriptions.Item label="Coordinates">
               <Space direction="vertical" size="small">
                 <div>Latitude: {data.latitude?.toFixed(6) || 'N/A'}</div>
                 <div>Longitude: {data.longitude?.toFixed(6) || 'N/A'}</div>
               </Space>
             </Descriptions.Item>
-            
-            <Descriptions.Item label="Type">
-              <Tag color="green">{data.type || 'N/A'}</Tag>
+
+            <Descriptions.Item label="Province">
+              <Tag color="green">{data.provinceName || 'N/A'}</Tag>
             </Descriptions.Item>
-            
-            <Descriptions.Item label="State Information">
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                {data.stateName && <div><EnvironmentOutlined /> {data.stateName}</div>}
-                {data.stateId && <div>State ID: {data.stateId}</div>}
-                {!data.stateName && !data.stateId && 'N/A'}
-              </Space>
-            </Descriptions.Item>
-            
-            <Descriptions.Item label="Country ID">{data.countryId || 'N/A'}</Descriptions.Item>
-            
+
             <Descriptions.Item label="Created At">
               <CalendarOutlined /> {data.createdAt ? new Date(data.createdAt).toLocaleString() : 'N/A'}
             </Descriptions.Item>
@@ -319,7 +309,7 @@ const DetailModal = ({ open, onClose, data, type }) => {
         return `📍 ${data.name}`;
       case 'tag':
         return `🏷️ ${data.name}`;
-      case 'destination':
+      case 'district':
         return `🧭 ${data.name}`;
       case 'locationType':
         return `📋 ${data.name}`;

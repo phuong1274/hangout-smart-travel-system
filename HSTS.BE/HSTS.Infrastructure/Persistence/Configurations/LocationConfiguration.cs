@@ -55,11 +55,17 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.RecommendedDurationMinutes)
                 .IsRequired(false);
 
-            // Configure relationship with Destination
-            builder.HasOne(l => l.Destination)
+            // Configure relationship with District
+            builder.HasOne(l => l.District)
                    .WithMany(d => d.Locations)
-                   .HasForeignKey(l => l.DestinationId)
+                   .HasForeignKey(l => l.DistrictId)
                    .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure relationship with LocationType
+            builder.HasOne(l => l.LocationType)
+                   .WithMany(lt => lt.Locations)
+                   .HasForeignKey(l => l.LocationTypeId)
+                   .OnDelete(DeleteBehavior.SetNull);
 
             // Configure relationship with LocationTag
             builder.HasMany(l => l.LocationTags)

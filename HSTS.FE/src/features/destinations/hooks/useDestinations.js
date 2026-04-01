@@ -1,8 +1,8 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
-import { getDestinationsApi } from '../api';
+import { getDistrictsApi } from '../api';
 
-export const useDestinations = () => {
+export const useDistricts = () => {
   const {
     pagination,
     searchTerm,
@@ -16,10 +16,10 @@ export const useDestinations = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchDestinations = useCallback(async () => {
+  const fetchDistricts = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await getDestinationsApi({
+      const response = await getDistrictsApi({
         pageIndex,
         pageSize,
         searchTerm: searchTerm || undefined
@@ -35,8 +35,8 @@ export const useDestinations = () => {
   }, [pageIndex, pageSize, searchTerm, setTotal]);
 
   useEffect(() => {
-    fetchDestinations();
-  }, [fetchDestinations]);
+    fetchDistricts();
+  }, [fetchDistricts]);
 
   return {
     data,
@@ -44,6 +44,6 @@ export const useDestinations = () => {
     pagination,
     handleTableChange,
     handleSearch,
-    fetchDestinations,
+    fetchDistricts,
   };
 };

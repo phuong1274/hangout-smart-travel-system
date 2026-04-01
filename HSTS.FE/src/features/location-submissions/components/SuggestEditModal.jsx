@@ -20,7 +20,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
   const [rootTags, setRootTags] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
   const [selectedRootTagIds, setSelectedRootTagIds] = useState([]);
-  const [destinations, setDestinations] = useState([]);
+  const [districts, setDistricts] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
   const [amenities, setAmenities] = useState([]);
   const [tags, setTags] = useState([]);
@@ -35,7 +35,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
     const fetchData = async () => {
       try {
         setTagsLoading(true);
-        const [rootTagsRes, destinationsRes, typesRes, amenitiesRes, tagsRes] = await Promise.all([
+        const [rootTagsRes, districtsRes, typesRes, amenitiesRes, tagsRes] = await Promise.all([
           getRootTagsApi(),
           getAllDestinationsApi(),
           getAllLocationTypesApi(),
@@ -48,7 +48,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         setLocationTypes(Array.isArray(typesRes) ? typesRes : (typesRes?.items || []));
         setAmenities(Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []));
         setTags(Array.isArray(tagsRes) ? tagsRes : (tagsRes?.items || []));
-        setDestinations(Array.isArray(destinationsRes) ? destinationsRes : (destinationsRes?.items || []));
+        setDistricts(Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []));
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
       } finally {
@@ -130,7 +130,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         priceMinUsd: location.priceMinUsd,
         priceMaxUsd: location.priceMaxUsd,
         score: location.score,
-        destinationId: location.destinationId,
+        districtId: location.districtId,
         locationTypeId: location.locationTypeId,
         amenityIds: location.amenityIds || [],
         tagIds: location.tagIds || [],
@@ -528,12 +528,12 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
-              name="destinationId"
-              label="Destination"
+              name="districtId"
+              label="District"
             >
-              <Select placeholder="Select destination" allowClear showSearch optionFilterProp="children">
-                {destinations.map(dest => (
-                  <Option key={dest.id} value={dest.id}>{dest.name}</Option>
+              <Select placeholder="Select district" allowClear showSearch optionFilterProp="children">
+                {districts.map(district => (
+                  <Option key={district.id} value={district.id}>{district.name}</Option>
                 ))}
               </Select>
             </Form.Item>

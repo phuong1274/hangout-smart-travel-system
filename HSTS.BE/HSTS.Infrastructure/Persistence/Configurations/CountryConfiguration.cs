@@ -21,14 +21,9 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Code)
                 .HasMaxLength(10);
 
-            builder.HasMany(x => x.States)
-                .WithOne(s => s.Country)
-                .HasForeignKey(s => s.CountryId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasMany(x => x.Destinations)
-                .WithOne(d => d.Country)
-                .HasForeignKey(d => d.CountryId)
+            builder.HasMany(x => x.Provinces)
+                .WithOne(p => p.Country)
+                .HasForeignKey(p => p.CountryId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

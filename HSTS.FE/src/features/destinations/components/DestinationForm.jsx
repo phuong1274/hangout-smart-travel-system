@@ -1,98 +1,58 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, Row, Col, Select, message } from 'antd';
-import { createDestinationApi, updateDestinationApi, getCountriesApi, getStatesApi } from '../api';
+import { createDistrictApi, updateDistrictApi, getProvincesApi } from '../api';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
-const DestinationForm = ({ open, destination, onClose, onSuccess }) => {
+const DistrictForm = ({ open, district, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
-  const [countries, setCountries] = React.useState([]);
-  const [states, setStates] = React.useState([]);
-  const [fetchingCountries, setFetchingCountries] = React.useState(false);
-  const [fetchingStates, setFetchingStates] = React.useState(false);
+  const [provinces, setProvinces] = React.useState([]);
+  const [fetchingProvinces, setFetchingProvinces] = React.useState(false);
 
-  const isEdit = !!destination;
+  const isEdit = !!district;
 
-  // Fetch countries on mount
+  // Fetch provinces on mount
   useEffect(() => {
-    const fetchCountries = async () => {
-      setFetchingCountries(true);
+    const fetchProvinces = async () => {
+      setFetchingProvinces(true);
       try {
-        const data = await getCountriesApi();
-        setCountries(Array.isArray(data) ? data : []);
+        const data = await getProvincesApi();
+        setProvinces(Array.isArray(data) ? data : []);
       } catch (error) {
-        console.error('Failed to fetch countries:', error);
+        console.error('Failed to fetch provinces:', error);
       } finally {
-        setFetchingCountries(false);
+        setFetchingProvinces(false);
       }
     };
-    fetchCountries();
+    fetchProvinces();
   }, []);
 
-  // Fetch states when country changes
   useEffect(() => {
-    const countryId = form.getFieldValue('countryId');
-    if (countryId) {
-      fetchStates(countryId);
-    } else {
-      setStates([]);
-    }
-  }, [countries]);
-
-  const fetchStates = async (countryId) => {
-    setFetchingStates(true);
-    try {
-      const data = await getStatesApi(countryId);
-      setStates(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to fetch states:', error);
-      setStates([]);
-    } finally {
-      setFetchingStates(false);
-    }
-  };
-
-  const handleCountryChange = (countryId) => {
-    form.setFieldsValue({ stateId: undefined });
-    if (countryId) {
-      fetchStates(countryId);
-    } else {
-      setStates([]);
-    }
-  };
-
-  useEffect(() => {
-    if (destination) {
+    if (district) {
       form.setFieldsValue({
-        name: destination.name,
-        englishName: destination.englishName,
-        code: destination.code,
-        latitude: destination.latitude,
-        longitude: destination.longitude,
-        stateId: destination.stateId,
-        countryId: destination.countryId,
+        name: district.name,
+        englishName: district.englishName,
+        code: district.code,
+        latitude: district.latitude,
+        longitude: district.longitude,
+        provinceId: district.provinceId,
       });
-      // Fetch states for the destination's country
-      if (destination.countryId) {
-        fetchStates(destination.countryId);
-      }
     } else {
       form.resetFields();
-      setStates([]);
     }
-  }, [destination, form]);
+  }, [district, form]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
       if (isEdit) {
-        await updateDestinationApi(destination.id, values);
-        message.success('Destination updated successfully');
+        await updateDistrictApi(district.id, values);
+        message.success('District updated successfully');
       } else {
-        await createDestinationApi(values);
-        message.success('Destination created successfully');
+        await createDistrictApi(values);
+        message.success('District created successfully');
       }
       onSuccess();
       onClose();
@@ -105,7 +65,7 @@ const DestinationForm = ({ open, destination, onClose, onSuccess }) => {
 
   return (
     <Modal
-      title={isEdit ? 'Edit Destination' : 'Create Destination'}
+      title={isEdit ? 'Edit District' : 'Create District'}
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
@@ -118,13 +78,13 @@ const DestinationForm = ({ open, destination, onClose, onSuccess }) => {
           <Col span={12}>
             <Form.Item
               name="name"
-              label="Destination Name"
+              label="District Name"
               rules={[
-                { required: true, message: 'Please enter destination name' },
-                { max: 200, message: 'Destination name cannot exceed 200 characters' }
+                { required: true, message: 'Please enter district name' },
+                { max: 200, message: 'District name cannot exceed 200 characters' }
               ]}
             >
-              <Input placeholder="Enter destination name" />
+              <Input placeholder="Enter district name" />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -188,44 +148,19 @@ const DestinationForm = ({ open, destination, onClose, onSuccess }) => {
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
-              name="countryId"
-              label="Country"
-              rules={[
-                { max: 50, message: 'Please select a country' }
-              ]}
+              name="provinceId"
+              label="Province"
             >
               <Select
-                placeholder="Select country"
+                placeholder="Select province"
                 showSearch
                 optionFilterProp="children"
-                loading={fetchingCountries}
-                onChange={handleCountryChange}
+                loading={fetchingProvinces}
                 allowClear
               >
-                {countries.map(country => (
-                  <Option key={country.id} value={country.id}>
-                    {country.name} {country.code ? `(${country.code})` : ''}
-                  </Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="stateId"
-              label="State"
-            >
-              <Select
-                placeholder="Select state"
-                showSearch
-                optionFilterProp="children"
-                loading={fetchingStates}
-                disabled={!form.getFieldValue('countryId')}
-                allowClear
-              >
-                {states.map(state => (
-                  <Option key={state.id} value={state.id}>
-                    {state.name} {state.code ? `(${state.code})` : ''}
+                {provinces.map(province => (
+                  <Option key={province.id} value={province.id}>
+                    {province.name} {province.code ? `(${province.code})` : ''}
                   </Option>
                 ))}
               </Select>
@@ -237,4 +172,4 @@ const DestinationForm = ({ open, destination, onClose, onSuccess }) => {
   );
 };
 
-export default DestinationForm;
+export default DistrictForm;

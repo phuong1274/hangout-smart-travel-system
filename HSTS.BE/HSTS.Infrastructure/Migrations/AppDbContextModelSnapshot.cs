@@ -208,7 +208,7 @@ namespace HSTS.Infrastructure.Migrations
                     b.ToTable("Countries", (string)null);
                 });
 
-            modelBuilder.Entity("HSTS.Domain.Entities.Destination", b =>
+            modelBuilder.Entity("HSTS.Domain.Entities.District", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -217,10 +217,6 @@ namespace HSTS.Infrastructure.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Code")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("CountryId")
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
@@ -254,7 +250,7 @@ namespace HSTS.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
 
-                    b.Property<int?>("StateId")
+                    b.Property<int?>("ProvinceId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -269,11 +265,9 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CountryId");
+                    b.HasIndex("ProvinceId");
 
-                    b.HasIndex("StateId");
-
-                    b.ToTable("Destinations", (string)null);
+                    b.ToTable("Districts", (string)null);
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.Location", b =>
@@ -301,7 +295,7 @@ namespace HSTS.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
 
-                    b.Property<int>("DestinationId")
+                    b.Property<int>("DistrictId")
                         .HasColumnType("int");
 
                     b.Property<string>("Email")
@@ -364,7 +358,9 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DestinationId");
+                    b.HasIndex("DistrictId");
+
+                    b.HasIndex("LocationTypeId");
 
                     b.HasIndex("OwnerId");
 
@@ -641,7 +637,7 @@ namespace HSTS.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
 
-                    b.Property<int?>("DestinationId")
+                    b.Property<int?>("DistrictId")
                         .HasColumnType("int");
 
                     b.Property<string>("Email")
@@ -741,9 +737,11 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.HasIndex("CreatedLocationId");
 
-                    b.HasIndex("DestinationId");
+                    b.HasIndex("DistrictId");
 
                     b.HasIndex("ExistingLocationId");
+
+                    b.HasIndex("LocationTypeId");
 
                     b.HasIndex("UserId");
 
@@ -786,6 +784,93 @@ namespace HSTS.Infrastructure.Migrations
                     b.HasIndex("TagId");
 
                     b.ToTable("LocationTags", (string)null);
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.LocationType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LocationTypes", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Description = "Tourist attractions and points of interest",
+                            IsDeleted = false,
+                            Name = "Attraction"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Description = "Dining establishments and food venues",
+                            IsDeleted = false,
+                            Name = "Restaurant"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Description = "Hotels, resorts, and lodging options",
+                            IsDeleted = false,
+                            Name = "Accommodation"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Description = "Shopping centers, markets, and retail stores",
+                            IsDeleted = false,
+                            Name = "Shopping"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Description = "Travel agencies and transportation services",
+                            IsDeleted = false,
+                            Name = "TravelService"
+                        });
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.Otp", b =>
@@ -883,6 +968,70 @@ namespace HSTS.Infrastructure.Migrations
                     b.ToTable("Profiles", (string)null);
                 });
 
+            modelBuilder.Entity("HSTS.Domain.Entities.Province", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("CountryId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("EnglishName")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<double?>("Latitude")
+                        .HasPrecision(10, 8)
+                        .HasColumnType("double");
+
+                    b.Property<double?>("Longitude")
+                        .HasPrecision(11, 8)
+                        .HasColumnType("double");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryId");
+
+                    b.ToTable("Provinces", (string)null);
+                });
+
             modelBuilder.Entity("HSTS.Domain.Entities.Role", b =>
                 {
                     b.Property<int>("Id")
@@ -964,62 +1113,6 @@ namespace HSTS.Infrastructure.Migrations
                             IsDeleted = false,
                             Name = "TRAVELER"
                         });
-                });
-
-            modelBuilder.Entity("HSTS.Domain.Entities.State", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("CountryId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("EnglishName")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("timestamp")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CountryId");
-
-                    b.ToTable("States", (string)null);
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.Tag", b =>
@@ -1265,36 +1358,36 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("Account");
                 });
 
-            modelBuilder.Entity("HSTS.Domain.Entities.Destination", b =>
+            modelBuilder.Entity("HSTS.Domain.Entities.District", b =>
                 {
-                    b.HasOne("HSTS.Domain.Entities.Country", "Country")
-                        .WithMany("Destinations")
-                        .HasForeignKey("CountryId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("HSTS.Domain.Entities.State", "State")
-                        .WithMany("Destinations")
-                        .HasForeignKey("StateId")
+                    b.HasOne("HSTS.Domain.Entities.Province", "Province")
+                        .WithMany("Districts")
+                        .HasForeignKey("ProvinceId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.Navigation("Country");
-
-                    b.Navigation("State");
+                    b.Navigation("Province");
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.Location", b =>
                 {
-                    b.HasOne("HSTS.Domain.Entities.Destination", "Destination")
+                    b.HasOne("HSTS.Domain.Entities.District", "District")
                         .WithMany("Locations")
-                        .HasForeignKey("DestinationId")
+                        .HasForeignKey("DistrictId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("HSTS.Domain.Entities.LocationType", "LocationType")
+                        .WithMany("Locations")
+                        .HasForeignKey("LocationTypeId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("HSTS.Domain.Entities.User", "Owner")
                         .WithMany()
                         .HasForeignKey("OwnerId");
 
-                    b.Navigation("Destination");
+                    b.Navigation("District");
+
+                    b.Navigation("LocationType");
 
                     b.Navigation("Owner");
                 });
@@ -1369,15 +1462,19 @@ namespace HSTS.Infrastructure.Migrations
                         .HasForeignKey("CreatedLocationId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("HSTS.Domain.Entities.Destination", "Destination")
+                    b.HasOne("HSTS.Domain.Entities.District", "District")
                         .WithMany()
-                        .HasForeignKey("DestinationId")
+                        .HasForeignKey("DistrictId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("HSTS.Domain.Entities.Location", "ExistingLocation")
                         .WithMany()
                         .HasForeignKey("ExistingLocationId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HSTS.Domain.Entities.LocationType", "LocationType")
+                        .WithMany()
+                        .HasForeignKey("LocationTypeId");
 
                     b.HasOne("HSTS.Domain.Entities.User", "User")
                         .WithMany()
@@ -1387,9 +1484,11 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Navigation("CreatedLocation");
 
-                    b.Navigation("Destination");
+                    b.Navigation("District");
 
                     b.Navigation("ExistingLocation");
+
+                    b.Navigation("LocationType");
 
                     b.Navigation("User");
                 });
@@ -1424,10 +1523,10 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("HSTS.Domain.Entities.State", b =>
+            modelBuilder.Entity("HSTS.Domain.Entities.Province", b =>
                 {
                     b.HasOne("HSTS.Domain.Entities.Country", "Country")
-                        .WithMany("States")
+                        .WithMany("Provinces")
                         .HasForeignKey("CountryId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -1489,12 +1588,10 @@ namespace HSTS.Infrastructure.Migrations
 
             modelBuilder.Entity("HSTS.Domain.Entities.Country", b =>
                 {
-                    b.Navigation("Destinations");
-
-                    b.Navigation("States");
+                    b.Navigation("Provinces");
                 });
 
-            modelBuilder.Entity("HSTS.Domain.Entities.Destination", b =>
+            modelBuilder.Entity("HSTS.Domain.Entities.District", b =>
                 {
                     b.Navigation("Locations");
                 });
@@ -1514,14 +1611,19 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("SocialLinks");
                 });
 
+            modelBuilder.Entity("HSTS.Domain.Entities.LocationType", b =>
+                {
+                    b.Navigation("Locations");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.Province", b =>
+                {
+                    b.Navigation("Districts");
+                });
+
             modelBuilder.Entity("HSTS.Domain.Entities.Role", b =>
                 {
                     b.Navigation("UserRoles");
-                });
-
-            modelBuilder.Entity("HSTS.Domain.Entities.State", b =>
-                {
-                    b.Navigation("Destinations");
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.Tag", b =>

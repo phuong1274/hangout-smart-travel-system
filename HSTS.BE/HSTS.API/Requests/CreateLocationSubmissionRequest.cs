@@ -1,5 +1,3 @@
-using HSTS.Domain.Enums;
-
 namespace HSTS.API.Requests
 {
     public record CreateLocationSubmissionRequest(
@@ -13,8 +11,8 @@ namespace HSTS.API.Requests
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
         decimal? Score,
-        int? DestinationId,
-        LocationType? LocationTypeId,
+        int? DistrictId,
+        int? LocationTypeId,
         List<string>? MediaLinks,
         List<SocialLinkRequest>? SocialLinks,
         List<int>? AmenityIds,

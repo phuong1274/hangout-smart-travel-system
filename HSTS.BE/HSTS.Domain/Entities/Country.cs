@@ -15,7 +15,6 @@ namespace HSTS.Domain.Entities
         [MaxLength(10)]
         public string? Code { get; set; }
 
-        public ICollection<State> States { get; set; } = new List<State>();
-        public ICollection<Destination> Destinations { get; set; } = new List<Destination>();
+        public ICollection<Province> Provinces { get; set; } = new List<Province>();
     }
 }

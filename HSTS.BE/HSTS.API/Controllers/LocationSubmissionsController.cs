@@ -77,25 +77,6 @@ namespace HSTS.API.Controllers
         [Authorize]
         public async Task<IActionResult> Create(CreateLocationSubmissionRequest request, CancellationToken ct)
         {
-            var socialLinks = request.SocialLinks?.Select(s => new LocationSubmissionSocialLinkDto(s.Platform, s.Url)).ToList();
-
-            // Convert OpeningHours from request to DTO format
-            var openingHours = request.OpeningHours?.Select(oh => new LocationSubmissionOpeningHourDto(
-                oh.Id,
-                oh.DayOfWeek,
-                ((DayOfWeek)oh.DayOfWeek).ToString(),
-                !string.IsNullOrEmpty(oh.OpenTime) ? TimeSpan.Parse(oh.OpenTime) : null,
-                !string.IsNullOrEmpty(oh.CloseTime) ? TimeSpan.Parse(oh.CloseTime) : null,
-                oh.Note
-            )).ToList();
-
-            // Convert Seasons from request to DTO format
-            var seasons = request.Seasons?.Select(s => new LocationSubmissionSeasonDto(
-                s.Id,
-                s.Description,
-                s.Months
-            )).ToList();
-
             var command = new CreateLocationSubmissionCommand(
                 request.Name,
                 request.Description,
@@ -107,14 +88,25 @@ namespace HSTS.API.Controllers
                 request.PriceMinUsd,
                 request.PriceMaxUsd,
                 request.Score,
-                request.DestinationId,
+                request.DistrictId,
                 request.LocationTypeId,
                 request.MediaLinks,
-                socialLinks,
+                request.SocialLinks?.Select(sl => new Application.LocationSubmissions.Commands.SocialLinkRequest(sl.Platform.ToString(), sl.Url)).ToList(),
                 request.AmenityIds,
                 request.TagIds,
-                openingHours,
-                seasons,
+                request.OpeningHours?.Select(oh => new LocationSubmissionOpeningHourDto(
+                    oh.Id,
+                    oh.DayOfWeek,
+                    ((DayOfWeek)oh.DayOfWeek).ToString(),
+                    !string.IsNullOrEmpty(oh.OpenTime) ? TimeSpan.Parse(oh.OpenTime) : null,
+                    !string.IsNullOrEmpty(oh.CloseTime) ? TimeSpan.Parse(oh.CloseTime) : null,
+                    oh.Note
+                )).ToList(),
+                request.Seasons?.Select(s => new LocationSubmissionSeasonDto(
+                    s.Id,
+                    s.Description,
+                    s.Months
+                )).ToList(),
                 request.SubmissionType,
                 request.ExistingLocationId,
                 request.ProposedChanges
@@ -137,8 +129,6 @@ namespace HSTS.API.Controllers
         [Authorize]
         public async Task<IActionResult> Update(int id, CreateLocationSubmissionRequest request, CancellationToken ct)
         {
-            var socialLinks = request.SocialLinks?.Select(s => new LocationSubmissionSocialLinkDto(s.Platform, s.Url)).ToList();
-
             var command = new UpdateLocationSubmissionCommand(
                 id,
                 request.Name,
@@ -151,10 +141,10 @@ namespace HSTS.API.Controllers
                 request.PriceMinUsd,
                 request.PriceMaxUsd,
                 request.Score,
-                request.DestinationId,
+                request.DistrictId,
                 request.LocationTypeId,
                 request.MediaLinks,
-                socialLinks,
+                request.SocialLinks?.Select(sl => new Application.LocationSubmissions.LocationSubmissionSocialLinkDto(sl.Platform, sl.Url)).ToList(),
                 request.AmenityIds,
                 request.TagIds
             );

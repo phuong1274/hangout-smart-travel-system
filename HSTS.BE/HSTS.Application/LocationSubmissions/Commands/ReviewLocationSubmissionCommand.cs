@@ -3,7 +3,6 @@ using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
-using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Reflection;
@@ -40,7 +39,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
         public async Task<ErrorOr<LocationSubmissionDto>> Handle(ReviewLocationSubmissionCommand request, CancellationToken cancellationToken)
         {
             var submission = await _submissionRepository.Query()
-                .Include(s => s.Destination)
+                .Include(s => s.District)
                 .Include(s => s.ExistingLocation)
                 .FirstOrDefaultAsync(s => s.Id == request.Id && !s.IsDeleted, cancellationToken);
 
@@ -92,9 +91,9 @@ namespace HSTS.Application.LocationSubmissions.Commands
         private async Task CreateNewLocation(LocationSubmission submission, string reviewedBy, CancellationToken cancellationToken)
         {
             // Validate required fields for location
-            if (submission.DestinationId == null)
+            if (submission.DistrictId == null)
             {
-                throw new InvalidOperationException("Destination is required to create a location.");
+                throw new InvalidOperationException("District is required to create a location.");
             }
 
             if (submission.LocationTypeId == null)
@@ -137,7 +136,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 Address = submission.Address,
                 Telephone = submission.Telephone,
                 Email = submission.Email,
-                DestinationId = submission.DestinationId.Value,
+                DistrictId = submission.DistrictId.Value,
                 LocationTypeId = submission.LocationTypeId.Value,
                 PriceMinUsd = submission.PriceMinUsd,
                 PriceMaxUsd = submission.PriceMaxUsd,

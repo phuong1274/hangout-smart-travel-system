@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using HSTS.Domain.Entities;
-using HSTS.Domain.Enums;
 
 namespace HSTS.Domain.Entities
 {
@@ -55,11 +54,12 @@ namespace HSTS.Domain.Entities
         public decimal? Score { get; set; }
 
         // Links
-        public int? DestinationId { get; set; }
-        public Destination? Destination { get; set; }
+        public int? DistrictId { get; set; }
+        public District? District { get; set; }
 
-        // Keep field name LocationTypeId for debugging (stored as int in DB)
-        public LocationType? LocationTypeId { get; set; }
+        // Location Type (foreign key to LocationTypes table)
+        public int? LocationTypeId { get; set; }
+        public LocationType? LocationType { get; set; }
 
         // Media links (stored as JSON)
         [MaxLength(4000)]

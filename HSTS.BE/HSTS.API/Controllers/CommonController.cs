@@ -2,10 +2,13 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using HSTS.Application.Tags.Queries;
-using HSTS.Application.Destinations.Queries;
-using HSTS.Domain.Enums;
+using HSTS.Application.Districts.Queries;
 using HSTS.Application.Amenities.Queries;
-using HSTS.Application.States.Queries;
+using HSTS.Application.Provinces.Queries;
+using HSTS.Application.Locations.Queries;
+using HSTS.Application.Interfaces;
+using static HSTS.Application.Interfaces.IRepository;
+using Microsoft.EntityFrameworkCore;
 
 namespace HSTS.API.Controllers
 {
@@ -31,10 +34,10 @@ namespace HSTS.API.Controllers
             );
         }
 
-        [HttpGet("destinations")]
-        public async Task<IActionResult> GetAllDestinations()
+        [HttpGet("districts")]
+        public async Task<IActionResult> GetAllDistricts()
         {
-            var result = await _mediator.Send(new GetAllDestinationsQuery());
+            var result = await _mediator.Send(new GetAllDistrictsQuery());
             return result.Match<IActionResult>(
                 Ok,
                 errors => NotFound(errors.First().Description)
@@ -42,14 +45,16 @@ namespace HSTS.API.Controllers
         }
 
         [HttpGet("location-types")]
-        public IActionResult GetAllLocationTypes()
+        public async Task<IActionResult> GetAllLocationTypes([FromServices] IRepository<Domain.Entities.LocationType> locationTypeRepo)
         {
-            var locationTypes = Enum.GetValues(typeof(LocationType))
-                .Cast<LocationType>()
-                .Select(x => new { 
-                    Id = (int)x, 
-                    Name = x.ToString() 
-                });
+            var locationTypes = await locationTypeRepo.Query()
+                .Where(lt => !lt.IsDeleted)
+                .Select(lt => new {
+                    lt.Id,
+                    lt.Name,
+                    lt.Description
+                })
+                .ToListAsync();
             return Ok(locationTypes);
         }
 
@@ -63,20 +68,20 @@ namespace HSTS.API.Controllers
             );
         }
 
-        [HttpGet("states")]
-        public async Task<IActionResult> GetAllStates()
+        [HttpGet("provinces")]
+        public async Task<IActionResult> GetAllProvinces()
         {
-            var result = await _mediator.Send(new GetAllStatesQuery());
+            var result = await _mediator.Send(new GetAllProvincesQuery());
             return result.Match<IActionResult>(
                 Ok,
                 errors => NotFound(errors.First().Description)
             );
         }
 
-        [HttpGet("countries/{countryId}/states")]
-        public async Task<IActionResult> GetStatesByCountry(string countryId)
+        [HttpGet("countries/{countryId}/provinces")]
+        public async Task<IActionResult> GetProvincesByCountry(string countryId)
         {
-            var result = await _mediator.Send(new GetStatesByCountryQuery(countryId));
+            var result = await _mediator.Send(new GetProvincesByCountryQuery(countryId));
             return result.Match<IActionResult>(
                 Ok,
                 errors => NotFound(errors.First().Description)

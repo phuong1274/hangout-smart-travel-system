@@ -3,7 +3,6 @@ using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
-using HSTS.Domain.Enums;
 using HSTS.Application.LocationSubmissions;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -23,8 +22,8 @@ namespace HSTS.Application.LocationSubmissions.Commands
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
         decimal? Score,
-        int? DestinationId,
-        LocationType? LocationTypeId,
+        int? DistrictId,
+        int? LocationTypeId,
         List<string>? MediaLinks,
         List<LocationSubmissionSocialLinkDto>? SocialLinks,
         List<int>? AmenityIds,
@@ -88,7 +87,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
             submission.PriceMinUsd = request.PriceMinUsd;
             submission.PriceMaxUsd = request.PriceMaxUsd;
             submission.Score = request.Score;
-            submission.DestinationId = request.DestinationId;
+            submission.DistrictId = request.DistrictId;
             submission.LocationTypeId = request.LocationTypeId;
             submission.UpdatedBy = _currentUser.UserId.ToString();
             submission.UpdatedAt = DateTime.UtcNow;

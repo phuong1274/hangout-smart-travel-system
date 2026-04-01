@@ -2,18 +2,18 @@ import React, { useState } from 'react';
 import { Card, Typography, Space, Button, Layout, message } from 'antd';
 import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
 import SearchFilter from '@/components/UI/SearchFilter';
-import { useDestinations } from '../hooks/useDestinations';
-import DestinationTable from '../components/DestinationTable';
-import DestinationForm from '../components/DestinationForm';
+import { useDistricts } from '../hooks/useDestinations';
+import DistrictTable from '../components/DestinationTable';
+import DistrictForm from '../components/DestinationForm';
 import DetailModal from '@/components/DetailModal';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '@/routes/paths';
-import { deleteDestinationApi, getDestinationByIdApi } from '../api';
+import { deleteDistrictApi, getDistrictByIdApi } from '../api';
 
 const { Title } = Typography;
 const { Header, Content } = Layout;
 
-const DestinationsPage = () => {
+const DistrictsPage = () => {
   const navigate = useNavigate();
   const {
     data,
@@ -21,48 +21,48 @@ const DestinationsPage = () => {
     pagination,
     handleTableChange,
     handleSearch,
-    fetchDestinations,
-  } = useDestinations();
+    fetchDistricts,
+  } = useDistricts();
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editingDestination, setEditingDestination] = useState(null);
-  const [viewingDestination, setViewingDestination] = useState(null);
+  const [editingDistrict, setEditingDistrict] = useState(null);
+  const [viewingDistrict, setViewingDistrict] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const handleCreate = () => {
-    setEditingDestination(null);
+    setEditingDistrict(null);
     setFormOpen(true);
   };
 
-  const handleEdit = (destination) => {
-    setEditingDestination(destination);
+  const handleEdit = (district) => {
+    setEditingDistrict(district);
     setFormOpen(true);
   };
 
   const handleFormClose = () => {
     setFormOpen(false);
-    setEditingDestination(null);
+    setEditingDistrict(null);
   };
 
   const handleFormSuccess = () => {
-    fetchDestinations();
+    fetchDistricts();
   };
 
-  const handleView = async (destination) => {
+  const handleView = async (district) => {
     try {
-      const detail = await getDestinationByIdApi(destination.id);
-      setViewingDestination(detail);
+      const detail = await getDistrictByIdApi(district.id);
+      setViewingDistrict(detail);
       setDetailModalOpen(true);
     } catch (error) {
-      message.error('Failed to load destination details');
+      message.error('Failed to load district details');
     }
   };
 
-  const handleDelete = async (destination) => {
+  const handleDelete = async (district) => {
     try {
-      await deleteDestinationApi(destination.id);
-      message.success('Destination deleted successfully');
-      fetchDestinations();
+      await deleteDistrictApi(district.id);
+      message.success('District deleted successfully');
+      fetchDistricts();
     } catch (error) {
       // Handled by global interceptor
     }
@@ -73,7 +73,7 @@ const DestinationsPage = () => {
       <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
-          <Title level={3} style={{ margin: 0 }}>Hangout - Destinations</Title>
+          <Title level={3} style={{ margin: 0 }}>Hangout - Districts</Title>
         </div>
         <Button type="primary" onClick={() => navigate(PATHS.AUTH.LOGIN)}>
           Login
@@ -82,18 +82,18 @@ const DestinationsPage = () => {
       <Content style={{ padding: '24px', background: '#f0f2f5' }}>
         <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={2} style={{ margin: 0 }}>Destination Management</Title>
+            <Title level={2} style={{ margin: 0 }}>District Management</Title>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Add Destination
+              Add District
             </Button>
           </div>
           <Card>
             <SearchFilter
               onSearch={handleSearch}
               loading={loading}
-              placeholder="Search destinations..."
+              placeholder="Search districts..."
             />
-            <DestinationTable
+            <DistrictTable
               data={data}
               loading={loading}
               pagination={pagination}
@@ -105,9 +105,9 @@ const DestinationsPage = () => {
           </Card>
         </Space>
       </Content>
-      <DestinationForm
+      <DistrictForm
         open={formOpen}
-        destination={editingDestination}
+        district={editingDistrict}
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
       />
@@ -117,13 +117,13 @@ const DestinationsPage = () => {
         open={detailModalOpen}
         onClose={() => {
           setDetailModalOpen(false);
-          setViewingDestination(null);
+          setViewingDistrict(null);
         }}
-        data={viewingDestination}
-        type="destination"
+        data={viewingDistrict}
+        type="district"
       />
     </Layout>
   );
 };
 
-export default DestinationsPage;
+export default DistrictsPage;

@@ -8,6 +8,44 @@ import dayjs from 'dayjs';
 const { TextArea } = Input;
 const { Option } = Select;
 
+// Platform name mapping (matching backend enum values)
+const getPlatformName = (platform) => {
+  const platformMap = {
+    1: 'Facebook',
+    2: 'Instagram',
+    3: 'Twitter',
+    4: 'YouTube',
+    5: 'TikTok',
+    13: 'Website',
+    12: 'Zalo',
+    14: 'Other'
+  };
+  return platformMap[platform] || 'Other';
+};
+
+// Helper to convert platform string back to enum value
+const getPlatformEnumValue = (platformName) => {
+  if (typeof platformName === 'number') return platformName;
+  const platformMap = {
+    'Facebook': 1,
+    'Instagram': 2,
+    'Twitter': 3,
+    'YouTube': 4,
+    'TikTok': 5,
+    'Website': 13,
+    'Zalo': 12,
+    'Other': 14,
+    'facebook': 1,
+    'instagram': 2,
+    'twitter': 3,
+    'youtube': 4,
+    'tiktok': 5,
+    'website': 13,
+    'zalo': 12
+  };
+  return platformMap[platformName] || 14;
+};
+
 /**
  * Modal for users to suggest edits to existing locations
  * Supports editing ALL fields including tags, amenities, type, destination, media, social links
@@ -20,7 +58,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
   const [rootTags, setRootTags] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
   const [selectedRootTagIds, setSelectedRootTagIds] = useState([]);
-  const [destinations, setDestinations] = useState([]);
+  const [districts, setDistricts] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
   const [amenities, setAmenities] = useState([]);
   const [tags, setTags] = useState([]);
@@ -35,18 +73,18 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
     const fetchData = async () => {
       try {
         setTagsLoading(true);
-        const [rootTagsRes, destinationsRes, typesRes, amenitiesRes] = await Promise.all([
+        const [rootTagsRes, districtsRes, typesRes, amenitiesRes] = await Promise.all([
           getRootTagsApi(),
           getAllDestinationsApi(),
           getAllLocationTypesApi(),
           getAllAmenitiesApi()
         ]);
 
-        setRootTags(Array.isArray(rootTagsRes) ? rootTagsRes : (rootTagsRes?.items || []));
-        setAvailableTags(Array.isArray(rootTagsRes) ? rootTagsRes : (rootTagsRes?.items || [])); // Initially show all root tags
+        setRootTags(Array.isArray(rootTagsRes) ? rootTagsRes.map(t => ({ ...t, level: t.level || 1 })) : (rootTagsRes?.items || []).map(t => ({ ...t, level: t.level || 1 })));
+        setAvailableTags(Array.isArray(rootTagsRes) ? rootTagsRes.map(t => ({ ...t, level: t.level || 1 })) : (rootTagsRes?.items || []).map(t => ({ ...t, level: t.level || 1 }))); // Initially show all root tags
         setLocationTypes(Array.isArray(typesRes) ? typesRes : (typesRes?.items || []));
         setAmenities(Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []));
-        setDestinations(Array.isArray(destinationsRes) ? destinationsRes : (destinationsRes?.items || []));
+        setDistricts(Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []));
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
       } finally {
@@ -58,14 +96,31 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
 
   // Load child tags when a root tag is selected
   const handleRootTagChange = async (selectedRootIds) => {
-    setSelectedRootTagIds(selectedRootIds);
+    // Ensure rootTags have level property
+    const rootTagsWithLevel = rootTags.map(t => ({ ...t, level: t.level || 1 }));
     
+    // Check if root tags changed compared to original
+    const originalRootTagIds = (originalData?.tagIds || []).filter(id => {
+      const tag = rootTagsWithLevel.find(t => t.id === id);
+      return tag && tag.level === 1;
+    });
+    if (JSON.stringify([...selectedRootIds].sort()) !== JSON.stringify([...originalRootTagIds].sort())) {
+      setChangedFields(prev => {
+        if (!prev.includes('tagIds')) {
+          return [...prev, 'tagIds'];
+        }
+        return prev;
+      });
+    }
+
+    setSelectedRootTagIds(selectedRootIds);
+
     // Get previously selected child tags
     const currentChildTagIds = form.getFieldValue('tagIds') || [];
-    
+
     // Find which root tags were deselected
     const deselectedRootIds = selectedRootTagIds.filter(id => !selectedRootIds.includes(id));
-    
+
     // Load children for deselected root tags to know which child tags to remove
     const childrenOfDeselectedRoots = new Set();
     for (const tagId of deselectedRootIds) {
@@ -77,35 +132,37 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         console.error('Failed to fetch child tags:', error);
       }
     }
-    
+
     // Remove only child tags whose own parent was deselected
-    const filteredChildTagIds = currentChildTagIds.filter(id => 
+    const filteredChildTagIds = currentChildTagIds.filter(id =>
       !childrenOfDeselectedRoots.has(id)
     );
-    
+
     // Update form if child tags were removed
     if (filteredChildTagIds.length !== currentChildTagIds.length) {
       form.setFieldValue('tagIds', filteredChildTagIds);
     }
-    
+
     // Load children for ALL currently selected root tags to rebuild available options
     const allChildTagsFromSelectedRoots = [];
     for (const tagId of selectedRootIds) {
       try {
         const childTagsRes = await getChildTagsApi(tagId);
         const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
-        allChildTagsFromSelectedRoots.push(...childTags);
+        // Ensure level property is set correctly
+        const childTagsWithLevel = childTags.map(t => ({ ...t, level: t.level || 2 }));
+        allChildTagsFromSelectedRoots.push(...childTagsWithLevel);
       } catch (error) {
         console.error('Failed to fetch child tags:', error);
       }
     }
-    
+
     // Rebuild available tags from scratch: root tags + ALL children from selected roots
     // Remove duplicate child tags (same child might appear under multiple roots)
     const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
       (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
     );
-    
+
     setAvailableTags([...rootTags, ...uniqueChildTags]);
   };
 
@@ -116,7 +173,23 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
 
   // Pre-fill with existing location data and store original values
   useEffect(() => {
-    if (location && open) {
+    if (location && open && rootTags.length > 0) {
+      // Ensure rootTags have level property
+      const rootTagsWithLevel = rootTags.map(t => ({ ...t, level: t.level || 1 }));
+      
+      // Separate root tags and child tags
+      const rootTagIds = (location.tagIds || []).filter(id => {
+        const tag = rootTagsWithLevel.find(t => t.id === id);
+        return tag && tag.level === 1;
+      });
+      const childTagIds = (location.tagIds || []).filter(id => {
+        const tag = rootTagsWithLevel.find(t => t.id === id);
+        return tag && tag.level > 1;
+      });
+
+      // Set root tags in state
+      setSelectedRootTagIds(rootTagIds);
+
       const originalValues = {
         name: location.name,
         description: location.description,
@@ -128,20 +201,25 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         priceMinUsd: location.priceMinUsd,
         priceMaxUsd: location.priceMaxUsd,
         score: location.score,
-        destinationId: location.destinationId,
+        districtId: location.districtId,
         locationTypeId: location.locationTypeId,
         amenityIds: location.amenityIds || [],
-        tagIds: location.tagIds || [],
+        tagIds: childTagIds.map(id => Number(id)), // Only child tags in form field as plain numbers
       };
 
       form.setFieldsValue(originalValues);
-      setOriginalData(originalValues);
+      setOriginalData({ ...originalValues, tagIds: location.tagIds || [] }); // Store all tags for comparison
 
       if (location.mediaLinks) {
         setMediaLinks(location.mediaLinks);
       }
       if (location.socialLinks) {
-        setSocialLinks(location.socialLinks);
+        // Convert platform enum to lowercase string for the Select component
+        setSocialLinks(location.socialLinks.map(sl => ({
+          id: sl.id,
+          platform: typeof sl.platform === 'number' ? getPlatformName(sl.platform)?.toLowerCase() : sl.platform,
+          url: sl.url
+        })));
       }
       if (location.openingHours) {
         setOpeningHours(location.openingHours);
@@ -154,8 +232,30 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         }));
         setSeasons(parsedSeasons);
       }
+
+      // Load child tags for selected root tags to populate availableTags
+      const loadChildTags = async () => {
+        const allChildTagsFromSelectedRoots = [];
+        for (const tagId of rootTagIds) {
+          try {
+            const childTagsRes = await getChildTagsApi(tagId);
+            const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
+            // Ensure level property is set correctly
+            const childTagsWithLevel = childTags.map(t => ({ ...t, level: t.level || 2 }));
+            allChildTagsFromSelectedRoots.push(...childTagsWithLevel);
+          } catch (error) {
+            console.error('Failed to fetch child tags:', error);
+          }
+        }
+        const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
+          (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
+        );
+        setAvailableTags([...rootTags, ...uniqueChildTags]);
+      };
+
+      loadChildTags();
     }
-  }, [location, open, form]);
+  }, [location, open, form, rootTags]);
 
   // Track which fields have changed
   const handleValuesChange = (changedValues, allValues) => {
@@ -291,13 +391,34 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      // Build proposed changes object (only changed fields)
+      // Combine root tags and child tags - ensure all are numbers
+      // Child tags can be either numbers or {value, label} objects
+      const childTagIds = (values.tagIds || []).map(t => {
+        if (typeof t === 'object' && t !== null) {
+          return Number(t.value);
+        }
+        return Number(t);
+      }).filter(id => !isNaN(id));
+      
+      // Ensure root tags are plain numbers
+      const rootTagIds = selectedRootTagIds.map(id => Number(id)).filter(id => !isNaN(id));
+      
+      const allTagIds = [
+        ...rootTagIds,
+        ...childTagIds
+      ];
+
+      // Build proposed changes object (only changed fields) - send platform as enum number
       const proposedChanges = {};
       changedFields.forEach(field => {
         if (field === 'mediaLinks') {
           proposedChanges.MediaLinks = mediaLinks.filter(link => link.trim() !== '');
         } else if (field === 'socialLinks') {
-          proposedChanges.SocialLinks = socialLinks.filter(link => link.platform && link.url);
+          proposedChanges.SocialLinks = socialLinks.filter(link => link.platform && link.url)
+            .map(sl => ({
+              platform: getPlatformEnumValue(sl.platform),
+              url: sl.url
+            }));
         } else if (field === 'openingHours') {
           proposedChanges.OpeningHours = openingHours.map(oh => ({
             id: oh.id,
@@ -312,6 +433,9 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
             description: s.description,
             months: Array.isArray(s.months) ? s.months.join(',') : s.months
           }));
+        } else if (field === 'tagIds') {
+          // Include both root and child tags
+          proposedChanges.TagIds = allTagIds;
         } else {
           proposedChanges[field.charAt(0).toUpperCase() + field.slice(1)] = values[field];
         }
@@ -324,8 +448,13 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         proposedChanges: proposedChanges,
         // Also send all fields for validation/display purposes
         ...values,
+        tagIds: allTagIds,
         mediaLinks: mediaLinks.filter(link => link.trim() !== ''),
-        socialLinks: socialLinks.filter(link => link.platform && link.url),
+        socialLinks: socialLinks.filter(link => link.platform && link.url)
+          .map(sl => ({
+            platform: getPlatformEnumValue(sl.platform),
+            url: sl.url
+          })),
       });
 
       message.success('Suggestion submitted successfully! It will be reviewed by our team.');
@@ -526,12 +655,12 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
-              name="destinationId"
-              label="Destination"
+              name="districtId"
+              label="District"
             >
-              <Select placeholder="Select destination" allowClear showSearch optionFilterProp="children">
-                {destinations.map(dest => (
-                  <Option key={dest.id} value={dest.id}>{dest.name}</Option>
+              <Select placeholder="Select district" allowClear showSearch optionFilterProp="children">
+                {districts.map(district => (
+                  <Option key={district.id} value={district.id}>{district.name}</Option>
                 ))}
               </Select>
             </Form.Item>

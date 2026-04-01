@@ -3,7 +3,6 @@ using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
-using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using static HSTS.Application.Interfaces.IRepository;
 
@@ -18,8 +17,8 @@ namespace HSTS.Application.Locations.Commands
         decimal TicketPrice,
         int MinimumAge,
         string Address,
-        LocationType LocationTypeId,
-        int DestinationId,
+        int LocationTypeId,
+        int DistrictId,
         string? Telephone,
         string? Email,
         decimal? PriceMinUsd,
@@ -74,7 +73,7 @@ namespace HSTS.Application.Locations.Commands
             location.MinimumAge = request.MinimumAge;
             location.Address = request.Address;
             location.LocationTypeId = request.LocationTypeId;
-            location.DestinationId = request.DestinationId;
+            location.DistrictId = request.DistrictId;
             location.Telephone = request.Telephone;
             location.Email = request.Email;
             location.PriceMinUsd = request.PriceMinUsd;
@@ -136,10 +135,13 @@ namespace HSTS.Application.Locations.Commands
                 {
                     foreach (var socialLink in request.SocialLinks)
                     {
+                        // Convert platform string to enum (case-insensitive)
+                        var platform = Enum.Parse<Domain.Enums.SocialPlatform>(socialLink.Platform, ignoreCase: true);
+                        
                         location.SocialLinks.Add(new LocationSocialLink
                         {
                             LocationId = location.Id,
-                            Platform = socialLink.Platform,
+                            Platform = platform,
                             Url = socialLink.Url
                         });
                     }
@@ -231,7 +233,7 @@ namespace HSTS.Application.Locations.Commands
             RuleFor(x => x.MinimumAge).InclusiveBetween(0, 120);
             RuleFor(x => x.Address).NotEmpty().MaximumLength(300);
             RuleFor(x => x.LocationTypeId).NotEmpty();
-            RuleFor(x => x.DestinationId).NotEmpty();
+            RuleFor(x => x.DistrictId).NotEmpty();
             RuleFor(x => x.Telephone).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.Telephone));
             RuleFor(x => x.Email).EmailAddress().MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Email));
             RuleFor(x => x.PriceMinUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMinUsd.HasValue);
