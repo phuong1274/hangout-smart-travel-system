@@ -78,10 +78,10 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.SubmissionType)
                 .IsRequired();
 
-            // Configure relationship with Destination
-            builder.HasOne(s => s.Destination)
+            // Configure relationship with District
+            builder.HasOne(s => s.District)
                    .WithMany()
-                   .HasForeignKey(s => s.DestinationId)
+                   .HasForeignKey(s => s.DistrictId)
                    .OnDelete(DeleteBehavior.SetNull);
 
             // Configure relationship with existing Location (for edit submissions)

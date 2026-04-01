@@ -5,7 +5,7 @@ import GoogleMapPicker from '@/components/GoogleMapPicker';
 import {
   createLocationSubmissionApi,
   updateLocationSubmissionApi,
-  getAllDestinationsApi,
+  getAllDistrictsApi,
   getAllLocationTypesApi,
   getAllAmenitiesApi,
   getAllTagsApi
@@ -16,13 +16,31 @@ import dayjs from 'dayjs';
 const { TextArea } = Input;
 const { Option } = Select;
 
+// Platform options for social links (matching backend enum values)
+const SOCIAL_PLATFORMS = [
+  { value: 'Facebook', label: 'Facebook', enumValue: 1 },
+  { value: 'Instagram', label: 'Instagram', enumValue: 2 },
+  { value: 'TikTok', label: 'TikTok', enumValue: 5 },
+  { value: 'Twitter', label: 'Twitter/X', enumValue: 3 },
+  { value: 'Website', label: 'Official Website', enumValue: 13 },
+  { value: 'YouTube', label: 'YouTube', enumValue: 4 },
+  { value: 'Other', label: 'Other', enumValue: 14 }
+];
+
+// Helper to convert platform string to enum value
+const getPlatformEnumValue = (platformName) => {
+  if (typeof platformName === 'number') return platformName;
+  const platformObj = SOCIAL_PLATFORMS.find(p => p.value.toLowerCase() === platformName?.toLowerCase());
+  return platformObj ? platformObj.enumValue : 14;
+};
+
 const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [rootTags, setRootTags] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
   const [selectedRootTagIds, setSelectedRootTagIds] = useState([]);
-  const [destinations, setDestinations] = useState([]);
+  const [districts, setDistricts] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
   const [amenities, setAmenities] = useState([]);
   const [tags, setTags] = useState([]);
@@ -42,22 +60,22 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
     const fetchData = async () => {
       try {
         setTagsLoading(true);
-        const [rootTagsRes, destinationsRes, typesRes, amenitiesRes] = await Promise.all([
+        const [rootTagsRes, districtsRes, typesRes, amenitiesRes] = await Promise.all([
           getRootTagsApi(),
-          getAllDestinationsApi(),
+          getAllDistrictsApi(),
           getAllLocationTypesApi(),
           getAllAmenitiesApi()
         ]);
 
         // Handle paginated responses (extract items array)
         const rootTags = Array.isArray(rootTagsRes) ? rootTagsRes : (rootTagsRes?.items || []);
-        const destinations = Array.isArray(destinationsRes) ? destinationsRes : (destinationsRes?.items || []);
+        const districts = Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []);
         const types = Array.isArray(typesRes) ? typesRes : (typesRes?.items || []);
         const amenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
 
         setRootTags(rootTags);
         setAvailableTags(rootTags); // Initially show all root tags
-        setDestinations(destinations);
+        setDistricts(districts);
         setLocationTypes(types);
         setAmenities(amenities);
       } catch (error) {
@@ -141,7 +159,7 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
         email: submission.email,
         priceMinUsd: submission.priceMinUsd,
         priceMaxUsd: submission.priceMaxUsd,
-        destinationId: submission.destinationId,
+        districtId: submission.districtId,
         locationTypeId: submission.locationTypeId,
         amenityIds: submission.amenityIds,
         tagIds: submission.tagIds
@@ -191,9 +209,19 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
       const payload = {
         ...values,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : null,
-        socialLinks: socialLinks.length > 0 ? socialLinks : null,
+        // Convert platform string to enum number
+        socialLinks: socialLinks.length > 0 
+          ? socialLinks.map(sl => ({
+              platform: getPlatformEnumValue(sl.platform),
+              url: sl.url
+            }))
+          : null,
         amenityIds: values.amenityIds?.length > 0 ? values.amenityIds : null,
-        tagIds: values.tagIds?.length > 0 ? values.tagIds : null,
+        // Combine root tags and child tags
+        tagIds: [
+          ...(selectedRootTagIds || []),
+          ...(values.tagIds?.length > 0 ? values.tagIds : [])
+        ].filter(id => id !== null && id !== undefined),
         openingHours: formattedOpeningHours,
         seasons: formattedSeasons
       };
@@ -238,7 +266,7 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
   };
 
   const addSocialLink = () => {
-    setSocialLinks([...socialLinks, { platform: '', url: '' }]);
+    setSocialLinks([...socialLinks, { platform: undefined, url: '' }]);
   };
 
   const updateSocialLink = (index, field, value) => {
@@ -550,14 +578,14 @@ Transportation:
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
-                  name="destinationId"
-                  label="Destination"
-                  tooltip="Select the destination/area where your location is located"
+                  name="districtId"
+                  label="District"
+                  tooltip="Select the district/area where your location is located"
                 >
-                  <Select placeholder="Select destination" allowClear showSearch optionFilterProp="children" size="large">
-                    {destinations.map(dest => (
-                      <Option key={dest.id} value={dest.id}>
-                        {dest.name}
+                  <Select placeholder="Select district" allowClear showSearch optionFilterProp="children" size="large">
+                    {districts.map(district => (
+                      <Option key={district.id} value={district.id}>
+                        {district.name}
                       </Option>
                     ))}
                   </Select>
@@ -719,14 +747,14 @@ Transportation:
                         onChange={(value) => updateSocialLink(index, 'platform', value)}
                         placeholder="Select platform"
                       >
-                        <Option value="facebook">Facebook</Option>
-                        <Option value="instagram">Instagram</Option>
-                        <Option value="twitter">Twitter / X</Option>
-                        <Option value="youtube">YouTube</Option>
-                        <Option value="tiktok">TikTok</Option>
-                        <Option value="website">Official Website</Option>
-                        <Option value="zalo">Zalo</Option>
-                        <Option value="other">Other</Option>
+                        <Option value={1}>Facebook</Option>
+                        <Option value={2}>Instagram</Option>
+                        <Option value={3}>Twitter / X</Option>
+                        <Option value={4}>YouTube</Option>
+                        <Option value={5}>TikTok</Option>
+                        <Option value={13}>Official Website</Option>
+                        <Option value={12}>Zalo</Option>
+                        <Option value={14}>Other</Option>
                       </Select>
                     </Form.Item>
                   </Col>

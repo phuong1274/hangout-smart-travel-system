@@ -8,10 +8,9 @@ using HSTS.API.Requests;
 using HSTS.Application.Locations.Commands;
 using HSTS.Application.Locations.Queries;
 using HSTS.Application.Countries.Queries;
-using HSTS.Application.States.Queries;
+using HSTS.Application.Provinces.Queries;
 using HSTS.Application.Countries;
-using HSTS.Application.States;
-using HSTS.Domain.Enums;
+using HSTS.Application.Provinces;
 
 namespace HSTS.API.Controllers
 {
@@ -31,15 +30,15 @@ namespace HSTS.API.Controllers
         public async Task<IActionResult> GetLocations(
             [FromQuery] string? searchTerm,
             [FromQuery] List<int>? tagIds,
-            [FromQuery] List<LocationType>? locationTypeIds,
-            [FromQuery] List<int>? destinationIds,
+            [FromQuery] List<int>? locationTypeIds,
+            [FromQuery] List<int>? districtIds,
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
         {
-            var query = new GetLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, destinationIds, fromDate, toDate, pageIndex, pageSize);
+            var query = new GetLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, districtIds, fromDate, toDate, pageIndex, pageSize);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(
@@ -59,8 +58,8 @@ namespace HSTS.API.Controllers
         public async Task<IActionResult> GetAllLocations(
             [FromQuery] string? searchTerm,
             [FromQuery] List<int>? tagIds,
-            [FromQuery] List<LocationType>? locationTypeIds,
-            [FromQuery] List<int>? destinationIds,
+            [FromQuery] List<int>? locationTypeIds,
+            [FromQuery] List<int>? districtIds,
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate,
             [FromQuery] bool includeDeleted = false,
@@ -68,7 +67,7 @@ namespace HSTS.API.Controllers
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
         {
-            var query = new GetAllLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, destinationIds, fromDate, toDate, includeDeleted, pageIndex, pageSize);
+            var query = new GetAllLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, districtIds, fromDate, toDate, includeDeleted, pageIndex, pageSize);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(
@@ -144,7 +143,7 @@ namespace HSTS.API.Controllers
                 request.MinimumAge,
                 request.Address,
                 request.LocationTypeId,
-                request.DestinationId,
+                request.DistrictId,
                 request.Telephone,
                 request.Email,
                 request.PriceMinUsd,
@@ -186,7 +185,7 @@ namespace HSTS.API.Controllers
                 request.MinimumAge,
                 request.Address,
                 request.LocationTypeId,
-                request.DestinationId,
+                request.DistrictId,
                 request.Telephone,
                 request.Email,
                 request.PriceMinUsd,
@@ -249,18 +248,18 @@ namespace HSTS.API.Controllers
             );
         }
 
-        [HttpGet("states")]
-        public async Task<IActionResult> GetStates([FromQuery] string? countryId, CancellationToken ct)
+        [HttpGet("provinces")]
+        public async Task<IActionResult> GetProvinces([FromQuery] string? countryId, CancellationToken ct)
         {
-            ErrorOr<IEnumerable<StateDto>> result;
+            ErrorOr<IEnumerable<ProvinceDto>> result;
 
             if (!string.IsNullOrEmpty(countryId))
             {
-                result = await _mediator.Send(new GetStatesByCountryQuery(countryId), ct);
+                result = await _mediator.Send(new GetProvincesByCountryQuery(countryId), ct);
             }
             else
             {
-                result = await _mediator.Send(new GetAllStatesQuery(), ct);
+                result = await _mediator.Send(new GetAllProvincesQuery(), ct);
             }
 
             return result.Match(

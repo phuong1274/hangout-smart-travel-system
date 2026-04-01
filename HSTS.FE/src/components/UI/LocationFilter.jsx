@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Space, Select, Row, Col, Button, DatePicker } from 'antd';
 import { SearchOutlined, FilterOutlined, ReloadOutlined, CalendarOutlined } from '@ant-design/icons';
-import { getAllTagsApi, getAllLocationTypesApi, getAllDestinationsApi } from '@/features/locations/api';
+import { getAllTagsApi, getAllLocationTypesApi, getAllDistrictsApi } from '@/features/locations/api';
 import dayjs from 'dayjs';
 
 const { Search } = Input;
@@ -17,12 +17,12 @@ const LocationFilter = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [selectedLocationTypeIds, setSelectedLocationTypeIds] = useState([]);
-  const [selectedDestinationIds, setSelectedDestinationIds] = useState([]);
+  const [selectedDistrictIds, setSelectedDistrictIds] = useState([]);
   const [dateRange, setDateRange] = useState([]);
-  
+
   const [tags, setTags] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
-  const [destinations, setDestinations] = useState([]);
+  const [districts, setDistricts] = useState([]);
 
   useEffect(() => {
     fetchDropdownData();
@@ -30,16 +30,16 @@ const LocationFilter = ({
 
   const fetchDropdownData = async () => {
     try {
-      const [tagsRes, typesRes, destinationsRes] = await Promise.all([
+      const [tagsRes, typesRes, districtsRes] = await Promise.all([
         getAllTagsApi(),
         getAllLocationTypesApi(),
-        getAllDestinationsApi()
+        getAllDistrictsApi()
       ]);
-      
+
       // Handle both paged response {items, totalCount} and direct array
       setTags(tagsRes?.items || tagsRes?.Items || tagsRes || []);
       setLocationTypes(typesRes?.items || typesRes?.Items || typesRes || []);
-      setDestinations(destinationsRes?.items || destinationsRes?.Items || destinationsRes || []);
+      setDistricts(districtsRes?.items || districtsRes?.Items || districtsRes || []);
     } catch (error) {
       console.error('Failed to load dropdown data:', error);
     }
@@ -50,7 +50,7 @@ const LocationFilter = ({
       searchTerm: searchTerm || undefined,
       tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
       locationTypeIds: selectedLocationTypeIds.length > 0 ? selectedLocationTypeIds : undefined,
-      destinationIds: selectedDestinationIds.length > 0 ? selectedDestinationIds : undefined,
+      districtIds: selectedDistrictIds.length > 0 ? selectedDistrictIds : undefined,
       fromDate: dateRange[0] ? dateRange[0].startOf('day').toISOString() : undefined,
       toDate: dateRange[1] ? dateRange[1].endOf('day').toISOString() : undefined
     };
@@ -61,13 +61,13 @@ const LocationFilter = ({
     setSearchTerm('');
     setSelectedTagIds([]);
     setSelectedLocationTypeIds([]);
-    setSelectedDestinationIds([]);
+    setSelectedDistrictIds([]);
     setDateRange([]);
     onSearch({});
   };
 
-  const hasActiveFilters = searchTerm || selectedTagIds.length > 0 || 
-    selectedLocationTypeIds.length > 0 || selectedDestinationIds.length > 0 ||
+  const hasActiveFilters = searchTerm || selectedTagIds.length > 0 ||
+    selectedLocationTypeIds.length > 0 || selectedDistrictIds.length > 0 ||
     (dateRange && dateRange.length > 0 && (dateRange[0] || dateRange[1]));
 
   return (
@@ -146,16 +146,16 @@ const LocationFilter = ({
           <Col span={6}>
             <Select
               mode="multiple"
-              placeholder="Filter by Destinations"
+              placeholder="Filter by Districts"
               style={{ width: '100%' }}
-              value={selectedDestinationIds}
-              onChange={setSelectedDestinationIds}
+              value={selectedDistrictIds}
+              onChange={setSelectedDistrictIds}
               allowClear
               maxTagCount="responsive"
             >
-              {destinations.map(dest => (
-                <Option key={dest.id} value={dest.id}>
-                  {dest.name}
+              {districts.map(district => (
+                <Option key={district.id} value={district.id}>
+                  {district.name}
                 </Option>
               ))}
             </Select>

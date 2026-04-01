@@ -3,7 +3,7 @@ import { Table, Button, Space, Popconfirm } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { PAGINATION } from '@/config/constants';
 
-const DestinationTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView }) => {
+const DistrictTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView }) => {
   const columns = [
     {
       title: 'ID',
@@ -29,18 +29,11 @@ const DestinationTable = ({ data, loading, pagination, onTableChange, onEdit, on
       width: 100,
     },
     {
-      title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
-      width: 80,
-      render: (type) => type ?? '-',
-    },
-    {
-      title: 'State',
-      dataIndex: 'stateName',
-      key: 'stateName',
+      title: 'Province',
+      dataIndex: 'provinceName',
+      key: 'provinceName',
       width: 150,
-      render: (stateName) => stateName ?? '-',
+      render: (provinceName) => provinceName ?? '-',
     },
     {
       title: 'Actions',
@@ -63,8 +56,8 @@ const DestinationTable = ({ data, loading, pagination, onTableChange, onEdit, on
             Edit
           </Button>
           <Popconfirm
-            title="Delete Destination"
-            description="Are you sure you want to delete this destination?"
+            title="Delete District"
+            description="Are you sure you want to delete this district?"
             onConfirm={() => onDelete(record)}
             okText="Yes"
             cancelText="No"
@@ -97,4 +90,4 @@ const DestinationTable = ({ data, loading, pagination, onTableChange, onEdit, on
   );
 };
 
-export default DestinationTable;
+export default DistrictTable;

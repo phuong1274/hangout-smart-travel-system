@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Tag, Rate, Table, TimePicker, Card, Divider } from 'antd';
+import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Tag, Table, TimePicker, Card, Divider, Rate } from 'antd';
 import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, EnvironmentOutlined, MinusCircleOutlined, ClockCircleOutlined, CloudOutlined } from '@ant-design/icons';
-import { createLocationApi, updateLocationApi, getAllDestinationsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
+import { createLocationApi, updateLocationApi, getAllDistrictsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
 import { getRootTagsApi, getChildTagsApi } from '@/features/tags/api';
 import { uploadImageToCloudinary } from '@/services/cloudinary';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
@@ -10,16 +10,30 @@ import dayjs from 'dayjs';
 const { TextArea } = Input;
 const { Option } = Select;
 
-// Platform options for social links
+// Platform options for social links (matching backend enum values)
 const SOCIAL_PLATFORMS = [
-  { value: 'Facebook', label: 'Facebook' },
-  { value: 'Instagram', label: 'Instagram' },
-  { value: 'TikTok', label: 'TikTok' },
-  { value: 'Twitter', label: 'Twitter/X' },
-  { value: 'Website', label: 'Official Website' },
-  { value: 'YouTube', label: 'YouTube' },
-  { value: 'Other', label: 'Other' }
+  { value: 'Facebook', label: 'Facebook', enumValue: 1 },
+  { value: 'Instagram', label: 'Instagram', enumValue: 2 },
+  { value: 'TikTok', label: 'TikTok', enumValue: 5 },
+  { value: 'Twitter', label: 'Twitter/X', enumValue: 3 },
+  { value: 'Website', label: 'Official Website', enumValue: 13 },
+  { value: 'YouTube', label: 'YouTube', enumValue: 4 },
+  { value: 'Other', label: 'Other', enumValue: 14 }
 ];
+
+// Helper to convert platform enum value to string
+const getPlatformName = (platform) => {
+  if (typeof platform === 'string') return platform;
+  const platformObj = SOCIAL_PLATFORMS.find(p => p.enumValue === platform);
+  return platformObj ? platformObj.value : 'Other';
+};
+
+// Helper to convert platform string back to enum value
+const getPlatformEnumValue = (platformName) => {
+  if (typeof platformName === 'number') return platformName;
+  const platformObj = SOCIAL_PLATFORMS.find(p => p.value === platformName);
+  return platformObj ? platformObj.enumValue : 14;
+};
 
 const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [form] = Form.useForm();
@@ -27,7 +41,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [rootTags, setRootTags] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
   const [selectedRootTagIds, setSelectedRootTagIds] = useState([]);
-  const [destinations, setDestinations] = useState([]);
+  const [districts, setDistricts] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
   const [amenities, setAmenities] = useState([]);
   const [tags, setTags] = useState([]);
@@ -46,22 +60,22 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     const fetchDropdownData = async () => {
       try {
         setTagsLoading(true);
-        const [rootTagsRes, destinationsRes, typesRes, amenitiesRes] = await Promise.all([
+        const [rootTagsRes, districtsRes, typesRes, amenitiesRes] = await Promise.all([
           getRootTagsApi(),
-          getAllDestinationsApi(),
+          getAllDistrictsApi(),
           getAllLocationTypesApi(),
           getAllAmenitiesApi()
         ]);
 
         // Handle paginated responses (extract items array)
         const rootTags = Array.isArray(rootTagsRes) ? rootTagsRes : (rootTagsRes?.items || []);
-        const destinations = Array.isArray(destinationsRes) ? destinationsRes : (destinationsRes?.items || []);
+        const districts = Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []);
         const locationTypes = Array.isArray(typesRes) ? typesRes : (typesRes?.items || []);
         const amenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
 
         setRootTags(rootTags);
         setAvailableTags(rootTags); // Initially show all root tags
-        setDestinations(destinations);
+        setDistricts(districts);
         setLocationTypes(locationTypes);
         setAmenities(amenities);
       } catch (error) {
@@ -127,23 +141,67 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     setAvailableTags([...rootTags, ...uniqueChildTags]);
   };
 
-  // Handle child tag selection
-  const handleChildTagChange = (selectedChildIds) => {
-    form.setFieldValue('tagIds', selectedChildIds);
+  // Handle child tag selection (with labelInValue format)
+  const handleChildTagChange = (selectedChildTags) => {
+    // selectedChildTags is array of {value, label} when labelInValue is enabled
+    const selectedIds = selectedChildTags.map(tag => tag.value);
+    form.setFieldValue('tagIds', selectedIds);
   };
 
   // Set form values when editing
   useEffect(() => {
-    if (location && location.tagIds && location.tagIds.length > 0) {
-      // Set selected root tag IDs from existing tags
-      const rootIds = location.tagIds.filter(id => {
-        const tag = rootTags.find(t => t.id === id);
-        return tag && tag.level === 1;
+    const setupEditForm = async () => {
+      if (location && location.tagIds && location.tagIds.length > 0 && rootTags.length > 0) {
+        // Set selected root tag IDs from existing tags
+        const rootIds = location.tagIds.filter(id => {
+          const tag = rootTags.find(t => t.id === id);
+          return tag && tag.level === 1;
+        });
+        setSelectedRootTagIds(rootIds);
+
+        // Load child tags for the selected root tags to ensure they display correctly
+        const allChildTagsFromSelectedRoots = [];
+        for (const tagId of rootIds) {
+          try {
+            const childTagsRes = await getChildTagsApi(tagId);
+            const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
+            allChildTagsFromSelectedRoots.push(...childTags);
+          } catch (error) {
+            console.error('Failed to fetch child tags:', error);
+          }
+        }
+        // Remove duplicates
+        const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
+          (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
+        );
+        setAvailableTags([...rootTags, ...uniqueChildTags]);
+      }
+    };
+
+    setupEditForm();
+  }, [location, rootTags]);
+
+  // Set form field values after tags are loaded
+  useEffect(() => {
+    if (location && availableTags.length > 0) {
+      // Convert tagIds to labelInValue format for proper display
+      const tagIdsWithValue = (location.tagIds || []).map(tagId => {
+        const tag = availableTags.find(t => t.id === tagId);
+        return {
+          value: tagId,
+          label: tag ? tag.name : String(tagId)
+        };
       });
-      setSelectedRootTagIds(rootIds);
-    }
-    
-    if (location && rootTags.length > 0 && amenities.length > 0) {
+
+      // Convert amenityIds to labelInValue format for proper display
+      const amenityIdsWithValue = (location.amenityIds || []).map(amenityId => {
+        const amenity = amenities.find(a => a.id === amenityId);
+        return {
+          value: amenityId,
+          label: amenity ? amenity.name : String(amenityId)
+        };
+      });
+
       form.setFieldsValue({
         name: location.name,
         description: location.description,
@@ -159,17 +217,20 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         priceMinUsd: location.priceMinUsd,
         priceMaxUsd: location.priceMaxUsd,
         recommendedDurationMinutes: location.recommendedDurationMinutes,
-        tagIds: location.tagIds || [],
-        amenityIds: location.amenityIds || []
+        tagIds: tagIdsWithValue,
+        amenityIds: amenityIdsWithValue
       });
       setMediaLinks(location.mediaLinks || []);
-      // Map social links from BE format (with id) to form state
+      // Map social links from BE format (with id) to form state - convert platform enum to string
       setSocialLinks(location.socialLinks?.map(sl => ({
         id: sl.id,
-        platform: sl.platform,
+        platform: getPlatformName(sl.platform),
         url: sl.url
       })) || []);
-      // Set opening hours
+    }
+
+    // Always set opening hours and seasons when location changes (independent of tags/amenities)
+    if (location) {
       setOpeningHours(location.openingHours || []);
       // Set seasons - convert comma-separated months string to array
       setSeasons(location.seasons?.map(season => ({
@@ -184,16 +245,15 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       setOpeningHours([]);
       setSeasons([]);
     }
-  }, [location, form, tags, amenities]);
+  }, [location, availableTags, amenities]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      // Transform social links to match BE format (include Id for updates)
+      // Transform social links to match backend format (send platform as enum number)
       const formattedSocialLinks = socialLinks.length > 0
         ? socialLinks.map(sl => ({
-            id: sl.id,
-            platform: sl.platform,
+            platform: getPlatformEnumValue(sl.platform),
             url: sl.url
           }))
         : [];
@@ -209,9 +269,14 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
       const payload = {
         ...values,
-        tagIds: values.tagIds?.length > 0 ? values.tagIds : [],
+        // Combine root tags and child tags (extract IDs from labelInValue format)
+        tagIds: [
+          ...(selectedRootTagIds || []),
+          ...(values.tagIds?.length > 0 ? values.tagIds.map(t => t.value) : [])
+        ],
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : [],
-        amenityIds: values.amenityIds?.length > 0 ? values.amenityIds : [],
+        // Extract IDs from labelInValue format
+        amenityIds: values.amenityIds?.length > 0 ? values.amenityIds.map(a => a.value) : [],
         socialLinks: formattedSocialLinks,
         openingHours: openingHours.length > 0 ? openingHours : [],
         seasons: formattedSeasons
@@ -551,14 +616,14 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           </Form.Item>
 
           <Form.Item
-            name="destinationId"
-            label="Destination"
-            rules={[{ required: true, message: 'Please select destination' }]}
+            name="districtId"
+            label="District"
+            rules={[{ required: true, message: 'Please select district' }]}
             style={{ width: '50%', minWidth: '200px' }}
           >
-            <Select placeholder="Select destination" showSearch optionFilterProp="children">
-              {Array.isArray(destinations) && destinations.map(dest => (
-                <Option key={dest.id} value={dest.id}>{dest.name}</Option>
+            <Select placeholder="Select district" showSearch optionFilterProp="children">
+              {Array.isArray(districts) && districts.map(district => (
+                <Option key={district.id} value={district.id}>{district.name}</Option>
               ))}
             </Select>
           </Form.Item>
@@ -595,6 +660,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         >
           <Select
             mode="multiple"
+            labelInValue
             placeholder={selectedRootTagIds.length > 0 ? "Select child tags" : "Select root tags first to see child tags"}
             style={{ width: '100%' }}
             maxTagCount="responsive"
@@ -620,6 +686,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         >
           <Select
             mode="multiple"
+            labelInValue
             placeholder="Select amenities"
             style={{ width: '100%' }}
             maxTagCount="responsive"
@@ -696,16 +763,16 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             {socialLinks.length > 0 && (
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
                 {socialLinks.map((socialLink, index) => (
-                  <div key={index} style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                  <div key={index} style={{
+                    display: 'flex',
+                    alignItems: 'center',
                     gap: '8px',
                     padding: '8px',
                     background: '#f5f5f5',
                     borderRadius: '6px'
                   }}>
                     <Tag color="blue" style={{ minWidth: '100px' }}>
-                      {socialLink.platform}
+                      {SOCIAL_PLATFORMS.find(p => p.value === socialLink.platform)?.label || socialLink.platform}
                     </Tag>
                     <Input
                       placeholder="Enter URL"

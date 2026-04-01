@@ -29,9 +29,12 @@ export const getAllTagsApi = () => {
   return apiClient.get('/api/Tags').then(res => res.data);
 };
 
-export const getAllDestinationsApi = () => {
-  return apiClient.get('/api/Destinations').then(res => res.data);
+export const getAllDistrictsApi = () => {
+  return apiClient.get('/api/common/districts').then(res => res.data);
 };
+
+// Alias for backward compatibility
+export const getAllDestinationsApi = getAllDistrictsApi;
 
 export const getAllLocationTypesApi = () => {
   return apiClient.get('/api/LocationTypes').then(res => res.data);
@@ -39,6 +42,10 @@ export const getAllLocationTypesApi = () => {
 
 export const getAllAmenitiesApi = () => {
   return apiClient.get('/api/Amenities').then(res => res.data);
+};
+
+export const getAllProvincesApi = () => {
+  return apiClient.get('/api/common/provinces').then(res => res.data);
 };
 
 // Import from location-submissions for SuggestEditModal

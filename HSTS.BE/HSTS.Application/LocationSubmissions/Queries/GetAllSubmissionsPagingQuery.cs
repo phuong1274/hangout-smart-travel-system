@@ -23,7 +23,7 @@ namespace HSTS.Application.LocationSubmissions.Queries
         public async Task<ErrorOr<LocationSubmissionPagedResponse>> Handle(GetAllSubmissionsPagingQuery request, CancellationToken ct)
         {
             var query = _repository.Query()
-                .Include(s => s.Destination)
+                .Include(s => s.District)
                 .AsQueryable();
 
             query = query.Where(s => !s.IsDeleted);

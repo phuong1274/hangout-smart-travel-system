@@ -1,4 +1,5 @@
 using HSTS.Domain.Entities;
+using HSTS.Domain.Enums;
 using System.Text.Json;
 
 namespace HSTS.Application.LocationSubmissions
@@ -21,7 +22,33 @@ namespace HSTS.Application.LocationSubmissions
 
             if (!string.IsNullOrEmpty(submission.SocialLinksJson))
             {
-                socialLinks = JsonSerializer.Deserialize<List<LocationSubmissionSocialLinkDto>>(submission.SocialLinksJson);
+                var socialLinkElements = JsonSerializer.Deserialize<List<JsonElement>>(submission.SocialLinksJson);
+                if (socialLinkElements != null)
+                {
+                    socialLinks = socialLinkElements.Select(sl =>
+                    {
+                        var platformStr = sl.TryGetProperty("platform", out var p) ? p.GetString() : null;
+                        var url = sl.TryGetProperty("url", out var u) ? u.GetString() : null;
+
+                        // Parse platform string to enum (case-insensitive)
+                        SocialPlatform platform = SocialPlatform.Other;
+                        if (!string.IsNullOrEmpty(platformStr))
+                        {
+                            // Try to parse by name first (case-insensitive)
+                            if (Enum.TryParse<SocialPlatform>(platformStr, ignoreCase: true, out var parsedEnum))
+                            {
+                                platform = parsedEnum;
+                            }
+                            // Try to parse by number if it's a numeric string
+                            else if (int.TryParse(platformStr, out var platformNum))
+                            {
+                                platform = (SocialPlatform)platformNum;
+                            }
+                        }
+
+                        return new LocationSubmissionSocialLinkDto(platform, url ?? string.Empty);
+                    }).ToList();
+                }
             }
 
             if (!string.IsNullOrEmpty(submission.AmenityIdsJson))
@@ -89,10 +116,10 @@ namespace HSTS.Application.LocationSubmissions
                 submission.PriceMinUsd,
                 submission.PriceMaxUsd,
                 submission.Score,
-                submission.DestinationId,
-                submission.Destination?.Name,
+                submission.DistrictId,
+                submission.District?.Name,
                 submission.LocationTypeId,
-                submission.LocationTypeId?.ToString(),
+                submission.LocationType?.Name,
                 mediaLinks,
                 socialLinks,
                 amenityIds,

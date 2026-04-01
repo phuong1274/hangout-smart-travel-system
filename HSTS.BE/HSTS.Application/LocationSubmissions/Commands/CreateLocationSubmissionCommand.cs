@@ -3,7 +3,6 @@ using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
-using HSTS.Domain.Enums;
 using HSTS.Application.LocationSubmissions;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -22,10 +21,10 @@ namespace HSTS.Application.LocationSubmissions.Commands
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
         decimal? Score,
-        int? DestinationId,
-        LocationType? LocationTypeId,
+        int? DistrictId,
+        int? LocationTypeId,
         List<string>? MediaLinks,
-        List<LocationSubmissionSocialLinkDto>? SocialLinks,
+        List<SocialLinkRequest>? SocialLinks,
         List<int>? AmenityIds,
         List<int>? TagIds,
         List<LocationSubmissionOpeningHourDto>? OpeningHours,
@@ -34,6 +33,11 @@ namespace HSTS.Application.LocationSubmissions.Commands
         int? ExistingLocationId = null,
         Dictionary<string, object>? ProposedChanges = null
     ) : IRequest<ErrorOr<LocationSubmissionDto>>;
+
+    public record SocialLinkRequest(
+        string Platform,
+        string Url
+    );
 
     public class CreateLocationSubmissionCommandHandler : IRequestHandler<CreateLocationSubmissionCommand, ErrorOr<LocationSubmissionDto>>
     {
@@ -99,7 +103,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 PriceMinUsd = request.PriceMinUsd,
                 PriceMaxUsd = request.PriceMaxUsd,
                 Score = request.Score,
-                DestinationId = request.DestinationId,
+                DistrictId = request.DistrictId,
                 LocationTypeId = request.LocationTypeId,
                 UserId = _currentUser.UserId,
                 CreatedBy = _currentUser.UserId.ToString(),
@@ -157,8 +161,8 @@ namespace HSTS.Application.LocationSubmissions.Commands
             RuleFor(x => x.PriceMinUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMinUsd.HasValue);
             RuleFor(x => x.PriceMaxUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMaxUsd.HasValue);
 
-            RuleFor(x => x.DestinationId).NotEmpty().When(x => x.DestinationId.HasValue)
-                .WithMessage("Destination ID must be provided if specified.");
+            RuleFor(x => x.DistrictId).NotEmpty().When(x => x.DistrictId.HasValue)
+                .WithMessage("District ID must be provided if specified.");
             RuleFor(x => x.LocationTypeId).NotEmpty().When(x => x.LocationTypeId.HasValue)
                 .WithMessage("Location Type ID must be provided if specified.");
 

@@ -23,12 +23,13 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<AccountRefreshToken> AccountRefreshTokens => Set<AccountRefreshToken>();
         public DbSet<Amenity> Amenities => Set<Amenity>();
         public DbSet<LocationAmenity> LocationAmenities => Set<LocationAmenity>();
-        public DbSet<Destination> Destinations => Set<Destination>();
+        public DbSet<District> Districts => Set<District>();
         public DbSet<Country> Countries => Set<Country>();
-        public DbSet<State> States => Set<State>();
+        public DbSet<Province> Provinces => Set<Province>();
         public DbSet<LocationSubmission> LocationSubmissions => Set<LocationSubmission>();
         public DbSet<LocationOpeningHour> LocationOpeningHours => Set<LocationOpeningHour>();
         public DbSet<LocationSeason> LocationSeasons => Set<LocationSeason>();
+        public DbSet<LocationType> LocationTypes => Set<LocationType>();
 
         #region Logging
         /// <summary>

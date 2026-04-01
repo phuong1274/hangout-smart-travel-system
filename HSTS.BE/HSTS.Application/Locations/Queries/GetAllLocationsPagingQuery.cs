@@ -1,6 +1,5 @@
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
-using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using static HSTS.Application.Interfaces.IRepository;
 
@@ -12,8 +11,8 @@ namespace HSTS.Application.Locations.Queries
     public record GetAllLocationsPagingQuery(
         string? SearchTerm,
         List<int>? TagIds,
-        List<LocationType>? LocationTypeIds,
-        List<int>? DestinationIds,
+        List<int>? LocationTypeIds,
+        List<int>? DistrictIds,
         DateTime? FromDate,
         DateTime? ToDate,
         bool IncludeDeleted = false,
@@ -30,7 +29,7 @@ namespace HSTS.Application.Locations.Queries
         public async Task<ErrorOr<LocationPagedResponse>> Handle(GetAllLocationsPagingQuery request, CancellationToken ct)
         {
             var query = _repository.Query()
-                .Include(l => l.Destination)
+                .Include(l => l.District)
                 .Include(l => l.LocationTags).ThenInclude(lt => lt.Tag)
                 .Include(l => l.LocationMedias)
                 .Include(l => l.LocationAmenities).ThenInclude(la => la.Amenity)
@@ -62,10 +61,10 @@ namespace HSTS.Application.Locations.Queries
                 query = query.Where(l => l.LocationTypeId.HasValue && request.LocationTypeIds.Contains(l.LocationTypeId.Value));
             }
 
-            // Filter by Destination IDs (multiple select - ANY of the selected destinations)
-            if (request.DestinationIds != null && request.DestinationIds.Count > 0)
+            // Filter by District IDs (multiple select - ANY of the selected districts)
+            if (request.DistrictIds != null && request.DistrictIds.Count > 0)
             {
-                query = query.Where(l => request.DestinationIds.Contains(l.DestinationId));
+                query = query.Where(l => request.DistrictIds.Contains(l.DistrictId));
             }
 
             // Filter by date range (CreatedAt)

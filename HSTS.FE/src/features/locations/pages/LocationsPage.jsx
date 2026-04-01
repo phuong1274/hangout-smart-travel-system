@@ -34,9 +34,15 @@ const LocationsPage = () => {
     setFormOpen(true);
   };
 
-  const handleEdit = (location) => {
-    setEditingLocation(location);
-    setFormOpen(true);
+  const handleEdit = async (location) => {
+    try {
+      // Fetch full location details including opening hours and seasons
+      const fullLocation = await getLocationByIdApi(location.id);
+      setEditingLocation(fullLocation);
+      setFormOpen(true);
+    } catch (error) {
+      message.error('Failed to load location details for editing');
+    }
   };
 
   const handleFormClose = () => {
