@@ -21,6 +21,11 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasForeignKey(x => x.ProvinceId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            builder.HasMany(x => x.Locations)
+                .WithOne(x => x.Province)
+                .HasForeignKey(x => x.ProvinceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             builder.HasMany(x => x.TransitHubs)
                 .WithOne(x => x.Province)
                 .HasForeignKey(x => x.ProvinceId)

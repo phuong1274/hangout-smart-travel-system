@@ -20,6 +20,10 @@ namespace HSTS.Application.Interfaces
         DbSet<Country> Countries { get; }
         DbSet<LocationType> LocationTypes { get; }
         DbSet<Location> Locations { get; }
+        DbSet<Amenities> Amenities { get; }
+        DbSet<OpeningHours> OpeningHours { get; }
+        DbSet<SocialLinks> SocialLinks { get; }
+        DbSet<LocationMedia> LocationMedias { get; }
         DbSet<Tag> Tags { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }

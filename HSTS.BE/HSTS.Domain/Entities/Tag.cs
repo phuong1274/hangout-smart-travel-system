@@ -15,5 +15,6 @@ namespace HSTS.Domain.Entities
         // Navigation properties
         public Tag? Parent { get; set; }
         public ICollection<Tag> Children { get; set; } = new List<Tag>();
+        public ICollection<Location> Locations { get; set; } = new List<Location>();
     }
 }

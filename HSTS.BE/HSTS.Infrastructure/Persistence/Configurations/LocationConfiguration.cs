@@ -12,31 +12,31 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .IsRequired();
 
             builder.Property(x => x.Description)
-                .HasMaxLength(2000)
-                .IsRequired();
+                .HasMaxLength(2000);
 
             builder.Property(x => x.Address)
                 .HasMaxLength(500)
                 .IsRequired();
 
             builder.Property(x => x.PhoneNumber)
-                .HasMaxLength(30)
-                .IsRequired();
+                .HasMaxLength(30);
 
             builder.Property(x => x.Email)
-                .HasMaxLength(150)
-                .IsRequired();
+                .HasMaxLength(150);
 
             builder.Property(x => x.Source)
-                .HasMaxLength(100)
-                .IsRequired();
+                .HasMaxLength(100);
 
             builder.Property(x => x.SourceUrl)
-                .HasMaxLength(500)
-                .IsRequired();
+                .HasMaxLength(500);
 
             builder.Property(x => x.Score)
                 .HasPrecision(5, 2);
+
+            builder.HasOne(x => x.Province)
+                .WithMany(x => x.Locations)
+                .HasForeignKey(x => x.ProvinceId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(x => x.District)
                 .WithMany(x => x.Locations)
@@ -47,6 +47,57 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .WithMany(x => x.Locations)
                 .HasForeignKey(x => x.LocationTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasMany(x => x.Amenities)
+                .WithMany(x => x.Locations)
+                .UsingEntity<Dictionary<string, object>>(
+                    "LocationAmenities",
+                    right => right.HasOne<Amenities>()
+                        .WithMany()
+                        .HasForeignKey("AmenitiesId")
+                        .OnDelete(DeleteBehavior.Cascade),
+                    left => left.HasOne<Location>()
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade),
+                    join =>
+                    {
+                        join.ToTable("LocationAmenities");
+                        join.HasKey("LocationId", "AmenitiesId");
+                    });
+
+            builder.HasMany(x => x.Tags)
+                .WithMany(x => x.Locations)
+                .UsingEntity<Dictionary<string, object>>(
+                    "LocationTags",
+                    right => right.HasOne<Tag>()
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade),
+                    left => left.HasOne<Location>()
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade),
+                    join =>
+                    {
+                        join.ToTable("LocationTags");
+                        join.HasKey("LocationId", "TagId");
+                    });
+
+            builder.HasMany(x => x.OpeningHours)
+                .WithOne(x => x.Location)
+                .HasForeignKey(x => x.LocationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(x => x.SocialLinks)
+                .WithOne(x => x.Location)
+                .HasForeignKey(x => x.LocationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(x => x.LocationMedias)
+                .WithOne(x => x.Location)
+                .HasForeignKey(x => x.LocationId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

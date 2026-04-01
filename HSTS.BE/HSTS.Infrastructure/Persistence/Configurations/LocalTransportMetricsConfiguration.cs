@@ -16,8 +16,7 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .IsRequired();
 
             builder.Property(x => x.MaxRecommendedDistance)
-                .HasPrecision(18, 2)
-                .IsRequired();
+                .HasPrecision(18, 2);
         }
     }
 }

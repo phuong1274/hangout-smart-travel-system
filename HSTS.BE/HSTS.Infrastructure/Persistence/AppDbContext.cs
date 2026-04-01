@@ -25,6 +25,10 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Country> Countries => Set<Country>();
         public DbSet<LocationType> LocationTypes => Set<LocationType>();
         public DbSet<Location> Locations => Set<Location>();
+        public DbSet<Amenities> Amenities => Set<Amenities>();
+        public DbSet<OpeningHours> OpeningHours => Set<OpeningHours>();
+        public DbSet<SocialLinks> SocialLinks => Set<SocialLinks>();
+        public DbSet<LocationMedia> LocationMedias => Set<LocationMedia>();
         public DbSet<Tag> Tags => Set<Tag>();
 
         #region Logging
