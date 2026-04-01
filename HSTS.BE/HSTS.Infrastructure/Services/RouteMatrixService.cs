@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using HSTS.Application.Interfaces;
 using HSTS.Infrastructure.Settings;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -43,15 +44,18 @@ namespace HSTS.Infrastructure.Services
 
         private readonly HttpClient _httpClient;
         private readonly RouteApiSettings _settings;
+        private readonly IMemoryCache _cache;
         private readonly ILogger<RouteMatrixService> _logger;
 
         public RouteMatrixService(
             HttpClient httpClient,
             IOptions<RouteApiSettings> settings,
+            IMemoryCache cache,
             ILogger<RouteMatrixService> logger)
         {
             _httpClient = httpClient;
             _settings = settings.Value;
+            _cache = cache;
             _logger = logger;
         }
 
@@ -74,27 +78,41 @@ namespace HSTS.Infrastructure.Services
             return EstimateInternalAsync(query, cancellationToken);
         }
 
-        public Task<RouteEstimate?> EstimateAsync(
+        public async Task<RouteEstimate?> EstimateAsync(
             double fromLatitude,
             double fromLongitude,
             double toLatitude,
             double toLongitude,
             CancellationToken cancellationToken = default)
         {
+            // Cache key based on origin + destination (rounded to 4 decimal places for dedup)
+            var cacheKey = $"route:{fromLatitude:F4},{fromLongitude:F4}:{toLatitude:F4},{toLongitude:F4}";
+            if (_cache.TryGetValue(cacheKey, out RouteEstimate? cached) && cached is not null)
+                return cached;
+
+            RouteEstimate? result;
             if (IsOsrmProvider())
             {
-                return EstimateOsrmAsync(fromLatitude, fromLongitude, toLatitude, toLongitude, cancellationToken);
+                result = await EstimateOsrmAsync(fromLatitude, fromLongitude, toLatitude, toLongitude, cancellationToken);
+            }
+            else
+            {
+
+                var query = new Dictionary<string, string>
+                {
+                    ["fromLat"] = fromLatitude.ToString(CultureInfo.InvariantCulture),
+                    ["fromLng"] = fromLongitude.ToString(CultureInfo.InvariantCulture),
+                    ["toLat"] = toLatitude.ToString(CultureInfo.InvariantCulture),
+                    ["toLng"] = toLongitude.ToString(CultureInfo.InvariantCulture)
+                };
+
+                result = await EstimateInternalAsync(query, cancellationToken);
             }
 
-            var query = new Dictionary<string, string>
-            {
-                ["fromLat"] = fromLatitude.ToString(CultureInfo.InvariantCulture),
-                ["fromLng"] = fromLongitude.ToString(CultureInfo.InvariantCulture),
-                ["toLat"] = toLatitude.ToString(CultureInfo.InvariantCulture),
-                ["toLng"] = toLongitude.ToString(CultureInfo.InvariantCulture)
-            };
+            if (result is not null)
+                _cache.Set(cacheKey, result, TimeSpan.FromHours(1));
 
-            return EstimateInternalAsync(query, cancellationToken);
+            return result;
         }
 
         private async Task<RouteEstimate?> EstimateOsrmAsync(

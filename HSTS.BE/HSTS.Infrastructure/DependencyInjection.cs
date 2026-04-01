@@ -7,6 +7,7 @@ using HSTS.Infrastructure.Settings;
 using HSTS.Application.Auth.Interfaces;
 using HSTS.Application.Interfaces;
 using static HSTS.Application.Interfaces.IRepository;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace HSTS.Infrastructure
 {
@@ -41,6 +42,22 @@ namespace HSTS.Infrastructure
             // Cloudinary
             services.Configure<CloudinarySettings>(configuration.GetSection("Cloudinary"));
             services.AddScoped<ICloudinaryService, CloudinaryService>();
+
+            // Memory cache (used by OSRM route caching and exchange rates)
+            services.AddMemoryCache();
+
+            // Currency service
+            services.Configure<ExchangeRateSettings>(configuration.GetSection("ExchangeRate"));
+            services.AddHttpClient<ICurrencyService, CurrencyService>((serviceProvider, client) =>
+            {
+                var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ExchangeRateSettings>>().Value;
+                if (Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var uri))
+                {
+                    client.BaseAddress = uri;
+                }
+
+                client.Timeout = TimeSpan.FromSeconds(15);
+            });
 
             // Travel integrations (distance/weather/sandbox)
             services.Configure<RouteApiSettings>(configuration.GetSection("TravelApis:Route"));
