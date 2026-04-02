@@ -135,7 +135,15 @@ namespace HSTS.Application.Itineraries.Queries
         MoneyDto TotalCostPerNight,
         double DistanceToCenter,
         int AmenityCount,
-        bool IsRecommended);
+        bool IsRecommended,
+        int ProvinceId,
+        string ProvinceName,
+        int Nights,
+        TimeOnly CheckInTime,
+        TimeOnly CheckOutTime,
+        int CheckInDurationMinutes,
+        int CheckOutDurationMinutes,
+        string LuggageStorageNote);
 
     // --- Validator ---
 
@@ -541,11 +549,13 @@ namespace HSTS.Application.Itineraries.Queries
                     var provHotels = hotelsByProvince.GetValueOrDefault(prov.Id) ?? new List<Location>();
                     var provAttractions = scoredByProvince.GetValueOrDefault(prov.Id) ?? new List<ScoredLocation>();
                     int nights = Math.Max(1, dayAllocation[prov.Id] - 1);
+                    var isFirstDest = prov.Id == orderedDestinations[0].Id;
+                    var checkInTime = isFirstDest ? FirstDayCheckInTime : TransferDayCheckInTime;
 
                     var (hotel, recommendations) = SelectAndScoreAccommodation(
                         provHotels, provAttractions, groupSize,
                         usableBudget / totalDays, request.HotelPreference!, prov,
-                        toMoney);
+                        nights, checkInTime, toMoney);
 
                     accommodationRecommendations.AddRange(recommendations);
                     if (hotel is not null)
@@ -1195,7 +1205,8 @@ namespace HSTS.Application.Itineraries.Queries
             SelectAndScoreAccommodation(
                 IList<Location> hotels, IList<ScoredLocation> attractions,
                 int groupSize, decimal dailyBudget, string hotelPreference,
-                Province province, Func<decimal, MoneyDto> toMoney)
+                Province province, int nights, TimeOnly checkInTime,
+                Func<decimal, MoneyDto> toMoney)
         {
             if (hotels.Count == 0) return (null, new List<AccommodationRecommendationDto>());
 
@@ -1238,7 +1249,11 @@ namespace HSTS.Application.Itineraries.Queries
                     x.Hotel.Id, x.Hotel.Name, x.Hotel.Address, x.Score,
                     toMoney(perPerson),
                     toMoney(totalPerNight),
-                    x.Distance, x.Hotel.Amenities.Count, idx == 0));
+                    x.Distance, x.Hotel.Amenities.Count, idx == 0,
+                    province.Id, province.Name, nights,
+                    checkInTime, CheckOutTime,
+                    CheckInDurationMinutes, CheckOutDurationMinutes,
+                    "Gui hanh ly tai quay le tan khi check-in. Lien he khach san de gui hanh ly truoc/sau gio nhan-tra phong."));
             }
 
             return (scored.FirstOrDefault()?.Hotel, recommendations);
