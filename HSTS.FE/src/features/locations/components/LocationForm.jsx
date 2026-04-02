@@ -5,7 +5,7 @@ import { createLocationApi, updateLocationApi, getAllDistrictsApi, getAllLocatio
 import { getRootTagsApi, getChildTagsApi } from '@/features/tags/api';
 import { uploadImageToCloudinary } from '@/services/cloudinary';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
-import { SOCIAL_PLATFORMS, DAYS_OF_WEEK, MONTH_NAMES } from '@/utils/locationConstants';
+import { SOCIAL_PLATFORMS, DAYS_OF_WEEK, MONTH_NAMES, MONTHS } from '@/utils/locationConstants';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
