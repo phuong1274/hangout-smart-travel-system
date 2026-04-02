@@ -1533,7 +1533,7 @@ namespace HSTS.Application.Itineraries.Queries
                 .ToList();
 
             return new IntercityTransportDto(fromProvinceId, toProvinceId, distanceKm,
-                recommended.Method, recommended.EstimatedTravelTimeMinutes, recommended.EstimatedTotalCost,
+                recommended.Method, recommended.EstimatedTravelMinutes, recommended.EstimatedTotalCost,
                 finalOptions);
         }
 
