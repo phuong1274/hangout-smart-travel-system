@@ -17,7 +17,8 @@ namespace HSTS.Application.Locations.Queries
         DateTime? ToDate,
         bool IncludeDeleted = false,
         int PageIndex = 1,
-        int PageSize = 10) : IRequest<ErrorOr<LocationPagedResponse>>;
+        int PageSize = 10,
+        DateTime? ReferenceDate = null) : IRequest<ErrorOr<LocationPagedResponse>>;
 
     public class GetAllLocationsPagingQueryHandler : IRequestHandler<GetAllLocationsPagingQuery, ErrorOr<LocationPagedResponse>>
     {
@@ -34,6 +35,7 @@ namespace HSTS.Application.Locations.Queries
                 .Include(l => l.LocationMedias)
                 .Include(l => l.LocationAmenities).ThenInclude(la => la.Amenity)
                 .Include(l => l.SocialLinks)
+                .Include(l => l.Closures)  // Include closures for effective status calculation
                 .AsQueryable();
 
             // Only filter by IsDeleted if IncludeDeleted is false
@@ -85,7 +87,8 @@ namespace HSTS.Application.Locations.Queries
                 query ?? _repository.Query(),
                 ct);
 
-            var locationDtos = items.Select(l => l.ToDto()).ToList();
+            // Map to DTO with effective status based on reference date
+            var locationDtos = items.Select(l => l.ToDto(request.ReferenceDate)).ToList();
 
             return new LocationPagedResponse(locationDtos, total);
         }

@@ -68,6 +68,9 @@ namespace HSTS.Domain.Entities
         public int? OwnerId { get; set; }
         public User? Owner { get; set; }
 
+        // Status
+        public Domain.Enums.LocationStatus Status { get; set; } = Domain.Enums.LocationStatus.Active;
+
         // Navigation properties
         public ICollection<LocationSocialLink> SocialLinks { get; set; } = new List<LocationSocialLink>();
         public ICollection<LocationTag> LocationTags { get; set; } = new List<LocationTag>();
@@ -75,5 +78,36 @@ namespace HSTS.Domain.Entities
         public ICollection<LocationAmenity> LocationAmenities { get; set; } = new List<LocationAmenity>();
         public ICollection<LocationOpeningHour> OpeningHours { get; set; } = new List<LocationOpeningHour>();
         public ICollection<LocationSeason> Seasons { get; set; } = new List<LocationSeason>();
+        public ICollection<LocationClosure> Closures { get; set; } = new List<LocationClosure>();
+
+        /// <summary>
+        /// Computes the effective status for a given reference date.
+        /// - If Status = Inactive, returns Inactive immediately
+        /// - Otherwise, checks for active closures that cover the reference date
+        /// - Returns TemporarilyClosed if within closure period, otherwise returns Status
+        /// </summary>
+        public Domain.Enums.LocationStatus GetEffectiveStatus(DateTime? referenceDate = null)
+        {
+            // If base status is Inactive, always return Inactive
+            if (Status == Domain.Enums.LocationStatus.Inactive)
+            {
+                return Domain.Enums.LocationStatus.Inactive;
+            }
+
+            // Use provided reference date or current UTC time
+            var dateToCheck = referenceDate ?? DateTime.UtcNow;
+
+            // Check if there's an active closure that covers the reference date
+            var hasActiveClosure = Closures?.Any(c =>
+                c.IsActive &&
+                !c.IsDeleted &&
+                c.StartDate <= dateToCheck &&
+                c.EndDate >= dateToCheck
+            ) ?? false;
+
+            return hasActiveClosure
+                ? Domain.Enums.LocationStatus.TemporarilyClosed
+                : Status;
+        }
     }
 }

@@ -25,6 +25,8 @@ namespace HSTS.Application.Locations
         List<int>? AmenityIds = null,
         List<LocationOpeningHourDto>? OpeningHours = null,
         List<LocationSeasonDto>? Seasons = null,
+        Domain.Enums.LocationStatus Status = default,
+        Domain.Enums.LocationStatus EffectiveStatus = default,
         DateTime CreatedAt = default,
         DateTime? UpdatedAt = null
     );
