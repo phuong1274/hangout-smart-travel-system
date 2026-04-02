@@ -865,13 +865,13 @@ namespace HSTS.Infrastructure.Services
 
         private static FixedIntercityOption? ParseBusOption(JsonElement root)
         {
-            if (!TryGetDouble(root, DurationMinuteKeys, out var durationMinutes))
+            if (!TryGetAverageDouble(root, DurationMinuteKeys, out var durationMinutes))
             {
-                if (TryGetDouble(root, DurationSecondKeys, out var durationSeconds))
+                if (TryGetAverageDouble(root, DurationSecondKeys, out var durationSeconds))
                 {
                     durationMinutes = durationSeconds / 60d;
                 }
-                else if (TryGetDouble(root, DurationGenericKeys, out var genericDuration))
+                else if (TryGetAverageDouble(root, DurationGenericKeys, out var genericDuration))
                 {
                     durationMinutes = genericDuration > 1000d
                         ? genericDuration / 60d
@@ -879,7 +879,7 @@ namespace HSTS.Infrastructure.Services
                 }
             }
 
-            var hasCost = TryGetDouble(root, CostKeys, out var costRaw);
+            var hasCost = TryGetAverageDouble(root, CostKeys, out var costRaw);
             var method = TryGetString(root, MethodKeys) ?? "Bus";
 
             if (durationMinutes <= 0 && !hasCost)
@@ -896,13 +896,13 @@ namespace HSTS.Infrastructure.Services
 
         private static FixedIntercityOption? ParseTrainOption(JsonElement root)
         {
-            if (!TryGetDouble(root, DurationMinuteKeys, out var durationMinutes))
+            if (!TryGetAverageDouble(root, DurationMinuteKeys, out var durationMinutes))
             {
-                if (TryGetDouble(root, DurationSecondKeys, out var durationSeconds))
+                if (TryGetAverageDouble(root, DurationSecondKeys, out var durationSeconds))
                 {
                     durationMinutes = durationSeconds / 60d;
                 }
-                else if (TryGetDouble(root, DurationGenericKeys, out var genericDuration))
+                else if (TryGetAverageDouble(root, DurationGenericKeys, out var genericDuration))
                 {
                     durationMinutes = genericDuration > 1000d
                         ? genericDuration / 60d
@@ -910,7 +910,7 @@ namespace HSTS.Infrastructure.Services
                 }
             }
 
-            var hasCost = TryGetDouble(root, CostKeys, out var costRaw);
+            var hasCost = TryGetAverageDouble(root, CostKeys, out var costRaw);
             var method = TryGetString(root, MethodKeys) ?? "Train";
 
             if (durationMinutes <= 0 && !hasCost)
@@ -927,13 +927,13 @@ namespace HSTS.Infrastructure.Services
 
         private static FixedIntercityOption? ParseFlightOption(JsonElement root)
         {
-            if (!TryGetDouble(root, DurationMinuteKeys, out var durationMinutes))
+            if (!TryGetAverageDouble(root, DurationMinuteKeys, out var durationMinutes))
             {
-                if (TryGetDouble(root, DurationSecondKeys, out var durationSeconds))
+                if (TryGetAverageDouble(root, DurationSecondKeys, out var durationSeconds))
                 {
                     durationMinutes = durationSeconds / 60d;
                 }
-                else if (TryGetDouble(root, DurationGenericKeys, out var genericDuration))
+                else if (TryGetAverageDouble(root, DurationGenericKeys, out var genericDuration))
                 {
                     durationMinutes = genericDuration > 1000d
                         ? genericDuration / 60d
@@ -941,7 +941,7 @@ namespace HSTS.Infrastructure.Services
                 }
             }
 
-            var hasCost = TryGetDouble(root, CostKeys, out var costRaw);
+            var hasCost = TryGetAverageDouble(root, CostKeys, out var costRaw);
             var method = TryGetString(root, FlightMethodKeys) ?? "Flight";
 
             if (durationMinutes <= 0 && !hasCost)
@@ -954,6 +954,64 @@ namespace HSTS.Infrastructure.Services
                 durationMinutes <= 0 ? 0 : Math.Max(1, (int)Math.Round(durationMinutes)),
                 hasCost ? Decimal.Round((decimal)costRaw, 2) : 0,
                 "FixedIntercity from flight API");
+        }
+
+        private static bool TryGetAverageDouble(JsonElement root, HashSet<string> keys, out double average)
+        {
+            var values = new List<double>();
+            CollectValuesFromArrayItems(root, keys, values);
+            var valid = values.Where(v => v > 0).ToList();
+
+            if (valid.Count > 0)
+            {
+                average = valid.Average();
+                return true;
+            }
+
+            if (TryGetDouble(root, keys, out var single) && single > 0)
+            {
+                average = single;
+                return true;
+            }
+
+            average = 0;
+            return false;
+        }
+
+        private static void CollectValuesFromArrayItems(
+            JsonElement element, HashSet<string> keys, List<double> values, int depth = 0)
+        {
+            if (depth > 10) return;
+
+            if (element.ValueKind == JsonValueKind.Array)
+            {
+                var local = new List<double>();
+                foreach (var item in element.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.Object && TryGetDouble(item, keys, out var val))
+                    {
+                        local.Add(val);
+                    }
+                }
+
+                if (local.Count > 0)
+                {
+                    values.AddRange(local);
+                    return;
+                }
+
+                foreach (var item in element.EnumerateArray())
+                {
+                    CollectValuesFromArrayItems(item, keys, values, depth + 1);
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    CollectValuesFromArrayItems(property.Value, keys, values, depth + 1);
+                }
+            }
         }
 
         private static bool TryGetDouble(JsonElement root, HashSet<string> keys, out double value)

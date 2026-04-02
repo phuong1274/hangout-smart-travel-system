@@ -33,6 +33,10 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Score)
                 .HasPrecision(5, 2);
 
+            builder.Property(x => x.Status)
+                .HasConversion<int>()
+                .HasColumnName("Status");
+
             builder.HasOne(x => x.Province)
                 .WithMany(x => x.Locations)
                 .HasForeignKey(x => x.ProvinceId)

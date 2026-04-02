@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using HSTS.Domain.Enums;
 
 namespace HSTS.Domain.Entities
 {
@@ -27,6 +28,7 @@ namespace HSTS.Domain.Entities
         public double? Latitude { get; set; }
         public string? Source { get; set; }
         public string? SourceUrl { get; set; }
+        public LocationStatus Status { get; set; } = LocationStatus.Active;
 
         // Navigation properties
         public Province Province { get; set; } = null!;
@@ -37,5 +39,6 @@ namespace HSTS.Domain.Entities
         public ICollection<OpeningHours> OpeningHours { get; set; } = new List<OpeningHours>();
         public ICollection<SocialLinks> SocialLinks { get; set; } = new List<SocialLinks>();
         public ICollection<LocationMedia> LocationMedias { get; set; } = new List<LocationMedia>();
+        public ICollection<LocationClosure> LocationClosures { get; set; } = new List<LocationClosure>();
     }
 }

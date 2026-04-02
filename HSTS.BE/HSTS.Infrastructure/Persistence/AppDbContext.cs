@@ -30,6 +30,7 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<SocialLinks> SocialLinks => Set<SocialLinks>();
         public DbSet<LocationMedia> LocationMedias => Set<LocationMedia>();
         public DbSet<Tag> Tags => Set<Tag>();
+        public DbSet<LocationClosure> LocationClosures => Set<LocationClosure>();
 
         #region Logging
         /// <summary>

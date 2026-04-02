@@ -25,6 +25,7 @@ namespace HSTS.Application.Interfaces
         DbSet<SocialLinks> SocialLinks { get; }
         DbSet<LocationMedia> LocationMedias { get; }
         DbSet<Tag> Tags { get; }
+        DbSet<LocationClosure> LocationClosures { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }
