@@ -91,7 +91,7 @@ namespace HSTS.API.Controllers
                 request.DistrictId,
                 request.LocationTypeId,
                 request.MediaLinks,
-                request.SocialLinks?.Select(sl => new Application.LocationSubmissions.Commands.SocialLinkRequest(sl.Platform.ToString(), sl.Url)).ToList(),
+                request.SocialLinks?.Select(sl => new Application.LocationSubmissions.Commands.SocialLinkRequest(sl.Platform, sl.Url)).ToList(),
                 request.AmenityIds,
                 request.TagIds,
                 request.OpeningHours?.Select(oh => new LocationSubmissionOpeningHourDto(

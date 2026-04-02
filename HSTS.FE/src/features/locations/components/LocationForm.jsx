@@ -18,6 +18,7 @@ const SOCIAL_PLATFORMS = [
   { value: 'Twitter', label: 'Twitter/X', enumValue: 3 },
   { value: 'Website', label: 'Official Website', enumValue: 13 },
   { value: 'YouTube', label: 'YouTube', enumValue: 4 },
+  { value: 'Zalo', label: 'Zalo', enumValue: 12 },
   { value: 'Other', label: 'Other', enumValue: 14 }
 ];
 
@@ -251,11 +252,14 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     setLoading(true);
     try {
       // Transform social links to match backend format (send platform as enum number)
+      // Filter out links with empty platform or URL
       const formattedSocialLinks = socialLinks.length > 0
-        ? socialLinks.map(sl => ({
-            platform: getPlatformEnumValue(sl.platform),
-            url: sl.url
-          }))
+        ? socialLinks
+            .filter(sl => sl.platform && sl.url && sl.url.trim() !== '')
+            .map(sl => ({
+                platform: Number(sl.platform),
+                url: sl.url.trim()
+              }))
         : [];
 
       // Transform seasons to convert months array to comma-separated string

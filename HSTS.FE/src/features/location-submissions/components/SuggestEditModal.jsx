@@ -8,6 +8,32 @@ import dayjs from 'dayjs';
 const { TextArea } = Input;
 const { Option } = Select;
 
+// Platform options for social links (matching backend enum values)
+const SOCIAL_PLATFORMS = [
+  { value: 'Facebook', label: 'Facebook', enumValue: 1 },
+  { value: 'Instagram', label: 'Instagram', enumValue: 2 },
+  { value: 'TikTok', label: 'TikTok', enumValue: 5 },
+  { value: 'Twitter', label: 'Twitter/X', enumValue: 3 },
+  { value: 'Website', label: 'Official Website', enumValue: 13 },
+  { value: 'YouTube', label: 'YouTube', enumValue: 4 },
+  { value: 'Zalo', label: 'Zalo', enumValue: 12 },
+  { value: 'Other', label: 'Other', enumValue: 14 }
+];
+
+// Helper to convert platform enum value to string
+const getPlatformName = (platform) => {
+  if (typeof platform === 'string') return platform;
+  const platformObj = SOCIAL_PLATFORMS.find(p => p.enumValue === platform);
+  return platformObj ? platformObj.value : 'Other';
+};
+
+// Helper to convert platform string to enum value
+const getPlatformEnumValue = (platformName) => {
+  if (typeof platformName === 'number') return platformName;
+  const platformObj = SOCIAL_PLATFORMS.find(p => p.value.toLowerCase() === platformName?.toLowerCase());
+  return platformObj ? platformObj.enumValue : 14;
+};
+
 /**
  * Modal for users to suggest edits to existing locations
  * Supports editing ALL fields including tags, amenities, type, destination, media, social links
@@ -142,8 +168,12 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
       if (location.mediaLinks) {
         setMediaLinks(location.mediaLinks);
       }
+      // Convert platform enum number to string for form display
       if (location.socialLinks) {
-        setSocialLinks(location.socialLinks);
+        setSocialLinks(location.socialLinks.map(sl => ({
+          platform: getPlatformName(sl.platform),
+          url: sl.url
+        })));
       }
       if (location.openingHours) {
         setOpeningHours(location.openingHours);
@@ -327,7 +357,12 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         // Also send all fields for validation/display purposes
         ...values,
         mediaLinks: mediaLinks.filter(link => link.trim() !== ''),
-        socialLinks: socialLinks.filter(link => link.platform && link.url),
+        socialLinks: socialLinks
+          .filter(link => link.platform && link.url && link.url.trim() !== '')
+          .map(sl => ({
+            platform: Number(sl.platform),
+            url: sl.url.trim()
+          })),
       });
 
       message.success('Suggestion submitted successfully! It will be reviewed by our team.');

@@ -214,10 +214,10 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         setMediaLinks(location.mediaLinks);
       }
       if (location.socialLinks) {
-        // Convert platform enum to lowercase string for the Select component
+        // Convert platform enum to string for the Select component
         setSocialLinks(location.socialLinks.map(sl => ({
           id: sl.id,
-          platform: typeof sl.platform === 'number' ? getPlatformName(sl.platform)?.toLowerCase() : sl.platform,
+          platform: typeof sl.platform === 'number' ? getPlatformName(sl.platform) : sl.platform,
           url: sl.url
         })));
       }
@@ -450,10 +450,11 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         ...values,
         tagIds: allTagIds,
         mediaLinks: mediaLinks.filter(link => link.trim() !== ''),
-        socialLinks: socialLinks.filter(link => link.platform && link.url)
+        socialLinks: socialLinks
+          .filter(link => link.platform && link.url && link.url.trim() !== '')
           .map(sl => ({
-            platform: getPlatformEnumValue(sl.platform),
-            url: sl.url
+            platform: Number(sl.platform),
+            url: sl.url.trim()
           })),
       });
 

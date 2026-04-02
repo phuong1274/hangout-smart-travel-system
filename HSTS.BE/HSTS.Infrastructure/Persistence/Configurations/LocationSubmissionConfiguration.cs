@@ -16,7 +16,7 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .IsRequired();
 
             builder.Property(x => x.Description)
-                .HasMaxLength(2000)
+                .HasColumnType("text")
                 .IsRequired(false);
 
             builder.Property(x => x.Latitude)
@@ -49,11 +49,11 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .IsRequired();
 
             builder.Property(x => x.MediaLinksJson)
-                .HasMaxLength(4000)
+                .HasColumnType("text")
                 .IsRequired(false);
 
             builder.Property(x => x.SocialLinksJson)
-                .HasMaxLength(4000)
+                .HasColumnType("text")
                 .IsRequired(false);
 
             builder.Property(x => x.AmenityIdsJson)

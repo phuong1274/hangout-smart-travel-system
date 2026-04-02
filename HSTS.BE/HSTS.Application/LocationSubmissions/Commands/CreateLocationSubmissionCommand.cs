@@ -35,7 +35,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
     ) : IRequest<ErrorOr<LocationSubmissionDto>>;
 
     public record SocialLinkRequest(
-        string Platform,
+        int Platform,
         string Url
     );
 
@@ -169,7 +169,9 @@ namespace HSTS.Application.LocationSubmissions.Commands
             // Validate social links
             RuleForEach(x => x.SocialLinks).ChildRules(link =>
             {
-                link.RuleFor(x => x.Platform).IsInEnum();
+                link.RuleFor(x => x.Platform)
+                    .InclusiveBetween(1, 14)
+                    .WithMessage($"Platform must be between 1 and 14 (valid SocialPlatform values).");
                 link.RuleFor(x => x.Url).NotEmpty().MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Url));
             });
         }

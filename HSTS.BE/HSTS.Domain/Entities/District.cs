@@ -14,9 +14,6 @@ namespace HSTS.Domain.Entities
         [MaxLength(200)]
         public string? EnglishName { get; set; }
 
-        [MaxLength(50)]
-        public string? Code { get; set; }
-
         [Range(-90, 90)]
         public double? Latitude { get; set; }
 

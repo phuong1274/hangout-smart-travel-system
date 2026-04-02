@@ -66,7 +66,6 @@ namespace HSTS.API.Controllers
             var command = new CreateDistrictCommand(
                 request.Name,
                 request.EnglishName,
-                request.Code,
                 request.Latitude,
                 request.Longitude,
                 request.ProvinceId
@@ -91,7 +90,6 @@ namespace HSTS.API.Controllers
                 id,
                 request.Name,
                 request.EnglishName,
-                request.Code,
                 request.Latitude,
                 request.Longitude,
                 request.ProvinceId

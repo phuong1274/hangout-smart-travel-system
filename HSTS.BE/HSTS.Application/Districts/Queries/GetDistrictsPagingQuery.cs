@@ -28,7 +28,6 @@ namespace HSTS.Application.Districts.Queries
                 query = query.Where(d =>
                     d.Name.ToLower().Contains(searchTerm) ||
                     (d.EnglishName != null && d.EnglishName.ToLower().Contains(searchTerm)) ||
-                    (d.Code != null && d.Code.ToLower().Contains(searchTerm)) ||
                     (d.Province != null && d.Province.Name.ToLower().Contains(searchTerm)));
             }
 

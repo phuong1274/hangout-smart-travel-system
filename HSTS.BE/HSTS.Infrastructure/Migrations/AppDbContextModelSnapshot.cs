@@ -216,10 +216,6 @@ namespace HSTS.Infrastructure.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Code")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp")
@@ -635,7 +631,7 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
-                        .HasColumnType("varchar(2000)");
+                        .HasColumnType("text");
 
                     b.Property<int?>("DistrictId")
                         .HasColumnType("int");
@@ -663,7 +659,7 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Property<string>("MediaLinksJson")
                         .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -699,12 +695,12 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("decimal(65,30)");
 
                     b.Property<string>("SeasonsJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
+                        .HasMaxLength(250)
+                        .HasColumnType("varchar(250)");
 
                     b.Property<string>("SocialLinksJson")
                         .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
+                        .HasColumnType("text");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");

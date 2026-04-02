@@ -10,7 +10,6 @@ namespace HSTS.Application.Districts
                 district.Id,
                 district.Name,
                 district.EnglishName,
-                district.Code,
                 district.Latitude,
                 district.Longitude,
                 district.ProvinceId,
