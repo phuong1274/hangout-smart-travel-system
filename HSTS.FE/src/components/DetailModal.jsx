@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Descriptions, Tag, Space, Image, Divider, Table } from 'antd';
 import { EnvironmentOutlined, DollarOutlined, UserOutlined, CalendarOutlined, LinkOutlined, PhoneOutlined, MailOutlined, ClockCircleOutlined, PictureOutlined, CloudOutlined } from '@ant-design/icons';
+import { MONTH_NAMES } from '@/utils/locationConstants';
 
 /**
  * Reusable Detail Modal for displaying entity information
@@ -79,8 +80,8 @@ const DetailModal = ({ open, onClose, data, type }) => {
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
                 {data.socialLinks && data.socialLinks.length > 0 ? (
                   data.socialLinks.map((link, index) => (
-                    <div key={index}>
-                      <Tag color="blue">{link.platform}</Tag>
+                    <div key={link.id || index}>
+                      <Tag color="blue">{link.platformName || link.platform}</Tag>
                       <a href={link.url} target="_blank" rel="noopener noreferrer">
                         <LinkOutlined /> {link.url}
                       </a>
@@ -94,21 +95,21 @@ const DetailModal = ({ open, onClose, data, type }) => {
             
             <Descriptions.Item label="Tags" span={2}>
               <Space wrap>
-                {data.tagIds && data.tagIds.length > 0 ? (
-                  data.tagIds.map((tagId, index) => (
-                    <Tag key={index} color="purple">Tag #{tagId}</Tag>
+                {data.tagNames && data.tagNames.length > 0 ? (
+                  data.tagNames.map((tagName, index) => (
+                    <Tag key={index} color="purple">{tagName}</Tag>
                   ))
                 ) : (
                   'No tags'
                 )}
               </Space>
             </Descriptions.Item>
-            
+
             <Descriptions.Item label="Amenities" span={2}>
               <Space wrap>
-                {data.amenityIds && data.amenityIds.length > 0 ? (
-                  data.amenityIds.map((amenityId, index) => (
-                    <Tag key={index} color="green">Amenity #{amenityId}</Tag>
+                {data.amenityNames && data.amenityNames.length > 0 ? (
+                  data.amenityNames.map((amenityName, index) => (
+                    <Tag key={index} color="green">{amenityName}</Tag>
                   ))
                 ) : (
                   'No amenities'
@@ -192,16 +193,9 @@ const DetailModal = ({ open, onClose, data, type }) => {
                           <div>
                             <strong>Months:</strong>{' '}
                             <Space wrap>
-                              {season.months && season.months.split(',').map((month, i) => {
-                                const monthNames = {
-                                  '1': 'Jan', '2': 'Feb', '3': 'Mar', '4': 'Apr',
-                                  '5': 'May', '6': 'Jun', '7': 'Jul', '8': 'Aug',
-                                  '9': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
-                                };
-                                return (
-                                  <Tag key={i} color="blue">{monthNames[month.trim()] || month}</Tag>
-                                );
-                              })}
+                              {season.months && season.months.split(',').map((month, i) => (
+                                <Tag key={i} color="blue">{MONTH_NAMES[month.trim()] || month}</Tag>
+                              ))}
                             </Space>
                           </div>
                         </Space>

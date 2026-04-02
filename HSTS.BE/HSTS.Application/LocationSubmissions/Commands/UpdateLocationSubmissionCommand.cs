@@ -60,8 +60,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
             }
 
             // Only pending or rejected submissions can be updated
-            if (submission.Status == Domain.Entities.SubmissionStatus.Approved ||
-                submission.Status == Domain.Entities.SubmissionStatus.Published)
+            if (submission.Status != Domain.Entities.SubmissionStatus.Rejected)
             {
                 return Error.Conflict("LocationSubmission.CannotUpdate",
                     "Approved or published submissions cannot be updated. Please contact admin for changes.");
