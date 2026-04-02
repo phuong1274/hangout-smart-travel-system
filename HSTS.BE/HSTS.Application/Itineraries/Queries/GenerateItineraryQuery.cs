@@ -1121,6 +1121,62 @@ namespace HSTS.Application.Itineraries.Queries
             return topCandidates[Random.Shared.Next(topCandidates.Count)].Location;
         }
 
+        /// <summary>
+        /// Fallback picker: finds the cheapest feasible attraction within budget and time.
+        /// Prioritizes free/low-cost locations, then by composite score.
+        /// </summary>
+        private static ScoredLocation? PickCheapestFeasibleAttraction(
+            IList<ScoredLocation> candidates, GeoPoint currentPoint,
+            decimal remainingBudget, DateTime currentTime, DateTime dayEndTime,
+            int groupSize, DayOfWeek dayOfWeek)
+        {
+            var feasible = new List<(ScoredLocation Location, decimal TotalCost, double CompositeScore)>();
+
+            foreach (var candidate in candidates)
+            {
+                var loc = candidate.Location;
+                double distanceKm = HaversineKmOrMax(currentPoint.Latitude, currentPoint.Longitude, loc.Latitude, loc.Longitude);
+                if (double.IsInfinity(distanceKm) || double.IsNaN(distanceKm) || distanceKm > MaxReasonableDistanceKm) continue;
+
+                double travelMinutes = (distanceKm / DefaultSpeedKmh) * 60.0;
+                var arrivalTime = currentTime.AddMinutes(travelMinutes);
+
+                var (isOpen, closeTime) = GetOpenWindow(loc, dayOfWeek, TimeOnly.FromDateTime(arrivalTime));
+                if (!isOpen) continue;
+
+                int stayDuration = Math.Clamp(loc.RecommentDurationsMinutes ?? DefaultStayMinutes, MinStayMinutes, MaxStayMinutes);
+                if (closeTime.HasValue)
+                {
+                    int maxStayBeforeClose = (int)(closeTime.Value.ToTimeSpan() - TimeOnly.FromDateTime(arrivalTime).ToTimeSpan()).TotalMinutes;
+                    if (maxStayBeforeClose < MinStayMinutes) continue;
+                    stayDuration = Math.Min(stayDuration, maxStayBeforeClose);
+                }
+
+                var endTime = arrivalTime.AddMinutes(stayDuration);
+                if (endTime > dayEndTime) continue;
+
+                decimal ticketPerPerson = loc.TicketPrice.HasValue
+                    ? Convert.ToDecimal(loc.TicketPrice.Value, CultureInfo.InvariantCulture) : 0m;
+                decimal transportEstimate = (decimal)(distanceKm * LocalTransportCostPerKm)
+                    * (int)Math.Ceiling(groupSize / (double)LocalTransportMaxPassengers);
+                decimal totalCost = (ticketPerPerson * groupSize) + transportEstimate;
+
+                // Must fit within remaining budget - never exceed
+                if (totalCost > remainingBudget) continue;
+
+                feasible.Add((candidate, totalCost, candidate.CompositeScore));
+            }
+
+            if (feasible.Count == 0) return null;
+
+            // Cheapest first, then highest composite score as tiebreaker
+            return feasible
+                .OrderBy(x => x.TotalCost)
+                .ThenByDescending(x => x.CompositeScore)
+                .First()
+                .Location;
+        }
+
         // === MEAL / RESTAURANT PICKER ===
 
         private static ScoredLocation? PickRestaurantNearby(
@@ -1477,7 +1533,7 @@ namespace HSTS.Application.Itineraries.Queries
                 .ToList();
 
             return new IntercityTransportDto(fromProvinceId, toProvinceId, distanceKm,
-                recommended.Method, recommended.EstimatedTravelMinutes, recommended.EstimatedTotalCost,
+                recommended.Method, recommended.EstimatedTravelTimeMinutes, recommended.EstimatedTotalCost,
                 finalOptions);
         }
 
