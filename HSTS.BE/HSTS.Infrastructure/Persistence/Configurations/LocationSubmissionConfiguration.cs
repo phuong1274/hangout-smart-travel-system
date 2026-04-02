@@ -1,0 +1,112 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using HSTS.Domain.Entities;
+
+namespace HSTS.Infrastructure.Persistence.Configurations
+{
+    internal class LocationSubmissionConfiguration : IEntityTypeConfiguration<LocationSubmission>
+    {
+        public void Configure(EntityTypeBuilder<LocationSubmission> builder)
+        {
+            builder.ToTable("LocationSubmissions");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Name)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            builder.Property(x => x.Description)
+                .HasColumnType("text")
+                .IsRequired(false);
+
+            builder.Property(x => x.Latitude)
+                .IsRequired();
+
+            builder.Property(x => x.Longitude)
+                .IsRequired();
+
+            builder.Property(x => x.Address)
+                .HasMaxLength(300)
+                .IsRequired();
+
+            builder.Property(x => x.Telephone)
+                .HasMaxLength(50)
+                .IsRequired(false);
+
+            builder.Property(x => x.Email)
+                .HasMaxLength(200)
+                .IsRequired(false);
+
+            builder.Property(x => x.PriceMinUsd)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired(false);
+
+            builder.Property(x => x.PriceMaxUsd)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired(false);
+
+            builder.Property(x => x.UserId)
+                .IsRequired();
+
+            builder.Property(x => x.MediaLinksJson)
+                .HasColumnType("text")
+                .IsRequired(false);
+
+            builder.Property(x => x.SocialLinksJson)
+                .HasColumnType("text")
+                .IsRequired(false);
+
+            builder.Property(x => x.AmenityIdsJson)
+                .HasMaxLength(1000)
+                .IsRequired(false);
+
+            builder.Property(x => x.RejectionReason)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
+            builder.Property(x => x.ReviewedBy)
+                .HasMaxLength(450)
+                .IsRequired(false);
+
+            builder.Property(x => x.Status)
+                .IsRequired();
+
+            builder.Property(x => x.ProposedChangesJson)
+                .HasMaxLength(4000)
+                .IsRequired(false);
+
+            builder.Property(x => x.SubmissionType)
+                .IsRequired();
+
+            // Configure relationship with District
+            builder.HasOne(s => s.District)
+                   .WithMany()
+                   .HasForeignKey(s => s.DistrictId)
+                   .OnDelete(DeleteBehavior.SetNull);
+
+            // Configure relationship with existing Location (for edit submissions)
+            builder.HasOne(s => s.ExistingLocation)
+                   .WithMany()
+                   .HasForeignKey(s => s.ExistingLocationId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure relationship with created Location (for new location submissions)
+            builder.HasOne(s => s.CreatedLocation)
+                   .WithMany()
+                   .HasForeignKey(s => s.CreatedLocationId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure relationship with User (AspNetUsers)
+            builder.HasOne(s => s.User)
+                   .WithMany()
+                   .HasForeignKey(s => s.UserId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure relationship with created Location
+            builder.HasOne(s => s.CreatedLocation)
+                   .WithMany()
+                   .HasForeignKey(s => s.CreatedLocationId)
+                   .OnDelete(DeleteBehavior.SetNull);
+        }
+    }
+}

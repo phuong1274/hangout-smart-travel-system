@@ -11,11 +11,25 @@ namespace HSTS.Infrastructure.Persistence
 
         public DbSet<Account> Accounts => Set<Account>();
         public DbSet<User> Users => Set<User>();
+        public DbSet<Location> Locations => Set<Location>();
+        public DbSet<LocationSocialLink> LocationSocialLinks => Set<LocationSocialLink>();
+        public DbSet<LocationMedia> LocationMedias => Set<LocationMedia>();
+        public DbSet<LocationTag> LocationTags => Set<LocationTag>();
+        public DbSet<Tag> Tags => Set<Tag>();
         public DbSet<Profile> Profiles => Set<Profile>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<Otp> Otps => Set<Otp>();
         public DbSet<AccountRefreshToken> AccountRefreshTokens => Set<AccountRefreshToken>();
+        public DbSet<Amenity> Amenities => Set<Amenity>();
+        public DbSet<LocationAmenity> LocationAmenities => Set<LocationAmenity>();
+        public DbSet<District> Districts => Set<District>();
+        public DbSet<Country> Countries => Set<Country>();
+        public DbSet<Province> Provinces => Set<Province>();
+        public DbSet<LocationSubmission> LocationSubmissions => Set<LocationSubmission>();
+        public DbSet<LocationOpeningHour> LocationOpeningHours => Set<LocationOpeningHour>();
+        public DbSet<LocationSeason> LocationSeasons => Set<LocationSeason>();
+        public DbSet<LocationType> LocationTypes => Set<LocationType>();
 
         #region Logging
         /// <summary>

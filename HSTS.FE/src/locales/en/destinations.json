@@ -1,0 +1,27 @@
+{
+  "title": "Destinations",
+  "explore": "Explore Destinations",
+  "myDestinations": "My Destinations",
+  "fields": {
+    "name": "Name",
+    "description": "Description",
+    "category": "Category",
+    "address": "Address",
+    "rating": "Rating",
+    "priceRange": "Price Range",
+    "openingHours": "Opening Hours",
+    "tags": "Tags"
+  },
+  "category": {
+    "entertainment": "Entertainment",
+    "foodAndBeverage": "Food & Beverage",
+    "accommodation": "Accommodation"
+  },
+  "filter": {
+    "allCategories": "All Categories",
+    "sortBy": "Sort by",
+    "rating": "Rating",
+    "popularity": "Popularity",
+    "nearest": "Nearest"
+  }
+}

@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import { Avatar, Dropdown, Layout, Menu, Spin } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { DashboardOutlined, LogoutOutlined, ScheduleOutlined, UserOutlined } from '@ant-design/icons';
+import { DashboardOutlined, ScheduleOutlined, CompassOutlined, TagsOutlined, AppstoreOutlined, EnvironmentOutlined, UserOutlined, LogoutOutlined, GoldOutlined, ShopOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/features/auth/hooks/useAuth';
 import { PATHS } from '@/routes/paths';
@@ -28,6 +28,45 @@ const MainLayout = () => {
       key: PATHS.SCHEDULES,
       icon: <ScheduleOutlined />,
       label: 'Schedules',
+      onClick: () => navigate(PATHS.SCHEDULES)
+    },
+    {
+      key: PATHS.DESTINATIONS,
+      icon: <CompassOutlined />,
+      label: 'Destinations',
+      onClick: () => navigate(PATHS.DESTINATIONS)
+    },
+    {
+      key: PATHS.LOCATIONS,
+      icon: <EnvironmentOutlined />,
+      label: 'Locations',
+      onClick: () => navigate(PATHS.LOCATIONS)
+    },
+    {
+      key: PATHS.TAGS,
+      icon: <TagsOutlined />,
+      label: 'Tags',
+      onClick: () => navigate(PATHS.TAGS)
+    },
+    {
+      key: PATHS.LOCATION_TYPES,
+      icon: <AppstoreOutlined />,
+      label: 'Location Types',
+      onClick: () => navigate(PATHS.LOCATION_TYPES)
+    },
+    {
+      key: PATHS.AMENITIES,
+      icon: <GoldOutlined />,
+      label: 'Amenities',
+      onClick: () => navigate(PATHS.AMENITIES)
+    },
+    {
+      key: PATHS.PARTNER_LOCATIONS,
+      icon: <ShopOutlined />,
+      label: 'My Locations',
+      onClick: () => navigate(PATHS.PARTNER_LOCATIONS)
+    },
+    {
       onClick: () => navigate(PATHS.SCHEDULES),
     },
     {
