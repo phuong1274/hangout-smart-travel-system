@@ -234,6 +234,8 @@ namespace HSTS.Application.Itineraries.Queries
             var allProvIds = destinationProvinces.Select(p => p.Id).ToHashSet();
             var locationQuery = _context.Locations
                 .AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .Where(x => x.Status == LocationStatus.Active)
                 .Where(x => x.Score >= 0)
                 .Where(x => allProvIds.Contains(x.ProvinceId));
 

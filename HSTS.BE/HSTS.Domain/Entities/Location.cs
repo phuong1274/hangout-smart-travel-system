@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using HSTS.Domain.Enums;
 
 namespace HSTS.Domain.Entities
 {
@@ -12,6 +13,7 @@ namespace HSTS.Domain.Entities
         public int ProvinceId { get; set; }
         public int DistrictId { get; set; }
         public int LocationTypeId { get; set; }
+        public LocationStatus Status { get; set; } = LocationStatus.Active;
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
         public double? TicketPrice { get; set; }
