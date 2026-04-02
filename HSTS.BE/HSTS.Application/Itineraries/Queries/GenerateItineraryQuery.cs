@@ -375,6 +375,48 @@ namespace HSTS.Application.Itineraries.Queries
 
             var favoriteTagIds = request.UserFavoriteTagIds.ToHashSet();
 
+            // Expand parent tags to include all child tags
+            if (favoriteTagIds.Count > 0)
+            {
+                var expandedTagIds = new HashSet<int>(favoriteTagIds);
+
+                var childTagIds = await _context.Tags
+                    .AsNoTracking()
+                    .Where(t => !t.IsDeleted && t.ParentId.HasValue && favoriteTagIds.Contains(t.ParentId.Value))
+                    .Select(t => t.Id)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var childId in childTagIds)
+                    expandedTagIds.Add(childId);
+
+                // Handle multi-level hierarchy (grandchildren, etc.)
+                var queue = new Queue<int>(childTagIds);
+                while (queue.Count > 0)
+                {
+                    var currentParentIds = new List<int>();
+                    while (queue.Count > 0) currentParentIds.Add(queue.Dequeue());
+
+                    var grandChildIds = await _context.Tags
+                        .AsNoTracking()
+                        .Where(t => !t.IsDeleted && t.ParentId.HasValue && currentParentIds.Contains(t.ParentId.Value))
+                        .Select(t => t.Id)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var gcId in grandChildIds)
+                    {
+                        if (expandedTagIds.Add(gcId))
+                            queue.Enqueue(gcId);
+                    }
+                }
+
+                if (expandedTagIds.Count > favoriteTagIds.Count)
+                {
+                    notes.Add($"Expanded {favoriteTagIds.Count} user tag(s) to {expandedTagIds.Count} tag(s) (including child tags).");
+                }
+
+                favoriteTagIds = expandedTagIds;
+            }
+
             // STAGE 2: Tag Scoring and Filtering
             if (favoriteTagIds.Count > 0)
             {
@@ -803,18 +845,31 @@ namespace HSTS.Application.Itineraries.Queries
                             currentPoint, nextPoint, groupSize, transportModes, toMoney, cancellationToken);
 
                         var activityArrival = AddMinutes(currentTime, localTransport.SelectedTravelTimeMinutes);
-                        var stayMinutes = Math.Clamp(
-                            nextAttraction.Location.RecommentDurationsMinutes ?? DefaultStayMinutes,
-                            MinStayMinutes, MaxStayMinutes);
-                        var activityEnd = AddMinutes(activityArrival, stayMinutes);
 
-                        if (activityEnd > dayEndTime) break;
-
-                        if (!IsOpenAtTime(nextAttraction.Location, dayOfWeek, TimeOnly.FromDateTime(activityArrival)))
+                        var (isOpen, closeTime) = GetOpenWindow(nextAttraction.Location, dayOfWeek, TimeOnly.FromDateTime(activityArrival));
+                        if (!isOpen)
                         {
                             visitedLocationIds.Add(nextAttraction.Location.Id);
                             continue;
                         }
+
+                        var stayMinutes = Math.Clamp(
+                            nextAttraction.Location.RecommentDurationsMinutes ?? DefaultStayMinutes,
+                            MinStayMinutes, MaxStayMinutes);
+                        if (closeTime.HasValue)
+                        {
+                            int maxStayBeforeClose = (int)(closeTime.Value.ToTimeSpan() - TimeOnly.FromDateTime(activityArrival).ToTimeSpan()).TotalMinutes;
+                            if (maxStayBeforeClose < MinStayMinutes)
+                            {
+                                visitedLocationIds.Add(nextAttraction.Location.Id);
+                                continue;
+                            }
+                            stayMinutes = Math.Min(stayMinutes, maxStayBeforeClose);
+                        }
+
+                        var activityEnd = AddMinutes(activityArrival, stayMinutes);
+
+                        if (activityEnd > dayEndTime) break;
 
                         var ticketPerPerson = nextAttraction.Location.TicketPrice.HasValue
                             ? Convert.ToDecimal(nextAttraction.Location.TicketPrice.Value, CultureInfo.InvariantCulture) : 0m;
@@ -1032,9 +1087,18 @@ namespace HSTS.Application.Itineraries.Queries
                 var arrivalTime = currentTime.AddMinutes(travelMinutes);
 
                 int stayDuration = Math.Clamp(loc.RecommentDurationsMinutes ?? DefaultStayMinutes, MinStayMinutes, MaxStayMinutes);
+
+                var (isOpen, closeTime) = GetOpenWindow(loc, dayOfWeek, TimeOnly.FromDateTime(arrivalTime));
+                if (!isOpen) continue;
+                if (closeTime.HasValue)
+                {
+                    int maxStayBeforeClose = (int)(closeTime.Value.ToTimeSpan() - TimeOnly.FromDateTime(arrivalTime).ToTimeSpan()).TotalMinutes;
+                    if (maxStayBeforeClose < MinStayMinutes) continue;
+                    stayDuration = Math.Min(stayDuration, maxStayBeforeClose);
+                }
+
                 var endTime = arrivalTime.AddMinutes(stayDuration);
                 if (endTime > dayEndTime) continue;
-                if (!IsOpenAtTime(loc, dayOfWeek, TimeOnly.FromDateTime(arrivalTime))) continue;
 
                 decimal ticketPerPerson = loc.TicketPrice.HasValue
                     ? Convert.ToDecimal(loc.TicketPrice.Value, CultureInfo.InvariantCulture) : 0m;
@@ -1212,9 +1276,9 @@ namespace HSTS.Application.Itineraries.Queries
 
             var (minPrice, maxPrice) = hotelPreference switch
             {
-                "Budget" => (0m, HotelBudgetMax),
-                "Luxury" => (HotelLuxuryMin, decimal.MaxValue),
-                _ => (HotelBudgetMax, HotelLuxuryMin)
+                "Budget" => (HotelBudgetMin, HotelBudgetMax),
+                "Luxury" => (HotelLuxuryMin, HotelLuxuryMax),
+                _ => (HotelStandardMin, HotelStandardMax)
             };
 
             var filtered = hotels.Where(h => { var avg = GetPerPersonPrice(h); return avg >= minPrice && avg <= maxPrice; }).ToList();
@@ -1578,9 +1642,9 @@ namespace HSTS.Application.Itineraries.Queries
             return AccommodationTypeKeywords.Any(kw => typeName.Contains(kw, StringComparison.OrdinalIgnoreCase));
         }
 
-        private static bool IsOpenAtTime(Location location, DayOfWeek dayOfWeek, TimeOnly time)
+        private static (bool IsOpen, TimeOnly? CloseTime) GetOpenWindow(Location location, DayOfWeek dayOfWeek, TimeOnly time)
         {
-            if (location.OpeningHours.Count == 0) return true;
+            if (location.OpeningHours.Count == 0) return (true, null);
             int dayNumber = dayOfWeek switch
             {
                 DayOfWeek.Monday => 1, DayOfWeek.Tuesday => 2, DayOfWeek.Wednesday => 3,
@@ -1588,9 +1652,10 @@ namespace HSTS.Application.Itineraries.Queries
                 DayOfWeek.Sunday => 7, _ => 1
             };
             var oh = location.OpeningHours.FirstOrDefault(o => o.DayOfWeek == dayNumber);
-            if (oh is null) return true;
+            if (oh is null) return (false, null); // Has hours for other days but not today => closed
             var ts = time.ToTimeSpan();
-            return ts >= oh.OpenTime && ts <= oh.CloseTime;
+            if (ts < oh.OpenTime || ts > oh.CloseTime) return (false, null);
+            return (true, new TimeOnly(oh.CloseTime.Hours, oh.CloseTime.Minutes));
         }
 
         private static decimal GetPerPersonPrice(Location location)

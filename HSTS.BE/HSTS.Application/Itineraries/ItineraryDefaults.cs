@@ -94,18 +94,28 @@ namespace HSTS.Application.Itineraries
         public const double OutdoorBadWeatherMultiplier = 0.5;
         public const double IndoorBadWeatherMultiplier = 1.5;
 
-        // === EXTRA SPENDING DEFAULTS (VND per person) ===
-        public const decimal ExtraSpendingBudgetMin = 5_000m;
-        public const decimal ExtraSpendingBudgetMax = 20_000m;
-        public const decimal ExtraSpendingStandardMin = 10_000m;
-        public const decimal ExtraSpendingStandardMax = 50_000m;
-        public const decimal ExtraSpendingLuxuryMin = 20_000m;
-        public const decimal ExtraSpendingLuxuryMax = 80_000m;
+        // === EXTRA SPENDING DEFAULTS (VND per person per activity) ===
+        // Budget: street food + cheap attractions => ~200k-350k/day, ~6 activities => 30k-60k/activity
+        public const decimal ExtraSpendingBudgetMin = 30_000m;
+        public const decimal ExtraSpendingBudgetMax = 60_000m;
+        // Standard: restaurants + theme parks => ~700k-1.4M/day => 100k-250k/activity
+        public const decimal ExtraSpendingStandardMin = 100_000m;
+        public const decimal ExtraSpendingStandardMax = 250_000m;
+        // Luxury: fine dining + premium experiences => ~2.5M-6M/day => 400k-1M/activity
+        public const decimal ExtraSpendingLuxuryMin = 400_000m;
+        public const decimal ExtraSpendingLuxuryMax = 1_000_000m;
         public const decimal SpendingCategoryMultiplier = 1.2m;
 
-        // === ACCOMMODATION PRICE BRACKETS (VND per person) ===
-        public const decimal HotelBudgetMax = 500_000m;
-        public const decimal HotelLuxuryMin = 2_000_000m;
+        // === ACCOMMODATION PRICE BRACKETS (VND per person per night) ===
+        // Budget: homestay, nha nghi, hostel/dorm => 150k-300k
+        public const decimal HotelBudgetMin = 150_000m;
+        public const decimal HotelBudgetMax = 300_000m;
+        // Standard: khach san 3-4 sao, co buffet sang, ho boi => 600k-1.2M
+        public const decimal HotelStandardMin = 600_000m;
+        public const decimal HotelStandardMax = 1_200_000m;
+        // Luxury: resort 5 sao, villa rieng tu => 2.5M-5M+
+        public const decimal HotelLuxuryMin = 2_500_000m;
+        public const decimal HotelLuxuryMax = 5_000_000m;
 
         // === ACCOMMODATION SCORING WEIGHTS ===
         public const double AccomDistanceWeight = 0.25;
