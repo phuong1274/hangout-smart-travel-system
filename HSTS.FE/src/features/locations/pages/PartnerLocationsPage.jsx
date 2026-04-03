@@ -1,16 +1,26 @@
 import React, { useState } from 'react';
 import { Card, Typography, Space, Button, Layout, message, Modal, Tabs, Tag, Table, Popconfirm } from 'antd';
-import { PlusOutlined, HomeOutlined, EditOutlined, EyeOutlined, DeleteOutlined, EnvironmentOutlined, LinkOutlined, PhoneOutlined, MailOutlined } from '@ant-design/icons';
+import { PlusOutlined, HomeOutlined, EditOutlined, EyeOutlined, DeleteOutlined, EnvironmentOutlined, LinkOutlined, PhoneOutlined, MailOutlined, LockOutlined, UnlockOutlined, HistoryOutlined } from '@ant-design/icons';
 import { usePartnerLocations } from '../hooks/usePartnerLocations';
 import { useSubmissions } from '@/features/location-submissions/hooks/useSubmissions';
 import SuggestEditModal from '../components/SuggestEditModal';
+import ClosureModal from '../components/ClosureModal';
+import ClosureHistoryModal from '../components/ClosureHistoryModal';
 import SubmissionForm from '@/features/location-submissions/components/SubmissionForm';
 import SubmissionTable from '@/features/location-submissions/components/SubmissionTable';
 import { useNavigate } from 'react-router-dom';
 import { deleteLocationSubmissionApi, getSubmissionByIdApi, getLocationByIdApi } from '@/features/location-submissions/api';
 import { deleteLocationApi } from '../api';
+import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
 import { SubmissionStatus } from '@/features/location-submissions/types';
 import { PAGINATION } from '@/config/constants';
+
+// LocationStatus enum values (matching backend)
+const LocationStatus = {
+  Active: 1,
+  TemporarilyClosed: 2,
+  Inactive: 3,
+};
 
 const { Title } = Typography;
 const { Header, Content } = Layout;
@@ -45,6 +55,12 @@ const PartnerLocationsPage = () => {
   const [viewingSubmission, setViewingSubmission] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
+  // Closure states
+  const [closureModalOpen, setClosureModalOpen] = useState(false);
+  const [closureHistoryModalOpen, setClosureHistoryModalOpen] = useState(false);
+  const [selectedLocationForClosure, setSelectedLocationForClosure] = useState(null);
+  const [closingLocation, setClosingLocation] = useState(null);
+
   // Location handlers
   const handleViewLocation = async (location) => {
     try {
@@ -75,6 +91,50 @@ const PartnerLocationsPage = () => {
     } catch (error) {
       // Handled by global interceptor
     }
+  };
+
+  // Closure handlers
+  const handleCloseLocation = (location) => {
+    setClosingLocation(location);
+    setClosureModalOpen(true);
+  };
+
+  const handleOpenLocation = async (location) => {
+    try {
+      const closures = await getClosuresByLocationApi(location.id);
+      const activeClosure = closures?.find(c => c.isActive);
+      if (activeClosure) {
+        await endClosureApi(activeClosure.id);
+        message.success(`"${location.name}" is now open.`);
+        fetchLocations();
+      } else {
+        message.warning('No active closure found. The location may already be open.');
+        fetchLocations();
+      }
+    } catch (error) {
+      message.error('Failed to open location.');
+    }
+  };
+
+  const handleViewClosureHistory = (location) => {
+    setSelectedLocationForClosure(location);
+    setClosureHistoryModalOpen(true);
+  };
+
+  const handleClosureSuccess = () => {
+    setClosureModalOpen(false);
+    setClosingLocation(null);
+    fetchLocations();
+  };
+
+  const handleClosureModalClose = () => {
+    setClosureModalOpen(false);
+    setClosingLocation(null);
+  };
+
+  const handleClosureHistoryModalClose = () => {
+    setClosureHistoryModalOpen(false);
+    setSelectedLocationForClosure(null);
   };
 
   // Submission handlers
@@ -207,40 +267,94 @@ const PartnerLocationsPage = () => {
         ),
       },
       {
+        title: 'Status',
+        key: 'effectiveStatus',
+        width: 100,
+        render: (_, record) => {
+          const status = record.effectiveStatus || LocationStatus.Active;
+          if (status === LocationStatus.TemporarilyClosed) {
+            return <Tag color="red">Closed</Tag>;
+          }
+          if (status === LocationStatus.Inactive) {
+            return <Tag color="default">Inactive</Tag>;
+          }
+          return <Tag color="green">Active</Tag>;
+        },
+      },
+      {
         title: 'Actions',
         key: 'actions',
-        width: 200,
+        width: 250,
         fixed: 'right',
-        render: (_, record) => (
-          <Space direction="vertical" size="small">
-            <Button
-              type="link"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewLocation(record)}
-            >
-              View Details
-            </Button>
-            <Button
-              type="link"
-              icon={<EditOutlined />}
-              onClick={() => handleRequestEdit(record)}
-            >
-              Request Edit
-            </Button>
-            <Popconfirm
-              title="Delete Location"
-              description="Are you sure you want to delete this location? This action cannot be undone."
-              onConfirm={() => handleDeleteLocation(record)}
-              okText="Yes, Delete"
-              cancelText="Cancel"
-              danger
-            >
-              <Button type="link" danger icon={<DeleteOutlined />}>
-                Delete
+        render: (_, record) => {
+          const status = record.effectiveStatus || LocationStatus.Active;
+          const isClosed = status === LocationStatus.TemporarilyClosed;
+          const isInactive = status === LocationStatus.Inactive;
+
+          return (
+            <Space direction="vertical" size="small">
+              <Button
+                type="link"
+                icon={<EyeOutlined />}
+                onClick={() => handleViewLocation(record)}
+              >
+                View Details
               </Button>
-            </Popconfirm>
-          </Space>
-        ),
+              {!isInactive && (
+                <Button
+                  type="link"
+                  icon={<EditOutlined />}
+                  onClick={() => handleRequestEdit(record)}
+                >
+                  Request Edit
+                </Button>
+              )}
+              {!isInactive && (
+                <Button
+                  type="link"
+                  icon={<HistoryOutlined />}
+                  onClick={() => handleViewClosureHistory(record)}
+                >
+                  History
+                </Button>
+              )}
+              {isClosed ? (
+                <Popconfirm
+                  title="Open Location"
+                  description="Are you sure you want to open this location? It will become active immediately."
+                  onConfirm={() => handleOpenLocation(record)}
+                  okText="Yes, Open"
+                  cancelText="Cancel"
+                >
+                  <Button type="link" style={{ color: '#52c41a' }} icon={<UnlockOutlined />}>
+                    Open
+                  </Button>
+                </Popconfirm>
+              ) : !isInactive ? (
+                <Button
+                  type="link"
+                  danger
+                  icon={<LockOutlined />}
+                  onClick={() => handleCloseLocation(record)}
+                >
+                  Close
+                </Button>
+              ) : null}
+              <Popconfirm
+                title="Delete Location"
+                description="Are you sure you want to delete this location? This action cannot be undone."
+                onConfirm={() => handleDeleteLocation(record)}
+                okText="Yes, Delete"
+                cancelText="Cancel"
+                danger
+              >
+                <Button type="link" danger icon={<DeleteOutlined />}>
+                  Delete
+                </Button>
+              </Popconfirm>
+            </Space>
+          );
+        },
       },
     ];
 
@@ -390,6 +504,24 @@ const PartnerLocationsPage = () => {
           </div>
         )}
       </Modal>
+
+      {/* Closure Modal */}
+      <ClosureModal
+        open={closureModalOpen}
+        onClose={handleClosureModalClose}
+        onSuccess={handleClosureSuccess}
+        locationId={closingLocation?.id}
+        locationName={closingLocation?.name}
+      />
+
+      {/* Closure History Modal */}
+      <ClosureHistoryModal
+        open={closureHistoryModalOpen}
+        onClose={handleClosureHistoryModalClose}
+        locationId={selectedLocationForClosure?.id}
+        locationName={selectedLocationForClosure?.name}
+        onClosureChange={fetchLocations}
+      />
     </Layout>
   );
 };
