@@ -1,241 +1,112 @@
 import React, { useState } from 'react';
-import { Card, Typography, Tag, Button, Collapse, Radio, Space, Carousel, Image } from 'antd';
+import { Card, Typography, Tag, Button, Image, Carousel } from 'antd';
 import { 
-  HomeOutlined, 
   CarOutlined, 
   EnvironmentOutlined,
-  StarFilled,
-  WarningOutlined,
   DeleteOutlined,
   CoffeeOutlined
 } from '@ant-design/icons';
-import AccommodationModal from './AccommodationModal';
-import styles from '../../styles/TimelineCard.module.css';
+import AccommodationModal from './AccommodationModal'; 
 
 const { Text } = Typography;
-const { Panel } = Collapse;
-
-const formatVND = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+const formatVND = (val) => `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(val)} VND`;
+const DEFAULT_IMAGE_URL = 'https://via.placeholder.com/80x80.png?text=No+Image';
 
 const TimelineCard = ({ event }) => {
-  const [selectedTransport, setSelectedTransport] = useState(event.selectedTransportIndex || 0);
-  const [isAccmModalVisible, setIsAccmModalVisible] = useState(false);
-  
-  const [activeHotel, setActiveHotel] = useState({ 
-    isAlternative: false, 
-    altIndex: null 
-  });
-  const [activeRoomIdx, setActiveRoomIdx] = useState(event.selectedAccommodationIndex || 0);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
-  const getEventConfig = (type) => {
+  const showModal = () => setIsModalVisible(true);
+  const handleOk = () => setIsModalVisible(false);
+  const handleCancel = () => setIsModalVisible(false);
+
+  const getEventIcon = (type) => {
     switch(type) {
-      case 'CheckIn':
-      case 'Accommodation':
-      case 'CheckOut':
-        return { icon: <HomeOutlined /> };
-      case 'Transport':
-        return { icon: <CarOutlined /> };
-      case 'Rest':
-        return { icon: <CoffeeOutlined /> };
-      case 'Visit':
-      default:
-        return { icon: <EnvironmentOutlined /> };
+      case 'meal': return <CoffeeOutlined />;
+      case 'visit': return <EnvironmentOutlined />;
+      case 'intercity-transfer':
+      case 'return-transfer': return <CarOutlined />;
+      default: return <EnvironmentOutlined />;
     }
   };
 
-  const config = getEventConfig(event.type);
-  const isTransport = event.type === 'Transport';
-  const isAccommodation = event.type === 'Accommodation' || event.type === 'CheckIn';
-  const hasTransportOptions = isTransport && event.transportOptions && event.transportOptions.length > 0;
-  const currentTransport = hasTransportOptions ? event.transportOptions[selectedTransport] : null;
+  const isTransport = event.eventType.includes('transfer');
+  const cardStyle = isTransport ? { background: '#F7F9F9', border: '1px dashed #BEE3F8' } : {};
 
-  const baseHotelNameMatch = event.description?.match(/(?:Hotel Check-in: |Accommodation: )([^|]+)/);
-  const baseHotelName = baseHotelNameMatch ? baseHotelNameMatch[1].trim() : 'Original Hotel';
-
-  let accmTitle = event.description ? event.description.split(' | ')[0] : '';
-  if (isAccommodation && activeHotel.isAlternative && event.alternativeAccommodations?.[activeHotel.altIndex]) {
-    accmTitle = `${event.type === 'CheckIn' ? 'Hotel Check-in: ' : 'Accommodation: '} ${event.alternativeAccommodations[activeHotel.altIndex].name}`;
-  }
-
-  const currentRooms = activeHotel.isAlternative 
-    ? event.alternativeAccommodations?.[activeHotel.altIndex]?.options 
-    : event.accommodationOptions;
-
-  let accmCost = event.cost;
-  if (isAccommodation && currentRooms?.[activeRoomIdx]) {
-    accmCost = currentRooms[activeRoomIdx].totalCost;
-  }
-
-  const ticketCost = event.ticketCost || 0;
-  const extraCost = event.extraSpendingCost || 0;
-  const photos = event.photos || [];
-
-  const mainTitle = isTransport && hasTransportOptions ? currentTransport.description : accmTitle;
-  
-  let displayCost = 0;
-  if (isTransport && hasTransportOptions) {
-    displayCost = currentTransport.totalCost;
-  } else if (isAccommodation) {
-    displayCost = accmCost;
-  } else if (event.type === 'Visit') {
-    displayCost = ticketCost + extraCost;
-  } else {
-    displayCost = event.cost || 0;
-  }
-  
-  const displayMethod = hasTransportOptions ? currentTransport.method : (event.transportOptions?.[0]?.method || 'Taxi');
-
-  const cardHeaderContent = (
-    <div className={styles.cardHeader}>
-      <div className={styles.titleArea}>
-        <div className={styles.iconBox}>
-          {config.icon}
-        </div>
-        <div className={styles.titleContent}>
-          <Text className={styles.mainTitle}>{mainTitle}</Text>
-          
-          {event.type === 'Visit' && (
-            <div style={{ marginTop: 4 }}>
-              <StarFilled style={{ color: '#FF6B6B', fontSize: 14, marginRight: 6 }} />
-              <Text style={{ fontSize: 13, color: '#1A535C', fontWeight: 500 }}>4.5 (1,248 Reviews)</Text>
-            </div>
-          )}
-          
-          {event.type === 'CheckIn' && (
-            <Tag icon={<WarningOutlined />} className={styles.customTag}>
-              Early arrival: Check-in at {event.checkInTime || '14:00'}
-            </Tag>
-          )}
-
-          {isTransport && (
-            <Tag className={styles.customTag}>
-              Booked externally: {displayMethod}
-            </Tag>
-          )}
-
-          {event.type === 'Visit' && (
-            <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {event.ticketCost !== null && event.ticketCost !== undefined && (
-                <span className={styles.customTag} style={{ marginTop: 0 }}>
-                  TICKET: {event.ticketCost === 0 ? 'FREE' : formatVND(event.ticketCost)}
-                </span>
-              )}
-              {extraCost > 0 && (
-                <span className={styles.customTag} style={{ marginTop: 0 }}>
-                  EXTRA: {formatVND(extraCost)}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      <div className={styles.rightArea}>
-        {(event.type === 'Visit' || event.type === 'Accommodation' || event.type === 'CheckIn') && (
-          photos && photos.length > 0 ? (
-            <div className={styles.imageSliderContainer}>
-              <Carousel autoplay dots={false} effect="fade">
-                {photos.map((photo, index) => (
-                  <div key={index}>
-                    <Image 
-                      src={photo} 
-                      alt={`Location photo ${index + 1}`}
-                      className={styles.sliderImage}
-                      preview={false}
-                    />
-                  </div>
-                ))}
-              </Carousel>
-            </div>
-          ) : (
-            <div className={styles.imagePlaceholderSmall} />
-          )
-        )}
-        
-        {displayCost > 0 && (
-          <Text className={styles.costText}>{formatVND(displayCost)}</Text>
-        )}
-      </div>
-    </div>
-  );
+  const displayName = event.locationDetail?.name || event.title;
+  const displayAddress = event.locationDetail?.address || "";
+  const displayImages = event.locationDetail?.images || [];
+  const formatTime = (timeStr) => timeStr ? timeStr.substring(0, 5) : "";
 
   return (
     <>
-      <div className={styles.cardOuterWrapper}>
-        <div className={styles.cardContainer}>
-          <div className={styles.timeCol}>
-            <Text className={styles.timeText}>{event.time}</Text>
-          </div>
-          
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <div style={{ width: 96, flexShrink: 0 }}>
+          <Text>{formatTime(event.startTime)}</Text>
+        </div>
+
+        <div style={{ flexGrow: 1 }}>
           <Card 
-            className={`${styles.eventCard} ${isTransport ? styles.transportCard : ''}`} 
-            bodyStyle={{ padding: isTransport ? '12px 32px' : '24px 32px' }}
+            bodyStyle={{ padding: '16px 20px', display: 'flex', gap: '16px' }} 
+            style={{ ...cardStyle, cursor: 'pointer' }}
+            onClick={showModal} 
           >
-            {hasTransportOptions && event.transportOptions.length > 1 ? (
-              <Collapse ghost expandIconPosition="end" className={styles.transportCollapse}>
-                <Panel header={cardHeaderContent} key="1">
-                  <Radio.Group 
-                    onChange={(e) => setSelectedTransport(e.target.value)} 
-                    value={selectedTransport} 
-                    className={styles.radioGroup}
-                  >
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      {event.transportOptions.map((opt, idx) => (
-                        <Radio value={idx} key={idx} className={styles.radioItem}>
-                          <div className={styles.optionDetails}>
-                            <div className={styles.optionTextInfo}>
-                              <Text style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 16, fontWeight: 600, color: '#1A535C' }}>{opt.method}</Text>
-                              {opt.recommended && <Tag className={styles.luxuryRecTag}>RECOMMENDED</Tag>}
-                              <div className={styles.subInfo}>
-                                <Text style={{fontSize: 13, color: '#1A535C'}}>
-                                  {Math.round(opt.travelTimeMinutes)} mins • {opt.pros}
-                                </Text>
-                              </div>
-                            </div>
-                            <Text className={styles.optionCost}>
-                              {opt.totalCost === 0 ? 'Free' : formatVND(opt.totalCost)}
-                            </Text>
-                          </div>
-                        </Radio>
-                      ))}
-                    </Space>
-                  </Radio.Group>
-                </Panel>
-              </Collapse>
-            ) : (
-              <>
-                {cardHeaderContent}
-                {isAccommodation && (event.accommodationOptions || event.alternativeAccommodations) && (
-                  <div className={styles.accmActionBtn}>
-                    <Button block className={styles.manageAccmBtn} onClick={() => setIsAccmModalVisible(true)}>
-                      Manage Accommodation
-                    </Button>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ marginTop: 2 }}>{getEventIcon(event.eventType)}</div>
+                  <div>
+                    <Text strong style={{ fontSize: 15 }}>{displayName}</Text>
+                    
+                    {event.tags && event.tags.length > 0 && (
+                      <div style={{ marginTop: 4, marginBottom: 4 }}>
+                        {event.tags.map((tag, idx) => (
+                          <Tag key={idx} color={tag.color || 'blue'} style={{ borderRadius: 4, fontSize: 11 }}>
+                            {tag.name}
+                          </Tag>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div style={{ marginTop: 4 }}>
+                      <Text type="secondary">
+                        {isTransport ? displayAddress : (displayAddress || event.note)}
+                      </Text>
+                    </div>
                   </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  {event.costForGroup > 0 && (
+                     <div><Text strong style={{ color: '#1A535C' }}>{formatVND(event.costForGroup)}</Text></div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {!isTransport && (
+              <div style={{ flexShrink: 0, width: 80, height: 80, borderRadius: 8, overflow: 'hidden', backgroundColor: '#f0f0f0' }}>
+                {displayImages && displayImages.length > 0 ? (
+                  <Carousel autoplay effect="fade" dots={false}>
+                    {displayImages.map((src, index) => (
+                      <div key={index}>
+                        <Image src={src} width={80} height={80} style={{ objectFit: 'cover' }} preview={false} />
+                      </div>
+                    ))}
+                  </Carousel>
+                ) : (
+                  <Image src={DEFAULT_IMAGE_URL} width={80} height={80} style={{ objectFit: 'cover' }} preview={false} />
                 )}
-              </>
+              </div>
             )}
           </Card>
         </div>
 
-        {!isTransport && (
-          <div className={styles.deleteAction}>
-            <Button type="text" style={{ color: '#FF6B6B' }} icon={<DeleteOutlined />} shape="circle" className={styles.deleteIconPop} />
-          </div>
-        )}
+        <div style={{ marginLeft: 16, width: 32 }}>
+          <Button type="text" style={{ color: '#FF6B6B' }} icon={<DeleteOutlined />} shape="circle" />
+        </div>
       </div>
 
-      <AccommodationModal 
-        visible={isAccmModalVisible}
-        onClose={() => setIsAccmModalVisible(false)}
-        event={event}
-        activeHotel={activeHotel}
-        setActiveHotel={setActiveHotel}
-        activeRoomIdx={activeRoomIdx}
-        setActiveRoomIdx={setActiveRoomIdx}
-        baseHotelName={baseHotelName}
-        currentRooms={currentRooms}
-        accmTitle={accmTitle}
-      />
+      <AccommodationModal visible={isModalVisible} onOk={handleOk} onCancel={handleCancel} />
     </>
   );
 };

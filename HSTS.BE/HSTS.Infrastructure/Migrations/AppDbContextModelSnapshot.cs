@@ -620,7 +620,7 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Property<string>("AmenityIdsJson")
                         .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -663,7 +663,7 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Property<string>("MediaLinksJson")
                         .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -671,8 +671,7 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("varchar(200)");
 
                     b.Property<string>("OpeningHoursJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
+                        .HasColumnType("longtext");
 
                     b.Property<decimal?>("PriceMaxUsd")
                         .HasColumnType("decimal(18,2)");
@@ -682,7 +681,7 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Property<string>("ProposedChangesJson")
                         .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
@@ -699,12 +698,11 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("decimal(65,30)");
 
                     b.Property<string>("SeasonsJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("SocialLinksJson")
                         .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -713,8 +711,7 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("TagIdsJson")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Telephone")
                         .HasMaxLength(50)

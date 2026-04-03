@@ -1,35 +1,30 @@
 import React from 'react';
 import { Progress, Typography, Timeline, Button } from 'antd';
-import { PlusCircleOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, CarOutlined, RocketOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import TimelineCard from '../TimelineCard/TimelineCard';
-import styles from '../../styles/DayPanel.module.css';
+import TransportCard from '../TransportCard/TransportCard'; 
 
 const { Text } = Typography;
 
+const formatVND = (val) => `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(val)} VND`;
+
 const DayPanel = ({ dayData }) => {
-  const { dailyBudgetStatus, timeline } = dayData;
-  const budgetPercent = (dailyBudgetStatus.spent / dailyBudgetStatus.ceiling) * 100;
-  const isOverBudget = dailyBudgetStatus.spent > dailyBudgetStatus.ceiling;
+  const { dailyBudget, estimatedDayCost, timeline, weatherSummary, travelLegs, groupSize } = dayData;
+  
+  const budgetPercent = (estimatedDayCost / dailyBudget) * 100;
+  const isOverBudget = estimatedDayCost > dailyBudget;
 
   const processTimeline = (items) => {
-    const sorted = [...items].sort((a, b) => {
-      const timeA = a.time ? a.time.split(' - ')[0].trim() : '00:00';
-      const timeB = b.time ? b.time.split(' - ')[0].trim() : '00:00';
-      return timeA.localeCompare(timeB);
-    });
-
+    const sorted = [...items].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    
     return sorted.reduce((acc, item) => {
-      let block = item.timeBlock;
-      
-      if (block === 'Free Time' && item.time) {
-        const startHour = parseInt(item.time.split(':')[0], 10);
-        if (startHour < 12) block = 'Morning';
-        else if (startHour < 18) block = 'Afternoon';
-        else if (startHour < 22) block = 'Evening';
-        else block = 'Night Rest';
+      let block = 'Others';
+      if (item.startTime) {
+        const hour = parseInt(item.startTime.split(':')[0], 10);
+        if (hour < 12) block = 'Morning';
+        else if (hour < 18) block = 'Afternoon';
+        else block = 'Evening';
       }
-
-      if (!block) return acc;
       if (!acc[block]) acc[block] = [];
       acc[block].push(item);
       return acc;
@@ -38,53 +33,114 @@ const DayPanel = ({ dayData }) => {
 
   const groupedTimeline = processTimeline(timeline);
 
+  const AddLocationButton = () => (
+    <div style={{ paddingLeft: 8 }}>
+      <Button 
+        type="text" 
+        size="small" 
+        icon={<PlusCircleOutlined style={{ fontSize: 12 }} />} 
+        style={{ 
+          fontSize: 12, 
+          color: '#94A3B8', 
+          height: '24px', 
+          display: 'flex', 
+          alignItems: 'center',
+          padding: '0 8px'
+        }}
+      >
+        Add location
+      </Button>
+    </div>
+  );
+
   return (
-    <div className={styles.dayPanelContent}>
-      <div className={isOverBudget ? styles.dailyBudgetOver : styles.dailyBudget}>
-        <div className={styles.budgetInfo}>
-          <Text style={{ color: isOverBudget ? '#FF6B6B' : '#1A535C', fontWeight: 700 }}>
-            {isOverBudget ? 'Budget Exceeded' : 'Budget On Track'}
+    <div>
+      {weatherSummary && (
+        <div style={{ marginBottom: 16, fontStyle: 'italic', color: '#555' }}>
+           {weatherSummary}
+        </div>
+      )}
+
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <Text>Day {dayData.dayNumber} spending</Text>
+          <Text style={{color: isOverBudget ? '#FF6B6B' : '#1A535C', fontWeight: 'bold'}}>
+            {budgetPercent.toFixed(0)}%
           </Text>
-          <Text style={{ color: '#1A535C', fontWeight: 500 }}>{budgetPercent.toFixed(0)}% used</Text>
         </div>
         <Progress 
           percent={Math.min(budgetPercent, 100)} 
           showInfo={false} 
-          strokeColor={isOverBudget ? "#FF6B6B" : "#4ECDC4"} 
-          trailColor="#F7F9F9"
-          size="small"
+          strokeColor={isOverBudget ? '#FF6B6B' : '#FFE66D'} 
+          trailColor="#E2E8F0"
+          strokeWidth={8}
         />
-        <div className={styles.budgetLabels}>
-          <Text style={{fontSize: 13, fontWeight: 500}}>Spent: {(dailyBudgetStatus.spent / 1000000).toFixed(1)}M</Text>
-          <Text style={{fontSize: 13, fontWeight: 500}}>Limit: {(dailyBudgetStatus.ceiling / 1000000).toFixed(1)}M</Text>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+          <Text style={{fontSize: 12, color: '#666'}}>Estimated: {formatVND(estimatedDayCost)}</Text>
+          <Text style={{fontSize: 12, color: '#666'}}>Limit: {formatVND(dailyBudget)}</Text>
         </div>
       </div>
 
-      <div className={styles.timelineContainer}>
+      <div>
         {Object.keys(groupedTimeline).map((timeBlock) => (
-          <div key={timeBlock} className={styles.timeBlockGroup}>
-            <div className={styles.timeBlockHeader}>
-              <Text className={styles.timeBlockTitle}>{timeBlock}</Text>
+          <div key={timeBlock} style={{ marginBottom: 24 }}>
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ fontSize: 14, color: '#64748B', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                {timeBlock}
+              </Text>
             </div>
             
-            <Timeline className={styles.antTimelineCustom}>
-              {groupedTimeline[timeBlock].map((event, idx) => (
-                <Timeline.Item 
-                  key={idx} 
-                  dot={<div className={styles.timelineDot} />}
-                  className={styles.timelineItem}
-                >
-                  <TimelineCard event={event} />
-                  
-                  {event.type !== 'Transport' && (
-                    <div className={styles.addLocationWrapper}>
-                      <Button type="text" size="small" icon={<PlusCircleOutlined />} className={styles.addBtnText}>
-                        ADD LOCATION
-                      </Button>
-                    </div>
-                  )}
-                </Timeline.Item>
-              ))}
+            <Timeline style={{ marginLeft: 8 }}>
+              {groupedTimeline[timeBlock].map((event) => {
+                const globalIdx = timeline.findIndex(t => t === event);
+                const currentLeg = travelLegs && travelLegs.length > globalIdx ? travelLegs[globalIdx] : null;
+                const isIntercityTransfer = event.eventType && event.eventType.includes('transfer');
+
+                const getLegDot = (legInfo) => {
+                  if (!legInfo) return <ArrowDownOutlined />;
+                  const lowerName = (legInfo.transportDetail?.name || legInfo.selectedMethod || "").toLowerCase();
+                  if (lowerName.includes('plane') || lowerName.includes('flight')) {
+                    return <RocketOutlined style={{ fontSize: 14, color: '#059669' }} />;
+                  }
+                  return <CarOutlined style={{ fontSize: 14, color: '#059669' }} />;
+                };
+
+                return (
+                  <React.Fragment key={globalIdx}>
+                    {isIntercityTransfer ? (
+                      <>
+                        <Timeline.Item>
+                          <TimelineCard event={event} />
+                        </Timeline.Item>
+                        {currentLeg && (
+                          <Timeline.Item color="green" dot={getLegDot(currentLeg)}>
+                            <TransportCard leg={currentLeg} groupSize={groupSize || 1} />
+                          </Timeline.Item>
+                        )}
+                        {event.eventType !== 'return-transfer' && (
+                          <Timeline.Item dot={<PlusCircleOutlined style={{ fontSize: 12, color: '#CBD5E0' }} />}>
+                            <AddLocationButton />
+                          </Timeline.Item>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {currentLeg && (
+                          <Timeline.Item color="green" dot={getLegDot(currentLeg)}>
+                            <TransportCard leg={currentLeg} groupSize={groupSize || 1} />
+                          </Timeline.Item>
+                        )}
+                        <Timeline.Item>
+                          <TimelineCard event={event} />
+                        </Timeline.Item>
+                        <Timeline.Item dot={<PlusCircleOutlined style={{ fontSize: 12, color: '#CBD5E0' }} />}>
+                          <AddLocationButton />
+                        </Timeline.Item>
+                      </>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </Timeline>
           </div>
         ))}
