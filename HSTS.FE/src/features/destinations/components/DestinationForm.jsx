@@ -34,7 +34,6 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
       form.setFieldsValue({
         name: district.name,
         englishName: district.englishName,
-        code: district.code,
         latitude: district.latitude,
         longitude: district.longitude,
         provinceId: district.provinceId,
@@ -96,20 +95,6 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
               ]}
             >
               <Input placeholder="Enter English name" />
-            </Form.Item>
-          </Col>
-        </Row>
-
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              name="code"
-              label="Code"
-              rules={[
-                { max: 50, message: 'Code cannot exceed 50 characters' }
-              ]}
-            >
-              <Input placeholder="e.g., AGG" />
             </Form.Item>
           </Col>
         </Row>

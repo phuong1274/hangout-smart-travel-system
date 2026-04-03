@@ -11,7 +11,8 @@ namespace HSTS.Application.Locations.Queries
         DateTime? FromDate,
         DateTime? ToDate,
         int PageIndex,
-        int PageSize) : IRequest<ErrorOr<LocationPagedResponse>>;
+        int PageSize,
+        DateTime? ReferenceDate = null) : IRequest<ErrorOr<LocationPagedResponse>>;
 
     public class GetPartnerLocationsPagingQueryHandler : IRequestHandler<GetPartnerLocationsPagingQuery, ErrorOr<LocationPagedResponse>>
     {
@@ -28,6 +29,7 @@ namespace HSTS.Application.Locations.Queries
                 .Include(l => l.LocationMedias)
                 .Include(l => l.LocationAmenities).ThenInclude(la => la.Amenity)
                 .Include(l => l.SocialLinks)
+                .Include(l => l.Closures)  // Include closures for effective status calculation
                 .AsQueryable();
 
             // Filter by owner (current user)
@@ -61,7 +63,8 @@ namespace HSTS.Application.Locations.Queries
                 query ?? _repository.Query(),
                 ct);
 
-            var locationDtos = items.Select(l => l.ToDto()).ToList();
+            // Map to DTO with effective status based on reference date
+            var locationDtos = items.Select(l => l.ToDto(request.ReferenceDate)).ToList();
 
             return new LocationPagedResponse(locationDtos, total);
         }

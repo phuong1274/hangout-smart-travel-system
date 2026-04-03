@@ -36,9 +36,10 @@ namespace HSTS.API.Controllers
             [FromQuery] DateTime? toDate,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
+            [FromQuery] DateTime? referenceDate = null,
             CancellationToken ct = default)
         {
-            var query = new GetLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, districtIds, fromDate, toDate, pageIndex, pageSize);
+            var query = new GetLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, districtIds, fromDate, toDate, pageIndex, pageSize, referenceDate);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(
@@ -65,9 +66,10 @@ namespace HSTS.API.Controllers
             [FromQuery] bool includeDeleted = false,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
+            [FromQuery] DateTime? referenceDate = null,
             CancellationToken ct = default)
         {
-            var query = new GetAllLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, districtIds, fromDate, toDate, includeDeleted, pageIndex, pageSize);
+            var query = new GetAllLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, districtIds, fromDate, toDate, includeDeleted, pageIndex, pageSize, referenceDate);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(
@@ -90,6 +92,7 @@ namespace HSTS.API.Controllers
             [FromQuery] DateTime? toDate,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
+            [FromQuery] DateTime? referenceDate = null,
             CancellationToken ct = default)
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -98,7 +101,7 @@ namespace HSTS.API.Controllers
                 return Unauthorized();
             }
 
-            var query = new GetPartnerLocationsPagingQuery(userId, searchTerm, fromDate, toDate, pageIndex, pageSize);
+            var query = new GetPartnerLocationsPagingQuery(userId, searchTerm, fromDate, toDate, pageIndex, pageSize, referenceDate);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(
@@ -114,9 +117,9 @@ namespace HSTS.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetLocation(int id, CancellationToken ct)
+        public async Task<IActionResult> GetLocation(int id, [FromQuery] DateTime? referenceDate = null, CancellationToken ct = default)
         {
-            var result = await _mediator.Send(new GetLocationQuery(id), ct);
+            var result = await _mediator.Send(new GetLocationQuery(id, referenceDate), ct);
 
             return result.Match(
                 Ok,

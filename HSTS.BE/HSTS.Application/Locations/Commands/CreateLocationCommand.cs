@@ -8,7 +8,7 @@ using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Application.Locations.Commands
 {
-    public record SocialLinkDto(string Platform, string Url);
+    public record SocialLinkDto(int Platform, string Url);
 
     public record CreateLocationCommand(
         string Name,
@@ -86,14 +86,15 @@ namespace HSTS.Application.Locations.Commands
 
             await _locationRepository.AddAsync(location, cancellationToken);
 
-            // Add tags if provided
+            // Add tags if provided (deduplicated)
             if (request.TagIds != null && request.TagIds.Count > 0)
             {
+                var distinctTagIds = request.TagIds.Distinct().ToList();
                 var tags = await _tagRepository.Query()
-                    .Where(t => request.TagIds.Contains(t.Id) && !t.IsDeleted)
+                    .Where(t => distinctTagIds.Contains(t.Id) && !t.IsDeleted)
                     .ToListAsync(cancellationToken);
 
-                foreach (var tagId in request.TagIds)
+                foreach (var tagId in distinctTagIds)
                 {
                     var tag = tags.FirstOrDefault(t => t.Id == tagId);
                     if (tag != null)
@@ -125,26 +126,30 @@ namespace HSTS.Application.Locations.Commands
             {
                 foreach (var socialLink in request.SocialLinks)
                 {
-                    // Convert platform string to enum (case-insensitive)
-                    var platform = Enum.Parse<Domain.Enums.SocialPlatform>(socialLink.Platform, ignoreCase: true);
-                    
+                    if (!Enum.IsDefined(typeof(Domain.Enums.SocialPlatform), socialLink.Platform))
+                    {
+                        return Error.Validation("Location.InvalidSocialPlatform",
+                            $"Invalid social platform value: {socialLink.Platform}");
+                    }
+
                     location.SocialLinks.Add(new LocationSocialLink
                     {
                         LocationId = location.Id,
-                        Platform = platform,
+                        Platform = (Domain.Enums.SocialPlatform)socialLink.Platform,
                         Url = socialLink.Url
                     });
                 }
             }
 
-            // Add amenities if provided
+            // Add amenities if provided (deduplicated)
             if (request.AmenityIds != null && request.AmenityIds.Count > 0)
             {
+                var distinctAmenityIds = request.AmenityIds.Distinct().ToList();
                 var amenities = await _amenityRepository.Query()
-                    .Where(a => request.AmenityIds.Contains(a.Id) && !a.IsDeleted)
+                    .Where(a => distinctAmenityIds.Contains(a.Id) && !a.IsDeleted)
                     .ToListAsync(cancellationToken);
 
-                foreach (var amenityId in request.AmenityIds)
+                foreach (var amenityId in distinctAmenityIds)
                 {
                     var amenity = amenities.FirstOrDefault(a => a.Id == amenityId);
                     if (amenity != null)
@@ -221,7 +226,9 @@ namespace HSTS.Application.Locations.Commands
             // Validate social links
             RuleForEach(x => x.SocialLinks).ChildRules(link =>
             {
-                link.RuleFor(x => x.Platform).IsInEnum();
+                link.RuleFor(x => x.Platform)
+                    .InclusiveBetween(1, 14)
+                    .WithMessage($"Platform must be between 1 and 14 (valid SocialPlatform values).");
                 link.RuleFor(x => x.Url).NotEmpty().MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Url));
             });
         }

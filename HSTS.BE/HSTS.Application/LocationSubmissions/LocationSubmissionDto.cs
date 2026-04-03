@@ -35,7 +35,7 @@ namespace HSTS.Application.LocationSubmissions
     );
 
     public record LocationSubmissionSocialLinkDto(
-        Domain.Enums.SocialPlatform Platform,
+        int Platform,
         string Url
     );
 

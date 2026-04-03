@@ -82,11 +82,11 @@ namespace HSTS.Domain.Entities
         public string? OpeningHoursJson { get; set; }
 
         // Seasons (stored as JSON array)
-        [MaxLength(4000)]
+        [MaxLength(250)]
         public string? SeasonsJson { get; set; }
 
         // Proposed changes for edit submissions (stored as JSON)
-        [MaxLength(4000)]
+        [MaxLength(250)]
         public string? ProposedChangesJson { get; set; }
 
         // Status

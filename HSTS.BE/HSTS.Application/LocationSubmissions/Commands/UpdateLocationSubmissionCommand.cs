@@ -60,8 +60,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
             }
 
             // Only pending or rejected submissions can be updated
-            if (submission.Status == Domain.Entities.SubmissionStatus.Approved ||
-                submission.Status == Domain.Entities.SubmissionStatus.Published)
+            if (submission.Status != Domain.Entities.SubmissionStatus.Rejected)
             {
                 return Error.Conflict("LocationSubmission.CannotUpdate",
                     "Approved or published submissions cannot be updated. Please contact admin for changes.");
@@ -137,7 +136,9 @@ namespace HSTS.Application.LocationSubmissions.Commands
             // Validate social links
             RuleForEach(x => x.SocialLinks).ChildRules(link =>
             {
-                link.RuleFor(x => x.Platform).IsInEnum();
+                link.RuleFor(x => x.Platform)
+                    .InclusiveBetween(1, 14)
+                    .WithMessage($"Platform must be between 1 and 14 (valid SocialPlatform values).");
                 link.RuleFor(x => x.Url).NotEmpty().MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Url));
             });
         }

@@ -3,6 +3,7 @@ using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
+using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Reflection;
@@ -167,7 +168,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
                     location.SocialLinks.Add(new LocationSocialLink
                     {
                         LocationId = location.Id,
-                        Platform = socialLink.Platform,
+                        Platform = (SocialPlatform)socialLink.Platform,
                         Url = socialLink.Url
                     });
                 }

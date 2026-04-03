@@ -90,6 +90,15 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                    .WithOne(sl => sl.Location)
                    .HasForeignKey(sl => sl.LocationId)
                    .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure relationship with LocationClosure
+            builder.HasMany(l => l.Closures)
+                   .WithOne(c => c.Location)
+                   .HasForeignKey(c => c.LocationId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            // Index for querying locations by status
+            builder.HasIndex(x => x.Status);
         }
     }
 }

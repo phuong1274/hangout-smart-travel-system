@@ -18,9 +18,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.EnglishName)
                 .HasMaxLength(200);
 
-            builder.Property(x => x.Code)
-                .HasMaxLength(50);
-
             builder.Property(x => x.Latitude)
                 .HasPrecision(10, 8);
 

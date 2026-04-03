@@ -6,103 +6,13 @@ namespace HSTS.Application.LocationSubmissions
 {
     public static class LocationSubmissionMappingExtensions
     {
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
         public static LocationSubmissionDto ToDto(this LocationSubmission submission)
         {
-            List<string>? mediaLinks = null;
-            List<LocationSubmissionSocialLinkDto>? socialLinks = null;
-            List<int>? amenityIds = null;
-            List<int>? tagIds = null;
-            List<LocationSubmissionOpeningHourDto>? openingHours = null;
-            List<LocationSubmissionSeasonDto>? seasons = null;
-
-            if (!string.IsNullOrEmpty(submission.MediaLinksJson))
-            {
-                mediaLinks = JsonSerializer.Deserialize<List<string>>(submission.MediaLinksJson);
-            }
-
-            if (!string.IsNullOrEmpty(submission.SocialLinksJson))
-            {
-                var socialLinkElements = JsonSerializer.Deserialize<List<JsonElement>>(submission.SocialLinksJson);
-                if (socialLinkElements != null)
-                {
-                    socialLinks = socialLinkElements.Select(sl =>
-                    {
-                        var platformStr = sl.TryGetProperty("platform", out var p) ? p.GetString() : null;
-                        var url = sl.TryGetProperty("url", out var u) ? u.GetString() : null;
-
-                        // Parse platform string to enum (case-insensitive)
-                        SocialPlatform platform = SocialPlatform.Other;
-                        if (!string.IsNullOrEmpty(platformStr))
-                        {
-                            // Try to parse by name first (case-insensitive)
-                            if (Enum.TryParse<SocialPlatform>(platformStr, ignoreCase: true, out var parsedEnum))
-                            {
-                                platform = parsedEnum;
-                            }
-                            // Try to parse by number if it's a numeric string
-                            else if (int.TryParse(platformStr, out var platformNum))
-                            {
-                                platform = (SocialPlatform)platformNum;
-                            }
-                        }
-
-                        return new LocationSubmissionSocialLinkDto(platform, url ?? string.Empty);
-                    }).ToList();
-                }
-            }
-
-            if (!string.IsNullOrEmpty(submission.AmenityIdsJson))
-            {
-                amenityIds = JsonSerializer.Deserialize<List<int>>(submission.AmenityIdsJson);
-            }
-
-            if (!string.IsNullOrEmpty(submission.TagIdsJson))
-            {
-                tagIds = JsonSerializer.Deserialize<List<int>>(submission.TagIdsJson);
-            }
-
-            // Deserialize opening hours
-            if (!string.IsNullOrEmpty(submission.OpeningHoursJson))
-            {
-                var ohList = JsonSerializer.Deserialize<List<JsonElement>>(submission.OpeningHoursJson);
-                if (ohList != null)
-                {
-                    openingHours = ohList.Select(oh => new LocationSubmissionOpeningHourDto(
-                        oh.TryGetProperty("id", out var idProp) ? idProp.GetInt32() : 0,
-                        oh.TryGetProperty("dayOfWeek", out var dowProp) ? dowProp.GetInt32() : 0,
-                        oh.TryGetProperty("dayOfWeek", out var dowNameProp) ? ((DayOfWeek)dowNameProp.GetInt32()).ToString() : "Unknown",
-                        oh.TryGetProperty("openTime", out var otProp) && otProp.ValueKind != JsonValueKind.Null 
-                            ? TimeSpan.Parse(otProp.GetString() ?? "08:00") 
-                            : TimeSpan.FromHours(8),
-                        oh.TryGetProperty("closeTime", out var ctProp) && ctProp.ValueKind != JsonValueKind.Null 
-                            ? TimeSpan.Parse(ctProp.GetString() ?? "17:00") 
-                            : TimeSpan.FromHours(17),
-                        oh.TryGetProperty("note", out var noteProp) ? noteProp.GetString() : null
-                    )).ToList();
-                }
-            }
-
-            // Deserialize seasons
-            if (!string.IsNullOrEmpty(submission.SeasonsJson))
-            {
-                var seasonsList = JsonSerializer.Deserialize<List<JsonElement>>(submission.SeasonsJson);
-                if (seasonsList != null)
-                {
-                    seasons = seasonsList.Select(s => new LocationSubmissionSeasonDto(
-                        s.TryGetProperty("id", out var idProp) && idProp.TryGetInt32(out var idValue) ? idValue : 0,
-                        s.TryGetProperty("description", out var descProp) ? descProp.GetString() ?? "" : "",
-                        s.TryGetProperty("months", out var monthsProp) ? monthsProp.ToString() ?? "" : ""
-                    )).ToList();
-                }
-            }
-
-            // Deserialize proposed changes for edit submissions
-            Dictionary<string, object>? proposedChanges = null;
-            if (!string.IsNullOrEmpty(submission.ProposedChangesJson))
-            {
-                proposedChanges = JsonSerializer.Deserialize<Dictionary<string, object>>(submission.ProposedChangesJson);
-            }
-
             return new LocationSubmissionDto(
                 submission.Id,
                 submission.UserId,
@@ -120,12 +30,12 @@ namespace HSTS.Application.LocationSubmissions
                 submission.District?.Name,
                 submission.LocationTypeId,
                 submission.LocationType?.Name,
-                mediaLinks,
-                socialLinks,
-                amenityIds,
-                tagIds,
-                openingHours,
-                seasons,
+                DeserializeJson<List<string>>(submission.MediaLinksJson),
+                DeserializeSocialLinks(submission.SocialLinksJson),
+                DeserializeJson<List<int>>(submission.AmenityIdsJson),
+                DeserializeJson<List<int>>(submission.TagIdsJson),
+                DeserializeOpeningHours(submission.OpeningHoursJson),
+                DeserializeSeasons(submission.SeasonsJson),
                 submission.Status,
                 submission.SubmissionType,
                 submission.ExistingLocationId,
@@ -137,5 +47,132 @@ namespace HSTS.Application.LocationSubmissions
                 submission.UpdatedAt
             );
         }
+
+        private static List<LocationSubmissionSocialLinkDto> DeserializeSocialLinks(string? json)
+        {
+            var socialLinks = DeserializeJson<List<SocialLinkJson>>(json);
+            if (socialLinks is null || socialLinks.Count == 0)
+                return new List<LocationSubmissionSocialLinkDto>();
+
+            return socialLinks.Select(sl => new LocationSubmissionSocialLinkDto(
+                ParseSocialPlatform(sl.Platform),
+                sl.Url ?? string.Empty
+            )).ToList();
+        }
+
+        private static int ParseSocialPlatform(object? platformValue)
+        {
+            if (platformValue is null)
+                return (int)SocialPlatform.Other;
+
+            // Handle integer directly (e.g., 12)
+            if (platformValue is int platformInt)
+                return platformInt;
+
+            // Handle JsonNumber (stored as object)
+            if (platformValue is JsonElement jsonElement)
+            {
+                if (jsonElement.ValueKind == JsonValueKind.Number)
+                    return jsonElement.GetInt32();
+                if (jsonElement.ValueKind == JsonValueKind.String)
+                    platformValue = jsonElement.GetString();
+            }
+
+            // Handle string (either "12" or "Zalo")
+            if (platformValue is string platformStr)
+            {
+                if (string.IsNullOrWhiteSpace(platformStr))
+                    return (int)SocialPlatform.Other;
+
+                // Try parsing as integer first
+                if (int.TryParse(platformStr, out var parsedInt))
+                    return parsedInt;
+
+                // Try parsing as enum name (case-insensitive)
+                if (Enum.TryParse<SocialPlatform>(platformStr, ignoreCase: true, out var platformEnum))
+                    return (int)platformEnum;
+            }
+
+            // Fallback to Other
+            return (int)SocialPlatform.Other;
+        }
+
+        private static List<LocationSubmissionOpeningHourDto>? DeserializeOpeningHours(string? json)
+        {
+            var openingHours = DeserializeJson<List<OpeningHourJson>>(json);
+            if (openingHours is null || openingHours.Count == 0)
+                return null;
+
+            return openingHours.Select(oh => new LocationSubmissionOpeningHourDto(
+                oh.Id,
+                oh.DayOfWeek,
+                ((DayOfWeek)oh.DayOfWeek).ToString(),
+                ParseTimeSpan(oh.OpenTime, TimeSpan.FromHours(8)),
+                ParseTimeSpan(oh.CloseTime, TimeSpan.FromHours(17)),
+                oh.Note
+            )).ToList();
+        }
+
+        private static TimeSpan ParseTimeSpan(string? timeString, TimeSpan defaultValue)
+        {
+            if (string.IsNullOrWhiteSpace(timeString))
+                return defaultValue;
+
+            return TimeSpan.TryParse(timeString, out var result) ? result : defaultValue;
+        }
+
+        private static List<LocationSubmissionSeasonDto>? DeserializeSeasons(string? json)
+        {
+            var seasons = DeserializeJson<List<SeasonJson>>(json);
+            if (seasons is null || seasons.Count == 0)
+                return null;
+
+            return seasons.Select(s => new LocationSubmissionSeasonDto(
+                s.Id,
+                s.Description ?? string.Empty,
+                s.Months ?? string.Empty
+            )).ToList();
+        }
+
+        private static T? DeserializeJson<T>(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return default;
+
+            try
+            {
+                return JsonSerializer.Deserialize<T>(json, JsonOptions);
+            }
+            catch (JsonException ex)
+            {
+                // Log error for debugging (in production, use proper logging framework)
+                System.Diagnostics.Debug.WriteLine(
+                    $"JSON deserialization failed for type {typeof(T).Name}: {ex.Message}");
+                return default;
+            }
+        }
+    }
+
+    // Internal DTOs for JSON deserialization
+    internal sealed class SocialLinkJson
+    {
+        public object? Platform { get; set; }
+        public string? Url { get; set; }
+    }
+
+    internal sealed class OpeningHourJson
+    {
+        public int Id { get; set; }
+        public int DayOfWeek { get; set; }
+        public string? OpenTime { get; set; }
+        public string? CloseTime { get; set; }
+        public string? Note { get; set; }
+    }
+
+    internal sealed class SeasonJson
+    {
+        public int Id { get; set; }
+        public string? Description { get; set; }
+        public string? Months { get; set; }
     }
 }

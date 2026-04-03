@@ -25,7 +25,7 @@ namespace HSTS.API.Requests
     );
 
     public record SocialLinkRequest(
-        Domain.Enums.SocialPlatform Platform,
+        int Platform,
         string Url
     );
 

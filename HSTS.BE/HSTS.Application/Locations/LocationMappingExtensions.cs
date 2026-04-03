@@ -4,7 +4,7 @@ namespace HSTS.Application.Locations
 {
     public static class LocationMappingExtensions
     {
-        public static LocationDto ToDto(this Location location)
+        public static LocationDto ToDto(this Location location, DateTime? referenceDate = null)
         {
             return new LocationDto(
                 location.Id,
@@ -42,6 +42,8 @@ namespace HSTS.Application.Locations
                     s.Description,
                     s.Months
                 )).ToList() ?? [],
+                location.Status,
+                location.GetEffectiveStatus(referenceDate),
                 location.CreatedAt,
                 location.UpdatedAt
             );

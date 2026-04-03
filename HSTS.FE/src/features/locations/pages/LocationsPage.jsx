@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Typography, Space, Button, Layout, message } from 'antd';
 import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
 import LocationFilter from '@/components/UI/LocationFilter';
@@ -9,6 +9,8 @@ import DetailModal from '@/components/DetailModal';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '@/routes/paths';
 import { deleteLocationApi, getLocationByIdApi } from '../api';
+import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
+import { transformLocationForDisplay } from '@/utils/locationMappers';
 
 const { Title } = Typography;
 const { Header, Content } = Layout;
@@ -28,6 +30,35 @@ const LocationsPage = () => {
   const [editingLocation, setEditingLocation] = useState(null);
   const [viewingLocation, setViewingLocation] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  
+  // Reference data for mapping IDs to names (cached to prevent duplicate API calls)
+  const [referenceData, setReferenceData] = useState({ allTags: [], locationTypes: [], amenities: [] });
+  const [referenceDataLoading, setReferenceDataLoading] = useState(false);
+
+  // Fetch reference data once on mount (cached for reuse)
+  useEffect(() => {
+    const loadReferenceData = async () => {
+      // Check cache first
+      const cached = getCachedReferenceData();
+      if (cached) {
+        setReferenceData(cached);
+        return;
+      }
+
+      setReferenceDataLoading(true);
+      try {
+        const refData = await fetchReferenceData();
+        setReferenceData(refData);
+      } catch (error) {
+        console.error('Failed to load reference data:', error);
+        message.error('Failed to load reference data');
+      } finally {
+        setReferenceDataLoading(false);
+      }
+    };
+
+    loadReferenceData();
+  }, []);
 
   const handleCreate = () => {
     setEditingLocation(null);
@@ -57,9 +88,12 @@ const LocationsPage = () => {
   const handleView = async (location) => {
     try {
       const detail = await getLocationByIdApi(location.id);
-      setViewingLocation(detail);
+      // Transform data: map IDs to readable names using cached reference data
+      const transformedData = transformLocationForDisplay(detail, referenceData);
+      setViewingLocation(transformedData);
       setDetailModalOpen(true);
     } catch (error) {
+      console.error('Failed to load location details:', error);
       message.error('Failed to load location details');
     }
   };

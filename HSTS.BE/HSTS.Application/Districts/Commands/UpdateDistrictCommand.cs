@@ -12,7 +12,6 @@ namespace HSTS.Application.Districts.Commands
         int Id,
         string Name,
         string? EnglishName,
-        string? Code,
         double? Latitude,
         double? Longitude,
         int? ProvinceId
@@ -48,7 +47,6 @@ namespace HSTS.Application.Districts.Commands
 
             district.Name = request.Name;
             district.EnglishName = request.EnglishName;
-            district.Code = request.Code;
             district.Latitude = request.Latitude;
             district.Longitude = request.Longitude;
             district.ProvinceId = request.ProvinceId;
@@ -71,9 +69,6 @@ namespace HSTS.Application.Districts.Commands
 
             RuleFor(x => x.EnglishName)
                 .MaximumLength(200).WithMessage("English name cannot exceed 200 characters.");
-
-            RuleFor(x => x.Code)
-                .MaximumLength(50).WithMessage("Code cannot exceed 50 characters.");
 
             RuleFor(x => x.Latitude)
                 .InclusiveBetween(-90, 90).When(x => x.Latitude.HasValue)

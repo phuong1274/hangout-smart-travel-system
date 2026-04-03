@@ -135,13 +135,16 @@ namespace HSTS.Application.Locations.Commands
                 {
                     foreach (var socialLink in request.SocialLinks)
                     {
-                        // Convert platform string to enum (case-insensitive)
-                        var platform = Enum.Parse<Domain.Enums.SocialPlatform>(socialLink.Platform, ignoreCase: true);
-                        
+                        if (!Enum.IsDefined(typeof(Domain.Enums.SocialPlatform), socialLink.Platform))
+                        {
+                            return Error.Validation("Location.InvalidSocialPlatform",
+                                $"Invalid social platform value: {socialLink.Platform}");
+                        }
+
                         location.SocialLinks.Add(new LocationSocialLink
                         {
                             LocationId = location.Id,
-                            Platform = platform,
+                            Platform = (Domain.Enums.SocialPlatform)socialLink.Platform,
                             Url = socialLink.Url
                         });
                     }
@@ -243,7 +246,9 @@ namespace HSTS.Application.Locations.Commands
             // Validate social links
             RuleForEach(x => x.SocialLinks).ChildRules(link =>
             {
-                link.RuleFor(x => x.Platform).IsInEnum();
+                link.RuleFor(x => x.Platform)
+                    .InclusiveBetween(1, 14)
+                    .WithMessage($"Platform must be between 1 and 14 (valid SocialPlatform values).");
                 link.RuleFor(x => x.Url).NotEmpty().MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Url));
             });
         }
