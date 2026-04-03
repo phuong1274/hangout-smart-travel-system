@@ -17,7 +17,8 @@ namespace HSTS.Infrastructure.Services
 
         private static readonly HashSet<string> CostKeys = new(StringComparer.OrdinalIgnoreCase)
         {
-            "totalprice", "total_price", "price", "fare", "cost", "amount", "ticketprice"
+            "totalprice", "total_price", "price", "cost", "amount", "ticketprice",
+            "original", "min_price", "markupprice"
         };
 
         private static readonly HashSet<string> DurationMinuteKeys = new(StringComparer.OrdinalIgnoreCase)

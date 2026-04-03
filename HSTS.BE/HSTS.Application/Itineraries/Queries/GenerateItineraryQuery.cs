@@ -50,7 +50,6 @@ namespace HSTS.Application.Itineraries.Queries
         string CurrencyCode,
         string BudgetLevel,
         BudgetSummaryDto BudgetSummary,
-        IList<AccommodationRecommendationDto> AccommodationRecommendations,
         IList<ItineraryDayDto> Days,
         IList<string> Notes);
 
@@ -100,6 +99,7 @@ namespace HSTS.Application.Itineraries.Queries
         MoneyDto DailyBudget,
         MoneyDto EstimatedDayCost,
         MoneyDto RolloverToNextDay,
+        IList<AccommodationRecommendationDto>? AccommodationRecommendations,
         IList<ItineraryTimelineItemDto> Timeline);
 
     public record ItineraryTimelineItemDto(
@@ -114,7 +114,9 @@ namespace HSTS.Application.Itineraries.Queries
         MoneyDto? ExtraCostPerPerson,
         MoneyDto? CostForGroup,
         string Note,
-        TravelLegDto? TravelDetails = null,
+        LocationToLocationTravelLegDto? LocationToLocationTravel = null,
+        TransitHubToLocationTravelLegDto? TransitHubToLocationTravel = null,
+        LocationToTransitHubTravelLegDto? LocationToTransitHubTravel = null,
         IList<AlternativeLocationDto>? Alternatives = null);
 
     public record AlternativeLocationDto(
@@ -129,9 +131,31 @@ namespace HSTS.Application.Itineraries.Queries
         int EstimatedTravelMinutes,
         int RecommendedStayMinutes);
 
-    public record TravelLegDto(
+    public record LocationToLocationTravelLegDto(
         int FromLocationId,
         int ToLocationId,
+        TimeOnly DepartureTime,
+        TimeOnly ArrivalTime,
+        double DistanceKm,
+        string? SelectedMethod,
+        int SelectedTravelTimeMinutes,
+        MoneyDto SelectedTotalCost,
+        IList<TransportOptionDto> TransportOptions);
+
+    public record TransitHubToLocationTravelLegDto(
+        int FromTransitHubId,
+        int ToLocationId,
+        TimeOnly DepartureTime,
+        TimeOnly ArrivalTime,
+        double DistanceKm,
+        string? SelectedMethod,
+        int SelectedTravelTimeMinutes,
+        MoneyDto SelectedTotalCost,
+        IList<TransportOptionDto> TransportOptions);
+
+    public record LocationToTransitHubTravelLegDto(
+        int FromLocationId,
+        int ToTransitHubId,
         TimeOnly DepartureTime,
         TimeOnly ArrivalTime,
         double DistanceKm,
@@ -149,6 +173,7 @@ namespace HSTS.Application.Itineraries.Queries
         MoneyDto TotalCostPerNight,
         double DistanceToCenter,
         int AmenityCount,
+        IList<int> AmenityIds,
         bool IsRecommended);
 
     // --- Validator ---
@@ -326,20 +351,39 @@ namespace HSTS.Application.Itineraries.Queries
 
             var favoriteTagIds = request.UserFavoriteTagIds.ToHashSet();
 
-            // STAGE 2: Tag Scoring and Filtering
-            if (favoriteTagIds.Count > 0)
-            {
-                var tagFiltered = locations.Where(x =>
-                    x.Tags.Any(t => favoriteTagIds.Contains(t.Id))).ToList();
-                notes.Add($"Tag ID filter matched {tagFiltered.Count}/{locations.Count} locations.");
-                if (tagFiltered.Count > 0) locations = tagFiltered;
-                else notes.Add("Tag filter returned no results; falling back to all locations.");
-            }
-
+            // Separate accommodations BEFORE tag filtering so hotels aren't excluded by tag preferences
             var accommodations = hasHotelPreference
                 ? locations.Where(IsAccommodationType).ToList()
                 : new List<Location>();
-            var attractions = locations.Where(x => !IsAccommodationType(x)).ToList();
+            var nonAccommodationLocations = locations.Where(x => !IsAccommodationType(x)).ToList();
+
+            // STAGE 2: Tag Scoring and Filtering (applies only to attractions)
+            if (favoriteTagIds.Count > 0)
+            {
+                var tagFiltered = nonAccommodationLocations.Where(x =>
+                    x.Tags.Any(t => favoriteTagIds.Contains(t.Id))).ToList();
+                notes.Add($"Tag ID filter matched {tagFiltered.Count}/{nonAccommodationLocations.Count} locations.");
+                if (tagFiltered.Count > 0) nonAccommodationLocations = tagFiltered;
+                else notes.Add("Tag filter returned no results; falling back to all locations.");
+            }
+
+            // Filter attractions: only Attraction (1) / Shopping (5) types, or matching names
+            var attractions = nonAccommodationLocations.Where(x =>
+                x.LocationTypeId == 1 ||
+                x.LocationTypeId == 5 ||
+                x.LocationType.Name.Contains("Attraction", StringComparison.OrdinalIgnoreCase) ||
+                x.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            // Keep restaurant/food locations for meal picker (not in attractions but available for meals)
+            var restaurantLocations = nonAccommodationLocations.Where(x =>
+                !attractions.Contains(x) &&
+                (x.LocationTypeId == 2 ||
+                 x.LocationType.Name.Contains("Restaurant", StringComparison.OrdinalIgnoreCase) ||
+                 x.LocationType.Name.Contains("Food", StringComparison.OrdinalIgnoreCase) ||
+                 x.Tags.Any(t =>
+                     t.Tittle.Contains("Restaurant", StringComparison.OrdinalIgnoreCase) ||
+                     t.Tittle.Contains("Food", StringComparison.OrdinalIgnoreCase) ||
+                     t.Tittle.Contains("Cafe", StringComparison.OrdinalIgnoreCase)))).ToList();
 
             if (attractions.Count == 0)
                 return Error.NotFound("Itinerary.Attraction", "No attraction locations available after filtering.");
@@ -357,8 +401,19 @@ namespace HSTS.Application.Itineraries.Queries
                 .Select(x => new ScoredLocation(x, ComputeCompositeScore(x, favoriteTagIds)))
                 .OrderByDescending(x => x.CompositeScore).ToList();
 
+            // Score restaurant locations separately for meal picker
+            var scoredRestaurants = restaurantLocations
+                .Select(x => new ScoredLocation(x, ComputeCompositeScore(x, favoriteTagIds)))
+                .OrderByDescending(x => x.CompositeScore).ToList();
+
+            // Combined scored list for meal picking (attractions + restaurants)
+            var scoredForMeals = scoredAttractions.Concat(scoredRestaurants).ToList();
+
             var scoredByProvince = destinationProvinces.ToDictionary(
                 p => p.Id, p => scoredAttractions.Where(s => s.Location.ProvinceId == p.Id).ToList());
+
+            var scoredForMealsByProvince = destinationProvinces.ToDictionary(
+                p => p.Id, p => scoredForMeals.Where(s => s.Location.ProvinceId == p.Id).ToList());
 
             // STAGE 3: Destination Routing
             var userGeo = new GeoPoint("Your location", request.UserLocation.Latitude, request.UserLocation.Longitude);
@@ -497,6 +552,7 @@ namespace HSTS.Application.Itineraries.Queries
             decimal totalAccommodationBudget = 0m;
             var selectedAccommodations = new Dictionary<int, Location>();
             var accommodationRecommendations = new List<AccommodationRecommendationDto>();
+            var accommodationAlternativesByProvince = new Dictionary<int, List<AlternativeLocationDto>>();
 
             if (hasHotelPreference)
             {
@@ -516,6 +572,26 @@ namespace HSTS.Application.Itineraries.Queries
                     {
                         selectedAccommodations[prov.Id] = hotel;
                         totalAccommodationBudget += GetPerPersonPrice(hotel) * groupSize * nights;
+
+                        // Build alternative accommodations for this province
+                        var altAccoms = recommendations
+                            .Where(r => r.LocationId != hotel.Id)
+                            .Take(3)
+                            .Select(r =>
+                            {
+                                var altHotel = provHotels.First(h => h.Id == r.LocationId);
+                                var altDist = HaversineKmOrMax(hotel.Latitude, hotel.Longitude,
+                                    altHotel.Latitude, altHotel.Longitude);
+                                var altTravelMin = (int)Math.Ceiling((altDist / DefaultSpeedKmh) * 60.0);
+                                return new AlternativeLocationDto(
+                                    r.LocationId, r.LocationName, altHotel.LocationTypeId,
+                                    altHotel.Tags.Select(t => t.Id).ToList(),
+                                    toMoney(0),
+                                    toMoney(r.PricePerPersonPerNight.BaseAmount),
+                                    Math.Round(r.Score, 1),
+                                    Math.Round(altDist, 4), altTravelMin, 0);
+                            }).ToList();
+                        accommodationAlternativesByProvince[prov.Id] = altAccoms;
                     }
                 }
             }
@@ -540,6 +616,7 @@ namespace HSTS.Application.Itineraries.Queries
                 var currentProvince = orderedDestinations[destIdx];
                 var daysInDest = dayAllocation[currentProvince.Id];
                 var destAttractions = scoredByProvince.GetValueOrDefault(currentProvince.Id) ?? new List<ScoredLocation>();
+                var destMealLocations = scoredForMealsByProvince.GetValueOrDefault(currentProvince.Id) ?? new List<ScoredLocation>();
                 var destAccommodation = hasHotelPreference
                     ? selectedAccommodations.GetValueOrDefault(currentProvince.Id) : null;
 
@@ -581,7 +658,7 @@ namespace HSTS.Application.Itineraries.Queries
                         var recOpt = GetRecommendedOption(intercityTransport);
                         var arrivalTime = AddMinutes(currentTime, recOpt.EstimatedTravelMinutes);
 
-                        var outboundLeg = new TravelLegDto(
+                        var outboundLeg = new LocationToLocationTravelLegDto(
                             recOpt.FromTransitHubId, recOpt.ToTransitHubId,
                             TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(arrivalTime),
                             intercityTransport.DistanceKm, null,
@@ -592,11 +669,60 @@ namespace HSTS.Application.Itineraries.Queries
                             TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(arrivalTime),
                             0, 0, new List<int>(),
                             null, null, null, "",
-                            outboundLeg));
+                            LocationToLocationTravel: outboundLeg));
                         dayTransportCost += recOpt.EstimatedTotalCost.BaseAmount;
                         currentTime = AddMinutes(arrivalTime, 20);
                         currentPoint = firstDestGeo;
                         currentLocationId = recOpt.ToTransitHubId;
+
+                        // Transport from hub to hotel or first attraction
+                        {
+                            GeoPoint hubToTarget;
+                            int hubToTargetId;
+                            string hubToTargetName;
+                            if (destAccommodation is not null)
+                            {
+                                hubToTarget = GeoPoint.FromLocation(destAccommodation);
+                                hubToTargetId = destAccommodation.Id;
+                                hubToTargetName = destAccommodation.Name;
+                            }
+                            else
+                            {
+                                var firstAttr = destAttractions.FirstOrDefault()?.Location;
+                                if (firstAttr is not null)
+                                {
+                                    hubToTarget = GeoPoint.FromLocation(firstAttr);
+                                    hubToTargetId = firstAttr.Id;
+                                    hubToTargetName = firstAttr.Name;
+                                }
+                                else
+                                {
+                                    hubToTarget = firstDestGeo;
+                                    hubToTargetId = 0;
+                                    hubToTargetName = currentProvince.Name;
+                                }
+                            }
+
+                            var hubTransport = await BuildLocalTransportAsync(
+                                currentPoint, hubToTarget, groupSize, transportModes, toMoney, cancellationToken);
+                            var hubArrival = AddMinutes(currentTime, hubTransport.SelectedTravelTimeMinutes);
+                            var hubLeg = new TransitHubToLocationTravelLegDto(
+                                currentLocationId, hubToTargetId,
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(hubArrival),
+                                hubTransport.DistanceKm, null,
+                                0, toMoney(0),
+                                hubTransport.TransportOptions);
+                            timeline.Add(new ItineraryTimelineItemDto("travel",
+                                "Di chuyen",
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(hubArrival),
+                                0, 0, new List<int>(),
+                                null, null, null, "",
+                                TransitHubToLocationTravel: hubLeg));
+                            dayTransportCost += hubTransport.SelectedTotalCost;
+                            currentTime = AddMinutes(hubArrival, 10);
+                            currentPoint = hubToTarget;
+                            currentLocationId = hubToTargetId;
+                        }
 
                         // Hotel check-in (if HotelPreference set)
                         if (destAccommodation is not null)
@@ -605,12 +731,14 @@ namespace HSTS.Application.Itineraries.Queries
                             var checkInEnd = AddMinutes(checkInStart, 30);
                             var accPerPerson = GetPerPersonPrice(destAccommodation);
                             var accGroupCost = accPerPerson * groupSize;
+                            var accomAlts = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
                             timeline.Add(new ItineraryTimelineItemDto("check-in",
                                 $"Nhan phong tai {destAccommodation.Name} - Gui hanh ly",
                                 TimeOnly.FromDateTime(checkInStart), TimeOnly.FromDateTime(checkInEnd),
                                 destAccommodation.Id, destAccommodation.LocationTypeId,
                                 destAccommodation.Tags.Select(t => t.Id).ToList(),
-                                toMoney(accPerPerson), toMoney(0), toMoney(0), "Nhan phong va gui hanh ly"));
+                                toMoney(0), toMoney(accPerPerson), toMoney(accGroupCost), "Nhan phong va gui hanh ly",
+                                Alternatives: accomAlts is { Count: > 0 } ? accomAlts : null));
                             dayAccommodationCost += accGroupCost;
                             currentTime = AddMinutes(checkInEnd, 10);
                             currentPoint = GeoPoint.FromLocation(destAccommodation);
@@ -627,20 +755,46 @@ namespace HSTS.Application.Itineraries.Queries
                         if (prevAccom is not null)
                         {
                             var checkoutEnd = AddMinutes(currentTime, 30);
+                            var prevAccomAlts = accommodationAlternativesByProvince.GetValueOrDefault(prevProvince.Id);
                             timeline.Add(new ItineraryTimelineItemDto("check-out",
                                 $"Tra phong tai {prevAccom.Name} - Nhan hanh ly",
                                 TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(checkoutEnd),
                                 prevAccom.Id, prevAccom.LocationTypeId,
                                 prevAccom.Tags.Select(t => t.Id).ToList(),
-                                toMoney(0), toMoney(0), toMoney(0), "Tra phong va nhan hanh ly"));
+                                toMoney(0), toMoney(0), toMoney(0), "Tra phong va nhan hanh ly",
+                                Alternatives: prevAccomAlts is { Count: > 0 } ? prevAccomAlts : null));
                             currentTime = AddMinutes(checkoutEnd, 10);
                         }
 
                         var segTransport = interDestTransports[destIdx - 1];
                         var segRecOpt = GetRecommendedOption(segTransport);
 
+                        // Travel from hotel/current location to departure transit hub
+                        {
+                            var departureHubPoint = new GeoPoint("Hub", prevProvince.Latitude, prevProvince.Longitude);
+                            var toHubTransport = await BuildLocalTransportAsync(
+                                prevAccom is not null ? GeoPoint.FromLocation(prevAccom) : new GeoPoint(prevProvince.Name, prevProvince.Latitude, prevProvince.Longitude),
+                                departureHubPoint, groupSize, transportModes, toMoney, cancellationToken);
+                            var toHubArrival = AddMinutes(currentTime, toHubTransport.SelectedTravelTimeMinutes);
+
+                            var toHubLeg = new LocationToTransitHubTravelLegDto(
+                                prevAccom?.Id ?? 0, segRecOpt.FromTransitHubId,
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toHubArrival),
+                                toHubTransport.DistanceKm, null,
+                                0, toMoney(0),
+                                toHubTransport.TransportOptions);
+                            timeline.Add(new ItineraryTimelineItemDto("travel",
+                                "Di chuyen den ben xe / san bay",
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toHubArrival),
+                                0, 0, new List<int>(),
+                                null, null, null, "",
+                                LocationToTransitHubTravel: toHubLeg));
+                            dayTransportCost += toHubTransport.SelectedTotalCost;
+                            currentTime = AddMinutes(toHubArrival, 10);
+                        }
+
                         var segArrival = TimeOnly.FromDateTime(AddMinutes(currentTime, segRecOpt.EstimatedTravelMinutes));
-                        var segLeg = new TravelLegDto(
+                        var segLeg = new LocationToLocationTravelLegDto(
                             segRecOpt.FromTransitHubId, segRecOpt.ToTransitHubId,
                             TimeOnly.FromDateTime(currentTime), segArrival,
                             segTransport.DistanceKm, null,
@@ -651,10 +805,56 @@ namespace HSTS.Application.Itineraries.Queries
                             TimeOnly.FromDateTime(currentTime), segArrival,
                             0, 0, new List<int>(),
                             null, null, null, "",
-                            segLeg));
+                            LocationToLocationTravel: segLeg));
                         dayTransportCost += segRecOpt.EstimatedTotalCost.BaseAmount;
                         currentTime = AddMinutes(currentTime, segRecOpt.EstimatedTravelMinutes + 20);
                         currentLocationId = segRecOpt.ToTransitHubId;
+
+                        // Transport from hub to hotel or first attraction at new destination
+                        {
+                            GeoPoint segHubToTarget;
+                            int segHubToTargetId;
+                            if (destAccommodation is not null)
+                            {
+                                segHubToTarget = GeoPoint.FromLocation(destAccommodation);
+                                segHubToTargetId = destAccommodation.Id;
+                            }
+                            else
+                            {
+                                var firstAttr = destAttractions.FirstOrDefault()?.Location;
+                                if (firstAttr is not null)
+                                {
+                                    segHubToTarget = GeoPoint.FromLocation(firstAttr);
+                                    segHubToTargetId = firstAttr.Id;
+                                }
+                                else
+                                {
+                                    segHubToTarget = new GeoPoint(currentProvince.Name, currentProvince.Latitude, currentProvince.Longitude);
+                                    segHubToTargetId = 0;
+                                }
+                            }
+
+                            var segHubTransport = await BuildLocalTransportAsync(
+                                new GeoPoint("Hub", orderedDestinations[destIdx].Latitude, orderedDestinations[destIdx].Longitude),
+                                segHubToTarget, groupSize, transportModes, toMoney, cancellationToken);
+                            var segHubArrival = AddMinutes(currentTime, segHubTransport.SelectedTravelTimeMinutes);
+                            var segHubLeg = new TransitHubToLocationTravelLegDto(
+                                currentLocationId, segHubToTargetId,
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(segHubArrival),
+                                segHubTransport.DistanceKm, null,
+                                0, toMoney(0),
+                                segHubTransport.TransportOptions);
+                            timeline.Add(new ItineraryTimelineItemDto("travel",
+                                "Di chuyen",
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(segHubArrival),
+                                0, 0, new List<int>(),
+                                null, null, null, "",
+                                TransitHubToLocationTravel: segHubLeg));
+                            dayTransportCost += segHubTransport.SelectedTotalCost;
+                            currentTime = AddMinutes(segHubArrival, 10);
+                            currentPoint = segHubToTarget;
+                            currentLocationId = segHubToTargetId;
+                        }
 
                         if (destAccommodation is not null)
                         {
@@ -662,20 +862,19 @@ namespace HSTS.Application.Itineraries.Queries
                             var checkInEnd = AddMinutes(checkInStart, 30);
                             var accPerPerson = GetPerPersonPrice(destAccommodation);
                             var accGroupCost = accPerPerson * groupSize;
+                            var accomAlts2 = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
                             timeline.Add(new ItineraryTimelineItemDto("check-in",
                                 $"Nhan phong tai {destAccommodation.Name} - Gui hanh ly",
                                 TimeOnly.FromDateTime(checkInStart), TimeOnly.FromDateTime(checkInEnd),
                                 destAccommodation.Id, destAccommodation.LocationTypeId,
                                 destAccommodation.Tags.Select(t => t.Id).ToList(),
-                                toMoney(accPerPerson), toMoney(0), toMoney(0), "Nhan phong va gui hanh ly"));
+                                toMoney(0), toMoney(accPerPerson), toMoney(accGroupCost), "Nhan phong va gui hanh ly",
+                                Alternatives: accomAlts2 is { Count: > 0 } ? accomAlts2 : null));
                             dayAccommodationCost += accGroupCost;
                             currentTime = AddMinutes(checkInEnd, 10);
+                            currentPoint = GeoPoint.FromLocation(destAccommodation);
+                            currentLocationId = destAccommodation.Id;
                         }
-
-                        currentPoint = destAccommodation is not null
-                            ? GeoPoint.FromLocation(destAccommodation)
-                            : new GeoPoint(currentProvince.Name, currentProvince.Latitude, currentProvince.Longitude);
-                        if (destAccommodation is not null) currentLocationId = destAccommodation.Id;
                     }
                     // === Normal day (same destination) ===
                     else
@@ -688,12 +887,14 @@ namespace HSTS.Application.Itineraries.Queries
                         if (destAccommodation is not null && localDay > 0)
                         {
                             var checkoutEnd = AddMinutes(currentTime, 15);
+                            var refreshAlts = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
                             timeline.Add(new ItineraryTimelineItemDto("luggage-refresh",
                                 $"Gia han / gui hanh ly tai {destAccommodation.Name}",
                                 TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(checkoutEnd),
                                 destAccommodation.Id, destAccommodation.LocationTypeId,
                                 destAccommodation.Tags.Select(t => t.Id).ToList(),
-                                toMoney(0), toMoney(0), toMoney(0), "Gia han phong hoac gui hanh ly"));
+                                toMoney(0), toMoney(0), toMoney(0), "Gia han phong hoac gui hanh ly",
+                                Alternatives: refreshAlts is { Count: > 0 } ? refreshAlts : null));
                             currentTime = AddMinutes(checkoutEnd, 10);
                             dayAccommodationCost += GetPerPersonPrice(destAccommodation) * groupSize;
                         }
@@ -713,14 +914,19 @@ namespace HSTS.Application.Itineraries.Queries
                             var mealEnd = date.ToDateTime(LunchEnd);
                             if (mealEnd <= dayEndTime)
                             {
-                                var restaurant = PickRestaurantNearby(dayAttractions, currentPoint, visitedLocationIds);
+                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, out var lunchAlternatives, toMoney);
                                 var rLoc = restaurant?.Location;
+                                var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
+                                var mealGroupCost = mealExtraCost * groupSize;
                                 timeline.Add(new ItineraryTimelineItemDto("meal",
                                     rLoc is not null ? $"An trua tai {rLoc.Name}" : "An trua",
                                     currentTimeOnly, LunchEnd,
                                     rLoc?.Id ?? 0, rLoc?.LocationTypeId ?? 0,
                                     rLoc?.Tags.Select(t => t.Id).ToList() ?? new List<int>(),
-                                    toMoney(0), toMoney(0), toMoney(0), "Bua trua"));
+                                    toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), "Bua trua",
+                                    Alternatives: lunchAlternatives.Count > 0 ? lunchAlternatives : null));
+                                dayActivityCost += mealGroupCost;
+                                remainingDayBudget -= mealGroupCost;
                                 currentTime = date.ToDateTime(LunchEnd).AddMinutes(15);
                                 lunchInserted = true;
                                 if (rLoc is not null)
@@ -738,14 +944,19 @@ namespace HSTS.Application.Itineraries.Queries
                             var mealEnd = date.ToDateTime(DinnerEnd);
                             if (mealEnd <= dayEndTime)
                             {
-                                var restaurant = PickRestaurantNearby(dayAttractions, currentPoint, visitedLocationIds);
+                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, out var dinnerAlternatives, toMoney);
                                 var rLoc = restaurant?.Location;
+                                var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
+                                var mealGroupCost = mealExtraCost * groupSize;
                                 timeline.Add(new ItineraryTimelineItemDto("meal",
                                     rLoc is not null ? $"An toi tai {rLoc.Name}" : "An toi",
                                     currentTimeOnly, DinnerEnd,
                                     rLoc?.Id ?? 0, rLoc?.LocationTypeId ?? 0,
                                     rLoc?.Tags.Select(t => t.Id).ToList() ?? new List<int>(),
-                                    toMoney(0), toMoney(0), toMoney(0), "Bua toi"));
+                                    toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), "Bua toi",
+                                    Alternatives: dinnerAlternatives.Count > 0 ? dinnerAlternatives : null));
+                                dayActivityCost += mealGroupCost;
+                                remainingDayBudget -= mealGroupCost;
                                 currentTime = date.ToDateTime(DinnerEnd).AddMinutes(15);
                                 dinnerInserted = true;
                                 if (rLoc is not null)
@@ -794,7 +1005,7 @@ namespace HSTS.Application.Itineraries.Queries
                         if (activityGroupCost > remainingDayBudget) break;
 
                         // Add local travel leg as timeline event
-                        var localLeg = new TravelLegDto(
+                        var localLeg = new LocationToLocationTravelLegDto(
                             currentLocationId, nextAttraction.Location.Id,
                             TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(activityArrival),
                             localTransport.DistanceKm, null,
@@ -805,7 +1016,7 @@ namespace HSTS.Application.Itineraries.Queries
                             TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(activityArrival),
                             0, 0, new List<int>(),
                             null, null, null, "",
-                            localLeg));
+                            LocationToLocationTravel: localLeg));
 
                         var extraCostPerPerson = ((nextAttraction.Location.PriceMin ?? 0) + (nextAttraction.Location.PriceMax ?? 0)) / 2m;
 
@@ -850,69 +1061,131 @@ namespace HSTS.Application.Itineraries.Queries
                         activityCount++;
                     }
 
-                    // Inject dinner if not yet (late day)
-                    if (!dinnerInserted && TimeOnly.FromDateTime(currentTime) < DinnerStart)
+                    // Inject dinner if not yet (late day) — skip on last day (user is heading home)
+                    if (!dinnerInserted && globalDayIndex != totalDays - 1 && TimeOnly.FromDateTime(currentTime) < DinnerStart)
                     {
-                        var restaurant = PickRestaurantNearby(dayAttractions, currentPoint, visitedLocationIds);
+                        var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, out var lateDinnerAlts, toMoney);
                         var rLoc = restaurant?.Location;
+                        var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
+                        var mealGroupCost = mealExtraCost * groupSize;
                         timeline.Add(new ItineraryTimelineItemDto("meal",
                             rLoc is not null ? $"An toi tai {rLoc.Name}" : "An toi",
                             DinnerStart, DinnerEnd,
                             rLoc?.Id ?? 0, rLoc?.LocationTypeId ?? 0,
                             rLoc?.Tags.Select(t => t.Id).ToList() ?? new List<int>(),
-                            toMoney(0), toMoney(0), toMoney(0), "Bua toi"));
+                            toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), "Bua toi",
+                            Alternatives: lateDinnerAlts.Count > 0 ? lateDinnerAlts : null));
+                        dayActivityCost += mealGroupCost;
+                        remainingDayBudget -= mealGroupCost;
                     }
 
-                    // Evening check-in (for mid-trip days that didn't already check in earlier)
-                    if (destAccommodation is not null && globalDayIndex > 0 && !(localDay == 0 && destIdx > 0))
+                    // Travel back to hotel at end of day (if not already there and not last day)
+                    if (destAccommodation is not null && globalDayIndex != totalDays - 1 && currentLocationId != destAccommodation.Id)
+                    {
+                        var hotelPoint = GeoPoint.FromLocation(destAccommodation);
+                        var returnToHotelTransport = await BuildLocalTransportAsync(
+                            currentPoint, hotelPoint, groupSize, transportModes, toMoney, cancellationToken);
+                        var returnToHotelArrival = AddMinutes(currentTime, returnToHotelTransport.SelectedTravelTimeMinutes);
+
+                        var returnToHotelLeg = new LocationToLocationTravelLegDto(
+                            currentLocationId, destAccommodation.Id,
+                            TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(returnToHotelArrival),
+                            returnToHotelTransport.DistanceKm, null,
+                            0, toMoney(0),
+                            returnToHotelTransport.TransportOptions);
+                        timeline.Add(new ItineraryTimelineItemDto("travel",
+                            $"Di chuyen ve {destAccommodation.Name}",
+                            TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(returnToHotelArrival),
+                            0, 0, new List<int>(),
+                            null, null, null, "",
+                            LocationToLocationTravel: returnToHotelLeg));
+
+                        dayTransportCost += returnToHotelTransport.SelectedTotalCost;
+                        currentTime = AddMinutes(returnToHotelArrival, 10);
+                        currentPoint = hotelPoint;
+                        currentLocationId = destAccommodation.Id;
+                    }
+
+                    // Evening check-in (for mid-trip days that didn't already check in earlier — skip on last day)
+                    if (destAccommodation is not null && globalDayIndex > 0 && globalDayIndex != totalDays - 1 && !(localDay == 0 && destIdx > 0))
                     {
                         var eveningCheckInStart = Max(currentTime, date.ToDateTime(new TimeOnly(21, 0)));
                         if (eveningCheckInStart < dayEndTime.AddHours(1))
                         {
                             var ciEnd = AddMinutes(eveningCheckInStart, 20);
+                            var eveningAlts = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
                             timeline.Add(new ItineraryTimelineItemDto("check-in",
                                 $"Nhan phong tai {destAccommodation.Name}",
                                 TimeOnly.FromDateTime(eveningCheckInStart), TimeOnly.FromDateTime(ciEnd),
                                 destAccommodation.Id, destAccommodation.LocationTypeId,
                                 destAccommodation.Tags.Select(t => t.Id).ToList(),
-                                toMoney(0), toMoney(0), toMoney(0), "Nghi ngoi buoi toi"));
+                                toMoney(0), toMoney(0), toMoney(0), "Nghi ngoi buoi toi",
+                                Alternatives: eveningAlts is { Count: > 0 } ? eveningAlts : null));
                         }
                     }
 
-                    // Last day: checkout + return leg
+                    // Last day: checkout + travel to hub + return leg
                     if (globalDayIndex == totalDays - 1)
                     {
                         if (destAccommodation is not null)
                         {
                             var coStart = Max(currentTime, date.ToDateTime(new TimeOnly(12, 0)));
                             var coEnd = AddMinutes(coStart, 20);
+                            var lastDayAlts = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
                             timeline.Add(new ItineraryTimelineItemDto("check-out",
                                 $"Tra phong tai {destAccommodation.Name}",
                                 TimeOnly.FromDateTime(coStart), TimeOnly.FromDateTime(coEnd),
                                 destAccommodation.Id, destAccommodation.LocationTypeId,
                                 destAccommodation.Tags.Select(t => t.Id).ToList(),
-                                toMoney(0), toMoney(0), toMoney(0), "Tra phong truoc khi ve"));
+                                toMoney(0), toMoney(0), toMoney(0), "Tra phong truoc khi ve",
+                                Alternatives: lastDayAlts is { Count: > 0 } ? lastDayAlts : null));
                             currentTime = AddMinutes(coEnd, 10);
+                            currentPoint = GeoPoint.FromLocation(destAccommodation);
+                            currentLocationId = destAccommodation.Id;
+                        }
+
+                        var retRecOpt = GetRecommendedOption(returnTransport);
+
+                        // Travel from current location to departure transit hub
+                        {
+                            var departureHubPoint = new GeoPoint("Hub", currentProvince.Latitude, currentProvince.Longitude);
+                            var toHubTransport = await BuildLocalTransportAsync(
+                                currentPoint, departureHubPoint, groupSize, transportModes, toMoney, cancellationToken);
+                            var toHubArrival = AddMinutes(currentTime, toHubTransport.SelectedTravelTimeMinutes);
+
+                            var toHubLeg = new LocationToTransitHubTravelLegDto(
+                                currentLocationId, retRecOpt.FromTransitHubId,
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toHubArrival),
+                                toHubTransport.DistanceKm, null,
+                                0, toMoney(0),
+                                toHubTransport.TransportOptions);
+                            timeline.Add(new ItineraryTimelineItemDto("travel",
+                                "Di chuyen den ben xe / san bay",
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toHubArrival),
+                                0, 0, new List<int>(),
+                                null, null, null, "",
+                                LocationToTransitHubTravel: toHubLeg));
+                            dayTransportCost += toHubTransport.SelectedTotalCost;
+                            currentTime = AddMinutes(toHubArrival, 10);
                         }
 
                         var returnDeparture = Max(currentTime, date.ToDateTime(new TimeOnly(17, 0)));
-                        var retRecOpt = GetRecommendedOption(returnTransport);
                         var returnArrival = AddMinutes(returnDeparture, retRecOpt.EstimatedTravelMinutes);
 
                         if (returnArrival <= date.ToDateTime(new TimeOnly(23, 59)))
                         {
-                            var returnLeg = new TravelLegDto(
+                            var returnLeg = new LocationToLocationTravelLegDto(
                                 retRecOpt.FromTransitHubId, retRecOpt.ToTransitHubId,
                                 TimeOnly.FromDateTime(returnDeparture), TimeOnly.FromDateTime(returnArrival),
                                 returnTransport.DistanceKm, null,
                                 0, toMoney(0),
                                 returnTransport.TransportOptions);
                             timeline.Add(new ItineraryTimelineItemDto("travel",
-                                "Di chuyen lien tinh",
+                                "Di chuyen lien tinh ve noi xuat phat",
                                 TimeOnly.FromDateTime(returnDeparture), TimeOnly.FromDateTime(returnArrival),
                                 0, 0, new List<int>(),
                                 null, null, null, "",
-                                returnLeg));
+                                LocationToLocationTravel: returnLeg));
                             dayTransportCost += retRecOpt.EstimatedTotalCost.BaseAmount;
                         }
                     }
@@ -956,9 +1229,16 @@ namespace HSTS.Application.Itineraries.Queries
                         dayTitle = $"Day {dayNumber} - {currentProvince.Name}";
                     }
 
+                    var dayAccomRecs = accommodationRecommendations
+                        .Where(r => {
+                            var hotel = accommodations.FirstOrDefault(a => a.Id == r.LocationId);
+                            return hotel is not null && hotel.ProvinceId == currentProvince.Id;
+                        }).ToList();
+
                     days.Add(new ItineraryDayDto(dayNumber, dayTitle, date,
                         currentProvince.Id, weatherSummary,
                         toMoney(dailyBudget), toMoney(daySpent), toMoney(rolloverBudget),
+                        dayAccomRecs.Count > 0 ? dayAccomRecs : null,
                         timeline.OrderBy(x => x.StartTime).ToList()));
 
                     globalDayIndex++;
@@ -1004,7 +1284,6 @@ namespace HSTS.Application.Itineraries.Queries
                 resolvedCurrency,
                 budgetLevel,
                 budgetSummary,
-                accommodationRecommendations,
                 days, notes);
         }
 
@@ -1104,7 +1383,8 @@ namespace HSTS.Application.Itineraries.Queries
         // === MEAL / RESTAURANT PICKER ===
 
         private static ScoredLocation? PickRestaurantNearby(
-            IList<ScoredLocation> attractions, GeoPoint currentPoint, HashSet<int> visitedIds)
+            IList<ScoredLocation> attractions, GeoPoint currentPoint, HashSet<int> visitedIds,
+            out List<AlternativeLocationDto> alternativeRestaurants, Func<decimal, MoneyDto> toMoney)
         {
             var restaurants = attractions
                 .Where(x => !visitedIds.Contains(x.Location.Id))
@@ -1113,13 +1393,38 @@ namespace HSTS.Application.Itineraries.Queries
                     t.Tittle.Contains("Food", StringComparison.OrdinalIgnoreCase) ||
                     t.Tittle.Contains("Cafe", StringComparison.OrdinalIgnoreCase)) ||
                     x.Location.LocationType.Name.Contains("Restaurant", StringComparison.OrdinalIgnoreCase) ||
-                    x.Location.LocationType.Name.Contains("Food", StringComparison.OrdinalIgnoreCase))
+                    x.Location.LocationType.Name.Contains("Food", StringComparison.OrdinalIgnoreCase) ||
+                    x.Location.LocationTypeId == 2)
                 .OrderBy(x => HaversineKmOrMax(currentPoint.Latitude, currentPoint.Longitude, x.Location.Latitude, x.Location.Longitude))
-                .Take(3)
+                .Take(5)
                 .ToList();
 
-            if (restaurants.Count == 0) return null;
-            return restaurants[Random.Shared.Next(restaurants.Count)];
+            if (restaurants.Count == 0)
+            {
+                alternativeRestaurants = new List<AlternativeLocationDto>();
+                return null;
+            }
+
+            var picked = restaurants[Random.Shared.Next(Math.Min(restaurants.Count, 3))];
+            alternativeRestaurants = restaurants
+                .Where(r => r.Location.Id != picked.Location.Id)
+                .Take(3)
+                .Select(r =>
+                {
+                    var dist = HaversineKmOrMax(currentPoint.Latitude, currentPoint.Longitude,
+                        r.Location.Latitude, r.Location.Longitude);
+                    var travelMin = (int)Math.Ceiling((dist / DefaultSpeedKmh) * 60.0);
+                    var stay = Math.Clamp(r.Location.RecommentDurationsMinutes ?? DefaultStayMinutes, MinStayMinutes, 240);
+                    var extraCost = ((r.Location.PriceMin ?? 0) + (r.Location.PriceMax ?? 0)) / 2m;
+                    return new AlternativeLocationDto(
+                        r.Location.Id, r.Location.Name, r.Location.LocationTypeId,
+                        r.Location.Tags.Select(t => t.Id).ToList(),
+                        toMoney(0), toMoney(extraCost),
+                        Math.Round(r.CompositeScore, 1),
+                        Math.Round(dist, 4), travelMin, stay);
+                }).ToList();
+
+            return picked;
         }
 
         // === DESTINATION ORDERING ===
@@ -1315,7 +1620,9 @@ namespace HSTS.Application.Itineraries.Queries
                     x.Hotel.Id, x.Hotel.Name, x.Hotel.Address, x.Score,
                     toMoney(perPerson),
                     toMoney(totalPerNight),
-                    x.Distance, x.Hotel.Amenities.Count, idx == 0));
+                    x.Distance, x.Hotel.Amenities.Count,
+                    x.Hotel.Amenities.Select(a => a.Id).ToList(),
+                    idx == 0));
             }
 
             return (scored.FirstOrDefault()?.Hotel, recommendations);
@@ -1412,7 +1719,7 @@ namespace HSTS.Application.Itineraries.Queries
             {
                 allOptions.Add(new TransportOptionDto(4, "Bus",
                     routeEstimate?.DurationMinutes ?? fallbackDuration,
-                    toMoney(GetBusBracketCost(distanceKm) * groupSize), false,
+                    toMoney(GetBusBracketCost(distanceKm)), false,
                     "Estimated pricing (API unavailable)", fromBusHub?.Id ?? 0, toBusHub?.Id ?? 0,
                     1, toMoney(GetBusBracketCost(distanceKm) * groupSize)));
             }
@@ -1420,7 +1727,7 @@ namespace HSTS.Application.Itineraries.Queries
             {
                 var trainMins = Math.Max(60, (int)Math.Round(distanceKm / 50.0 * 60.0));
                 allOptions.Add(new TransportOptionDto(6, "Train", trainMins,
-                    toMoney(GetTrainBracketCost(distanceKm) * groupSize), false,
+                    toMoney(GetTrainBracketCost(distanceKm)), false,
                     "Estimated pricing (API unavailable)", fromTrainHub?.Id ?? 0, toTrainHub?.Id ?? 0,
                     1, toMoney(GetTrainBracketCost(distanceKm) * groupSize)));
             }
@@ -1428,18 +1735,18 @@ namespace HSTS.Application.Itineraries.Queries
             {
                 var planeMins = Math.Max(60, (int)Math.Round(distanceKm / 800.0 * 60.0) + 90);
                 allOptions.Add(new TransportOptionDto(5, "Plane", planeMins,
-                    toMoney(GetPlaneBracketCost(distanceKm) * groupSize), false,
+                    toMoney(GetPlaneBracketCost(distanceKm)), false,
                     "Estimated pricing (API unavailable)", fromAirport?.Id ?? 0, toAirport?.Id ?? 0,
                     1, toMoney(GetPlaneBracketCost(distanceKm) * groupSize)));
             }
 
             if (allOptions.Count == 0)
             {
-                var bracketCost = GetBracketCostPerPerson(distanceKm) * groupSize;
+                var bracketCostPerPerson = GetBracketCostPerPerson(distanceKm);
                 var bracketMethod = SelectTransportCategory(distanceKm, groupSize);
                 allOptions.Add(new TransportOptionDto(0, bracketMethod,
-                    routeEstimate?.DurationMinutes ?? fallbackDuration, toMoney(bracketCost), true,
-                    "Estimated pricing (no API results)", 0, 0, 1, toMoney(bracketCost)));
+                    routeEstimate?.DurationMinutes ?? fallbackDuration, toMoney(bracketCostPerPerson), true,
+                    "Estimated pricing (no API results)", 0, 0, 1, toMoney(bracketCostPerPerson * groupSize)));
             }
 
             // Mark best (cheapest with cost > 0) as recommended
@@ -1616,12 +1923,8 @@ namespace HSTS.Application.Itineraries.Queries
 
         private static bool IsAccommodationType(Location location)
         {
-            var typeName = location.LocationType.Name.ToLowerInvariant();
-            return typeName.Contains("Hotel") || typeName.Contains("resort")
-                || typeName.Contains("homestay") || typeName.Contains("hostel")
-                || typeName.Contains("guesthouse") || typeName.Contains("accommod")
-                || typeName.Contains("Villa") || typeName.Contains("nha nghi")
-                || typeName.Contains("cho nghi");
+            return location.LocationTypeId == 3
+                || location.LocationType.Name.Contains("Accommodation", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsOpenAtTime(Location location, DayOfWeek dayOfWeek, TimeOnly time)
