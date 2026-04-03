@@ -1,0 +1,29 @@
+{
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "userManagement": "User Management",
+    "destinations": "Destinations",
+    "transportation": "Transportation",
+    "weather": "Weather"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalUsers": "Total Users",
+    "totalTrips": "Total Trips",
+    "totalDestinations": "Total Destinations",
+    "activeUsers": "Active Users",
+    "recentActivity": "Recent Activity"
+  },
+  "users": {
+    "title": "User Management",
+    "fullName": "Full Name",
+    "email": "Email",
+    "role": "Role",
+    "status": "Status",
+    "createdAt": "Created At",
+    "actions": "Actions",
+    "ban": "Ban",
+    "unban": "Unban",
+    "changeRole": "Change Role"
+  }
+}

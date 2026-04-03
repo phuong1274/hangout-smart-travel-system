@@ -1,18 +1,42 @@
 import React, { useState } from 'react';
-import { Button, Space, Select, Typography, Drawer } from 'antd';
-import { MenuOutlined } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { Button, Space, Select, Typography, Drawer, Avatar, Dropdown } from 'antd';
+import { MenuOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/authStore';
+import { useLogout } from '@/features/auth/hooks/useAuth';
 import { PATHS } from '@/routes/paths';
-import WebLogo from '../assets/WebLogo.png';
+import WebLogo from '../assets/WebLogo.svg';
 import styles from '../styles/Header.module.css'; 
 
 const { Text } = Typography;
 
 const AppHeader = () => {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const { logout } = useLogout();
 
   const showDrawer = () => setOpen(true);
   const onClose = () => setOpen(false);
+
+  const userDropdownItems = [
+    {
+      key: 'profile',
+      label: 'My Profile',
+      icon: <UserOutlined />,
+      onClick: () => navigate(PATHS.PROFILE),
+    },
+    { type: 'divider' },
+    {
+      key: 'logout',
+      label: 'Logout',
+      icon: <LogoutOutlined />,
+      danger: true,
+      onClick: logout,
+    },
+  ];
+
+  const initials = user?.username?.charAt(0)?.toUpperCase() ?? '?';
 
   const menuItems = (
     <>
@@ -20,18 +44,36 @@ const AppHeader = () => {
         defaultValue="Hanoi" 
         variant="borderless" 
         options={[{ value: 'Hanoi', label: 'Hanoi' }]} 
-        className={styles.locationPicker} 
+        className={styles.locationPicker}
       />
       <Link to="/">
-        <Text strong className={styles.navLink}>Home</Text>
+        <Text className={styles.navLink}>Home</Text>
       </Link>
       <Text className={styles.navLink}>Location</Text>
-      <Link to={PATHS.AUTH.REGISTER}>
-        <Button type="text" className={styles.navLink}>Sign Up</Button>
-      </Link>
-      <Link to={PATHS.AUTH.LOGIN}>
-        <Button type="primary" className={styles.signInBtn}>Sign In</Button>
-      </Link>
+      
+      {user ? (
+        <Dropdown menu={{ items: userDropdownItems }} placement="bottomRight" trigger={['click']}>
+          <div className={styles.headerAvatarWrapper}>
+            <Avatar 
+              size={40} 
+              src={user?.avatarUrl}
+              className={styles.headerAvatar}
+            >
+              {!user?.avatarUrl && initials}
+            </Avatar>
+            <span className={styles.headerUsername}>{user.username}</span>
+          </div>
+        </Dropdown>
+      ) : (
+        <Space size="middle" className={styles.authButtons}>
+          <Link to={PATHS.AUTH.REGISTER}>
+            <Button type="text" className={styles.signUpBtn}>Sign Up</Button>
+          </Link>
+          <Link to={PATHS.AUTH.LOGIN}>
+            <Button type="primary" className={styles.signInBtn}>Sign In</Button>
+          </Link>
+        </Space>
+      )}
     </>
   );
 
@@ -48,16 +90,17 @@ const AppHeader = () => {
 
       <Button 
         type="text" 
-        icon={<MenuOutlined style={{ fontSize: '24px' }} />} 
+        icon={<MenuOutlined style={{ fontSize: '24px', color: '#1A535C' }} />} 
         onClick={showDrawer} 
         className={styles.mobileMenuBtn} 
       />
 
       <Drawer 
-        title="Menu" 
+        title={<span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, color: '#1A535C' }}>Menu</span>} 
         placement="right" 
         onClose={onClose} 
         open={open}
+        className={styles.mobileDrawer}
       >
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           {menuItems}

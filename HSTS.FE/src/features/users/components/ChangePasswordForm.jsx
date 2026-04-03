@@ -1,6 +1,7 @@
 import { Button, Card, Form, Input, Typography } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { useChangePassword } from '@/features/auth/hooks/useAuth';
+import styles from '../styles/ChangePasswordForm.module.css';
 
 const { Title } = Typography;
 
@@ -16,49 +17,51 @@ const ChangePasswordForm = () => {
   };
 
   return (
-    <Card>
-      <Title level={4}>Change Password</Title>
-      <Form form={form} layout="vertical" onFinish={onFinish} autoComplete="off">
-        <Form.Item
-          name="currentPassword"
-          label="Current Password"
-          rules={[{ required: true, message: 'Please enter current password' }]}
-        >
-          <Input.Password prefix={<LockOutlined />} size="large" />
-        </Form.Item>
-        <Form.Item
-          name="newPassword"
-          label="New Password"
-          rules={[
-            { required: true, message: 'Please enter new password' },
-            { min: 8, message: 'Password must be at least 8 characters' },
-          ]}
-        >
-          <Input.Password prefix={<LockOutlined />} size="large" />
-        </Form.Item>
-        <Form.Item
-          name="confirmPassword"
-          label="Confirm New Password"
-          dependencies={['newPassword']}
-          rules={[
-            { required: true, message: 'Please confirm new password' },
-            ({ getFieldValue }) => ({
-              validator(_, value) {
-                if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
-                return Promise.reject(new Error('Passwords do not match'));
-              },
-            }),
-          ]}
-        >
-          <Input.Password prefix={<LockOutlined />} size="large" />
-        </Form.Item>
-        <Form.Item>
-          <Button type="primary" htmlType="submit" loading={loading}>
-            Change Password
-          </Button>
-        </Form.Item>
-      </Form>
-    </Card>
+    <div className={styles.formContainer}>
+      <Card>
+        <Title level={3} className={styles.heading}>Change Password</Title>
+        <Form form={form} layout="vertical" onFinish={onFinish} autoComplete="off">
+          <Form.Item
+            name="currentPassword"
+            label="Current Password"
+            rules={[{ required: true, message: 'Please enter current password' }]}
+          >
+            <Input.Password prefix={<LockOutlined style={{ color: '#4ECDC4' }} />} size="large" />
+          </Form.Item>
+          <Form.Item
+            name="newPassword"
+            label="New Password"
+            rules={[
+              { required: true, message: 'Please enter new password' },
+              { min: 8, message: 'Password must be at least 8 characters' },
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined style={{ color: '#4ECDC4' }} />} size="large" />
+          </Form.Item>
+          <Form.Item
+            name="confirmPassword"
+            label="Confirm New Password"
+            dependencies={['newPassword']}
+            rules={[
+              { required: true, message: 'Please confirm new password' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
+                  return Promise.reject(new Error('Passwords do not match'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined style={{ color: '#4ECDC4' }} />} size="large" />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={loading} size="large">
+              Change Password
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+    </div>
   );
 };
 
