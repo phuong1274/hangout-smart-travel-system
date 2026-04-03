@@ -34,8 +34,8 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasPrecision(5, 2);
 
             builder.Property(x => x.Status)
-                .HasDefaultValue(LocationStatus.Active)
-                .HasConversion<int>();
+                .HasConversion<int>()
+                .HasColumnName("Status");
 
             builder.HasOne(x => x.Province)
                 .WithMany(x => x.Locations)

@@ -39,5 +39,6 @@ namespace HSTS.Domain.Entities
         public ICollection<OpeningHours> OpeningHours { get; set; } = new List<OpeningHours>();
         public ICollection<SocialLinks> SocialLinks { get; set; } = new List<SocialLinks>();
         public ICollection<LocationMedia> LocationMedias { get; set; } = new List<LocationMedia>();
+        public ICollection<LocationClosure> LocationClosures { get; set; } = new List<LocationClosure>();
     }
 }
