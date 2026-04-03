@@ -43,6 +43,9 @@ namespace HSTS.Domain.Entities
 
         public bool? GroupDiscountApplied { get; set; }
 
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? LuggageStorageCost { get; set; }
+
         public TimeSpan? CheckInTime { get; set; }
 
         public TimeSpan? CheckOutTime { get; set; }

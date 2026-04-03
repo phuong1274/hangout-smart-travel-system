@@ -31,13 +31,21 @@ namespace HSTS.Domain.Entities
 
         public int GroupSize { get; set; }
 
-        [MaxLength(100)]
-        public string? DepartureHub { get; set; }
+        public int? DepartureHubId { get; set; }
 
-        [MaxLength(100)]
-        public string? ArrivalHub { get; set; }
+        public int? ArrivalHubId { get; set; }
+
+        [MaxLength(1000)]
+        public string? Pros { get; set; }
+
+        [MaxLength(1000)]
+        public string? Cons { get; set; }
+
+        public bool Recommended { get; set; }
 
         // Navigation properties
         public TripActivity TripActivity { get; set; } = null!;
+        public Hub? DepartureHub { get; set; }
+        public Hub? ArrivalHub { get; set; }
     }
 }
