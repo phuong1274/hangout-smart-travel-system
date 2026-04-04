@@ -1,20 +1,17 @@
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, Layout, message } from 'antd';
-import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
-import SearchFilter from '@/components/UI/SearchFilter';
+import { Card, Typography, Button, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import SearchFilter from '@/components/UI/SearchFilter/SearchFilter';
 import { useLocationTypes } from '../hooks/useLocationTypes';
 import LocationTypeTable from '../components/LocationTypeTable';
 import LocationTypeForm from '../components/LocationTypeForm';
-import DetailModal from '@/components/DetailModal';
-import { useNavigate } from 'react-router-dom';
-import { PATHS } from '@/routes/paths';
+import DetailModal from '@/components/UI/DetailModal/DetailModal';
 import { deleteLocationTypeApi, getLocationTypeByIdApi } from '../api';
+import styles from '../styles/LocationTypesPage.module.css';
 
 const { Title } = Typography;
-const { Header, Content } = Layout;
 
 const LocationTypesPage = () => {
-  const navigate = useNavigate();
   const {
     data,
     loading,
@@ -64,47 +61,46 @@ const LocationTypesPage = () => {
       message.success('Location type deleted successfully');
       fetchLocationTypes();
     } catch (error) {
-      // Handled by global interceptor
     }
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
-          <Title level={3} style={{ margin: 0 }}>Hangout - Location Types</Title>
-        </div>
-        <Button type="primary" onClick={() => navigate(PATHS.AUTH.LOGIN)}>
-          Login
-        </Button>
-      </Header>
-      <Content style={{ padding: '24px', background: '#f0f2f5' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={2} style={{ margin: 0 }}>Location Type Management</Title>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Add Location Type
-            </Button>
+    <div className={styles.pageContainer}>
+      <div className={styles.container}>
+        <div className={styles.pageHeader}>
+          <div className={styles.titleGroup}>
+            <Title level={2} className={styles.mainTitle}>Location Type Management</Title>
           </div>
-          <Card>
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />} 
+            onClick={handleCreate}
+            className={styles.addBtn}
+          >
+            ADD LOCATION TYPE
+          </Button>
+        </div>
+        
+        <Card className={styles.mainCard}>
+          <div className={styles.filterSection}>
             <SearchFilter
               onSearch={handleSearch}
               loading={loading}
               placeholder="Search location types..."
             />
-            <LocationTypeTable
-              data={data}
-              loading={loading}
-              pagination={pagination}
-              onTableChange={handleTableChange}
-              onEdit={handleEdit}
-              onView={handleView}
-              onDelete={handleDelete}
-            />
-          </Card>
-        </Space>
-      </Content>
+          </div>
+          <LocationTypeTable
+            data={data}
+            loading={loading}
+            pagination={pagination}
+            onTableChange={handleTableChange}
+            onEdit={handleEdit}
+            onView={handleView}
+            onDelete={handleDelete}
+          />
+        </Card>
+      </div>
+
       <LocationTypeForm
         open={formOpen}
         locationType={editingLocationType}
@@ -112,7 +108,6 @@ const LocationTypesPage = () => {
         onSuccess={handleFormSuccess}
       />
 
-      {/* Detail Modal */}
       <DetailModal
         open={detailModalOpen}
         onClose={() => {
@@ -122,7 +117,7 @@ const LocationTypesPage = () => {
         data={viewingLocationType}
         type="locationType"
       />
-    </Layout>
+    </div>
   );
 };
 

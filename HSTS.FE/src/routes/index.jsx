@@ -6,7 +6,6 @@ import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
 
-// Lazy load layouts and pages
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
@@ -19,7 +18,6 @@ const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const HomePage = lazy(() => import('@/features/home/pages/Home'));
 const ItineraryPage = lazy(() => import('@/features/schedules/pages/ItineraryPage'));
 
-// Global Pages
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
 const DestinationsPage = lazy(() => import('@/features/destinations/pages/DestinationsPage'));
@@ -30,26 +28,9 @@ const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPag
 const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
 
-// Dashboard overview component
-const DashboardOverview = () => (
-  <div>
-    <h2>Overview</h2>
-    <p>Algorithm-based destination scheduling system.</p>
-  </div>
-);
-
-// Schedule management component
-const ScheduleManagement = () => (
-  <div>
-    <h2>Algorithm Scheduling Management</h2>
-  </div>
-);
-
-// Partner locations page
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 
 export const router = createBrowserRouter([
-  // Public Routes (Auth pages)
   {
     path: '/',
     element: <SuspenseWrapper><HomePage /></SuspenseWrapper>,
@@ -71,26 +52,6 @@ export const router = createBrowserRouter([
       }
     ]
   },
-
-  // Public Routes (Feature pages - for testing/demo)
-  {
-    path: PATHS.DESTINATIONS.replace('/', ''),
-    element: <SuspenseWrapper><DestinationsPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.TAGS.replace('/', ''),
-    element: <SuspenseWrapper><TagsPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.LOCATION_TYPES.replace('/', ''),
-    element: <SuspenseWrapper><LocationTypesPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.AMENITIES.replace('/', ''),
-    element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
-  },
-
-  // Protected Routes (Admin/Authenticated users)
   {
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
@@ -100,6 +61,13 @@ export const router = createBrowserRouter([
           {
             path: PATHS.DASHBOARD,
             element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div>
+          },
+          {
+            path: PATHS.DESTINATIONS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+            children: [
+              { index: true, element: <DestinationsPage /> }
+            ]
           },
           {
             path: PATHS.SCHEDULES,
@@ -115,17 +83,19 @@ export const router = createBrowserRouter([
           },
           {
             path: PATHS.TAGS,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
-            children: [
-              { index: true, element: <TagsPage /> }
-            ]
+            element: <TagsPage />
+          },
+          {
+            path: PATHS.LOCATION_TYPES,
+            element: <LocationTypesPage />
+          },
+          {
+            path: PATHS.AMENITIES,
+            element: <AmenitiesPage />
           },
           {
             path: PATHS.LOCATIONS,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
-            children: [
-              { index: true, element: <LocationsPage /> }
-            ]
+            element: <LocationsPage />
           },
           {
             path: '/admin/location-submissions',
@@ -157,8 +127,6 @@ export const router = createBrowserRouter([
       }
     ]
   },
-
-  // Error Routes
   {
     path: PATHS.UNAUTHORIZED,
     element: <SuspenseWrapper><Error403 /></SuspenseWrapper>

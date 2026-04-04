@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace HSTS.Infrastructure.Migrations
+namespace HSTS.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot
@@ -335,6 +335,9 @@ namespace HSTS.Infrastructure.Migrations
                     b.Property<decimal?>("Score")
                         .HasColumnType("decimal(65,30)");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
                     b.Property<string>("Telephone")
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
@@ -359,6 +362,8 @@ namespace HSTS.Infrastructure.Migrations
                     b.HasIndex("LocationTypeId");
 
                     b.HasIndex("OwnerId");
+
+                    b.HasIndex("Status");
 
                     b.ToTable("Locations", (string)null);
                 });
@@ -399,6 +404,60 @@ namespace HSTS.Infrastructure.Migrations
                     b.HasIndex("AmenityId");
 
                     b.ToTable("LocationAmenities", (string)null);
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.LocationClosure", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("LocationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId", "IsActive", "StartDate", "EndDate");
+
+                    b.ToTable("LocationClosures", (string)null);
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.LocationMedia", b =>
@@ -616,7 +675,7 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Property<string>("AmenityIdsJson")
                         .HasMaxLength(1000)
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -667,7 +726,8 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("varchar(200)");
 
                     b.Property<string>("OpeningHoursJson")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
 
                     b.Property<decimal?>("PriceMaxUsd")
                         .HasColumnType("decimal(18,2)");
@@ -677,7 +737,7 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Property<string>("ProposedChangesJson")
                         .HasMaxLength(4000)
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(4000)");
 
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
@@ -708,7 +768,8 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("TagIdsJson")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("Telephone")
                         .HasMaxLength(50)
@@ -1405,6 +1466,17 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("Location");
                 });
 
+            modelBuilder.Entity("HSTS.Domain.Entities.LocationClosure", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.Location", "Location")
+                        .WithMany("Closures")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+                });
+
             modelBuilder.Entity("HSTS.Domain.Entities.LocationMedia", b =>
                 {
                     b.HasOne("HSTS.Domain.Entities.Location", "Location")
@@ -1592,6 +1664,8 @@ namespace HSTS.Infrastructure.Migrations
 
             modelBuilder.Entity("HSTS.Domain.Entities.Location", b =>
                 {
+                    b.Navigation("Closures");
+
                     b.Navigation("LocationAmenities");
 
                     b.Navigation("LocationMedias");

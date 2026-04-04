@@ -1,20 +1,17 @@
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, Layout, message } from 'antd';
-import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
-import SearchFilter from '@/components/UI/SearchFilter';
+import { Card, Typography, Space, Button, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import SearchFilter from '@/components/UI/SearchFilter/SearchFilter';
 import { useDistricts } from '../hooks/useDestinations';
 import DistrictTable from '../components/DestinationTable';
 import DistrictForm from '../components/DestinationForm';
-import DetailModal from '@/components/DetailModal';
-import { useNavigate } from 'react-router-dom';
-import { PATHS } from '@/routes/paths';
+import DetailModal from '@/components/UI/DetailModal/DetailModal';
 import { deleteDistrictApi, getDistrictByIdApi } from '../api';
+import styles from '../styles/DestinationsPage.module.css';
 
 const { Title } = Typography;
-const { Header, Content } = Layout;
 
 const DistrictsPage = () => {
-  const navigate = useNavigate();
   const {
     data,
     loading,
@@ -64,35 +61,34 @@ const DistrictsPage = () => {
       message.success('District deleted successfully');
       fetchDistricts();
     } catch (error) {
-      // Handled by global interceptor
     }
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
-          <Title level={3} style={{ margin: 0 }}>Hangout - Districts</Title>
-        </div>
-        <Button type="primary" onClick={() => navigate(PATHS.AUTH.LOGIN)}>
-          Login
-        </Button>
-      </Header>
-      <Content style={{ padding: '24px', background: '#f0f2f5' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={2} style={{ margin: 0 }}>District Management</Title>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Add District
-            </Button>
+    <div className={styles.appWrapper}>
+      <div className={styles.content}>
+        <div className={styles.floatingCircle1}></div>
+        <div className={styles.floatingCircle2}></div>
+
+        <Space direction="vertical" size="large" className={styles.mainContainer}>
+          <div className={styles.pageHeader}>
+            <Title level={2} className={styles.mainHeading}>District Management</Title>
           </div>
-          <Card>
-            <SearchFilter
-              onSearch={handleSearch}
-              loading={loading}
-              placeholder="Search districts..."
-            />
+
+          <Card className={styles.dataCard} bordered={false}>
+            <div className={styles.toolbarWrapper}>
+              <div className={styles.searchSection}>
+                <SearchFilter
+                  onSearch={handleSearch}
+                  loading={loading}
+                  placeholder="Search districts..."
+                />
+              </div>
+              <Button className={styles.ctaBtn} icon={<PlusOutlined />} onClick={handleCreate}>
+                Add District
+              </Button>
+            </div>
+            
             <DistrictTable
               data={data}
               loading={loading}
@@ -104,7 +100,8 @@ const DistrictsPage = () => {
             />
           </Card>
         </Space>
-      </Content>
+      </div>
+
       <DistrictForm
         open={formOpen}
         district={editingDistrict}
@@ -112,7 +109,6 @@ const DistrictsPage = () => {
         onSuccess={handleFormSuccess}
       />
 
-      {/* Detail Modal */}
       <DetailModal
         open={detailModalOpen}
         onClose={() => {
@@ -122,7 +118,7 @@ const DistrictsPage = () => {
         data={viewingDistrict}
         type="district"
       />
-    </Layout>
+    </div>
   );
 };
 
