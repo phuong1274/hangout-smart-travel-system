@@ -30,6 +30,7 @@ namespace HSTS.Application.Locations.Queries
         public async Task<ErrorOr<LocationPagedResponse>> Handle(GetAllLocationsPagingQuery request, CancellationToken ct)
         {
             var query = _repository.Query()
+                .Include(l => l.LocationType)
                 .Include(l => l.District)
                 .Include(l => l.LocationTags).ThenInclude(lt => lt.Tag)
                 .Include(l => l.LocationMedias)

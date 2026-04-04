@@ -225,11 +225,14 @@ namespace HSTS.Application.LocationSubmissions.Commands
                     foreach (var ohData in openingHoursData)
                     {
                         // Try both camelCase and PascalCase for dayOfWeek
-                        var dayOfWeek = DayOfWeek.Monday; // default
+                        int dayOfWeekValue = 1; // default Monday
                         if (ohData.TryGetProperty("dayOfWeek", out var dowProp) || ohData.TryGetProperty("DayOfWeek", out dowProp))
                         {
-                            dayOfWeek = (DayOfWeek)dowProp.GetInt32();
+                            dayOfWeekValue = dowProp.GetInt32();
                         }
+                        
+                        // Convert from ISO 8601 (1=Monday, ..., 7=Sunday) to .NET DayOfWeek (0=Sunday, 1=Monday, ..., 6=Saturday)
+                        var dayOfWeek = (DayOfWeek)(dayOfWeekValue == 7 ? 0 : dayOfWeekValue);
 
                         var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) || ohData.TryGetProperty("OpenTime", out otProp)
                             ? otProp.GetString()
@@ -322,11 +325,14 @@ namespace HSTS.Application.LocationSubmissions.Commands
                         foreach (var ohData in openingHoursData)
                         {
                             // Try both camelCase and PascalCase for dayOfWeek
-                            var dayOfWeek = DayOfWeek.Monday; // default
+                            int dayOfWeekValue = 1; // default Monday
                             if (ohData.TryGetProperty("dayOfWeek", out var dowProp) || ohData.TryGetProperty("DayOfWeek", out dowProp))
                             {
-                                dayOfWeek = (DayOfWeek)dowProp.GetInt32();
+                                dayOfWeekValue = dowProp.GetInt32();
                             }
+                            
+                            // Convert from ISO 8601 (1=Monday, ..., 7=Sunday) to .NET DayOfWeek (0=Sunday, 1=Monday, ..., 6=Saturday)
+                            var dayOfWeek = (DayOfWeek)(dayOfWeekValue == 7 ? 0 : dayOfWeekValue);
 
                             var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) || ohData.TryGetProperty("OpenTime", out otProp)
                                 ? otProp.GetString()

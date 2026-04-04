@@ -13,12 +13,20 @@ import { SOCIAL_PLATFORMS } from './locationConstants';
  */
 export const mapTagIdsToNames = (tagIds, allTags) => {
   if (!tagIds || !Array.isArray(tagIds)) return [];
-  if (!allTags || !Array.isArray(allTags)) return tagIds.map(String);
-  
-  return tagIds.map(id => {
+  if (!allTags || !Array.isArray(allTags)) {
+    console.warn('mapTagIdsToNames: allTags is empty or not an array');
+    return tagIds.map(String);
+  }
+
+  const names = tagIds.map(id => {
     const tag = allTags.find(t => t.id === id);
+    if (!tag) {
+      console.warn(`mapTagIdsToNames: Tag ID ${id} not found in allTags`);
+    }
     return tag ? tag.name : String(id);
   });
+  
+  return names;
 };
 
 /**
@@ -72,21 +80,26 @@ export const mapPlatformEnumToName = (platform, socialPlatforms = SOCIAL_PLATFOR
  */
 export const transformLocationForDisplay = (data, referenceData) => {
   if (!data) return null;
-  
+
   const { allTags = [], amenities = [], locationTypes = [] } = referenceData;
-  
+
+  // Handle both camelCase and PascalCase from backend
+  const tagIds = data.tagIds || data.TagIds || [];
+  const amenityIds = data.amenityIds || data.AmenityIds || [];
+  const locationTypeId = data.locationTypeId ?? data.LocationTypeId;
+
   return {
     ...data,
     // Map tag IDs to names
-    tagNames: mapTagIdsToNames(data.tagIds, allTags),
+    tagNames: mapTagIdsToNames(tagIds, allTags),
     // Map amenity IDs to names
-    amenityNames: mapAmenityIdsToNames(data.amenityIds, amenities),
+    amenityNames: mapAmenityIdsToNames(amenityIds, amenities),
     // Map location type ID to name
-    locationTypeName: mapLocationTypeIdToName(data.locationTypeId, locationTypes),
+    locationTypeName: mapLocationTypeIdToName(locationTypeId, locationTypes),
     // Map social link platforms to names
-    socialLinks: (data.socialLinks || []).map(sl => ({
+    socialLinks: (data.socialLinks || data.SocialLinks || []).map(sl => ({
       ...sl,
-      platformName: mapPlatformEnumToName(sl.platform)
+      platformName: mapPlatformEnumToName(sl.platform ?? sl.Platform)
     }))
   };
 };

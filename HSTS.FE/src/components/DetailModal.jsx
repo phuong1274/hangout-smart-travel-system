@@ -1,7 +1,23 @@
 import React from 'react';
 import { Modal, Descriptions, Tag, Space, Image, Divider, Table } from 'antd';
 import { EnvironmentOutlined, DollarOutlined, UserOutlined, CalendarOutlined, LinkOutlined, PhoneOutlined, MailOutlined, ClockCircleOutlined, PictureOutlined, CloudOutlined } from '@ant-design/icons';
-import { MONTH_NAMES } from '@/utils/locationConstants';
+import { MONTH_NAMES, DAYS_OF_WEEK } from '@/utils/locationConstants';
+
+// Helper to convert dayOfWeek number to name
+const getDayName = (dayOfWeek) => {
+  if (dayOfWeek === null || dayOfWeek === undefined) return 'N/A';
+  
+  // Normalize: ensure it's a number
+  let dayNum = typeof dayOfWeek === 'string' ? parseInt(dayOfWeek, 10) : Number(dayOfWeek);
+  
+  // Handle invalid values
+  if (isNaN(dayNum) || dayNum < 1 || dayNum > 7) {
+    return `Invalid day (${dayOfWeek})`;
+  }
+  
+  const day = DAYS_OF_WEEK.find(d => d.value === dayNum);
+  return day ? day.label : `Day ${dayNum}`;
+};
 
 /**
  * Reusable Detail Modal for displaying entity information
@@ -156,7 +172,7 @@ const DetailModal = ({ open, onClose, data, type }) => {
                         }}
                       >
                         <div style={{ width: 120, fontWeight: 600, color: '#1890ff' }}>
-                          {oh.dayName}
+                          {oh.dayName || oh.DayName || getDayName(oh.dayOfWeek) || getDayName(oh.DayOfWeek)}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#52c41a' }}>
