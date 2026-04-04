@@ -1,0 +1,28 @@
+using HSTS.Application.Locations.Commands;
+using HSTS.Application.Locations;
+
+namespace HSTS.API.Requests
+{
+    public record UpdateLocationRequest(
+        string Name,
+        string? Description,
+        double Latitude,
+        double Longitude,
+        decimal TicketPrice,
+        int MinimumAge,
+        string Address,
+        int LocationTypeId,
+        int DistrictId,
+        string? Telephone,
+        string? Email,
+        decimal? PriceMinUsd,
+        decimal? PriceMaxUsd,
+        int? RecommendedDurationMinutes,
+        decimal? Score,
+        List<int>? TagIds,
+        List<string>? MediaLinks,
+        List<SocialLinkDto>? SocialLinks,
+        List<int>? AmenityIds,
+        List<LocationOpeningHourDto>? OpeningHours,
+        List<LocationSeasonDto>? Seasons);
+}

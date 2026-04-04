@@ -1,11 +1,18 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using HSTS.Domain.Entities;
+
 namespace HSTS.Infrastructure.Persistence.Configurations
 {
     internal class LocationClosureConfiguration : IEntityTypeConfiguration<LocationClosure>
     {
         public void Configure(EntityTypeBuilder<LocationClosure> builder)
         {
-            builder.ToTable("LocationClosure");
+            builder.ToTable("LocationClosures");
             builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.LocationId)
+                .IsRequired();
 
             builder.Property(x => x.StartDate)
                 .IsRequired();
@@ -14,15 +21,20 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .IsRequired();
 
             builder.Property(x => x.Reason)
-                .HasMaxLength(500);
+                .HasMaxLength(500)
+                .IsRequired(false);
 
             builder.Property(x => x.IsActive)
-                .HasDefaultValue(true);
+                .IsRequired();
 
+            // Configure relationship with Location
             builder.HasOne(x => x.Location)
-                .WithMany(x => x.LocationClosures)
-                .HasForeignKey(x => x.LocationId)
-                .OnDelete(DeleteBehavior.Cascade);
+                   .WithMany(l => l.Closures)
+                   .HasForeignKey(x => x.LocationId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            // Index for efficient querying of active closures by location and date
+            builder.HasIndex(x => new { x.LocationId, x.IsActive, x.StartDate, x.EndDate });
         }
     }
 }

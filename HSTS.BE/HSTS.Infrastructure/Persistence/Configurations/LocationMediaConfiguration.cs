@@ -1,22 +1,28 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using HSTS.Domain.Entities;
+
 namespace HSTS.Infrastructure.Persistence.Configurations
 {
     internal class LocationMediaConfiguration : IEntityTypeConfiguration<LocationMedia>
     {
         public void Configure(EntityTypeBuilder<LocationMedia> builder)
         {
-            builder.ToTable("LocationMedia");
+            builder.ToTable("LocationMedias");
             builder.HasKey(x => x.Id);
 
             builder.Property(x => x.Link)
-                .HasMaxLength(1000)
+                .HasMaxLength(2000)
                 .IsRequired();
 
-            builder.HasOne(x => x.Location)
-                .WithMany(x => x.LocationMedias)
-                .HasForeignKey(x => x.LocationId)
-                .OnDelete(DeleteBehavior.Cascade);
+            builder.Property(x => x.LocationId)
+                .IsRequired();
 
-            builder.HasIndex(x => x.LocationId);
+            // Configure relationship with Location
+            builder.HasOne(lm => lm.Location)
+                   .WithMany(l => l.LocationMedias)
+                   .HasForeignKey(lm => lm.LocationId)
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

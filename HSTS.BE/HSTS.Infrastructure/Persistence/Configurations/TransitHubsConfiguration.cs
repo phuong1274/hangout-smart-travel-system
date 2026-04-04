@@ -18,11 +18,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.Code)
                 .IsUnique();
 
-            builder.HasOne(x => x.Province)
-                .WithMany(x => x.TransitHubs)
-                .HasForeignKey(x => x.ProvinceId)
-                .OnDelete(DeleteBehavior.Restrict);
-
             builder.HasOne(x => x.District)
                 .WithMany(x => x.TransitHubs)
                 .HasForeignKey(x => x.DistrictId)
