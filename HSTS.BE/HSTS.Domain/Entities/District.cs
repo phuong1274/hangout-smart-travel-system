@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HSTS.Domain.Entities
@@ -25,5 +25,6 @@ namespace HSTS.Domain.Entities
         public Province? Province { get; set; }
 
         public ICollection<Location> Locations { get; set; } = new List<Location>();
+        public ICollection<TransitHubs> TransitHubs { get; set; } = new List<TransitHubs>();
     }
 }

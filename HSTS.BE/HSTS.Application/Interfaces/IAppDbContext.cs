@@ -11,6 +11,25 @@ namespace HSTS.Application.Interfaces
         DbSet<UserRole> UserRoles { get; }
         DbSet<Otp> Otps { get; }
         DbSet<AccountRefreshToken> AccountRefreshTokens { get; }
+        DbSet<TransportMode> TransportModes { get; }
+        DbSet<LocalTransportMetrics> LocalTransportMetrics { get; }
+        DbSet<TransitHubType> TransitHubTypes { get; }
+        DbSet<TransitHubs> TransitHubs { get; }
+        DbSet<Province> Provinces { get; }
+        DbSet<District> Districts { get; }
+        DbSet<Country> Countries { get; }
+        DbSet<LocationType> LocationTypes { get; }
+        DbSet<Location> Locations { get; }
+        DbSet<LocationSocialLink> LocationSocialLinks { get; }
+        DbSet<LocationMedia> LocationMedias { get; }
+        DbSet<LocationTag> LocationTags { get; }
+        DbSet<Tag> Tags { get; }
+        DbSet<Amenity> Amenities { get; }
+        DbSet<LocationAmenity> LocationAmenities { get; }
+        DbSet<LocationOpeningHour> LocationOpeningHours { get; }
+        DbSet<LocationClosure> LocationClosures { get; }
+        DbSet<LocationSubmission> LocationSubmissions { get; }
+        DbSet<LocationSeason> LocationSeasons { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }
