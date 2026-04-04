@@ -14,6 +14,7 @@ export const PATHS = {
   LOCATION_TYPES: '/location-types',
   LOCATIONS: '/locations',
   AMENITIES: '/amenities',
+  ITINERARY: '/itinerary',
   USERS: '/users',
   PROFILE: '/profile',
   PARTNER_LOCATIONS: '/partner/locations',

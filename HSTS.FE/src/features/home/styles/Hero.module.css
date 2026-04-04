@@ -1,3 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+@keyframes fadeInUpBounce {
+  0% { opacity: 0; transform: translateY(40px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes floatAmbient {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-20px) scale(1.05); }
+}
+
 .heroContent {
   flex: 1;
   display: flex;
@@ -5,10 +17,11 @@
   justify-content: center;
   align-items: center;
   text-align: center;
-  padding: 0 20px;
+  padding: 0 24px;
   position: relative; 
   overflow: hidden;
-  background-color: #fdfcf0; 
+  background-color: #F7F9F9; 
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 .heroContent::before {
@@ -22,40 +35,92 @@
   background-size: cover;
   background-position: center bottom;
   background-repeat: no-repeat;
-  opacity: 0.5; 
+  opacity: 0.3; 
   z-index: 1; 
 }
 
+.ambientCircle1 {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(78, 205, 196, 0.2) 0%, rgba(78, 205, 196, 0) 70%);
+  top: 10%;
+  left: -5%;
+  z-index: 1;
+  animation: floatAmbient 6s infinite alternate ease-in-out;
+}
+
+.ambientCircle2 {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 107, 107, 0.15) 0%, rgba(255, 107, 107, 0) 70%);
+  bottom: -10%;
+  right: -5%;
+  z-index: 1;
+  animation: floatAmbient 5s infinite alternate-reverse ease-in-out;
+}
+
 .mainText {
-  max-width: 850px;
+  max-width: 900px;
   z-index: 2; 
-  margin-bottom: 50px;
+  margin-top: 60px;
 }
 
 .titleText {
-  font-size: clamp(32px, 5vw, 56px) !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: clamp(36px, 5vw, 56px) !important;
+  color: #1A535C !important;
   margin-bottom: 8px !important;
   font-weight: 700 !important;
+  line-height: 1.2 !important;
+  opacity: 0;
+  animation: fadeInUpBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s forwards;
 }
 
 .highlightTitle {
-  font-size: clamp(32px, 5vw, 56px) !important;
-  color: #ff4d4f !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: clamp(36px, 5vw, 56px) !important;
+  color: #FF6B6B !important;
   margin-top: 0 !important;
+  margin-bottom: 24px !important;
   font-weight: 700 !important;
+  line-height: 1.2 !important;
+  opacity: 0;
+  animation: fadeInUpBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards;
 }
 
 .description {
-  color: #666 !important;
-  font-size: 18px !important;
-  margin-bottom: 30px !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  color: #1A535C !important;
+  font-weight: 500 !important;
+  font-size: clamp(16px, 2vw, 20px) !important;
+  margin-bottom: 48px !important;
+  opacity: 0;
+  animation: fadeInUpBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s forwards;
+  line-height: 1.6 !important;
 }
 
 .ctaBtn {
-  background: #000 !important;
-  border-radius: 8px !important;
-  height: 54px !important;
-  padding: 0 40px !important;
-  font-weight: 600 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  background: #FFE66D !important;
+  color: #1A535C !important;
+  border-radius: 9999px !important;
+  height: 60px !important;
+  padding: 0 48px !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  letter-spacing: 1.5px !important;
   border: none !important;
+  opacity: 0;
+  animation: fadeInUpBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s forwards;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  box-shadow: 0 12px 24px rgba(255, 230, 109, 0.3) !important;
+}
+
+.ctaBtn:hover {
+  transform: scale(1.05) translateY(-4px);
+  box-shadow: 0 16px 32px rgba(255, 230, 109, 0.6) !important;
 }
