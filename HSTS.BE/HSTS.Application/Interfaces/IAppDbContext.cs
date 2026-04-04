@@ -20,12 +20,16 @@ namespace HSTS.Application.Interfaces
         DbSet<Country> Countries { get; }
         DbSet<LocationType> LocationTypes { get; }
         DbSet<Location> Locations { get; }
-        DbSet<Amenities> Amenities { get; }
-        DbSet<OpeningHours> OpeningHours { get; }
-        DbSet<SocialLinks> SocialLinks { get; }
+        DbSet<LocationSocialLink> LocationSocialLinks { get; }
         DbSet<LocationMedia> LocationMedias { get; }
+        DbSet<LocationTag> LocationTags { get; }
         DbSet<Tag> Tags { get; }
+        DbSet<Amenity> Amenities { get; }
+        DbSet<LocationAmenity> LocationAmenities { get; }
+        DbSet<LocationOpeningHour> LocationOpeningHours { get; }
         DbSet<LocationClosure> LocationClosures { get; }
+        DbSet<LocationSubmission> LocationSubmissions { get; }
+        DbSet<LocationSeason> LocationSeasons { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

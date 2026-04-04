@@ -2,7 +2,8 @@ namespace HSTS.Domain.Enums
 {
     public enum LocationStatus
     {
-        Inactive = 0,
-        Active = 1
+        Active = 1,
+        TemporarilyClosed = 2,
+        Inactive = 3
     }
 }
