@@ -1,6 +1,7 @@
 import React from 'react';
 import DataTable from '@/components/UI/DataTable';
 import { formatDate } from '@/utils/date';
+import styles from '../styles/UserTable.module.css';
 
 export const UserTable = ({ data, loading, pagination, onTableChange }) => {
   const columns = [
@@ -15,12 +16,15 @@ export const UserTable = ({ data, loading, pagination, onTableChange }) => {
   ];
 
   return (
-    <DataTable
-      columns={columns}
-      data={data}
-      loading={loading}
-      pagination={pagination}
-      onTableChange={onTableChange}
-    />
+    <div className={styles.tableContainer}>
+      <DataTable
+        columns={columns}
+        data={data}
+        loading={loading}
+        pagination={pagination}
+        onTableChange={onTableChange}
+        scroll={{ x: 'max-content' }}
+      />
+    </div>
   );
 };

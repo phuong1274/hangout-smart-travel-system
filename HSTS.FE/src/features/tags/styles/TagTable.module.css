@@ -1,0 +1,117 @@
+.responsiveTable {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  :global(.ant-table-wrapper) {
+    background: transparent;
+  }
+  
+  :global(.ant-table) {
+    background: transparent !important;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  
+  :global(.ant-table-thead > tr > th) {
+    background: #F7F9F9 !important;
+    color: #1A535C !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #E2E8E8 !important;
+  }
+  
+  :global(.ant-table-tbody > tr > td) {
+    border-bottom: 1px solid #F0F4F4 !important;
+    color: #1A535C;
+    font-weight: 500;
+    transition: background 0.3s ease;
+  }
+  
+  :global(.ant-table-tbody > tr:hover > td) {
+    background: rgba(78, 205, 196, 0.05) !important;
+  }
+  
+  .treeIcon {
+    color: #FF6B6B;
+    margin-right: 8px;
+    font-weight: 700;
+  }
+  
+  .tagName {
+    color: #1A535C;
+  }
+  
+  .tagLevel1,
+  .tagLevel2 {
+    border: none !important;
+    border-radius: 9999px !important;
+    padding: 4px 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px;
+  }
+  
+  .tagLevel1 {
+    background: rgba(78, 205, 196, 0.15) !important;
+    color: #2BAE9A !important;
+  }
+  
+  .tagLevel2 {
+    background: rgba(255, 230, 109, 0.2) !important;
+    color: #D4B200 !important;
+  }
+  
+  .emptyDash {
+    color: #A0AAB2;
+    font-weight: 400;
+  }
+  
+  .actionBtnView,
+  .actionBtnEdit,
+  .actionBtnDelete {
+    border-radius: 50% !important;
+    width: 40px !important;
+    height: 40px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .actionBtnView {
+    color: #4ECDC4 !important;
+  }
+  
+  .actionBtnEdit {
+    color: #FF6B6B !important;
+  }
+  
+  .actionBtnView:hover,
+  .actionBtnEdit:hover,
+  .actionBtnDelete:hover {
+    transform: scale(1.15);
+    background: #F7F9F9 !important;
+  }
+  
+  .actionBtnView:active,
+  .actionBtnEdit:active,
+  .actionBtnDelete:active {
+    transform: scale(0.95);
+  }
+  
+  .paginationWrapper {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding: 8px 0;
+  }
+  
+  :global(.ant-pagination-item-active) {
+    background-color: #4ECDC4 !important;
+    border-color: #4ECDC4 !important;
+  }
+  
+  :global(.ant-pagination-item-active a) {
+    color: #FFFFFF !important;
+  }

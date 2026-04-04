@@ -1,7 +1,9 @@
 import React from 'react';
 import { Table, Button, Space, Popconfirm, Tag } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined, ApartmentOutlined } from '@ant-design/icons';
+import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import { PAGINATION } from '@/config/constants';
+import styles from '../styles/TagTable.module.css';
 
 const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView }) => {
   const columns = [
@@ -16,9 +18,9 @@ const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, 
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
-        <span style={{ paddingLeft: record.level > 1 ? 20 : 0 }}>
-          {record.level > 1 && <span style={{ color: '#1677ff', marginRight: 4 }}>└</span>}
-          {name}
+        <span className={styles.tagNameContainer} style={{ paddingLeft: record.level > 1 ? 20 : 0 }}>
+          {record.level > 1 && <span className={styles.treeIcon}>└</span>}
+          <span className={styles.tagName}>{name}</span>
         </span>
       ),
     },
@@ -26,9 +28,9 @@ const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, 
       title: 'Level',
       dataIndex: 'level',
       key: 'level',
-      width: 100,
+      width: 120,
       render: (level) => (
-        <Tag color={level === 1 ? 'green' : 'blue'}>
+        <Tag className={level === 1 ? styles.tagLevel1 : styles.tagLevel2}>
           <ApartmentOutlined /> Level {level}
         </Tag>
       ),
@@ -40,9 +42,9 @@ const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, 
       width: 150,
       render: (parentTagName, record) => (
         record.level > 1 ? (
-          parentTagName || 'N/A'
+          <span className={styles.parentName}>{parentTagName || 'N/A'}</span>
         ) : (
-          <span style={{ color: '#999' }}>—</span>
+          <span className={styles.emptyDash}>—</span>
         )
       ),
     },
@@ -51,21 +53,19 @@ const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, 
       key: 'actions',
       width: 180,
       render: (_, record) => (
-        <Space direction="vertical" size="small">
+        <Space direction="horizontal" size="small" className={styles.actionSpace}>
           <Button
-            type="link"
+            type="text"
+            className={styles.actionBtnView}
             icon={<EyeOutlined />}
             onClick={() => onView(record)}
-          >
-            View
-          </Button>
+          />
           <Button
-            type="link"
+            type="text"
+            className={styles.actionBtnEdit}
             icon={<EditOutlined />}
             onClick={() => onEdit(record)}
-          >
-            Edit
-          </Button>
+          />
           <Popconfirm
             title="Delete Tag"
             description="Are you sure you want to delete this tag?"
@@ -73,31 +73,44 @@ const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, 
             okText="Yes"
             cancelText="No"
           >
-            <Button type="link" danger icon={<DeleteOutlined />}>
-              Delete
-            </Button>
+            <Button type="text" danger className={styles.actionBtnDelete} icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
     },
   ];
 
+  const handlePaginationChange = (page, pageSize) => {
+    if (onTableChange) {
+      onTableChange(
+        { current: page, pageSize, total: pagination?.total },
+        {},
+        {}
+      );
+    }
+  };
+
   return (
-    <Table
-      columns={columns}
-      dataSource={data}
-      loading={loading}
-      rowKey="id"
-      pagination={{
-        current: pagination?.current || PAGINATION.DEFAULT_PAGE,
-        pageSize: pagination?.pageSize || PAGINATION.DEFAULT_PAGE_SIZE,
-        total: pagination?.total || 0,
-        showSizeChanger: true,
-        pageSizeOptions: PAGINATION.PAGE_SIZE_OPTIONS,
-        showTotal: (totalItems) => `Total ${totalItems} items`,
-      }}
-      onChange={onTableChange}
-    />
+    <div className={styles.responsiveTable}>
+      <Table
+        columns={columns}
+        dataSource={data}
+        loading={loading}
+        rowKey="id"
+        scroll={{ x: 'max-content' }}
+        pagination={false}
+        onChange={onTableChange}
+        className={styles.tropicalTable}
+      />
+      <div className={styles.paginationWrapper}>
+        <AppPagination
+          current={pagination?.current || PAGINATION.DEFAULT_PAGE}
+          pageSize={pagination?.pageSize || PAGINATION.DEFAULT_PAGE_SIZE}
+          total={pagination?.total || 0}
+          onChange={handlePaginationChange}
+        />
+      </div>
+    </div>
   );
 };
 

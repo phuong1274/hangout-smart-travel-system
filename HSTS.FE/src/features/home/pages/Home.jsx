@@ -12,13 +12,12 @@ const { Content } = Layout;
 
 const Home = () => {
   return (
-    <Layout style={{ background: '#fff' }}>
+    <Layout className={styles.layoutWrapper}>
       <div className={styles.heroWrapper}>
         <AppHeader />
         <Hero />
       </div>
 
-      {/* SCROLLABLE CONTENT */}
       <Content className={styles.contentSection}>
         <div className={styles.sectionPadding}>
           <StorySection />

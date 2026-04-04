@@ -1,20 +1,18 @@
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, Layout, message } from 'antd';
-import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
-import SearchFilter from '@/components/UI/SearchFilter';
+import { Card, Typography, Button, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import SearchFilter from '@/components/UI/SearchFilter/SearchFilter';
+import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import { useAmenities } from '../hooks/useAmenities';
 import AmenityTable from '../components/AmenityTable';
 import AmenityForm from '../components/AmenityForm';
-import DetailModal from '@/components/DetailModal';
-import { useNavigate } from 'react-router-dom';
-import { PATHS } from '@/routes/paths';
+import DetailModal from '@/components/UI/DetailModal/DetailModal';
 import { deleteAmenityApi, getAmenityByIdApi } from '../api';
+import styles from '../styles/AmenitiesPage.module.css';
 
 const { Title } = Typography;
-const { Header, Content } = Layout;
 
 const AmenitiesPage = () => {
-  const navigate = useNavigate();
   const {
     data,
     loading,
@@ -72,47 +70,61 @@ const AmenitiesPage = () => {
           return;
         }
       }
-      // Handled by global interceptor for other errors
     }
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
-          <Title level={3} style={{ margin: 0 }}>Hangout - Amenities</Title>
-        </div>
-        <Button type="primary" onClick={() => navigate(PATHS.AUTH.LOGIN)}>
-          Login
-        </Button>
-      </Header>
-      <Content style={{ padding: '24px', background: '#f0f2f5' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={2} style={{ margin: 0 }}>Amenity Management</Title>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Add Amenity
-            </Button>
+    <div className={styles.pageWrapper}>
+      <div className={styles.ambientCircle1}></div>
+      <div className={styles.ambientCircle2}></div>
+
+      <div className={styles.content}>
+        <div className={styles.contentContainer}>
+          <div className={styles.sectionHeader}>
+            <Title level={2} className={styles.pageHeading}>Amenity Management</Title>
           </div>
-          <Card>
-            <SearchFilter
-              onSearch={handleSearch}
-              loading={loading}
-              placeholder="Search amenities..."
-            />
-            <AmenityTable
-              data={data}
-              loading={loading}
-              pagination={pagination}
-              onTableChange={handleTableChange}
-              onEdit={handleEdit}
-              onView={handleView}
-              onDelete={handleDelete}
-            />
-          </Card>
-        </Space>
-      </Content>
+
+          <div className={styles.staggerReveal}>
+            <Card>
+              <div className={styles.toolbar}>
+                <div className={styles.searchWrapper}>
+                  <SearchFilter
+                    onSearch={handleSearch}
+                    loading={loading}
+                    placeholder="Search amenities..."
+                  />
+                </div>
+                <Button 
+                  type="primary" 
+                  icon={<PlusOutlined />} 
+                  onClick={handleCreate}
+                  className={styles.addBtnTropical}
+                >
+                  Add Amenity
+                </Button>
+              </div>
+
+              <AmenityTable
+                data={data}
+                loading={loading}
+                onEdit={handleEdit}
+                onView={handleView}
+                onDelete={handleDelete}
+              />
+
+              <div className={styles.paginationContainer}>
+                <AppPagination
+                  current={pagination?.current}
+                  pageSize={pagination?.pageSize}
+                  total={pagination?.total}
+                  onChange={(page, pageSize) => handleTableChange({ current: page, pageSize })}
+                />
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+
       <AmenityForm
         open={formOpen}
         amenity={editingAmenity}
@@ -120,7 +132,6 @@ const AmenitiesPage = () => {
         onSuccess={handleFormSuccess}
       />
 
-      {/* Detail Modal */}
       <DetailModal
         open={detailModalOpen}
         onClose={() => {
@@ -130,7 +141,7 @@ const AmenitiesPage = () => {
         data={viewingAmenity}
         type="amenity"
       />
-    </Layout>
+    </div>
   );
 };
 
