@@ -25,6 +25,9 @@ const AppHeader = () => {
       <Link to="/">
         <Text strong className={styles.navLink}>Home</Text>
       </Link>
+      <Link to={PATHS.CREATE_TRIP}>
+        <Text className={styles.navLink}>Plan a Trip</Text>
+      </Link>
       <Text className={styles.navLink}>Location</Text>
       <Link to={PATHS.AUTH.REGISTER}>
         <Button type="text" className={styles.navLink}>Sign Up</Button>

@@ -28,6 +28,8 @@ const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPag
 const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPage'));
 const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
+const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
+const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
 
 // Dashboard overview component
 const DashboardOverview = () => (
@@ -87,6 +89,14 @@ export const router = createBrowserRouter([
   {
     path: PATHS.AMENITIES.replace('/', ''),
     element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.CREATE_TRIP.replace('/', ''),
+    element: <SuspenseWrapper><CreateTripPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.ITINERARY.replace('/', ''),
+    element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
   },
 
   // Protected Routes (Admin/Authenticated users)

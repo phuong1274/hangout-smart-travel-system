@@ -11,7 +11,7 @@ const CallToAction = () => (
     <Title level={2} className={styles.ctaTitle}>
     Skip the manual trip planning and<br/>start your effortless journey with Trip<br/> Planner Automatic today, at no cost.
     </Title>
-    <Link to={PATHS.AUTH.LOGIN}>
+    <Link to={PATHS.CREATE_TRIP}>
       <Button size="large" className={styles.ctaWhiteBtn}>
         Try now
       </Button>
