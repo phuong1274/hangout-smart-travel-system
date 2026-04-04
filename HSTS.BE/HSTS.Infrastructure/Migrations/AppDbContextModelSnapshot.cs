@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace HSTS.Infrastructure.Migrations
+namespace HSTS.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot
@@ -741,7 +741,7 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Property<string>("AmenityIdsJson")
                         .HasMaxLength(1000)
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -792,7 +792,8 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("varchar(200)");
 
                     b.Property<string>("OpeningHoursJson")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
 
                     b.Property<decimal?>("PriceMaxUsd")
                         .HasColumnType("decimal(18,2)");
@@ -802,7 +803,7 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.Property<string>("ProposedChangesJson")
                         .HasMaxLength(4000)
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(4000)");
 
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
@@ -833,7 +834,8 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("TagIdsJson")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("Telephone")
                         .HasMaxLength(50)

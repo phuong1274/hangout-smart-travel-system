@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input } from 'antd';
 import { createAmenityApi, updateAmenityApi } from '../api';
+import styles from '../styles/AmenityForm.module.css';
 
 const { TextArea } = Input;
 
@@ -32,7 +33,6 @@ const AmenityForm = ({ open, amenity, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (error) {
-      // Handled by global interceptor
     } finally {
       setLoading(false);
     }
@@ -46,6 +46,13 @@ const AmenityForm = ({ open, amenity, onClose, onSuccess }) => {
       onOk={() => form.submit()}
       confirmLoading={loading}
       destroyOnClose
+      okText={isEdit ? 'Update' : 'Create'}
+      okButtonProps={{ 
+        className: styles.primaryBtnTropical 
+      }}
+      cancelButtonProps={{
+        className: styles.cancelBtnTropical
+      }}
     >
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
         <Form.Item

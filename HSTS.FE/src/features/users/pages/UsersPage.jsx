@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Typography, Space } from 'antd';
-import SearchFilter from '@/components/UI/SearchFilter';
+import SearchFilter from '@/components/UI/SearchFilter/SearchFilter';
 import { useUsers } from '../hooks/useUsers';
 import { UserTable } from '../components/UserTable';
 import styles from '../styles/UsersPage.module.css';

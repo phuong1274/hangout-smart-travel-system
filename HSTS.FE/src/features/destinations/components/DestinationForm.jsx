@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, Row, Col, Select, message } from 'antd';
 import { createDistrictApi, updateDistrictApi, getProvincesApi } from '../api';
+import styles from '../styles/DestinationForm.module.css';
 
-const { TextArea } = Input;
 const { Option } = Select;
 
 const DistrictForm = ({ open, district, onClose, onSuccess }) => {
@@ -13,7 +13,6 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
 
   const isEdit = !!district;
 
-  // Fetch provinces on mount
   useEffect(() => {
     const fetchProvinces = async () => {
       setFetchingProvinces(true);
@@ -21,7 +20,6 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
         const data = await getProvincesApi();
         setProvinces(Array.isArray(data) ? data : []);
       } catch (error) {
-        console.error('Failed to fetch provinces:', error);
       } finally {
         setFetchingProvinces(false);
       }
@@ -56,7 +54,6 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (error) {
-      // Error handled by global interceptor, but you can add custom handling here if needed
     } finally {
       setLoading(false);
     }
@@ -64,17 +61,20 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
 
   return (
     <Modal
-      title={isEdit ? 'Edit District' : 'Create District'}
+      title={<span className={styles.modalTitle}>{isEdit ? 'Edit District' : 'Create District'}</span>}
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
       confirmLoading={loading}
       destroyOnClose
       width={700}
+      className={styles.tropicalModal}
+      okButtonProps={{ className: styles.modalSubmitBtn }}
+      cancelButtonProps={{ className: styles.modalCancelBtn }}
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      <Form form={form} layout="vertical" onFinish={handleSubmit} className={styles.formContainer}>
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               name="name"
               label="District Name"
@@ -83,10 +83,10 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
                 { max: 200, message: 'District name cannot exceed 200 characters' }
               ]}
             >
-              <Input placeholder="Enter district name" />
+              <Input placeholder="Enter district name" className={styles.inputField} />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               name="englishName"
               label="English Name"
@@ -94,18 +94,19 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
                 { max: 200, message: 'English name cannot exceed 200 characters' }
               ]}
             >
-              <Input placeholder="Enter English name" />
+              <Input placeholder="Enter English name" className={styles.inputField} />
             </Form.Item>
           </Col>
         </Row>
 
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               name="latitude"
               label="Latitude"
             >
               <InputNumber
+                className={styles.inputField}
                 style={{ width: '100%' }}
                 placeholder="e.g., 10.57"
                 min={-90}
@@ -114,12 +115,13 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               name="longitude"
               label="Longitude"
             >
               <InputNumber
+                className={styles.inputField}
                 style={{ width: '100%' }}
                 placeholder="e.g., 105.17"
                 min={-180}
@@ -131,7 +133,7 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
         </Row>
 
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item
               name="provinceId"
               label="Province"
@@ -142,6 +144,7 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
                 optionFilterProp="children"
                 loading={fetchingProvinces}
                 allowClear
+                className={styles.selectField}
               >
                 {provinces.map(province => (
                   <Option key={province.id} value={province.id}>

@@ -1,22 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Space, Button, Layout, message } from 'antd';
-import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
+import { Card, Typography, Space, Button, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import LocationFilter from '@/components/UI/LocationFilter';
 import { useLocations } from '../hooks/useLocations';
 import LocationTable from '../components/LocationTable';
 import LocationForm from '../components/LocationForm';
-import DetailModal from '@/components/DetailModal';
-import { useNavigate } from 'react-router-dom';
-import { PATHS } from '@/routes/paths';
+import DetailModal from '@/components/UI/DetailModal/DetailModal';
 import { deleteLocationApi, getLocationByIdApi } from '../api';
 import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
 import { transformLocationForDisplay } from '@/utils/locationMappers';
+import styles from '../styles/LocationsPage.module.css';
 
 const { Title } = Typography;
-const { Header, Content } = Layout;
 
 const LocationsPage = () => {
-  const navigate = useNavigate();
   const {
     data,
     loading,
@@ -30,33 +27,26 @@ const LocationsPage = () => {
   const [editingLocation, setEditingLocation] = useState(null);
   const [viewingLocation, setViewingLocation] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
-  
-  // Reference data for mapping IDs to names (cached to prevent duplicate API calls)
   const [referenceData, setReferenceData] = useState({ allTags: [], locationTypes: [], amenities: [] });
   const [referenceDataLoading, setReferenceDataLoading] = useState(false);
 
-  // Fetch reference data once on mount (cached for reuse)
   useEffect(() => {
     const loadReferenceData = async () => {
-      // Check cache first
       const cached = getCachedReferenceData();
       if (cached) {
         setReferenceData(cached);
         return;
       }
-
       setReferenceDataLoading(true);
       try {
         const refData = await fetchReferenceData();
         setReferenceData(refData);
       } catch (error) {
-        console.error('Failed to load reference data:', error);
         message.error('Failed to load reference data');
       } finally {
         setReferenceDataLoading(false);
       }
     };
-
     loadReferenceData();
   }, []);
 
@@ -67,7 +57,6 @@ const LocationsPage = () => {
 
   const handleEdit = async (location) => {
     try {
-      // Fetch full location details including opening hours and seasons
       const fullLocation = await getLocationByIdApi(location.id);
       setEditingLocation(fullLocation);
       setFormOpen(true);
@@ -88,12 +77,10 @@ const LocationsPage = () => {
   const handleView = async (location) => {
     try {
       const detail = await getLocationByIdApi(location.id);
-      // Transform data: map IDs to readable names using cached reference data
       const transformedData = transformLocationForDisplay(detail, referenceData);
       setViewingLocation(transformedData);
       setDetailModalOpen(true);
     } catch (error) {
-      console.error('Failed to load location details:', error);
       message.error('Failed to load location details');
     }
   };
@@ -104,35 +91,35 @@ const LocationsPage = () => {
       message.success('Location deleted successfully');
       fetchLocations();
     } catch (error) {
-      // Handled by global interceptor
     }
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
-          <Title level={3} style={{ margin: 0 }}>Hangout - Locations</Title>
-        </div>
-        <Button type="primary" onClick={() => navigate(PATHS.AUTH.LOGIN)}>
-          Login
-        </Button>
-      </Header>
-      <Content style={{ padding: '24px', background: '#f0f2f5' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={2} style={{ margin: 0 }}>Location Management</Title>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Add Location
-            </Button>
+    <div className={styles.appWrapper}>
+      <div className={styles.content}>
+        <div className={styles.floatingCircle1}></div>
+        <div className={styles.floatingCircle2}></div>
+
+        <Space direction="vertical" size="large" className={styles.mainContainer}>
+          <div className={styles.pageHeader}>
+            <Title level={2} className={styles.mainHeading}>Location Management</Title>
           </div>
-          <Card>
-            <LocationFilter
-              onSearch={handleSearch}
-              loading={loading}
-              placeholder="Search locations..."
-            />
+
+          <Card className={styles.dataCard} bordered={false}>
+            <div className={styles.cardHeader}>
+              <Title level={4} className={styles.cardTitle}>Filter Locations</Title>
+              <Button className={styles.ctaBtn} icon={<PlusOutlined />} onClick={handleCreate}>
+                Add Location
+              </Button>
+            </div>
+
+            <div className={styles.filterSection}>
+              <LocationFilter
+                onSearch={handleSearch}
+                loading={loading}
+              />
+            </div>
+            
             <LocationTable
               data={data}
               loading={loading}
@@ -144,7 +131,8 @@ const LocationsPage = () => {
             />
           </Card>
         </Space>
-      </Content>
+      </div>
+
       <LocationForm
         open={formOpen}
         location={editingLocation}
@@ -152,7 +140,6 @@ const LocationsPage = () => {
         onSuccess={handleFormSuccess}
       />
 
-      {/* Detail Modal */}
       <DetailModal
         open={detailModalOpen}
         onClose={() => {
@@ -162,7 +149,7 @@ const LocationsPage = () => {
         data={viewingLocation}
         type="location"
       />
-    </Layout>
+    </div>
   );
 };
 

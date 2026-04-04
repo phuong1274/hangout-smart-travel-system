@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Alert, Rate, Tag, Table, TimePicker, Card, Divider, Space, Button } from 'antd';
+import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Alert, Rate, Table, TimePicker, Card, Divider, Space, Button } from 'antd';
 import { PlusOutlined, DeleteOutlined, ClockCircleOutlined, CloudOutlined } from '@ant-design/icons';
 import { createLocationSubmissionApi, getAllDestinationsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
 import { getRootTagsApi, getChildTagsApi } from '@/features/tags/api';
 import dayjs from 'dayjs';
+import styles from '../styles/SuggestEditModal.module.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
-// Platform name mapping (matching backend enum values)
 const getPlatformName = (platform) => {
   const platformMap = {
     1: 'Facebook',
@@ -23,7 +23,6 @@ const getPlatformName = (platform) => {
   return platformMap[platform] || 'Other';
 };
 
-// Helper to convert platform string back to enum value
 const getPlatformEnumValue = (platformName) => {
   if (typeof platformName === 'number') return platformName;
   const platformMap = {
@@ -46,10 +45,6 @@ const getPlatformEnumValue = (platformName) => {
   return platformMap[platformName] || 14;
 };
 
-/**
- * Modal for users to suggest edits to existing locations
- * Supports editing ALL fields including tags, amenities, type, destination, media, social links
- */
 const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -61,14 +56,12 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
   const [districts, setDistricts] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
   const [amenities, setAmenities] = useState([]);
-  const [tags, setTags] = useState([]);
   const [mediaLinks, setMediaLinks] = useState([]);
   const [socialLinks, setSocialLinks] = useState([]);
   const [openingHours, setOpeningHours] = useState([]);
   const [seasons, setSeasons] = useState([]);
   const [tagsLoading, setTagsLoading] = useState(false);
 
-  // Fetch dropdown data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -81,12 +74,11 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         ]);
 
         setRootTags(Array.isArray(rootTagsRes) ? rootTagsRes.map(t => ({ ...t, level: t.level || 1 })) : (rootTagsRes?.items || []).map(t => ({ ...t, level: t.level || 1 })));
-        setAvailableTags(Array.isArray(rootTagsRes) ? rootTagsRes.map(t => ({ ...t, level: t.level || 1 })) : (rootTagsRes?.items || []).map(t => ({ ...t, level: t.level || 1 }))); // Initially show all root tags
+        setAvailableTags(Array.isArray(rootTagsRes) ? rootTagsRes.map(t => ({ ...t, level: t.level || 1 })) : (rootTagsRes?.items || []).map(t => ({ ...t, level: t.level || 1 })));
         setLocationTypes(Array.isArray(typesRes) ? typesRes : (typesRes?.items || []));
         setAmenities(Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []));
         setDistricts(Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []));
       } catch (error) {
-        console.error('Failed to fetch dropdown data:', error);
       } finally {
         setTagsLoading(false);
       }
@@ -94,12 +86,9 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
     fetchData();
   }, []);
 
-  // Load child tags when a root tag is selected
   const handleRootTagChange = async (selectedRootIds) => {
-    // Ensure rootTags have level property
     const rootTagsWithLevel = rootTags.map(t => ({ ...t, level: t.level || 1 }));
     
-    // Check if root tags changed compared to original
     const originalRootTagIds = (originalData?.tagIds || []).filter(id => {
       const tag = rootTagsWithLevel.find(t => t.id === id);
       return tag && tag.level === 1;
@@ -115,13 +104,8 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
 
     setSelectedRootTagIds(selectedRootIds);
 
-    // Get previously selected child tags
     const currentChildTagIds = form.getFieldValue('tagIds') || [];
-
-    // Find which root tags were deselected
     const deselectedRootIds = selectedRootTagIds.filter(id => !selectedRootIds.includes(id));
-
-    // Load children for deselected root tags to know which child tags to remove
     const childrenOfDeselectedRoots = new Set();
     for (const tagId of deselectedRootIds) {
       try {
@@ -129,36 +113,28 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
         childTags.forEach(ct => childrenOfDeselectedRoots.add(ct.id));
       } catch (error) {
-        console.error('Failed to fetch child tags:', error);
       }
     }
 
-    // Remove only child tags whose own parent was deselected
     const filteredChildTagIds = currentChildTagIds.filter(id =>
       !childrenOfDeselectedRoots.has(id)
     );
 
-    // Update form if child tags were removed
     if (filteredChildTagIds.length !== currentChildTagIds.length) {
       form.setFieldValue('tagIds', filteredChildTagIds);
     }
 
-    // Load children for ALL currently selected root tags to rebuild available options
     const allChildTagsFromSelectedRoots = [];
     for (const tagId of selectedRootIds) {
       try {
         const childTagsRes = await getChildTagsApi(tagId);
         const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
-        // Ensure level property is set correctly
         const childTagsWithLevel = childTags.map(t => ({ ...t, level: t.level || 2 }));
         allChildTagsFromSelectedRoots.push(...childTagsWithLevel);
       } catch (error) {
-        console.error('Failed to fetch child tags:', error);
       }
     }
 
-    // Rebuild available tags from scratch: root tags + ALL children from selected roots
-    // Remove duplicate child tags (same child might appear under multiple roots)
     const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
       (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
     );
@@ -166,18 +142,13 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
     setAvailableTags([...rootTags, ...uniqueChildTags]);
   };
 
-  // Handle child tag selection
   const handleChildTagChange = (selectedChildIds) => {
-    // Child tags are stored in form field tagIds
   };
 
-  // Pre-fill with existing location data and store original values
   useEffect(() => {
     if (location && open && rootTags.length > 0) {
-      // Ensure rootTags have level property
       const rootTagsWithLevel = rootTags.map(t => ({ ...t, level: t.level || 1 }));
       
-      // Separate root tags and child tags
       const rootTagIds = (location.tagIds || []).filter(id => {
         const tag = rootTagsWithLevel.find(t => t.id === id);
         return tag && tag.level === 1;
@@ -187,7 +158,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         return tag && tag.level > 1;
       });
 
-      // Set root tags in state
       setSelectedRootTagIds(rootTagIds);
 
       const originalValues = {
@@ -204,17 +174,16 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         districtId: location.districtId,
         locationTypeId: location.locationTypeId,
         amenityIds: location.amenityIds || [],
-        tagIds: childTagIds.map(id => Number(id)), // Only child tags in form field as plain numbers
+        tagIds: childTagIds.map(id => Number(id)),
       };
 
       form.setFieldsValue(originalValues);
-      setOriginalData({ ...originalValues, tagIds: location.tagIds || [] }); // Store all tags for comparison
+      setOriginalData({ ...originalValues, tagIds: location.tagIds || [] });
 
       if (location.mediaLinks) {
         setMediaLinks(location.mediaLinks);
       }
       if (location.socialLinks) {
-        // Convert platform enum to string for the Select component
         setSocialLinks(location.socialLinks.map(sl => ({
           id: sl.id,
           platform: typeof sl.platform === 'number' ? getPlatformName(sl.platform) : sl.platform,
@@ -233,18 +202,15 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         setSeasons(parsedSeasons);
       }
 
-      // Load child tags for selected root tags to populate availableTags
       const loadChildTags = async () => {
         const allChildTagsFromSelectedRoots = [];
         for (const tagId of rootTagIds) {
           try {
             const childTagsRes = await getChildTagsApi(tagId);
             const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
-            // Ensure level property is set correctly
             const childTagsWithLevel = childTags.map(t => ({ ...t, level: t.level || 2 }));
             allChildTagsFromSelectedRoots.push(...childTagsWithLevel);
           } catch (error) {
-            console.error('Failed to fetch child tags:', error);
           }
         }
         const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
@@ -257,7 +223,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
     }
   }, [location, open, form, rootTags]);
 
-  // Track which fields have changed
   const handleValuesChange = (changedValues, allValues) => {
     if (!originalData) return;
 
@@ -265,18 +230,15 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
       JSON.stringify(allValues[key]) !== JSON.stringify(originalData[key])
     );
 
-    // Also check media and social links
     if (JSON.stringify(mediaLinks) !== JSON.stringify(location?.mediaLinks || [])) {
       if (!changed.includes('mediaLinks')) changed.push('mediaLinks');
     }
     if (JSON.stringify(socialLinks) !== JSON.stringify(location?.socialLinks || [])) {
       if (!changed.includes('socialLinks')) changed.push('socialLinks');
     }
-    // Check opening hours
     if (JSON.stringify(openingHours) !== JSON.stringify(location?.openingHours || [])) {
       if (!changed.includes('openingHours')) changed.push('openingHours');
     }
-    // Check seasons
     if (JSON.stringify(seasons) !== JSON.stringify(location?.seasons || [])) {
       if (!changed.includes('seasons')) changed.push('seasons');
     }
@@ -312,7 +274,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
     setSocialLinks(socialLinks.filter((_, i) => i !== index));
   };
 
-  // Opening Hours handlers
   const DAYS_OF_WEEK = [
     { value: 0, label: 'Sunday' },
     { value: 1, label: 'Monday' },
@@ -358,7 +319,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
     setOpeningHours(openingHours.filter((_, i) => i !== index));
   };
 
-  // Seasons handlers
   const MONTHS = [
     { value: '1', label: 'January' },
     { value: '2', label: 'February' },
@@ -391,8 +351,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      // Combine root tags and child tags - ensure all are numbers
-      // Child tags can be either numbers or {value, label} objects
       const childTagIds = (values.tagIds || []).map(t => {
         if (typeof t === 'object' && t !== null) {
           return Number(t.value);
@@ -400,7 +358,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         return Number(t);
       }).filter(id => !isNaN(id));
       
-      // Ensure root tags are plain numbers
       const rootTagIds = selectedRootTagIds.map(id => Number(id)).filter(id => !isNaN(id));
       
       const allTagIds = [
@@ -408,7 +365,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         ...childTagIds
       ];
 
-      // Build proposed changes object (only changed fields) - send platform as enum number
       const proposedChanges = {};
       changedFields.forEach(field => {
         if (field === 'mediaLinks') {
@@ -434,19 +390,16 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
             months: Array.isArray(s.months) ? s.months.join(',') : s.months
           }));
         } else if (field === 'tagIds') {
-          // Include both root and child tags
           proposedChanges.TagIds = allTagIds;
         } else {
           proposedChanges[field.charAt(0).toUpperCase() + field.slice(1)] = values[field];
         }
       });
 
-      // Submit as EditExisting submission
       await createLocationSubmissionApi({
-        submissionType: 1, // EditExisting
+        submissionType: 1,
         existingLocationId: location.id,
         proposedChanges: proposedChanges,
-        // Also send all fields for validation/display purposes
         ...values,
         tagIds: allTagIds,
         mediaLinks: mediaLinks.filter(link => link.trim() !== ''),
@@ -462,7 +415,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Submit error:', error);
     } finally {
       setLoading(false);
     }
@@ -470,13 +422,15 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
 
   return (
     <Modal
-      title="Suggest Edit"
+      title="Suggest Tropical Edit"
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
       confirmLoading={loading}
       width={900}
       okText="Submit Suggestion"
+      wrapClassName={styles.modalWrapper}
+      okButtonProps={{ style: { background: '#FFE66D', color: '#1A535C', borderRadius: '9999px', fontWeight: 700, border: 'none', height: '44px' } }}
     >
       <Alert
         type="info"
@@ -498,7 +452,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         onFinish={handleSubmit}
         onValuesChange={handleValuesChange}
       >
-        {/* Basic Information */}
         <Row gutter={16}>
           <Col span={24}>
             <Form.Item
@@ -520,14 +473,12 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
               name="description"
               label="Description"
               rules={[{ max: 2000, message: 'Description cannot exceed 2000 characters' }]}
-              extra="Describe your location and list all services you offer"
             >
               <TextArea rows={4} placeholder="Describe the location..." />
             </Form.Item>
           </Col>
         </Row>
 
-        {/* Location & Contact */}
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
@@ -602,7 +553,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
           </Col>
         </Row>
 
-        {/* Pricing & Score */}
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
@@ -645,14 +595,12 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
             <Form.Item
               name="score"
               label="Score (0-5 stars)"
-              tooltip="Rate this location from 0 to 5 stars"
             >
-              <Rate allowHalf style={{ fontSize: 24 }} />
+              <Rate allowHalf style={{ fontSize: 24, color: '#FF6B6B' }} />
             </Form.Item>
           </Col>
         </Row>
 
-        {/* Categories */}
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
@@ -694,10 +642,8 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
             </Form.Item>
           </Col>
           <Col span={24}>
-            {/* Root Tags Section */}
             <Form.Item
               label="Root Tags"
-              tooltip="Select root categories. Child tags will load automatically."
               style={{ marginBottom: 8 }}
             >
               <Select
@@ -711,17 +657,15 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
               >
                 {rootTags.map(tag => (
                   <Option key={tag.id} value={tag.id}>
-                    {tag.name} <span style={{ color: '#52c41a' }}>(Root)</span>
+                    {tag.name} <span style={{ color: '#4ECDC4' }}>(Root)</span>
                   </Option>
                 ))}
               </Select>
             </Form.Item>
 
-            {/* Child Tags Section */}
             <Form.Item
               name="tagIds"
               label="Child Tags"
-              tooltip="Select child tags from chosen root categories"
             >
               <Select
                 mode="multiple"
@@ -734,7 +678,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
               >
                 {availableTags.filter(t => t.level > 1).map(tag => (
                   <Option key={tag.id} value={tag.id}>
-                    {tag.name} <span style={{ color: '#1677ff' }}>(Child)</span>
+                    {tag.name} <span style={{ color: '#FF6B6B' }}>(Child)</span>
                   </Option>
                 ))}
               </Select>
@@ -742,12 +686,11 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
           </Col>
         </Row>
 
-        {/* Media Links */}
         <Row gutter={16}>
           <Col span={24}>
             <Form.Item label="Media Links">
               <div style={{ marginBottom: 8 }}>
-                <button type="button" onClick={handleAddMediaLink} style={{ marginRight: 8 }}>+ Add Media Link</button>
+                <Button type="dashed" onClick={handleAddMediaLink} icon={<PlusOutlined />} style={{ borderRadius: '8px', color: '#4ECDC4', borderColor: '#4ECDC4' }}>Add Media Link</Button>
               </div>
               {mediaLinks.map((link, index) => (
                 <Row key={index} gutter={8} style={{ marginBottom: 8 }}>
@@ -759,7 +702,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
                     />
                   </Col>
                   <Col>
-                    <button type="button" onClick={() => handleRemoveMediaLink(index)}>Remove</button>
+                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleRemoveMediaLink(index)} />
                   </Col>
                 </Row>
               ))}
@@ -767,12 +710,11 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
           </Col>
         </Row>
 
-        {/* Social Links */}
         <Row gutter={16}>
           <Col span={24}>
             <Form.Item label="Social Media Links">
               <div style={{ marginBottom: 8 }}>
-                <button type="button" onClick={handleAddSocialLink} style={{ marginRight: 8 }}>+ Add Social Link</button>
+                <Button type="dashed" onClick={handleAddSocialLink} icon={<PlusOutlined />} style={{ borderRadius: '8px', color: '#FF6B6B', borderColor: '#FF6B6B' }}>Add Social Link</Button>
               </div>
               {socialLinks.map((link, index) => (
                 <Row key={index} gutter={8} style={{ marginBottom: 8 }}>
@@ -800,7 +742,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
                     />
                   </Col>
                   <Col span={2}>
-                    <button type="button" onClick={() => handleRemoveSocialLink(index)}>×</button>
+                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleRemoveSocialLink(index)} />
                   </Col>
                 </Row>
               ))}
@@ -808,13 +750,12 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
           </Col>
         </Row>
 
-        {/* Opening Hours */}
         <Row gutter={16}>
           <Col span={24}>
             <Divider orientation="left"><ClockCircleOutlined /> Opening Hours</Divider>
             <Space direction="vertical" size="small" style={{ width: '100%' }}>
               <Space>
-                <Button type="dashed" onClick={handleAddAllOpeningHours} icon={<PlusOutlined />}>
+                <Button type="primary" onClick={handleAddAllOpeningHours} icon={<PlusOutlined />} style={{ background: '#4ECDC4', border: 'none', fontWeight: 600 }}>
                   Add All Days
                 </Button>
                 <Select
@@ -836,6 +777,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
                   dataSource={openingHours}
                   pagination={false}
                   size="small"
+                  scroll={{ x: 'max-content' }}
                   rowKey={(record, index) => index}
                   columns={[
                     {
@@ -903,12 +845,11 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
           </Col>
         </Row>
 
-        {/* Seasons */}
         <Row gutter={16}>
           <Col span={24}>
             <Divider orientation="left"><CloudOutlined /> Best Seasons to Visit</Divider>
             <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              <Button type="dashed" onClick={handleAddSeason} icon={<PlusOutlined />}>
+              <Button type="primary" onClick={handleAddSeason} icon={<PlusOutlined />} style={{ background: '#FF6B6B', border: 'none', fontWeight: 600 }}>
                 Add Season
               </Button>
 
@@ -932,14 +873,14 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
                       style={{ maxWidth: 800 }}
                     >
                       <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                        <Form.Item label="Description" required>
+                        <Form.Item label="Description" required style={{ margin: 0 }}>
                           <Input
                             value={season.description}
                             onChange={(e) => handleUpdateSeason(index, 'description', e.target.value)}
                             placeholder="e.g., Dry Season, Best time for beach activities"
                           />
                         </Form.Item>
-                        <Form.Item label="Months" required>
+                        <Form.Item label="Months" required style={{ margin: 0 }}>
                           <Select
                             mode="multiple"
                             value={season.months}
