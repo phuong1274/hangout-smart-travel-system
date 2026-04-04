@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Alert, Rate, Tag, Table, TimePicker, Card, Divider, Space, Button } from 'antd';
 import { PlusOutlined, DeleteOutlined, ClockCircleOutlined, CloudOutlined } from '@ant-design/icons';
-import { createLocationSubmissionApi, getAllDestinationsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
-import { getRootTagsApi, getChildTagsApi } from '@/features/tags/api';
+import { createLocationSubmissionApi, getAllDestinationsApi, getAllLocationTypesApi, getAllAmenitiesApi, getAllTagsApi } from '../api';
+import { buildTagHierarchy } from '@/utils/locationCache';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -67,24 +67,36 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
   const [openingHours, setOpeningHours] = useState([]);
   const [seasons, setSeasons] = useState([]);
   const [tagsLoading, setTagsLoading] = useState(false);
+  const [childTagsByParent, setChildTagsByParent] = useState({});
 
   // Fetch dropdown data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setTagsLoading(true);
-        const [rootTagsRes, districtsRes, typesRes, amenitiesRes] = await Promise.all([
-          getRootTagsApi(),
+        // Single API call to get all tags - use large pageSize to get all
+        const [allTagsRes, districtsRes, typesRes, amenitiesRes] = await Promise.all([
+          getAllTagsApi({ pageSize: 9999 }),
           getAllDestinationsApi(),
           getAllLocationTypesApi(),
           getAllAmenitiesApi()
         ]);
 
-        setRootTags(Array.isArray(rootTagsRes) ? rootTagsRes.map(t => ({ ...t, level: t.level || 1 })) : (rootTagsRes?.items || []).map(t => ({ ...t, level: t.level || 1 })));
-        setAvailableTags(Array.isArray(rootTagsRes) ? rootTagsRes.map(t => ({ ...t, level: t.level || 1 })) : (rootTagsRes?.items || []).map(t => ({ ...t, level: t.level || 1 }))); // Initially show all root tags
-        setLocationTypes(Array.isArray(typesRes) ? typesRes : (typesRes?.items || []));
-        setAmenities(Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []));
-        setDistricts(Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []));
+        // Handle paginated responses
+        const allTags = Array.isArray(allTagsRes) ? allTagsRes : (allTagsRes?.items || []);
+        const districts = Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []);
+        const types = Array.isArray(typesRes) ? typesRes : (typesRes?.items || []);
+        const amenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
+
+        // Build tag hierarchy client-side
+        const { rootTags, childTagsByParent } = buildTagHierarchy(allTags);
+
+        setRootTags(rootTags);
+        setAvailableTags(rootTags); // Initially show all root tags
+        setLocationTypes(types);
+        setAmenities(amenities);
+        setDistricts(districts);
+        setChildTagsByParent(childTagsByParent);
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
       } finally {
@@ -95,14 +107,12 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
   }, []);
 
   // Load child tags when a root tag is selected
-  const handleRootTagChange = async (selectedRootIds) => {
-    // Ensure rootTags have level property
-    const rootTagsWithLevel = rootTags.map(t => ({ ...t, level: t.level || 1 }));
-    
+  // Uses pre-fetched child tags from childTagsByParent map (no API calls)
+  const handleRootTagChange = (selectedRootIds) => {
     // Check if root tags changed compared to original
     const originalRootTagIds = (originalData?.tagIds || []).filter(id => {
-      const tag = rootTagsWithLevel.find(t => t.id === id);
-      return tag && tag.level === 1;
+      const tag = rootTags.find(t => t.id === id);
+      return tag && !tag.parentTagId;
     });
     if (JSON.stringify([...selectedRootIds].sort()) !== JSON.stringify([...originalRootTagIds].sort())) {
       setChangedFields(prev => {
@@ -121,17 +131,12 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
     // Find which root tags were deselected
     const deselectedRootIds = selectedRootTagIds.filter(id => !selectedRootIds.includes(id));
 
-    // Load children for deselected root tags to know which child tags to remove
+    // Get child tags of deselected root tags from pre-fetched map
     const childrenOfDeselectedRoots = new Set();
-    for (const tagId of deselectedRootIds) {
-      try {
-        const childTagsRes = await getChildTagsApi(tagId);
-        const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
-        childTags.forEach(ct => childrenOfDeselectedRoots.add(ct.id));
-      } catch (error) {
-        console.error('Failed to fetch child tags:', error);
-      }
-    }
+    deselectedRootIds.forEach(tagId => {
+      const children = childTagsByParent[tagId] || [];
+      children.forEach(ct => childrenOfDeselectedRoots.add(ct.id));
+    });
 
     // Remove only child tags whose own parent was deselected
     const filteredChildTagIds = currentChildTagIds.filter(id =>
@@ -143,19 +148,12 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
       form.setFieldValue('tagIds', filteredChildTagIds);
     }
 
-    // Load children for ALL currently selected root tags to rebuild available options
+    // Get children for ALL currently selected root tags from pre-fetched map
     const allChildTagsFromSelectedRoots = [];
-    for (const tagId of selectedRootIds) {
-      try {
-        const childTagsRes = await getChildTagsApi(tagId);
-        const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
-        // Ensure level property is set correctly
-        const childTagsWithLevel = childTags.map(t => ({ ...t, level: t.level || 2 }));
-        allChildTagsFromSelectedRoots.push(...childTagsWithLevel);
-      } catch (error) {
-        console.error('Failed to fetch child tags:', error);
-      }
-    }
+    selectedRootIds.forEach(tagId => {
+      const children = childTagsByParent[tagId] || [];
+      allChildTagsFromSelectedRoots.push(...children);
+    });
 
     // Rebuild available tags from scratch: root tags + ALL children from selected roots
     // Remove duplicate child tags (same child might appear under multiple roots)
@@ -174,17 +172,14 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
   // Pre-fill with existing location data and store original values
   useEffect(() => {
     if (location && open && rootTags.length > 0) {
-      // Ensure rootTags have level property
-      const rootTagsWithLevel = rootTags.map(t => ({ ...t, level: t.level || 1 }));
-      
       // Separate root tags and child tags
       const rootTagIds = (location.tagIds || []).filter(id => {
-        const tag = rootTagsWithLevel.find(t => t.id === id);
-        return tag && tag.level === 1;
+        const tag = rootTags.find(t => t.id === id);
+        return tag && !tag.parentTagId;
       });
       const childTagIds = (location.tagIds || []).filter(id => {
-        const tag = rootTagsWithLevel.find(t => t.id === id);
-        return tag && tag.level > 1;
+        const tag = rootTags.find(t => t.id === id);
+        return tag && tag.parentTagId;
       });
 
       // Set root tags in state
@@ -233,29 +228,18 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         setSeasons(parsedSeasons);
       }
 
-      // Load child tags for selected root tags to populate availableTags
-      const loadChildTags = async () => {
-        const allChildTagsFromSelectedRoots = [];
-        for (const tagId of rootTagIds) {
-          try {
-            const childTagsRes = await getChildTagsApi(tagId);
-            const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
-            // Ensure level property is set correctly
-            const childTagsWithLevel = childTags.map(t => ({ ...t, level: t.level || 2 }));
-            allChildTagsFromSelectedRoots.push(...childTagsWithLevel);
-          } catch (error) {
-            console.error('Failed to fetch child tags:', error);
-          }
-        }
-        const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
-          (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
-        );
-        setAvailableTags([...rootTags, ...uniqueChildTags]);
-      };
-
-      loadChildTags();
+      // Get child tags for selected root tags from pre-fetched map (no API calls)
+      const allChildTagsFromSelectedRoots = [];
+      rootTagIds.forEach(tagId => {
+        const children = childTagsByParent[tagId] || [];
+        allChildTagsFromSelectedRoots.push(...children);
+      });
+      const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
+        (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
+      );
+      setAvailableTags([...rootTags, ...uniqueChildTags]);
     }
-  }, [location, open, form, rootTags]);
+  }, [location, open, form, rootTags, childTagsByParent]);
 
   // Track which fields have changed
   const handleValuesChange = (changedValues, allValues) => {
@@ -732,7 +716,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
                 onChange={handleChildTagChange}
                 disabled={selectedRootTagIds.length === 0}
               >
-                {availableTags.filter(t => t.level > 1).map(tag => (
+                {availableTags.filter(t => t.parentTagId).map(tag => (
                   <Option key={tag.id} value={tag.id}>
                     {tag.name} <span style={{ color: '#1677ff' }}>(Child)</span>
                   </Option>

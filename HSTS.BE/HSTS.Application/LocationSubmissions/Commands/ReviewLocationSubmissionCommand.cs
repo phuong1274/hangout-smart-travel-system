@@ -224,19 +224,22 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 {
                     foreach (var ohData in openingHoursData)
                     {
-                        var dayOfWeek = ohData.TryGetProperty("dayOfWeek", out var dowProp) 
-                            ? (DayOfWeek)dowProp.GetInt32() 
-                            : DayOfWeek.Monday;
-                        
-                        var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) && otProp.ValueKind != JsonValueKind.Null
+                        // Try both camelCase and PascalCase for dayOfWeek
+                        var dayOfWeek = DayOfWeek.Monday; // default
+                        if (ohData.TryGetProperty("dayOfWeek", out var dowProp) || ohData.TryGetProperty("DayOfWeek", out dowProp))
+                        {
+                            dayOfWeek = (DayOfWeek)dowProp.GetInt32();
+                        }
+
+                        var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) || ohData.TryGetProperty("OpenTime", out otProp)
                             ? otProp.GetString()
                             : "08:00";
-                        
-                        var closeTimeStr = ohData.TryGetProperty("closeTime", out var ctProp) && ctProp.ValueKind != JsonValueKind.Null
+
+                        var closeTimeStr = ohData.TryGetProperty("closeTime", out var ctProp) || ohData.TryGetProperty("CloseTime", out ctProp)
                             ? ctProp.GetString()
                             : "17:00";
-                        
-                        var note = ohData.TryGetProperty("note", out var noteProp) ? noteProp.GetString() : null;
+
+                        var note = ohData.TryGetProperty("note", out var noteProp) || ohData.TryGetProperty("Note", out noteProp) ? noteProp.GetString() : null;
 
                         location.OpeningHours.Add(new LocationOpeningHour
                         {
@@ -318,19 +321,22 @@ namespace HSTS.Application.LocationSubmissions.Commands
                     {
                         foreach (var ohData in openingHoursData)
                         {
-                            var dayOfWeek = ohData.TryGetProperty("dayOfWeek", out var dowProp) 
-                                ? (DayOfWeek)dowProp.GetInt32() 
-                                : DayOfWeek.Monday;
-                            
-                            var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) && otProp.ValueKind != JsonValueKind.Null
+                            // Try both camelCase and PascalCase for dayOfWeek
+                            var dayOfWeek = DayOfWeek.Monday; // default
+                            if (ohData.TryGetProperty("dayOfWeek", out var dowProp) || ohData.TryGetProperty("DayOfWeek", out dowProp))
+                            {
+                                dayOfWeek = (DayOfWeek)dowProp.GetInt32();
+                            }
+
+                            var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) || ohData.TryGetProperty("OpenTime", out otProp)
                                 ? otProp.GetString()
                                 : "08:00";
-                            
-                            var closeTimeStr = ohData.TryGetProperty("closeTime", out var ctProp) && ctProp.ValueKind != JsonValueKind.Null
+
+                            var closeTimeStr = ohData.TryGetProperty("closeTime", out var ctProp) || ohData.TryGetProperty("CloseTime", out ctProp)
                                 ? ctProp.GetString()
                                 : "17:00";
-                            
-                            var note = ohData.TryGetProperty("note", out var noteProp) ? noteProp.GetString() : null;
+
+                            var note = ohData.TryGetProperty("note", out var noteProp) || ohData.TryGetProperty("Note", out noteProp) ? noteProp.GetString() : null;
 
                             location.OpeningHours.Add(new LocationOpeningHour
                             {

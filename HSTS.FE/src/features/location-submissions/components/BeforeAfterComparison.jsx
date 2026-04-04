@@ -1,5 +1,9 @@
-import React from 'react';
-import { Descriptions, Tag } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Descriptions, Tag, Divider } from 'antd';
+import { SubmissionStatus } from '../types';
+import { getAllTagsApi, getAllAmenitiesApi } from '../api';
+import { getAllLocationTypesApi, getAllDistrictsApi } from '@/features/locations/api';
+import { buildTagHierarchy } from '@/utils/locationCache';
 
 /**
  * Component to display before/after comparison with color highlighting
@@ -10,14 +14,78 @@ import { Descriptions, Tag } from 'antd';
 const BeforeAfterComparison = ({ submission }) => {
   const isEditExisting = submission.submissionType === 1;
   const proposedChanges = submission.proposedChanges || {};
-  
+
   // Get existing location data (for edits) or empty object (for new)
   const existingLocation = submission.existingLocation || {};
+
+  // Lookup data for converting IDs to names
+  const [tags, setTags] = useState([]);
+  const [amenities, setAmenities] = useState([]);
+  const [locationTypes, setLocationTypes] = useState([]);
+  const [districts, setDistricts] = useState([]);
+
+  useEffect(() => {
+    const fetchLookupData = async () => {
+      try {
+        const [tagsRes, amenitiesRes, typesRes, districtsRes] = await Promise.all([
+          getAllTagsApi({ pageSize: 9999 }),
+          getAllAmenitiesApi(),
+          getAllLocationTypesApi(),
+          getAllDistrictsApi()
+        ]);
+
+        const allTags = Array.isArray(tagsRes) ? tagsRes : (tagsRes?.items || []);
+        const allAmenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
+        const allTypes = Array.isArray(typesRes) ? typesRes : (typesRes?.items || []);
+        const allDistricts = Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []);
+
+        setTags(allTags);
+        setAmenities(allAmenities);
+        setLocationTypes(allTypes);
+        setDistricts(allDistricts);
+      } catch (error) {
+        console.error('Failed to fetch lookup data:', error);
+      }
+    };
+    fetchLookupData();
+  }, []);
+
+  // Helper to convert array of IDs to names
+  const getTagNames = (tagIds) => {
+    if (!Array.isArray(tagIds)) return tagIds;
+    return tagIds.map(id => {
+      const tag = tags.find(t => t.id === id);
+      return tag ? tag.name : `Tag #${id}`;
+    });
+  };
+
+  const getAmenityNames = (amenityIds) => {
+    if (!Array.isArray(amenityIds)) return amenityIds;
+    return amenityIds.map(id => {
+      const amenity = amenities.find(a => a.id === id);
+      return amenity ? amenity.name : `Amenity #${id}`;
+    });
+  };
+
+  const getLocationTypeName = (typeId) => {
+    if (!typeId) return 'N/A';
+    const type = locationTypes.find(t => t.id === typeId);
+    return type ? type.name : `Type #${typeId}`;
+  };
+
+  const getDistrictName = (districtId) => {
+    if (!districtId) return 'N/A';
+    const district = districts.find(d => d.id === districtId);
+    return district ? district.name : `District #${districtId}`;
+  };
   
   // Helper to check if field changed and render with highlighting
-  const renderField = (label, fieldName, oldValue, newValue) => {
+  const renderField = (label, fieldName, oldValue, newValue, formatFn) => {
     const hasChanged = JSON.stringify(oldValue) !== JSON.stringify(newValue);
-    
+
+    const oldDisplay = formatFn ? formatFn(oldValue) : oldValue;
+    const newDisplay = formatFn ? formatFn(newValue) : newValue;
+
     return (
       <Descriptions.Item label={label} span={isEditExisting ? 1 : 2}>
         {isEditExisting ? (
@@ -27,22 +95,22 @@ const BeforeAfterComparison = ({ submission }) => {
                 <div style={{ flex: 1, padding: '4px 8px', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: '4px' }}>
                   <span style={{ color: '#cf1322', fontSize: '12px' }}>BEFORE:</span>
                   <div style={{ color: '#cf1322', fontWeight: 500 }}>
-                    {formatValue(oldValue)}
+                    {formatValue(oldDisplay !== oldValue ? oldDisplay : oldValue)}
                   </div>
                 </div>
                 <div style={{ flex: 1, padding: '4px 8px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '4px' }}>
                   <span style={{ color: '#389e0d', fontSize: '12px' }}>AFTER:</span>
                   <div style={{ color: '#389e0d', fontWeight: 500 }}>
-                    {formatValue(newValue)}
+                    {formatValue(newDisplay !== newValue ? newDisplay : newValue)}
                   </div>
                 </div>
               </>
             ) : (
-              <div>{formatValue(oldValue)}</div>
+              <div>{formatValue(oldDisplay !== oldValue ? oldDisplay : oldValue)}</div>
             )}
           </div>
         ) : (
-          <div>{formatValue(newValue)}</div>
+          <div>{formatValue(newDisplay !== newValue ? newDisplay : newValue)}</div>
         )}
       </Descriptions.Item>
     );
@@ -121,12 +189,12 @@ const BeforeAfterComparison = ({ submission }) => {
         {renderField('Score', 'score', getOldValue('score'), getNewValue('score'))}
         
         {/* Categories */}
-        {renderField('Destination', 'destinationId', getOldValue('destinationId'), getNewValue('destinationId'))}
-        {renderField('Location Type', 'locationTypeId', getOldValue('locationTypeId'), getNewValue('locationTypeId'))}
-        
+        {renderField('Destination', 'destinationId', getOldValue('destinationId'), getNewValue('destinationId'), getDistrictName)}
+        {renderField('Location Type', 'locationTypeId', getOldValue('locationTypeId'), getNewValue('locationTypeId'), getLocationTypeName)}
+
         {/* Tags & Amenities */}
-        {renderField('Amenities', 'amenityIds', getOldValue('amenityIds'), getNewValue('amenityIds'))}
-        {renderField('Tags', 'tagIds', getOldValue('tagIds'), getNewValue('tagIds'))}
+        {renderField('Amenities', 'amenityIds', getOldValue('amenityIds'), getNewValue('amenityIds'), getAmenityNames)}
+        {renderField('Tags', 'tagIds', getOldValue('tagIds'), getNewValue('tagIds'), getTagNames)}
         
         {/* Media & Social */}
         {renderField('Media Links', 'mediaLinks', getOldValue('mediaLinks'), getNewValue('mediaLinks'))}

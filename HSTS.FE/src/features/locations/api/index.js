@@ -25,8 +25,8 @@ export const deleteLocationApi = (id) => {
 };
 
 // Dropdown data APIs
-export const getAllTagsApi = () => {
-  return apiClient.get('/api/Tags').then(res => res.data);
+export const getAllTagsApi = (params) => {
+  return apiClient.get('/api/Tags', { params }).then(res => res.data);
 };
 
 export const getAllDistrictsApi = () => {

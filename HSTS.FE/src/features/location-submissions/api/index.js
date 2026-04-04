@@ -43,8 +43,8 @@ export const getAllAmenitiesApi = () => {
   return apiClient.get('/api/Amenities').then(res => res.data);
 };
 
-export const getAllTagsApi = () => {
-  return apiClient.get('/api/Tags').then(res => res.data);
+export const getAllTagsApi = (params) => {
+  return apiClient.get('/api/Tags', { params }).then(res => res.data);
 };
 
 // Import from locations API for testing suggest edit

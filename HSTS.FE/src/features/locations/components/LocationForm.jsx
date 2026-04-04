@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, InputNumber, Select, Space, Button, Upload, message, Tag, Table, TimePicker, Card, Divider, Rate } from 'antd';
 import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, EnvironmentOutlined, MinusCircleOutlined, ClockCircleOutlined, CloudOutlined } from '@ant-design/icons';
-import { createLocationApi, updateLocationApi, getAllDistrictsApi, getAllLocationTypesApi, getAllAmenitiesApi } from '../api';
-import { getRootTagsApi, getChildTagsApi } from '@/features/tags/api';
+import { createLocationApi, updateLocationApi, getAllDistrictsApi, getAllLocationTypesApi, getAllAmenitiesApi, getAllTagsApi } from '../api';
 import { uploadImageToCloudinary } from '@/services/cloudinary';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
 import { SOCIAL_PLATFORMS, DAYS_OF_WEEK, MONTH_NAMES, MONTHS } from '@/utils/locationConstants';
+import { buildTagHierarchy } from '@/utils/locationCache';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -44,6 +44,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [openingHours, setOpeningHours] = useState([]);
   const [seasons, setSeasons] = useState([]);
   const [tagsLoading, setTagsLoading] = useState(false);
+  const [childTagsByParent, setChildTagsByParent] = useState({});
 
   // Derived state: selected root tag IDs (computed from selectedTagIds)
   // This avoids stale closure issues and keeps UI in sync with source of truth
@@ -58,24 +59,41 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     const fetchDropdownData = async () => {
       try {
         setTagsLoading(true);
-        const [rootTagsRes, districtsRes, typesRes, amenitiesRes] = await Promise.all([
-          getRootTagsApi(),
+        // Single API call to get all tags - use large pageSize to get all
+        const [allTagsRes, districtsRes, typesRes, amenitiesRes] = await Promise.all([
+          getAllTagsApi({ pageSize: 9999 }),
           getAllDistrictsApi(),
           getAllLocationTypesApi(),
           getAllAmenitiesApi()
         ]);
 
         // Handle paginated responses (extract items array)
-        const rootTags = Array.isArray(rootTagsRes) ? rootTagsRes : (rootTagsRes?.items || []);
+        const allTags = Array.isArray(allTagsRes) ? allTagsRes : (allTagsRes?.items || []);
+
+        console.log('=== DEBUG: API Response ===');
+        console.log('allTagsRes:', allTagsRes);
+        console.log('allTags (extracted):', allTags);
+        console.log('First tag structure:', allTags[0]);
+        console.log('Total tags count:', allTags.length);
+        console.log('Tags with parentTagId:', allTags.filter(t => t.parentTagId).length);
+        console.log('Tags without parentTagId (roots):', allTags.filter(t => !t.parentTagId).length);
         const districts = Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []);
         const locationTypes = Array.isArray(typesRes) ? typesRes : (typesRes?.items || []);
         const amenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
+
+        // Build tag hierarchy client-side
+        const { rootTags, childTagsByParent } = buildTagHierarchy(allTags);
+
+        console.log('Fetched all tags:', allTags);
+        console.log('Built root tags:', rootTags);
+        console.log('Built childTagsByParent:', childTagsByParent);
 
         setRootTags(rootTags);
         setAvailableTags(rootTags); // Initially show all root tags
         setDistricts(districts);
         setLocationTypes(locationTypes);
         setAmenities(amenities);
+        setChildTagsByParent(childTagsByParent);
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
         message.error('Failed to load dropdown data');
@@ -87,9 +105,12 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   }, []);
 
   // Load child tags when a root tag is selected
-  // BUG FIX: Previously used stale `selectedRootTagIds` from closure to compute deselectedRootIds.
-  // Now we derive everything from the new `selectedRootIds` parameter and `selectedTagIds` state.
-  const handleRootTagChange = async (selectedRootIds) => {
+  // Uses pre-fetched child tags from childTagsByParent map (no API calls)
+  const handleRootTagChange = (selectedRootIds) => {
+    console.log('handleRootTagChange called with:', selectedRootIds);
+    console.log('childTagsByParent:', childTagsByParent);
+    console.log('rootTags:', rootTags);
+    
     // Separate root and child tags from current selection
     const rootTagSet = new Set(rootTags.map(t => t.id));
     const currentChildTagIds = selectedTagIds.filter(id => !rootTagSet.has(id));
@@ -98,17 +119,12 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     const previousRootIds = selectedTagIds.filter(id => rootTagSet.has(id));
     const deselectedRootIds = previousRootIds.filter(id => !selectedRootIds.includes(id));
 
-    // Load children of deselected root tags to know which child tags to remove
+    // Get child tags of deselected root tags from pre-fetched map
     const childrenOfDeselectedRoots = new Set();
-    for (const tagId of deselectedRootIds) {
-      try {
-        const childTagsRes = await getChildTagsApi(tagId);
-        const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
-        childTags.forEach(ct => childrenOfDeselectedRoots.add(ct.id));
-      } catch (error) {
-        console.error('Failed to fetch child tags:', error);
-      }
-    }
+    deselectedRootIds.forEach(tagId => {
+      const children = childTagsByParent[tagId] || [];
+      children.forEach(ct => childrenOfDeselectedRoots.add(ct.id));
+    });
 
     // Remove only child tags whose own parent was deselected
     // This preserves child tags from still-selected root tags
@@ -124,23 +140,23 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     // Update form field to match (keeps form in sync with state)
     form.setFieldValue('tagIds', filteredChildTagIds);
 
-    // Load children for ALL currently selected root tags to rebuild available options
+    // Get children for ALL currently selected root tags from pre-fetched map
     const allChildTagsFromSelectedRoots = [];
-    for (const tagId of selectedRootIds) {
-      try {
-        const childTagsRes = await getChildTagsApi(tagId);
-        const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
-        allChildTagsFromSelectedRoots.push(...childTags);
-      } catch (error) {
-        console.error('Failed to fetch child tags:', error);
-      }
-    }
+    selectedRootIds.forEach(tagId => {
+      const children = childTagsByParent[tagId] || [];
+      allChildTagsFromSelectedRoots.push(...children);
+    });
+
+    console.log('allChildTagsFromSelectedRoots:', allChildTagsFromSelectedRoots);
 
     // Rebuild available tags from scratch: root tags + ALL children from selected roots
     // Remove duplicate child tags (same child might appear under multiple roots)
     const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
       (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
     );
+
+    console.log('uniqueChildTags:', uniqueChildTags);
+    console.log('Setting availableTags to:', [...rootTags, ...uniqueChildTags]);
 
     setAvailableTags([...rootTags, ...uniqueChildTags]);
   };
@@ -166,28 +182,23 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   };
 
   // Set form values when editing
-  // BUG FIX: Now sets selectedTagIds (single source of truth) instead of selectedRootTagIds
+  // Uses pre-fetched child tags (no API calls)
   useEffect(() => {
     const setupEditForm = async () => {
       if (location && location.tagIds && location.tagIds.length > 0 && rootTags.length > 0) {
         // Set selected tag IDs (both root and child) from existing tags
         const rootIds = location.tagIds.filter(id => {
           const tag = rootTags.find(t => t.id === id);
-          return tag && tag.level === 1;
+          return tag && !tag.parentTagId;
         });
         setSelectedTagIds(location.tagIds);
 
-        // Load child tags for the selected root tags to ensure they display correctly
+        // Get child tags for the selected root tags from pre-fetched map
         const allChildTagsFromSelectedRoots = [];
-        for (const tagId of rootIds) {
-          try {
-            const childTagsRes = await getChildTagsApi(tagId);
-            const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
-            allChildTagsFromSelectedRoots.push(...childTags);
-          } catch (error) {
-            console.error('Failed to fetch child tags:', error);
-          }
-        }
+        rootIds.forEach(tagId => {
+          const children = childTagsByParent[tagId] || [];
+          allChildTagsFromSelectedRoots.push(...children);
+        });
         // Remove duplicates
         const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
           (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
@@ -197,7 +208,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     };
 
     setupEditForm();
-  }, [location, rootTags]);
+  }, [location, rootTags, childTagsByParent]);
 
   // Set form field values after tags are loaded
   // BUG FIX: Previously, this effect ran whenever availableTags changed (e.g., during tag selection),
@@ -673,7 +684,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             showSearch
             disabled={selectedRootIds.length === 0}
           >
-            {availableTags.filter(t => t.level > 1).map(tag => (
+            {availableTags.filter(t => t.parentTagId).map(tag => (
               <Option key={tag.id} value={tag.id}>
                 {tag.name} <span style={{ color: '#1677ff' }}>(Child)</span>
               </Option>
