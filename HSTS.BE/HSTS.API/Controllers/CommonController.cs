@@ -87,5 +87,15 @@ namespace HSTS.API.Controllers
                 errors => NotFound(errors.First().Description)
             );
         }
+
+        [HttpGet("provinces/{provinceId}/districts")]
+        public async Task<IActionResult> GetDistrictsByProvince(int provinceId)
+        {
+            var result = await _mediator.Send(new GetDistrictsByProvinceQuery(provinceId));
+            return result.Match<IActionResult>(
+                Ok,
+                errors => NotFound(errors.First().Description)
+            );
+        }
     }
 }

@@ -48,5 +48,9 @@ export const getAllProvincesApi = () => {
   return apiClient.get('/api/common/provinces').then(res => res.data);
 };
 
+export const getDistrictsByProvinceApi = (provinceId) => {
+  return apiClient.get(`/api/common/provinces/${provinceId}/districts`).then(res => res.data);
+};
+
 // Import from location-submissions for SuggestEditModal
 export { createLocationSubmissionApi } from '@/features/location-submissions/api';
