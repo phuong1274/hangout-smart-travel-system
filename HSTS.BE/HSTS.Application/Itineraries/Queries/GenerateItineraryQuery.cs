@@ -1700,7 +1700,7 @@ namespace HSTS.Application.Itineraries.Queries
             }
 
             // 3. Flight search (using IATA codes, distance > 200km)
-            if (fromAirport is not null && toAirport is not null && distanceKm > 200)
+            if (fromAirport is not null && toAirport is not null && distanceKm > 100)
             {
                 try
                 {
@@ -1742,7 +1742,7 @@ namespace HSTS.Application.Itineraries.Queries
                     "Estimated pricing (API unavailable)", fromTrainHub?.Id, FormatTransitHubName(fromTrainHub, "Train"), toTrainHub?.Id, FormatTransitHubName(toTrainHub, "Train"),
                     1, toMoney(GetTrainBracketCost(distanceKm) * groupSize)));
             }
-            if (!allOptions.Any(o => o.Method.Equals("Plane", StringComparison.OrdinalIgnoreCase)) && distanceKm > 300)
+            if (!allOptions.Any(o => o.Method.Equals("Plane", StringComparison.OrdinalIgnoreCase)) && distanceKm > 200)
             {
                 var planeMins = Math.Max(60, (int)Math.Round(distanceKm / 800.0 * 60.0) + 90);
                 allOptions.Add(new TransportOptionDto(5, "Plane", planeMins,
