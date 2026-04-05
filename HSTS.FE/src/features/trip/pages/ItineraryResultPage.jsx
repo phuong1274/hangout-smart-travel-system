@@ -1,15 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Card, Typography, Button, Tag, Empty, Tabs, Space, Divider } from 'antd';
-import {
-  CalendarOutlined,
-  TeamOutlined,
-  DollarOutlined,
-  EnvironmentOutlined,
-  ReloadOutlined,
-  EditOutlined,
-  FilePdfOutlined,
-  CloudOutlined,
-} from '@ant-design/icons';
+import { Card, Typography, Button, Tag, Empty, Space } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useTripPlanner } from '../hooks/useTripPlanner';
 import LocationDetailModal from '../components/LocationDetailModal';
@@ -19,14 +9,14 @@ import styles from './ItineraryResultPage.module.css';
 
 const { Title, Text } = Typography;
 
-// EventType → icon + color mapping
-const EVENT_ICONS = {
-  travel: { icon: '🚌', bg: '#e6f4ff', color: '#1677ff' },
-  visit: { icon: '🏛️', bg: '#f6ffed', color: '#52c41a' },
-  meal: { icon: '🍜', bg: '#fff7e6', color: '#fa8c16' },
-  'check-in': { icon: '🏨', bg: '#f9f0ff', color: '#722ed1' },
-  'check-out': { icon: '📤', bg: '#f5f5f5', color: '#8c8c8c' },
-  'luggage-refresh': { icon: '🧳', bg: '#fff0f6', color: '#eb2f96' },
+// EventType → badge + color mapping
+const EVENT_BADGES = {
+  travel: { badge: 'TR', bg: '#e6f4ff' },
+  visit: { badge: 'VS', bg: '#f6ffed' },
+  meal: { badge: 'ML', bg: '#fff7e6' },
+  'check-in': { badge: 'IN', bg: '#f9f0ff' },
+  'check-out': { badge: 'OUT', bg: '#f5f5f5' },
+  'luggage-refresh': { badge: 'LG', bg: '#fff0f6' },
 };
 
 const formatMoney = (moneyDto) => {
@@ -106,7 +96,6 @@ const ItineraryResultPage = () => {
   const endDate = itinerary.endDate || itinerary.EndDate;
   const groupSize = itinerary.groupSize || itinerary.GroupSize;
   const budgetLevel = itinerary.budgetLevel || itinerary.BudgetLevel;
-  const currencyCode = itinerary.currencyCode || itinerary.CurrencyCode || 'VND';
 
   return (
     <div className={styles.itineraryPage}>
@@ -115,24 +104,24 @@ const ItineraryResultPage = () => {
         {/* Header */}
         <Card className={styles.headerCard} bordered={false}>
           <Title level={3} className={styles.headerTitle}>
-            📋 Travel Itinerary Results
+            Travel Itinerary Results
           </Title>
           <div className={styles.headerMeta}>
             <span className={styles.headerMetaItem}>
-              <CalendarOutlined /> {startDate} → {endDate}
+              {startDate} to {endDate}
             </span>
             <span className={styles.headerMetaItem}>
-              <TeamOutlined /> {groupSize} people
+              {groupSize} people
             </span>
             <span className={styles.headerMetaItem}>
-              <DollarOutlined /> {budgetLevel}
+              {budgetLevel}
             </span>
           </div>
         </Card>
 
         {/* Budget Summary */}
         {budgetSummary && (
-          <Card className={styles.budgetCard} title="💰 Budget Summary" size="small">
+          <Card className={styles.budgetCard} title="Budget Summary" size="small">
             <div className={styles.budgetGrid}>
               <div className={styles.budgetItem}>
                 <span className={styles.budgetLabel}>Total Budget</span>
@@ -173,7 +162,7 @@ const ItineraryResultPage = () => {
               <div className={styles.budgetItem}>
                 <span className={styles.budgetLabel}>Remaining</span>
                 <span className={`${styles.budgetValue} ${styles.budgetPositive}`}>
-                  {formatMoney(budgetSummary.remainingBudget || budgetSummary.RemainingBudget)} ✅
+                  {formatMoney(budgetSummary.remainingBudget || budgetSummary.RemainingBudget)}
                 </span>
               </div>
             </div>
@@ -196,10 +185,10 @@ const ItineraryResultPage = () => {
             <Card key={dayNum} className={styles.dayCard} bordered={false} bodyStyle={{ padding: 0 }}>
               {/* Day Header */}
               <div className={styles.dayHeader}>
-                <div className={styles.dayTitle}>📅 {dayTitle}</div>
+                <div className={styles.dayTitle}>{dayTitle}</div>
                 <div className={styles.dayMeta}>
-                  {date && <span><CalendarOutlined /> {date}</span>}
-                  {weather && <span><CloudOutlined /> {weather}</span>}
+                  {date && <span>{date}</span>}
+                  {weather && <span>{weather}</span>}
                 </div>
               </div>
 
@@ -207,7 +196,7 @@ const ItineraryResultPage = () => {
               <div className={styles.timeline}>
                 {timeline.map((item, idx) => {
                   const eventType = item.eventType || item.EventType || 'visit';
-                  const eventConfig = EVENT_ICONS[eventType] || EVENT_ICONS.visit;
+                  const eventConfig = EVENT_BADGES[eventType] || EVENT_BADGES.visit;
                   const title = item.title || item.Title;
                   const startTime = item.startTime || item.StartTime;
                   const endTime = item.endTime || item.EndTime;
@@ -228,11 +217,11 @@ const ItineraryResultPage = () => {
                         className={styles.timelineIcon}
                         style={{ background: eventConfig.bg }}
                       >
-                        {eventConfig.icon}
+                        {eventConfig.badge}
                       </div>
                       <div className={styles.timelineContent}>
                         <div className={styles.timelineTitle}>{title}</div>
-                        {note && <div className={styles.timelineNote}>💡 {note}</div>}
+                        {note && <div className={styles.timelineNote}>{note}</div>}
 
                         {/* Transport detail */}
                         {isTravel && (item.locationToLocationTravel || item.LocationToLocationTravel ||
@@ -245,7 +234,7 @@ const ItineraryResultPage = () => {
                               style={{ padding: 0, height: 'auto' }}
                               onClick={() => handleViewTransport(item)}
                             >
-                              👁 View Transport Details
+                              View Transport Details
                             </Button>
                           </div>
                         )}
@@ -270,7 +259,7 @@ const ItineraryResultPage = () => {
                               style={{ padding: 0, height: 'auto', fontSize: 12 }}
                               onClick={() => handleViewLocation(locationId)}
                             >
-                              👁 View Details
+                              View Details
                             </Button>
                           )}
                           {alternatives.length > 0 && (
@@ -300,7 +289,7 @@ const ItineraryResultPage = () => {
               {/* Accommodation Recommendations */}
               {accommodations.length > 0 && (
                 <div className={styles.accommodationSection}>
-                  <div className={styles.accommodationTitle}>🏨 Accommodation Suggestions</div>
+                  <div className={styles.accommodationTitle}>Accommodation Suggestions</div>
                   {accommodations.map((acc, i) => {
                     const name = acc.name || acc.Name || acc.hotelName || acc.HotelName || 'Hotel';
                     const price = acc.pricePerNight || acc.PricePerNight || acc.estimatedCost || acc.EstimatedCost;
@@ -346,7 +335,7 @@ const ItineraryResultPage = () => {
 
         {/* System Notes */}
         {notes.length > 0 && (
-          <Card className={styles.notesCard} title="📝 System Notes" size="small">
+          <Card className={styles.notesCard} title="System Notes" size="small">
             {notes.map((note, i) => (
               <div key={i} className={styles.noteItem}>• {note}</div>
             ))}
@@ -355,10 +344,10 @@ const ItineraryResultPage = () => {
 
         {/* Action Bar */}
         <div className={styles.actionBar}>
-          <Button icon={<ReloadOutlined />} onClick={handleRegenerate}>
+          <Button onClick={handleRegenerate}>
             Regenerate
           </Button>
-          <Button icon={<EditOutlined />} onClick={() => navigate('/create-trip')}>
+          <Button onClick={() => navigate('/create-trip')}>
             Edit
           </Button>
         </div>

@@ -18,21 +18,6 @@ import {
   Spin,
   message,
 } from 'antd';
-import {
-  EnvironmentOutlined,
-  PlusOutlined,
-  DeleteOutlined,
-  TeamOutlined,
-  DollarOutlined,
-  CalendarOutlined,
-  HomeOutlined,
-  RocketOutlined,
-  AimOutlined,
-  TagsOutlined,
-  DownOutlined,
-  RightOutlined,
-  CheckOutlined,
-} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
@@ -40,31 +25,25 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTripFormData } from '../hooks/useTripFormData';
 import { useTripPlanner } from '../hooks/useTripPlanner';
+import { CURRENCY_OPTIONS } from '../constants/currency';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
 import styles from './CreateTripPage.module.css';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
-
-const CURRENCY_OPTIONS = [
-  { value: 'VND', label: 'VND - Vietnamese Dong' },
-  { value: 'USD', label: 'USD - US Dollar' },
-  { value: 'EUR', label: 'EUR - Euro' },
-  { value: 'JPY', label: 'JPY - Japanese Yen' },
-  { value: 'KRW', label: 'KRW - Korean Won' },
-  { value: 'THB', label: 'THB - Thai Baht' },
-];
+const HOTEL_PREFERENCE_NONE = 'NONE';
 
 const SEGMENT_OPTIONS = [
-  { label: '💰 Budget', value: 'Budget' },
-  { label: '⭐ Standard', value: 'Standard' },
-  { label: '💎 Luxury', value: 'Luxury' },
+  { label: 'Budget', value: 'Budget' },
+  { label: 'Standard', value: 'Standard' },
+  { label: 'Luxury', value: 'Luxury' },
 ];
 
 const HOTEL_OPTIONS = [
-  { label: '💰 Budget', value: 'Budget' },
-  { label: '⭐ Standard', value: 'Standard' },
-  { label: '💎 Luxury', value: 'Luxury' },
+  { label: 'No hotel suggestion', value: HOTEL_PREFERENCE_NONE },
+  { label: 'Budget', value: 'Budget' },
+  { label: 'Standard', value: 'Standard' },
+  { label: 'Luxury', value: 'Luxury' },
 ];
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -108,8 +87,7 @@ const CreateTripPage = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [destinations, setDestinations] = useState([]);
   const [selectedTagIds, setSelectedTagIds] = useState([]);
-  const [expandedRootTags, setExpandedRootTags] = useState([]);
-  const [tagSearch, setTagSearch] = useState('');
+  const [activeParentTagId, setActiveParentTagId] = useState(null);
 
   // Date range for computed fields
   const dateRange = Form.useWatch('dateRange', form);
@@ -145,15 +123,28 @@ const CreateTripPage = () => {
       .sort((a, b) => Number(a.id || a.Id) - Number(b.id || b.Id));
   }, [rootTags]);
 
-  const filteredRootTags = useMemo(() => {
-    const keyword = tagSearch.trim().toLowerCase();
-    if (!keyword) return parentTags;
+  const parentTagIdSet = useMemo(
+    () => new Set(parentTags.map((tag) => Number(tag.id || tag.Id)).filter((id) => Number.isFinite(id))),
+    [parentTags],
+  );
 
-    return parentTags.filter((tag) => {
-      const tagName = String(tag.name || tag.Name || '').toLowerCase();
-      return tagName.includes(keyword);
+  const tagNameMap = useMemo(() => {
+    const map = new Map();
+
+    parentTags.forEach((tag) => {
+      const id = Number(tag.id || tag.Id);
+      if (!Number.isFinite(id)) return;
+      map.set(id, tag.name || tag.Name || `Tag ${id}`);
     });
-  }, [parentTags, tagSearch]);
+
+    Object.values(childTagsMap).flat().forEach((tag) => {
+      const id = Number(tag.id || tag.Id);
+      if (!Number.isFinite(id)) return;
+      map.set(id, tag.name || tag.Name || `Tag ${id}`);
+    });
+
+    return map;
+  }, [parentTags, childTagsMap]);
 
   // Get current location
   const handleGetCurrentLocation = useCallback(() => {
@@ -222,14 +213,6 @@ const CreateTripPage = () => {
   }, []);
 
   // Tag management
-  const handleRootTagExpand = useCallback(async (tagId) => {
-    const isExpanded = expandedRootTags.includes(tagId);
-    setExpandedRootTags((prev) => (isExpanded ? prev.filter((id) => id !== tagId) : [...prev, tagId]));
-    if (!isExpanded) {
-      await fetchChildTags(tagId);
-    }
-  }, [expandedRootTags, fetchChildTags]);
-
   const handleRootTagToggle = useCallback(async (tagId) => {
     if (tagId == null) return;
 
@@ -247,11 +230,15 @@ const CreateTripPage = () => {
     }
 
     setSelectedTagIds((prev) => (prev.includes(tagId) ? prev : [...prev, tagId]));
-    if (!expandedRootTags.includes(tagId)) {
-      setExpandedRootTags((prev) => [...prev, tagId]);
-    }
     await fetchChildTags(tagId);
-  }, [selectedTagIds, childTagsMap, expandedRootTags, fetchChildTags]);
+  }, [selectedTagIds, childTagsMap, fetchChildTags]);
+
+  const handleParentTagChange = useCallback(async (tagId) => {
+    setActiveParentTagId(tagId ?? null);
+    if (tagId != null) {
+      await fetchChildTags(tagId);
+    }
+  }, [fetchChildTags]);
 
   const handleTagSelect = useCallback((tagId, checked) => {
     setSelectedTagIds((prev) => {
@@ -261,6 +248,14 @@ const CreateTripPage = () => {
       return prev.filter((id) => id !== tagId);
     });
   }, []);
+
+  const handleRemoveSelectedTag = useCallback((tagId) => {
+    if (parentTagIdSet.has(Number(tagId))) {
+      void handleRootTagToggle(tagId);
+      return;
+    }
+    handleTagSelect(tagId, false);
+  }, [parentTagIdSet, handleRootTagToggle, handleTagSelect]);
 
   // Form submit
   const handleSubmit = async (values) => {
@@ -287,9 +282,12 @@ const CreateTripPage = () => {
       groupSize: values.groupSize,
       minimumAge: values.minimumAge ?? 0,
       totalBudget: values.totalBudget,
+      includeContingencyFund: values.includeContingencyFund !== false,
       startDate: startDate.format('YYYY-MM-DD'),
       endDate: endDate.format('YYYY-MM-DD'),
-      hotelPreference: values.hotelPreference || null,
+      hotelPreference: values.hotelPreference === HOTEL_PREFERENCE_NONE
+        ? null
+        : (values.hotelPreference || null),
       tripSegment: values.tripSegment,
     };
 
@@ -302,6 +300,17 @@ const CreateTripPage = () => {
   };
 
   const selectedProvinceIds = destinations.map((d) => d.provinceId);
+  const activeParentTag = parentTags.find((tag) => (tag.id || tag.Id) === activeParentTagId);
+  const activeParentChildren = activeParentTagId != null ? (childTagsMap[activeParentTagId] || []) : [];
+  const selectedChildrenCount = activeParentChildren.filter((child) => selectedTagIds.includes(child.id || child.Id)).length;
+  const selectedTagList = selectedTagIds.map((tagId) => {
+    const numericId = Number(tagId);
+    return {
+      id: tagId,
+      name: tagNameMap.get(numericId) || `Tag ${tagId}`,
+      isParent: parentTagIdSet.has(numericId),
+    };
+  });
 
   return (
     <div className={styles.createTripPage}>
@@ -309,7 +318,7 @@ const CreateTripPage = () => {
         {/* Header */}
         <Card className={styles.headerCard} bordered={false}>
           <Title level={2} className={styles.headerTitle}>
-            🗺️ Create Travel Itinerary
+            Create Travel Itinerary
           </Title>
           <div className={styles.headerSubtitle}>
             The system will automatically create an optimized itinerary based on your preferences and budget
@@ -324,6 +333,7 @@ const CreateTripPage = () => {
             groupSize: 2,
             minimumAge: 0,
             currencyCode: 'VND',
+            includeContingencyFund: true,
             tripSegment: 'Standard',
             hotelPreference: 'Standard',
           }}
@@ -332,7 +342,7 @@ const CreateTripPage = () => {
           {/* 1. Starting Point */}
           <Card
             className={styles.sectionCard}
-            title={<span className={styles.sectionTitle}><EnvironmentOutlined /> Starting Point</span>}
+            title={<span className={styles.sectionTitle}>Starting Point</span>}
           >
             <div className={styles.mapInlineWrapper}>
               <MapContainer
@@ -362,39 +372,13 @@ const CreateTripPage = () => {
 
             {userLocation && (
               <div className={styles.locationDisplay}>
-                📍 Lat: {userLocation.latitude.toFixed(6)}, Lng: {userLocation.longitude.toFixed(6)}
+                Lat: {userLocation.latitude.toFixed(6)}, Lng: {userLocation.longitude.toFixed(6)}
               </div>
             )}
 
             <Row gutter={16} style={{ marginTop: 12 }}>
-              <Col span={10}>
-                <Form.Item name="latitude" label="Latitude">
-                  <InputNumber
-                    style={{ width: '100%' }}
-                    min={-90} max={90} step={0.000001}
-                    placeholder="10.7725"
-                    onChange={(val) => {
-                      const lng = form.getFieldValue('longitude');
-                      if (val != null && lng != null) setUserLocation({ latitude: val, longitude: lng });
-                    }}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={10}>
-                <Form.Item name="longitude" label="Longitude">
-                  <InputNumber
-                    style={{ width: '100%' }}
-                    min={-180} max={180} step={0.000001}
-                    placeholder="106.6980"
-                    onChange={(val) => {
-                      const lat = form.getFieldValue('latitude');
-                      if (lat != null && val != null) setUserLocation({ latitude: lat, longitude: val });
-                    }}
-                  />
-                </Form.Item>
-              </Col>
               <Col span={4} style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 24 }}>
-                <Button icon={<AimOutlined />} onClick={handleGetCurrentLocation}>
+                <Button onClick={handleGetCurrentLocation}>
                   GPS
                 </Button>
               </Col>
@@ -412,7 +396,7 @@ const CreateTripPage = () => {
           {/* 2. Destinations */}
           <Card
             className={styles.sectionCard}
-            title={<span className={styles.sectionTitle}><EnvironmentOutlined style={{ color: '#52c41a' }} /> Destinations</span>}
+            title={<span className={styles.sectionTitle}>Destinations</span>}
           >
             <Row gutter={12}>
               <Col flex="auto">
@@ -442,13 +426,14 @@ const CreateTripPage = () => {
               return (
                 <div key={dest.provinceId} className={styles.destinationItem}>
                   <div className={styles.destinationHeader}>
-                    <span className={styles.destinationName}>📍 {dest.provinceName}</span>
+                    <span className={styles.destinationName}>{dest.provinceName}</span>
                     <Button
                       type="text"
                       danger
-                      icon={<DeleteOutlined />}
                       onClick={() => handleRemoveDestination(dest.provinceId)}
-                    />
+                    >
+                      Remove
+                    </Button>
                   </div>
                   <div>
                     <Text type="secondary" style={{ fontSize: 13, marginBottom: 6, display: 'block' }}>
@@ -485,82 +470,106 @@ const CreateTripPage = () => {
           {/* 3. Tags / Preferences */}
           <Card
             className={styles.sectionCard}
-            title={<span className={styles.sectionTitle}><TagsOutlined /> Your Preferences</span>}
+            title={<span className={styles.sectionTitle}>Your Preferences</span>}
           >
             {loadingTags ? (
               <Spin />
             ) : (
               <div className={styles.tagPreferencePanel}>
                 <div className={styles.tagSearchRow}>
-                  <Input
+                  <Select
+                    showSearch
                     allowClear
-                    value={tagSearch}
-                    onChange={(e) => setTagSearch(e.target.value)}
-                    placeholder="Search tags by name"
+                    value={activeParentTagId}
+                    onChange={handleParentTagChange}
+                    placeholder="Select parent tag category..."
+                    optionFilterProp="label"
+                    options={parentTags.map((tag) => ({
+                      value: tag.id || tag.Id,
+                      label: tag.name || tag.Name,
+                    }))}
+                    style={{ width: '100%' }}
                   />
                   <Text type="secondary">{selectedTagIds.length} selected</Text>
                 </div>
 
-                {filteredRootTags.length === 0 && (
-                  <Text type="secondary">No tags match your search.</Text>
+                {selectedTagList.length > 0 && (
+                  <div className={styles.selectedTagSummary}>
+                    <div className={styles.selectedTagSummaryHeader}>
+                      <Text strong>Selected tags</Text>
+                      <Button
+                        type="link"
+                        size="small"
+                        style={{ padding: 0, height: 'auto' }}
+                        onClick={() => setSelectedTagIds([])}
+                      >
+                        Clear all
+                      </Button>
+                    </div>
+                    <div className={styles.selectedTagList}>
+                      {selectedTagList.map((tag) => (
+                        <Tag
+                          key={tag.id}
+                          color={tag.isParent ? 'blue' : 'default'}
+                          closable
+                          onClose={(e) => {
+                            e.preventDefault();
+                            handleRemoveSelectedTag(tag.id);
+                          }}
+                        >
+                          {tag.name}
+                        </Tag>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
-                {filteredRootTags.map((tag) => {
-                  const tagId = tag.id || tag.Id;
-                  const tagName = tag.name || tag.Name;
-                  const isExpanded = expandedRootTags.includes(tagId);
-                  const isRootSelected = selectedTagIds.includes(tagId);
-                  const children = childTagsMap[tagId] || [];
-                  const selectedChildrenCount = children.filter((child) => selectedTagIds.includes(child.id || child.Id)).length;
+                {!activeParentTagId && (
+                  <Text type="secondary">Please choose a parent tag category to see child tags.</Text>
+                )}
 
-                  return (
-                    <div key={tagId} className={styles.rootTagBlock}>
-                      <div className={styles.rootTagRow}>
-                        <button
-                          type="button"
-                          className={`${styles.rootTagButton} ${isRootSelected ? styles.rootTagButtonActive : ''}`}
-                          onClick={() => handleRootTagToggle(tagId)}
-                        >
-                          <span>{tagName}</span>
-                          <span className={styles.rootTagMeta}>
-                            {selectedChildrenCount > 0 ? `${selectedChildrenCount} child` : ''}
-                            {isRootSelected ? <CheckOutlined /> : null}
-                          </span>
-                        </button>
-                        <Button
-                          type="text"
-                          size="small"
-                          className={styles.expandButton}
-                          icon={isExpanded ? <DownOutlined /> : <RightOutlined />}
-                          onClick={() => handleRootTagExpand(tagId)}
-                        />
-                      </div>
-
-                      {isExpanded && children.length > 0 && (
-                        <div className={styles.childTagGrid}>
-                          {children.map((child) => {
-                            const childId = child.id || child.Id;
-                            const isChildSelected = selectedTagIds.includes(childId);
-                            return (
-                              <button
-                                type="button"
-                                key={childId}
-                                className={`${styles.childTagButton} ${isChildSelected ? styles.childTagButtonActive : ''}`}
-                                onClick={() => handleTagSelect(childId, !isChildSelected)}
-                              >
-                                {child.name || child.Name}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {isExpanded && children.length === 0 && (
-                        <Text type="secondary" className={styles.childTagHint}>No child tags</Text>
-                      )}
+                {activeParentTagId && (
+                  <div className={styles.rootTagBlock}>
+                    <div className={styles.rootTagRow}>
+                      <button
+                        type="button"
+                        className={`${styles.rootTagButton} ${selectedTagIds.includes(activeParentTagId) ? styles.rootTagButtonActive : ''}`}
+                        onClick={() => {
+                          void handleRootTagToggle(activeParentTagId);
+                        }}
+                      >
+                        <span>{activeParentTag?.name || activeParentTag?.Name}</span>
+                        <span className={styles.rootTagMeta}>
+                          {selectedChildrenCount > 0 ? `${selectedChildrenCount} child` : ''}
+                          {selectedTagIds.includes(activeParentTagId) ? 'Selected' : ''}
+                        </span>
+                      </button>
                     </div>
-                  );
-                })}
+
+                    {activeParentChildren.length > 0 && (
+                      <div className={styles.childTagGrid}>
+                        {activeParentChildren.map((child) => {
+                          const childId = child.id || child.Id;
+                          const isChildSelected = selectedTagIds.includes(childId);
+                          return (
+                            <button
+                              type="button"
+                              key={childId}
+                              className={`${styles.childTagButton} ${isChildSelected ? styles.childTagButtonActive : ''}`}
+                              onClick={() => handleTagSelect(childId, !isChildSelected)}
+                            >
+                              {child.name || child.Name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {activeParentChildren.length === 0 && (
+                      <Text type="secondary" className={styles.childTagHint}>No child tags</Text>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </Card>
@@ -568,7 +577,7 @@ const CreateTripPage = () => {
           {/* 4. Group Info */}
           <Card
             className={styles.sectionCard}
-            title={<span className={styles.sectionTitle}><TeamOutlined /> Group Information</span>}
+            title={<span className={styles.sectionTitle}>Group Information</span>}
           >
             <Row gutter={24}>
               <Col xs={24} sm={12}>
@@ -595,7 +604,7 @@ const CreateTripPage = () => {
           {/* 5. Budget */}
           <Card
             className={styles.sectionCard}
-            title={<span className={styles.sectionTitle}><DollarOutlined /> Budget</span>}
+            title={<span className={styles.sectionTitle}>Budget</span>}
           >
             <Row gutter={16}>
               <Col xs={24} sm={16}>
@@ -624,6 +633,17 @@ const CreateTripPage = () => {
               </Col>
             </Row>
 
+            <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+              Budget will be converted to VND before sending the itinerary request.
+            </Text>
+
+            <Form.Item
+              name="includeContingencyFund"
+              valuePropName="checked"
+            >
+              <Checkbox>Include contingency fund (recommended)</Checkbox>
+            </Form.Item>
+
             {computedFields && totalBudget > 0 && (
               <div className={styles.computedInfo}>
                 <div className={styles.computedItem}>
@@ -645,7 +665,7 @@ const CreateTripPage = () => {
           {/* 6. Dates */}
           <Card
             className={styles.sectionCard}
-            title={<span className={styles.sectionTitle}><CalendarOutlined /> Travel Dates</span>}
+            title={<span className={styles.sectionTitle}>Travel Dates</span>}
           >
             <Form.Item
               name="dateRange"
@@ -661,7 +681,7 @@ const CreateTripPage = () => {
 
             {computedFields && (
               <Tag color="green" style={{ fontSize: 14, padding: '4px 12px' }}>
-                📅 {computedFields.days} days {computedFields.nights} nights
+                {computedFields.days} days {computedFields.nights} nights
               </Tag>
             )}
           </Card>
@@ -669,7 +689,7 @@ const CreateTripPage = () => {
           {/* 7. Accommodation & Trip Segment */}
           <Card
             className={styles.sectionCard}
-            title={<span className={styles.sectionTitle}><HomeOutlined /> Accommodation Options</span>}
+            title={<span className={styles.sectionTitle}>Accommodation Options</span>}
           >
             <Form.Item
               name="hotelPreference"
@@ -693,7 +713,6 @@ const CreateTripPage = () => {
               type="primary"
               htmlType="submit"
               loading={loading}
-              icon={<RocketOutlined />}
               className={styles.submitButton}
             >
               {loading ? 'Generating Itinerary...' : 'Generate Itinerary'}

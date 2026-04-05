@@ -78,7 +78,17 @@
     "EUR": "Euro",
     "JPY": "Japanese Yen",
     "KRW": "Korean Won",
-    "THB": "Thai Baht"
+    "THB": "Thai Baht",
+    "GBP": "British Pound",
+    "AUD": "Australian Dollar",
+    "CAD": "Canadian Dollar",
+    "SGD": "Singapore Dollar",
+    "CNY": "Chinese Yuan",
+    "HKD": "Hong Kong Dollar",
+    "INR": "Indian Rupee",
+    "MYR": "Malaysian Ringgit",
+    "IDR": "Indonesian Rupiah",
+    "PHP": "Philippine Peso"
   },
   "language": {
     "label": "Language",

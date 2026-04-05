@@ -119,6 +119,26 @@
   align-items: center;
 }
 
+.selectedTagSummary {
+  border: 1px solid #d8e7ff;
+  border-radius: 10px;
+  background: #f8fbff;
+  padding: 10px 12px;
+}
+
+.selectedTagSummaryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.selectedTagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .rootTagBlock {
   border: 1px solid #e6eef9;
   border-radius: 10px;

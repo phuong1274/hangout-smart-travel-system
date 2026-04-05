@@ -28,6 +28,7 @@ namespace HSTS.Application.Itineraries.Queries
         public int GroupSize { get; set; }
         public int MinimumAge { get; set; }
         public decimal TotalBudget { get; set; }
+        public bool IncludeContingencyFund { get; set; } = true;
         public DateOnly StartDate { get; set; }
         public DateOnly EndDate { get; set; }
         public string? HotelPreference { get; set; }
@@ -305,7 +306,9 @@ namespace HSTS.Application.Itineraries.Queries
             notes.Add($"Destination order: {string.Join(" -> ", orderedDestinations.Select(d => $"{d.Name} ({dayAllocation[d.Id]}d)"))}.");
 
             // STAGE 4: Budget Decomposition
-            var contingencyPercent = CalculateContingencyPercentage(request.TotalBudget);
+            var contingencyPercent = request.IncludeContingencyFund
+                ? CalculateContingencyPercentage(request.TotalBudget)
+                : 0m;
             var contingencyFund = Math.Round(request.TotalBudget * contingencyPercent, 0);
             var usableBudget = request.TotalBudget - contingencyFund;
 
@@ -1149,7 +1152,14 @@ namespace HSTS.Application.Itineraries.Queries
                 toMoney(estimatedTotal),
                 toMoney(usableBudget - estimatedTotal));
 
-            notes.Add($"Contingency fund: {contingencyFund:N0} VND ({contingencyPercent * 100:F0}%).");
+            if (request.IncludeContingencyFund)
+            {
+                notes.Add($"Contingency fund: {contingencyFund:N0} VND ({contingencyPercent * 100:F0}%).");
+            }
+            else
+            {
+                notes.Add("Contingency fund disabled by user.");
+            }
             notes.Add($"Usable budget: {usableBudget:N0} VND.");
 
             var budgetLevel = ClassifyBudgetLevel(request.TotalBudget, groupSize, totalDays);
