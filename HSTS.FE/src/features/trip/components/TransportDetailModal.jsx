@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Descriptions, Typography, Divider, Spin } from 'antd';
+import { Drawer, Descriptions, Typography, Divider, Spin } from 'antd';
 import { MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -22,6 +22,12 @@ const parseCoordinate = (value) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const getEnglishPreferredName = (item) => {
+  const englishName = String(item?.englishName || item?.EnglishName || '').trim();
+  const localName = String(item?.name || item?.Name || '').trim();
+  return englishName || localName || '';
+};
+
 const resolvePointFromLocation = async (locationId, fallbackName) => {
   if (!locationId) return null;
   const location = await getLocationByIdApi(locationId);
@@ -35,7 +41,7 @@ const resolvePointFromLocation = async (locationId, fallbackName) => {
   return {
     lat: latitude,
     lng: longitude,
-    name: location?.name || location?.Name || fallbackName || `Location #${locationId}`,
+    name: getEnglishPreferredName(location) || fallbackName || `Location #${locationId}`,
   };
 };
 
@@ -80,8 +86,24 @@ const TransportDetailModal = ({ open, data, onClose }) => {
   const note = payload.note || payload.Note;
   const travelDetail = payload.travelDetail || payload.TravelDetail || null;
   // Extract travel leg details
-  const fromName = travelDetail?.fromName || travelDetail?.FromName || travelDetail?.from || travelDetail?.From || '';
-  const toName = travelDetail?.toName || travelDetail?.ToName || travelDetail?.to || travelDetail?.To || '';
+  const fromName = pickFirst(
+    travelDetail?.fromEnglishName,
+    travelDetail?.FromEnglishName,
+    travelDetail?.fromName,
+    travelDetail?.FromName,
+    travelDetail?.from,
+    travelDetail?.From,
+    '',
+  );
+  const toName = pickFirst(
+    travelDetail?.toEnglishName,
+    travelDetail?.ToEnglishName,
+    travelDetail?.toName,
+    travelDetail?.ToName,
+    travelDetail?.to,
+    travelDetail?.To,
+    '',
+  );
   const distanceKm = travelDetail?.distanceKm || travelDetail?.DistanceKm || travelDetail?.distance || travelDetail?.Distance;
   const durationMinutes = travelDetail?.durationMinutes || travelDetail?.DurationMinutes || travelDetail?.duration || travelDetail?.Duration;
   const mode = travelDetail?.mode || travelDetail?.Mode || travelDetail?.transportMode || travelDetail?.TransportMode || '';
@@ -184,11 +206,11 @@ const TransportDetailModal = ({ open, data, onClose }) => {
   if (!open || !data) return null;
 
   return (
-    <Modal
+    <Drawer
       title={`🚌 ${title}`}
       open={open}
-      onCancel={onClose}
-      footer={null}
+      onClose={onClose}
+      placement="right"
       width={860}
       destroyOnClose
     >
@@ -290,7 +312,7 @@ const TransportDetailModal = ({ open, data, onClose }) => {
           <Text type="secondary">{note}</Text>
         </>
       )}
-    </Modal>
+    </Drawer>
   );
 };
 

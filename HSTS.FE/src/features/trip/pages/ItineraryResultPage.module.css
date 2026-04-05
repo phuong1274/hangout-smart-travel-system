@@ -42,6 +42,19 @@
   margin-bottom: 24px;
 }
 
+.budgetCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.budgetToggleBtn {
+  padding: 0 !important;
+  height: auto !important;
+  font-size: 12px !important;
+}
+
 .budgetGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -98,9 +111,23 @@
 .dayMeta {
   display: flex;
   gap: 16px;
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 13px;
   color: #666;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.dayDate {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f4fbf;
+  line-height: 1.1;
+}
+
+.dayWeather {
+  font-size: 14px;
+  color: #5f6b7a;
 }
 
 /* Timeline */
@@ -129,11 +156,24 @@
 }
 
 .timelineTime {
-  min-width: 55px;
+  min-width: 62px;
   font-weight: 600;
   font-size: 14px;
   color: #333;
   padding-top: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.timelineTimeStart {
+  line-height: 1.1;
+}
+
+.timelineTimeEnd {
+  line-height: 1.1;
+  font-size: 14px;
+  color: #6b7280;
 }
 
 .timelineIcon {
@@ -159,6 +199,18 @@
   margin-bottom: 4px;
 }
 
+.timelineRoute {
+  font-size: 12px;
+  color: #667085;
+  margin-top: 2px;
+}
+
+.timelineRating {
+  font-size: 13px;
+  color: #4b5563;
+  margin-top: 2px;
+}
+
 .timelineNote {
   font-size: 13px;
   color: #888;
@@ -176,6 +228,46 @@
   display: flex;
   gap: 8px;
   margin-top: 8px;
+}
+
+.alternativeList {
+  margin-top: 8px;
+  border-left: 2px solid #dbeafe;
+  padding-left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alternativeItem {
+  background: #f8fbff;
+  border: 1px solid #e6f4ff;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.alternativeMain {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.alternativePrefix {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.alternativeName {
+  font-size: 13px;
+  color: #334155;
+}
+
+.alternativeActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 2px;
 }
 
 .timelineCost {

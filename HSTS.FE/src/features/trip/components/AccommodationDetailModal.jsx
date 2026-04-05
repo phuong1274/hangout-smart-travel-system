@@ -1,8 +1,34 @@
 import React from 'react';
-import { Modal, Descriptions, Typography, Tag, Space, Divider } from 'antd';
+import { Drawer, Descriptions, Typography, Tag, Space, Divider } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 
 const { Text, Paragraph } = Typography;
+
+const getEnglishPreferredName = (item) => {
+  const englishName = String(item?.englishName || item?.EnglishName || '').trim();
+  const localName = String(item?.name || item?.Name || '').trim();
+  return englishName || localName || '';
+};
+
+const formatRatingOutOfFive = (value) => {
+  if (value == null || value === '') return null;
+
+  const match = String(value).match(/([0-9]+(?:[.,][0-9]+)?)/);
+  if (!match) return null;
+
+  const numeric = Number(match[1].replace(',', '.'));
+  if (!Number.isFinite(numeric)) return null;
+
+  let normalized = numeric;
+  if (numeric > 10) {
+    normalized = numeric / 20;
+  } else if (numeric > 5) {
+    normalized = numeric / 2;
+  }
+
+  const rounded = Math.min(5, Math.max(0, Math.ceil(normalized)));
+  return `${rounded}/5`;
+};
 
 const formatMoney = (moneyDto) => {
   if (!moneyDto) return 'N/A';
@@ -14,7 +40,7 @@ const formatMoney = (moneyDto) => {
 const AccommodationDetailModal = ({ open, data, onClose }) => {
   if (!open || !data) return null;
 
-  const name = data.name || data.Name || data.hotelName || data.HotelName || 'Hotel';
+  const name = data.englishName || data.EnglishName || data.name || data.Name || data.hotelName || data.HotelName || 'Hotel';
   const address = data.address || data.Address || '';
   const description = data.description || data.Description || '';
   const rating = data.rating || data.Rating || data.starRating || data.StarRating;
@@ -24,20 +50,21 @@ const AccommodationDetailModal = ({ open, data, onClose }) => {
   const checkIn = data.checkInTime || data.CheckInTime;
   const checkOut = data.checkOutTime || data.CheckOutTime;
   const roomType = data.roomType || data.RoomType || '';
+  const displayRating = formatRatingOutOfFive(rating);
 
   return (
-    <Modal
+    <Drawer
       title={`🏨 ${name}`}
       open={open}
-      onCancel={onClose}
-      footer={null}
+      onClose={onClose}
+      placement="right"
       width={600}
       destroyOnClose
     >
       {/* Rating */}
-      {rating && (
+      {displayRating && (
         <div style={{ marginBottom: 12 }}>
-          {'⭐'.repeat(Math.min(Math.floor(rating), 5))} {rating}/5
+          {'⭐'.repeat(Number(displayRating.split('/')[0]))} {displayRating}
         </div>
       )}
 
@@ -66,7 +93,7 @@ const AccommodationDetailModal = ({ open, data, onClose }) => {
           <Divider orientation="left" plain>Amenities</Divider>
           <Space wrap>
             {amenities.map((a, i) => {
-              const amenName = typeof a === 'string' ? a : (a.name || a.Name || '');
+              const amenName = typeof a === 'string' ? a : getEnglishPreferredName(a);
               return (
                 <Tag key={i} icon={<CheckCircleOutlined />} color="green">
                   {amenName}
@@ -86,7 +113,7 @@ const AccommodationDetailModal = ({ open, data, onClose }) => {
           </Paragraph>
         </>
       )}
-    </Modal>
+    </Drawer>
   );
 };
 

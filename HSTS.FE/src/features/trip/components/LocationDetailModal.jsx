@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Modal,
+  Drawer,
   Descriptions,
   Tag,
   Typography,
@@ -23,6 +23,32 @@ import { getLocationByIdApi } from '../api';
 const { Title, Text, Paragraph } = Typography;
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const getEnglishPreferredName = (item) => {
+  const englishName = String(item?.englishName || item?.EnglishName || '').trim();
+  const localName = String(item?.name || item?.Name || '').trim();
+  return englishName || localName || '';
+};
+
+const formatRatingOutOfFive = (value) => {
+  if (value == null || value === '') return null;
+
+  const match = String(value).match(/([0-9]+(?:[.,][0-9]+)?)/);
+  if (!match) return null;
+
+  const numeric = Number(match[1].replace(',', '.'));
+  if (!Number.isFinite(numeric)) return null;
+
+  let normalized = numeric;
+  if (numeric > 10) {
+    normalized = numeric / 20;
+  } else if (numeric > 5) {
+    normalized = numeric / 2;
+  }
+
+  const rounded = Math.min(5, Math.max(0, Math.ceil(normalized)));
+  return `${rounded}/5`;
+};
 
 const LocationDetailModal = ({ open, locationId, onClose }) => {
   const [loading, setLoading] = useState(false);
@@ -49,7 +75,7 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
 
   if (!open) return null;
 
-  const name = location?.name || location?.Name || '';
+  const name = getEnglishPreferredName(location);
   const description = location?.description || location?.Description || '';
   const address = location?.address || location?.Address || '';
   const score = location?.score || location?.Score || location?.rating || location?.Rating;
@@ -61,16 +87,42 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
   const openingHours = location?.openingHours || location?.OpeningHours || [];
   const closures = location?.closures || location?.Closures || [];
   const images = location?.images || location?.Images || location?.medias || location?.Medias || [];
-  const locationTypeName = location?.locationTypeName || location?.LocationTypeName || location?.locationType?.name || '';
-  const districtName = location?.districtName || location?.DistrictName || location?.district?.name || '';
-  const provinceName = location?.provinceName || location?.ProvinceName || location?.province?.name || '';
+  const locationTypeName = getEnglishPreferredName(location?.locationType)
+    || location?.locationTypeEnglishName
+    || location?.LocationTypeEnglishName
+    || location?.locationTypeName
+    || location?.LocationTypeName
+    || '';
+  const districtName = String(
+    location?.districtEnglishName
+    || location?.DistrictEnglishName
+    || location?.district?.englishName
+    || location?.district?.EnglishName
+    || location?.districtName
+    || location?.DistrictName
+    || location?.district?.name
+    || location?.district?.Name
+    || ''
+  ).trim();
+  const provinceName = String(
+    location?.provinceEnglishName
+    || location?.ProvinceEnglishName
+    || location?.province?.englishName
+    || location?.province?.EnglishName
+    || location?.provinceName
+    || location?.ProvinceName
+    || location?.province?.name
+    || location?.province?.Name
+    || ''
+  ).trim();
+  const displayRating = formatRatingOutOfFive(score);
 
   return (
-    <Modal
+    <Drawer
       title={loading ? 'Loading...' : `🏛️ ${name}`}
       open={open}
-      onCancel={onClose}
-      footer={null}
+      onClose={onClose}
+      placement="right"
       width={700}
       destroyOnClose
     >
@@ -102,8 +154,8 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
             {locationTypeName && (
               <Descriptions.Item label="🏷️ Category">{locationTypeName}</Descriptions.Item>
             )}
-            {score != null && (
-              <Descriptions.Item label="⭐ Rating">{score}/5</Descriptions.Item>
+            {displayRating && (
+              <Descriptions.Item label="⭐ Rating">{displayRating}</Descriptions.Item>
             )}
             <Descriptions.Item label="🎫 Admission">
               {ticketPrice > 0 ? `${ticketPrice.toLocaleString()} VND` : 'Free'}
@@ -157,7 +209,7 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
               <Divider orientation="left" plain>🏷️ Tags</Divider>
               <Space wrap>
                 {tags.map((t) => (
-                  <Tag key={t.id || t.Id} color="blue">{t.name || t.Name}</Tag>
+                  <Tag key={t.id || t.Id} color="blue">{getEnglishPreferredName(t)}</Tag>
                 ))}
               </Space>
             </>
@@ -170,7 +222,7 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
               <Space wrap>
                 {amenities.map((a) => (
                   <Tag key={a.id || a.Id} icon={<CheckCircleOutlined />} color="green">
-                    {a.name || a.Name}
+                    {getEnglishPreferredName(a)}
                   </Tag>
                 ))}
               </Space>
@@ -190,7 +242,7 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
       ) : (
         <Text type="secondary">Location information not found.</Text>
       )}
-    </Modal>
+    </Drawer>
   );
 };
 

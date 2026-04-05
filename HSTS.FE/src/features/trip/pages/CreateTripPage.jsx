@@ -57,6 +57,23 @@ const DEFAULT_MAP_CENTER = [10.823099, 106.629664];
 const PARENT_TAG_MIN_ID = 1;
 const PARENT_TAG_MAX_ID = 16;
 
+const getDisplayNameWithEnglish = (item) => {
+  const localName = String(item?.name || item?.Name || '').trim();
+  const englishName = String(item?.englishName || item?.EnglishName || '').trim();
+
+  if (localName && englishName && localName.toLowerCase() !== englishName.toLowerCase()) {
+    return `${localName} (${englishName})`;
+  }
+
+  return localName || englishName || '';
+};
+
+const getEnglishPreferredName = (item) => {
+  const englishName = String(item?.englishName || item?.EnglishName || '').trim();
+  const localName = String(item?.name || item?.Name || '').trim();
+  return englishName || localName || '';
+};
+
 const InlineMapClickHandler = ({ onPick }) => {
   useMapEvents({
     click(e) {
@@ -134,13 +151,13 @@ const CreateTripPage = () => {
     parentTags.forEach((tag) => {
       const id = Number(tag.id || tag.Id);
       if (!Number.isFinite(id)) return;
-      map.set(id, tag.name || tag.Name || `Tag ${id}`);
+      map.set(id, getDisplayNameWithEnglish(tag) || `Tag ${id}`);
     });
 
     Object.values(childTagsMap).flat().forEach((tag) => {
       const id = Number(tag.id || tag.Id);
       if (!Number.isFinite(id)) return;
-      map.set(id, tag.name || tag.Name || `Tag ${id}`);
+      map.set(id, getDisplayNameWithEnglish(tag) || `Tag ${id}`);
     });
 
     return map;
@@ -181,7 +198,7 @@ const CreateTripPage = () => {
 
     setDestinations((prev) => [...prev, {
       provinceId,
-      provinceName: province.name || province.Name,
+      provinceName: getEnglishPreferredName(province),
       districtIds: [],
       allDistricts: true,
     }]);
@@ -407,7 +424,7 @@ const CreateTripPage = () => {
                   optionFilterProp="label"
                   options={provinces
                     .filter((p) => !selectedProvinceIds.includes(p.id || p.Id))
-                    .map((p) => ({ value: p.id || p.Id, label: p.name || p.Name }))}
+                    .map((p) => ({ value: p.id || p.Id, label: getEnglishPreferredName(p) }))}
                   onSelect={handleAddDestination}
                   value={null}
                   style={{ width: '100%' }}
@@ -453,7 +470,7 @@ const CreateTripPage = () => {
                             checked={dest.districtIds.includes(district.id || district.Id)}
                             onChange={(e) => handleDistrictToggle(dest.provinceId, district.id || district.Id, e.target.checked)}
                           >
-                            {district.name || district.Name}
+                            {getEnglishPreferredName(district)}
                           </Checkbox>
                         ))}
                       </div>
@@ -486,7 +503,7 @@ const CreateTripPage = () => {
                     optionFilterProp="label"
                     options={parentTags.map((tag) => ({
                       value: tag.id || tag.Id,
-                      label: tag.name || tag.Name,
+                      label: getDisplayNameWithEnglish(tag),
                     }))}
                     style={{ width: '100%' }}
                   />
@@ -538,7 +555,7 @@ const CreateTripPage = () => {
                           void handleRootTagToggle(activeParentTagId);
                         }}
                       >
-                        <span>{activeParentTag?.name || activeParentTag?.Name}</span>
+                        <span>{getDisplayNameWithEnglish(activeParentTag)}</span>
                         <span className={styles.rootTagMeta}>
                           {selectedChildrenCount > 0 ? `${selectedChildrenCount} child` : ''}
                           {selectedTagIds.includes(activeParentTagId) ? 'Selected' : ''}
@@ -558,7 +575,7 @@ const CreateTripPage = () => {
                               className={`${styles.childTagButton} ${isChildSelected ? styles.childTagButtonActive : ''}`}
                               onClick={() => handleTagSelect(childId, !isChildSelected)}
                             >
-                              {child.name || child.Name}
+                              {getDisplayNameWithEnglish(child)}
                             </button>
                           );
                         })}

@@ -12,7 +12,7 @@ export const getProvincesApi = () => {
 
 // Get districts by province
 export const getDistrictsByProvinceApi = (provinceId) => {
-  return apiClient.get(`/api/Districts`, { params: { provinceId } }).then(res => res.data);
+  return apiClient.get(`/api/common/provinces/${provinceId}/districts`).then(res => res.data);
 };
 
 // Get all districts
