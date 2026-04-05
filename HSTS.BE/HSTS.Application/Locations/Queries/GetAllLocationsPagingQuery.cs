@@ -23,9 +23,13 @@ namespace HSTS.Application.Locations.Queries
     public class GetAllLocationsPagingQueryHandler : IRequestHandler<GetAllLocationsPagingQuery, ErrorOr<LocationPagedResponse>>
     {
         private readonly IRepository<Location> _repository;
+        private readonly IRepository<Tag> _tagRepository;
 
-        public GetAllLocationsPagingQueryHandler(IRepository<Location> repository)
-            => _repository = repository;
+        public GetAllLocationsPagingQueryHandler(IRepository<Location> repository, IRepository<Tag> tagRepository)
+        {
+            _repository = repository;
+            _tagRepository = tagRepository;
+        }
 
         public async Task<ErrorOr<LocationPagedResponse>> Handle(GetAllLocationsPagingQuery request, CancellationToken ct)
         {
@@ -52,10 +56,30 @@ namespace HSTS.Application.Locations.Queries
                     (l.Description != null && l.Description.Contains(request.SearchTerm)));
             }
 
-            // Filter by Tag IDs (multiple select - locations must have ANY of the selected tags)
+            // Filter by Tag IDs with parent/child priority
             if (request.TagIds != null && request.TagIds.Count > 0)
             {
-                query = query.Where(l => l.LocationTags.Any(lt => request.TagIds.Contains(lt.TagId)));
+                // Step 1: Determine which input IDs are parents vs children
+                var tags = await _tagRepository.Query()
+                    .Where(t => request.TagIds.Contains(t.Id))
+                    .Select(t => new { t.Id, t.ParentTagId })
+                    .ToListAsync(CancellationToken.None);
+
+                var parentIds = tags.Where(t => t.ParentTagId == null).Select(t => t.Id).ToList();
+                var childIds = tags.Where(t => t.ParentTagId != null).Select(t => t.Id).ToList();
+
+                // Step 2: Apply priority logic
+                if (childIds.Count > 0)
+                {
+                    // Case A: Input has child tags -> filter ONLY by child tags
+                    query = query.Where(l => l.LocationTags.Any(lt => childIds.Contains(lt.TagId)));
+                }
+                else
+                {
+                    // Case B: Input has only parent tags -> filter by children of those parents
+                    query = query.Where(l => l.LocationTags.Any(lt =>
+                        lt.Tag != null && lt.Tag.ParentTagId.HasValue && parentIds.Contains(lt.Tag.ParentTagId.Value)));
+                }
             }
 
             // Filter by Location Type IDs (multiple select - ANY of the selected types)

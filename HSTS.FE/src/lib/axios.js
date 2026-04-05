@@ -2,10 +2,31 @@ import axios from 'axios';
 import { notification, message } from 'antd';
 import { API_URL } from '@/config/constants';
 
+// Custom params serializer for ASP.NET Core compatibility
+const serializeParams = (params) => {
+  const parts = [];
+  for (const key in params) {
+    if (Object.prototype.hasOwnProperty.call(params, key)) {
+      const value = params[key];
+      if (value === undefined || value === null) continue;
+      if (Array.isArray(value)) {
+        // ASP.NET Core expects: ?TagIds=1&TagIds=2&TagIds=3
+        value.forEach(v => {
+          parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(v)}`);
+        });
+      } else {
+        parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+      }
+    }
+  }
+  return parts.join('&');
+};
+
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
+  paramsSerializer: serializeParams,
 });
 
 const getCookie = (name) => {

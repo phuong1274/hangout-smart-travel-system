@@ -29,14 +29,14 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [rootTags, setRootTags] = useState([]);
-  const [availableTags, setAvailableTags] = useState([]);
-  // SINGLE SOURCE OF TRUTH: All selected tag IDs (both root and child tags)
-  // This eliminates inconsistency between selectedRootTagIds and form field tagIds
-  const [selectedTagIds, setSelectedTagIds] = useState([]);
+  const [availableChildTags, setAvailableChildTags] = useState([]);
+  // Selected child tags only (parent tags are for filtering only, not submitted)
+  const [selectedChildTagIds, setSelectedChildTagIds] = useState([]);
+  // Selected parent tag IDs (for filtering child tags, not submitted)
+  const [selectedParentTagIds, setSelectedParentTagIds] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
   const [amenities, setAmenities] = useState([]);
-  const [tags, setTags] = useState([]);
   const [mediaLinks, setMediaLinks] = useState([]);
   const [newMediaLink, setNewMediaLink] = useState('');
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
@@ -45,12 +45,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [seasons, setSeasons] = useState([]);
   const [tagsLoading, setTagsLoading] = useState(false);
   const [childTagsByParent, setChildTagsByParent] = useState({});
-
-  // Derived state: selected root tag IDs (computed from selectedTagIds)
-  // This avoids stale closure issues and keeps UI in sync with source of truth
-  const selectedRootIds = rootTags.length > 0
-    ? selectedTagIds.filter(id => rootTags.some(rt => rt.id === id))
-    : [];
 
   const isEdit = !!location;
 
@@ -69,14 +63,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
         // Handle paginated responses (extract items array)
         const allTags = Array.isArray(allTagsRes) ? allTagsRes : (allTagsRes?.items || []);
-
-        console.log('=== DEBUG: API Response ===');
-        console.log('allTagsRes:', allTagsRes);
-        console.log('allTags (extracted):', allTags);
-        console.log('First tag structure:', allTags[0]);
-        console.log('Total tags count:', allTags.length);
-        console.log('Tags with parentTagId:', allTags.filter(t => t.parentTagId).length);
-        console.log('Tags without parentTagId (roots):', allTags.filter(t => !t.parentTagId).length);
         const districts = Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []);
         const locationTypes = Array.isArray(typesRes) ? typesRes : (typesRes?.items || []);
         const amenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
@@ -84,12 +70,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         // Build tag hierarchy client-side
         const { rootTags, childTagsByParent } = buildTagHierarchy(allTags);
 
-        console.log('Fetched all tags:', allTags);
-        console.log('Built root tags:', rootTags);
-        console.log('Built childTagsByParent:', childTagsByParent);
-
         setRootTags(rootTags);
-        setAvailableTags(rootTags); // Initially show all root tags
         setDistricts(districts);
         setLocationTypes(locationTypes);
         setAmenities(amenities);
@@ -104,121 +85,84 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     fetchDropdownData();
   }, []);
 
-  // Load child tags when a root tag is selected
-  // Uses pre-fetched child tags from childTagsByParent map (no API calls)
-  const handleRootTagChange = (selectedRootIds) => {
-    console.log('handleRootTagChange called with:', selectedRootIds);
-    console.log('childTagsByParent:', childTagsByParent);
-    console.log('rootTags:', rootTags);
-    
-    // Separate root and child tags from current selection
-    const rootTagSet = new Set(rootTags.map(t => t.id));
-    const currentChildTagIds = selectedTagIds.filter(id => !rootTagSet.has(id));
+  // Handle parent tag change - updates filter for child tag dropdown
+  // Parent tags are NOT submitted, only used to filter child tags
+  const handleParentTagChange = (selectedParentIds) => {
+    setSelectedParentTagIds(selectedParentIds);
 
-    // Find which root tags were deselected by comparing new vs old root selections
-    const previousRootIds = selectedTagIds.filter(id => rootTagSet.has(id));
-    const deselectedRootIds = previousRootIds.filter(id => !selectedRootIds.includes(id));
-
-    // Get child tags of deselected root tags from pre-fetched map
-    const childrenOfDeselectedRoots = new Set();
-    deselectedRootIds.forEach(tagId => {
-      const children = childTagsByParent[tagId] || [];
-      children.forEach(ct => childrenOfDeselectedRoots.add(ct.id));
+    // Get child tags for selected parent tags
+    const filteredChildTags = [];
+    selectedParentIds.forEach(parentId => {
+      const children = childTagsByParent[parentId] || [];
+      filteredChildTags.push(...children);
     });
 
-    // Remove only child tags whose own parent was deselected
-    // This preserves child tags from still-selected root tags
-    const filteredChildTagIds = currentChildTagIds.filter(id =>
-      !childrenOfDeselectedRoots.has(id)
-    );
-
-    // Build new selection: new root IDs + remaining child IDs (deduplicated)
-    const newSelectedTagIds = [...selectedRootIds, ...filteredChildTagIds];
-    const uniqueSelectedTagIds = [...new Set(newSelectedTagIds)];
-    setSelectedTagIds(uniqueSelectedTagIds);
-
-    // Update form field to match (keeps form in sync with state)
-    form.setFieldValue('tagIds', filteredChildTagIds);
-
-    // Get children for ALL currently selected root tags from pre-fetched map
-    const allChildTagsFromSelectedRoots = [];
-    selectedRootIds.forEach(tagId => {
-      const children = childTagsByParent[tagId] || [];
-      allChildTagsFromSelectedRoots.push(...children);
-    });
-
-    console.log('allChildTagsFromSelectedRoots:', allChildTagsFromSelectedRoots);
-
-    // Rebuild available tags from scratch: root tags + ALL children from selected roots
-    // Remove duplicate child tags (same child might appear under multiple roots)
-    const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
+    // Remove duplicates
+    const uniqueChildTags = filteredChildTags.filter(
       (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
     );
 
-    console.log('uniqueChildTags:', uniqueChildTags);
-    console.log('Setting availableTags to:', [...rootTags, ...uniqueChildTags]);
+    setAvailableChildTags(uniqueChildTags);
 
-    setAvailableTags([...rootTags, ...uniqueChildTags]);
+    // Remove selected child tags that are no longer in filtered list
+    const availableChildIds = new Set(uniqueChildTags.map(t => t.id));
+    const filteredChildTagIds = selectedChildTagIds.filter(id => availableChildIds.has(id));
+    
+    if (filteredChildTagIds.length !== selectedChildTagIds.length) {
+      setSelectedChildTagIds(filteredChildTagIds);
+      form.setFieldValue('tagIds', filteredChildTagIds);
+    }
   };
 
-  // Handle child tag selection (with labelInValue format)
-  // BUG FIX: Previously only updated form field, not the source of truth state.
-  // Now updates selectedTagIds to maintain consistency.
-  const handleChildTagChange = (selectedChildTags) => {
-    // selectedChildTags is array of {value, label} when labelInValue is enabled
-    const selectedChildIds = selectedChildTags.map(tag => tag.value);
-
-    // Get current root tag IDs from selectedTagIds
-    const rootTagSet = new Set(rootTags.map(t => t.id));
-    const currentRootIds = selectedTagIds.filter(id => rootTagSet.has(id));
-
-    // Build new selection: root IDs + new child IDs (deduplicated)
-    const newSelectedTagIds = [...currentRootIds, ...selectedChildIds];
-    const uniqueSelectedTagIds = [...new Set(newSelectedTagIds)];
-    setSelectedTagIds(uniqueSelectedTagIds);
-
-    // Update form field to match (keeps form in sync with state)
+  // Handle child tag selection - only child tags are saved
+  const handleChildTagChange = (selectedChildIds) => {
+    setSelectedChildTagIds(selectedChildIds);
     form.setFieldValue('tagIds', selectedChildIds);
   };
 
-  // Set form values when editing
-  // Uses pre-fetched child tags (no API calls)
+  // Set form values when editing - derive parent tags from child tags
   useEffect(() => {
-    const setupEditForm = async () => {
-      if (location && location.tagIds && location.tagIds.length > 0 && rootTags.length > 0) {
-        // Set selected tag IDs (both root and child) from existing tags
-        const rootIds = location.tagIds.filter(id => {
-          const tag = rootTags.find(t => t.id === id);
-          return tag && !tag.parentTagId;
-        });
-        setSelectedTagIds(location.tagIds);
+    if (location && location.tagIds && location.tagIds.length > 0 && rootTags.length > 0) {
+      // Separate child tags from the tagIds
+      const childTagIds = location.tagIds.filter(id => childTagsByParent);
+      
+      // Derive parent tag IDs from child tags
+      const parentIds = new Set();
+      childTagIds.forEach(childId => {
+        for (const parentId in childTagsByParent) {
+          const children = childTagsByParent[parentId] || [];
+          if (children.some(c => c.id === childId)) {
+            parentIds.add(parseInt(parentId, 10));
+          }
+        }
+      });
 
-        // Get child tags for the selected root tags from pre-fetched map
-        const allChildTagsFromSelectedRoots = [];
-        rootIds.forEach(tagId => {
-          const children = childTagsByParent[tagId] || [];
-          allChildTagsFromSelectedRoots.push(...children);
-        });
-        // Remove duplicates
-        const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
-          (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
-        );
-        setAvailableTags([...rootTags, ...uniqueChildTags]);
-      }
-    };
+      setSelectedParentTagIds([...parentIds]);
+      setSelectedChildTagIds(childTagIds);
 
-    setupEditForm();
+      // Set available child tags based on derived parent tags
+      const filteredChildTags = [];
+      [...parentIds].forEach(parentId => {
+        const children = childTagsByParent[parentId] || [];
+        filteredChildTags.push(...children);
+      });
+
+      const uniqueChildTags = filteredChildTags.filter(
+        (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
+      );
+      setAvailableChildTags(uniqueChildTags);
+
+      // Set form field values
+      form.setFieldValue('tagIds', childTagIds);
+    }
   }, [location, rootTags, childTagsByParent]);
 
-  // Set form field values after tags are loaded
-  // BUG FIX: Previously, this effect ran whenever availableTags changed (e.g., during tag selection),
-  // causing form.resetFields() to be called in create mode, which cleared all form values.
-  // Now we only reset when location changes ( Modal opens/closes), not when availableTags changes.
+  // Set form field values when editing - ONLY runs when location changes (not when tags change)
   useEffect(() => {
-    if (location && availableTags.length > 0) {
+    if (location && amenities.length > 0) {
       // Convert tagIds to labelInValue format for proper display
       const tagIdsWithValue = (location.tagIds || []).map(tagId => {
-        const tag = availableTags.find(t => t.id === tagId);
+        const tag = availableChildTags.find(t => t.id === tagId);
         return {
           value: tagId,
           label: tag ? tag.name : String(tagId)
@@ -278,7 +222,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       setOpeningHours([]);
       setSeasons([]);
     }
-  }, [location, amenities]); // REMOVED availableTags from dependencies to prevent form reset during tag selection
+  }, [location, amenities]); // Removed availableChildTags to prevent form reset when parent tags change
 
   const handleSubmit = async (values) => {
     setLoading(true);
@@ -305,14 +249,11 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           }))
         : [];
 
-      // BUG FIX: Previously combined selectedRootTagIds (stale) with values.tagIds.map(t => t.value).
-      // But values.tagIds is already an array of IDs (not labelInValue objects) because handleChildTagChange
-      // and handleRootTagChange both call form.setFieldValue('tagIds', arrayOfIds).
-      // Now we simply use selectedTagIds which is the single source of truth.
+      // BUG FIX: Only send child tag IDs - parent tags are for filtering only
       const payload = {
         ...values,
-        // Use selectedTagIds directly - it contains both root and child tag IDs (deduplicated)
-        tagIds: selectedTagIds,
+        // Only child tags are submitted (not parent tags)
+        tagIds: selectedChildTagIds,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : [],
         // Extract IDs from labelInValue format
         amenityIds: values.amenityIds?.length > 0 ? values.amenityIds.map(a => a.value) : [],
@@ -643,48 +584,51 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           </Form.Item>
         </Space>
 
-        {/* Tags Selector - Root Tags Section */}
+        {/* Tags Selector - Parent Tags (Filter Only) */}
         <Form.Item
-          label="Root Tags"
-          tooltip="Select root categories. Child tags will load automatically."
+          label="Parent Tags"
+          tooltip="Select parent categories to filter child tags"
         >
           <Select
             mode="multiple"
-            placeholder="Select root tags"
-            value={selectedRootIds}
+            placeholder="Select parent tags to filter child tags"
+            value={selectedParentTagIds}
             style={{ width: '100%', marginBottom: 16 }}
-            onChange={handleRootTagChange}
+            onChange={handleParentTagChange}
             optionFilterProp="children"
             showSearch
           >
             {rootTags.map(tag => (
               <Option key={tag.id} value={tag.id}>
-                {tag.name} <span style={{ color: '#52c41a' }}>(Root)</span>
+                {tag.name} <span style={{ color: '#52c41a' }}>(Parent)</span>
               </Option>
             ))}
           </Select>
         </Form.Item>
 
-        {/* Tags Selector - Child Tags Section */}
+        {/* Tags Selector - Child Tags (Selected & Submitted) */}
         <Form.Item
           name="tagIds"
           label="Child Tags"
-          tooltip="Select child tags from chosen root categories"
+          tooltip="Select child tags to associate with this location"
           initialValue={[]}
+          rules={[
+            { required: true, message: 'Please select at least one child tag' },
+            { type: 'array', min: 1, message: 'At least one child tag is required' }
+          ]}
         >
           <Select
             mode="multiple"
-            labelInValue
-            placeholder={selectedRootIds.length > 0 ? "Select child tags" : "Select root tags first to see child tags"}
+            placeholder={selectedParentTagIds.length > 0 ? "Select child tags" : "Select parent tags first to see child tags"}
             style={{ width: '100%' }}
             maxTagCount="responsive"
             loading={tagsLoading}
             onChange={handleChildTagChange}
             optionFilterProp="children"
             showSearch
-            disabled={selectedRootIds.length === 0}
+            disabled={selectedParentTagIds.length === 0}
           >
-            {availableTags.filter(t => t.parentTagId).map(tag => (
+            {availableChildTags.map(tag => (
               <Option key={tag.id} value={tag.id}>
                 {tag.name} <span style={{ color: '#1677ff' }}>(Child)</span>
               </Option>

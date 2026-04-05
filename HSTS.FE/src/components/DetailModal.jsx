@@ -111,9 +111,9 @@ const DetailModal = ({ open, onClose, data, type }) => {
             
             <Descriptions.Item label="Tags" span={2}>
               <Space wrap>
-                {data.tagNames && data.tagNames.length > 0 ? (
-                  data.tagNames.map((tagName, index) => (
-                    <Tag key={index} color="purple">{tagName}</Tag>
+                {data.tags && data.tags.length > 0 ? (
+                  data.tags.map((tag, index) => (
+                    <Tag key={tag.id || index} color="purple">{tag.name}</Tag>
                   ))
                 ) : (
                   'No tags'
@@ -123,9 +123,9 @@ const DetailModal = ({ open, onClose, data, type }) => {
 
             <Descriptions.Item label="Amenities" span={2}>
               <Space wrap>
-                {data.amenityNames && data.amenityNames.length > 0 ? (
-                  data.amenityNames.map((amenityName, index) => (
-                    <Tag key={index} color="green">{amenityName}</Tag>
+                {data.amenities && data.amenities.length > 0 ? (
+                  data.amenities.map((amenity, index) => (
+                    <Tag key={amenity.id || index} color="green">{amenity.name}</Tag>
                   ))
                 ) : (
                   'No amenities'

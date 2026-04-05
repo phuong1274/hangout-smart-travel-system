@@ -142,7 +142,8 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 PriceMinUsd = submission.PriceMinUsd,
                 PriceMaxUsd = submission.PriceMaxUsd,
                 RecommendedDurationMinutes = null,
-                Score = submission.Score
+                Score = submission.Score,
+                OwnerId = submission.UserId // Set the submission creator as the location owner (partner)
             };
 
             await _locationRepository.AddAsync(location, cancellationToken);

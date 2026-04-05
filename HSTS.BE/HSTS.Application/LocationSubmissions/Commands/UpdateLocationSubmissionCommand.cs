@@ -2,6 +2,7 @@ using ErrorOr;
 using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
+using HSTS.Application.Common;
 using HSTS.Domain.Entities;
 using HSTS.Application.LocationSubmissions;
 using Microsoft.EntityFrameworkCore;
@@ -34,13 +35,16 @@ namespace HSTS.Application.LocationSubmissions.Commands
     public class UpdateLocationSubmissionCommandHandler : IRequestHandler<UpdateLocationSubmissionCommand, ErrorOr<LocationSubmissionDto>>
     {
         private readonly IRepository<LocationSubmission> _repository;
+        private readonly IRepository<Location> _locationRepository;
         private readonly ICurrentUserService _currentUser;
 
         public UpdateLocationSubmissionCommandHandler(
             IRepository<LocationSubmission> repository,
+            IRepository<Location> locationRepository,
             ICurrentUserService currentUser)
         {
             _repository = repository;
+            _locationRepository = locationRepository;
             _currentUser = currentUser;
         }
 
@@ -66,14 +70,48 @@ namespace HSTS.Application.LocationSubmissions.Commands
                     "Approved or published submissions cannot be updated. Please contact admin for changes.");
             }
 
-            var existingSubmissionWithName = await _repository.Query()
-                .Where(x => x.Name == request.Name && x.Id != request.Id && x.UserId == _currentUser.UserId && !x.IsDeleted)
-                .FirstOrDefaultAsync(cancellationToken);
+            // Duplicate check: same name (case-insensitive, trimmed) AND within 100 meters
+            const double proximityThresholdMeters = 100.0;
+            var normalizedName = request.Name.Trim().ToLowerInvariant();
 
-            if (existingSubmissionWithName != null)
+            // Step 1: Find ACTIVE locations with matching name (case-insensitive), excluding self if applicable
+            var candidateLocations = await _locationRepository.Query()
+                .Where(x => !x.IsDeleted
+                    && x.Status == Domain.Enums.LocationStatus.Active
+                    && x.Name.Trim().ToLower() == normalizedName)
+                .ToListAsync(cancellationToken);
+
+            // Step 2: Filter by proximity using Haversine distance
+            var duplicateLocation = candidateLocations.FirstOrDefault(loc =>
+                GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                    loc.Latitude, loc.Longitude) <= proximityThresholdMeters);
+
+            if (duplicateLocation != null)
             {
-                return Error.Conflict("LocationSubmission.DuplicateName",
-                    $"A submission with the name '{request.Name}' already exists.");
+                var distance = GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                    duplicateLocation.Latitude, duplicateLocation.Longitude);
+                return Error.Conflict("LocationSubmission.Duplicate",
+                    $"A location with the same name already exists within {distance:F0} meters.");
+            }
+
+            // Step 3: Check other PENDING submissions with same name AND proximity (excluding self)
+            var candidateSubmissions = await _repository.Query()
+                .Where(x => !x.IsDeleted
+                    && x.Id != request.Id
+                    && x.Status == Domain.Entities.SubmissionStatus.Pending
+                    && x.Name.Trim().ToLower() == normalizedName)
+                .ToListAsync(cancellationToken);
+
+            var duplicateSubmission = candidateSubmissions.FirstOrDefault(sub =>
+                GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                    sub.Latitude, sub.Longitude) <= proximityThresholdMeters);
+
+            if (duplicateSubmission != null)
+            {
+                var distance = GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                    duplicateSubmission.Latitude, duplicateSubmission.Longitude);
+                return Error.Conflict("LocationSubmission.Duplicate",
+                    $"A pending submission with the same name already exists within {distance:F0} meters.");
             }
 
             submission.Name = request.Name;

@@ -19,7 +19,13 @@ namespace HSTS.Application.Locations
                 location.DistrictId,
                 location.LocationType?.Name,
                 location.District?.Name,
+                location.LocationTags
+                    ?.Where(lt => lt.Tag != null)
+                    .Select(lt => new LocationTagDto(lt.Tag!.Id, lt.Tag!.Name))
+                    .ToList(),
+                // Backward compatibility
                 location.LocationTags?.Select(lt => lt.TagId).ToList() ?? [],
+                location.LocationTags?.Where(lt => lt.Tag != null).Select(lt => lt.Tag!.Name).ToList(),
                 location.LocationMedias?.Select(lm => lm.Link).ToList() ?? [],
                 location.SocialLinks?.Select(sl => new LocationSocialLinkDto(sl.Id, sl.Platform, sl.Url)).ToList() ?? [],
                 location.Telephone,
@@ -28,7 +34,13 @@ namespace HSTS.Application.Locations
                 location.PriceMaxUsd,
                 location.RecommendedDurationMinutes,
                 location.Score,
+                location.LocationAmenities
+                    ?.Where(la => la.Amenity != null)
+                    .Select(la => new LocationAmenityDto(la.Amenity!.Id, la.Amenity!.Name))
+                    .ToList(),
+                // Backward compatibility
                 location.LocationAmenities?.Select(la => la.AmenityId).ToList() ?? [],
+                location.LocationAmenities?.Where(la => la.Amenity != null).Select(la => la.Amenity!.Name).ToList(),
                 location.OpeningHours?.Select(oh => {
                     // Get the raw integer value from DB (could be 0-6 or 1-7)
                     int dayValue = (int)oh.DayOfWeek;

@@ -56,8 +56,11 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
   const [changedFields, setChangedFields] = useState([]);
   const [originalData, setOriginalData] = useState(null);
   const [rootTags, setRootTags] = useState([]);
-  const [availableTags, setAvailableTags] = useState([]);
-  const [selectedRootTagIds, setSelectedRootTagIds] = useState([]);
+  const [availableChildTags, setAvailableChildTags] = useState([]);
+  // Selected parent tag IDs (for filtering child tags, not submitted)
+  const [selectedParentTagIds, setSelectedParentTagIds] = useState([]);
+  // Selected child tag IDs (submitted as tagIds)
+  const [selectedChildTagIds, setSelectedChildTagIds] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
   const [amenities, setAmenities] = useState([]);
@@ -92,7 +95,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         const { rootTags, childTagsByParent } = buildTagHierarchy(allTags);
 
         setRootTags(rootTags);
-        setAvailableTags(rootTags); // Initially show all root tags
         setLocationTypes(types);
         setAmenities(amenities);
         setDistricts(districts);
@@ -106,15 +108,18 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
     fetchData();
   }, []);
 
-  // Load child tags when a root tag is selected
-  // Uses pre-fetched child tags from childTagsByParent map (no API calls)
-  const handleRootTagChange = (selectedRootIds) => {
-    // Check if root tags changed compared to original
-    const originalRootTagIds = (originalData?.tagIds || []).filter(id => {
-      const tag = rootTags.find(t => t.id === id);
-      return tag && !tag.parentTagId;
+  // Handle parent tag change - updates filter for child tag dropdown
+  // Parent tags are NOT submitted, only used to filter child tags
+  const handleParentTagChange = (selectedParentIds) => {
+    // Check if parent tags changed compared to original
+    const originalParentIds = (originalData?.tagIds || []).filter(id => {
+      for (const parentId in childTagsByParent) {
+        const children = childTagsByParent[parentId] || [];
+        if (children.some(c => c.id === id)) return false;
+      }
+      return true;
     });
-    if (JSON.stringify([...selectedRootIds].sort()) !== JSON.stringify([...originalRootTagIds].sort())) {
+    if (JSON.stringify([...selectedParentIds].sort()) !== JSON.stringify([...originalParentIds].sort())) {
       setChangedFields(prev => {
         if (!prev.includes('tagIds')) {
           return [...prev, 'tagIds'];
@@ -123,67 +128,66 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
       });
     }
 
-    setSelectedRootTagIds(selectedRootIds);
+    setSelectedParentTagIds(selectedParentIds);
 
-    // Get previously selected child tags
-    const currentChildTagIds = form.getFieldValue('tagIds') || [];
-
-    // Find which root tags were deselected
-    const deselectedRootIds = selectedRootTagIds.filter(id => !selectedRootIds.includes(id));
-
-    // Get child tags of deselected root tags from pre-fetched map
-    const childrenOfDeselectedRoots = new Set();
-    deselectedRootIds.forEach(tagId => {
-      const children = childTagsByParent[tagId] || [];
-      children.forEach(ct => childrenOfDeselectedRoots.add(ct.id));
+    // Get child tags for selected parent tags
+    const filteredChildTags = [];
+    selectedParentIds.forEach(parentId => {
+      const children = childTagsByParent[parentId] || [];
+      filteredChildTags.push(...children);
     });
 
-    // Remove only child tags whose own parent was deselected
-    const filteredChildTagIds = currentChildTagIds.filter(id =>
-      !childrenOfDeselectedRoots.has(id)
-    );
-
-    // Update form if child tags were removed
-    if (filteredChildTagIds.length !== currentChildTagIds.length) {
-      form.setFieldValue('tagIds', filteredChildTagIds);
-    }
-
-    // Get children for ALL currently selected root tags from pre-fetched map
-    const allChildTagsFromSelectedRoots = [];
-    selectedRootIds.forEach(tagId => {
-      const children = childTagsByParent[tagId] || [];
-      allChildTagsFromSelectedRoots.push(...children);
-    });
-
-    // Rebuild available tags from scratch: root tags + ALL children from selected roots
-    // Remove duplicate child tags (same child might appear under multiple roots)
-    const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
+    // Remove duplicates
+    const uniqueChildTags = filteredChildTags.filter(
       (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
     );
 
-    setAvailableTags([...rootTags, ...uniqueChildTags]);
+    setAvailableChildTags(uniqueChildTags);
+
+    // Remove selected child tags that are no longer in filtered list
+    const availableChildIds = new Set(uniqueChildTags.map(t => t.id));
+    const filteredChildTagIds = selectedChildTagIds.filter(id => availableChildIds.has(id));
+
+    if (filteredChildTagIds.length !== selectedChildTagIds.length) {
+      setSelectedChildTagIds(filteredChildTagIds);
+      form.setFieldValue('tagIds', filteredChildTagIds);
+    }
   };
 
   // Handle child tag selection
   const handleChildTagChange = (selectedChildIds) => {
-    // Child tags are stored in form field tagIds
+    setSelectedChildTagIds(selectedChildIds);
   };
 
   // Pre-fill with existing location data and store original values
   useEffect(() => {
-    if (location && open && rootTags.length > 0) {
-      // Separate root tags and child tags
-      const rootTagIds = (location.tagIds || []).filter(id => {
-        const tag = rootTags.find(t => t.id === id);
-        return tag && !tag.parentTagId;
-      });
-      const childTagIds = (location.tagIds || []).filter(id => {
-        const tag = rootTags.find(t => t.id === id);
-        return tag && tag.parentTagId;
+    if (location && open && rootTags.length > 0 && childTagsByParent) {
+      // Derive parent tag IDs from child tags
+      const childTagIds = location.tagIds || [];
+      const parentIds = new Set();
+      childTagIds.forEach(childId => {
+        for (const parentId in childTagsByParent) {
+          const children = childTagsByParent[parentId] || [];
+          if (children.some(c => c.id === childId)) {
+            parentIds.add(parseInt(parentId, 10));
+          }
+        }
       });
 
-      // Set root tags in state
-      setSelectedRootTagIds(rootTagIds);
+      // Set parent tags in state
+      setSelectedParentTagIds([...parentIds]);
+      setSelectedChildTagIds(childTagIds);
+
+      // Get child tags for selected parent tags from pre-fetched map
+      const allChildTagsFromSelectedParents = [];
+      [...parentIds].forEach(parentId => {
+        const children = childTagsByParent[parentId] || [];
+        allChildTagsFromSelectedParents.push(...children);
+      });
+      const uniqueChildTags = allChildTagsFromSelectedParents.filter(
+        (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
+      );
+      setAvailableChildTags(uniqueChildTags);
 
       const originalValues = {
         name: location.name,
@@ -227,17 +231,6 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         }));
         setSeasons(parsedSeasons);
       }
-
-      // Get child tags for selected root tags from pre-fetched map (no API calls)
-      const allChildTagsFromSelectedRoots = [];
-      rootTagIds.forEach(tagId => {
-        const children = childTagsByParent[tagId] || [];
-        allChildTagsFromSelectedRoots.push(...children);
-      });
-      const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
-        (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
-      );
-      setAvailableTags([...rootTags, ...uniqueChildTags]);
     }
   }, [location, open, form, rootTags, childTagsByParent]);
 
@@ -375,22 +368,13 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      // Combine root tags and child tags - ensure all are numbers
-      // Child tags can be either numbers or {value, label} objects
+      // Only child tags are submitted (not parent tags)
       const childTagIds = (values.tagIds || []).map(t => {
         if (typeof t === 'object' && t !== null) {
           return Number(t.value);
         }
         return Number(t);
       }).filter(id => !isNaN(id));
-      
-      // Ensure root tags are plain numbers
-      const rootTagIds = selectedRootTagIds.map(id => Number(id)).filter(id => !isNaN(id));
-      
-      const allTagIds = [
-        ...rootTagIds,
-        ...childTagIds
-      ];
 
       // Build proposed changes object (only changed fields) - send platform as enum number
       const proposedChanges = {};
@@ -418,8 +402,8 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
             months: Array.isArray(s.months) ? s.months.join(',') : s.months
           }));
         } else if (field === 'tagIds') {
-          // Include both root and child tags
-          proposedChanges.TagIds = allTagIds;
+          // Only child tags
+          proposedChanges.TagIds = childTagIds;
         } else {
           proposedChanges[field.charAt(0).toUpperCase() + field.slice(1)] = values[field];
         }
@@ -432,7 +416,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         proposedChanges: proposedChanges,
         // Also send all fields for validation/display purposes
         ...values,
-        tagIds: allTagIds,
+        tagIds: childTagIds,
         mediaLinks: mediaLinks.filter(link => link.trim() !== ''),
         socialLinks: socialLinks
           .filter(link => link.platform && link.url && link.url.trim() !== '')
@@ -678,45 +662,49 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
             </Form.Item>
           </Col>
           <Col span={24}>
-            {/* Root Tags Section */}
+            {/* Parent Tags Section (Filter Only) */}
             <Form.Item
-              label="Root Tags"
-              tooltip="Select root categories. Child tags will load automatically."
+              label="Parent Tags"
+              tooltip="Select parent categories to filter child tags"
               style={{ marginBottom: 8 }}
             >
               <Select
                 mode="multiple"
-                placeholder="Select root tags"
-                value={selectedRootTagIds}
+                placeholder="Select parent tags to filter child tags"
+                value={selectedParentTagIds}
                 style={{ width: '100%' }}
-                onChange={handleRootTagChange}
+                onChange={handleParentTagChange}
                 showSearch
                 optionFilterProp="children"
               >
                 {rootTags.map(tag => (
                   <Option key={tag.id} value={tag.id}>
-                    {tag.name} <span style={{ color: '#52c41a' }}>(Root)</span>
+                    {tag.name} <span style={{ color: '#52c41a' }}>(Parent)</span>
                   </Option>
                 ))}
               </Select>
             </Form.Item>
 
-            {/* Child Tags Section */}
+            {/* Child Tags Section (Selected & Submitted) */}
             <Form.Item
               name="tagIds"
               label="Child Tags"
-              tooltip="Select child tags from chosen root categories"
+              tooltip="Select child tags to associate with this location"
+              rules={[
+                { required: true, message: 'Please select at least one child tag' },
+                { type: 'array', min: 1, message: 'At least one child tag is required' }
+              ]}
             >
               <Select
                 mode="multiple"
-                placeholder={selectedRootTagIds.length > 0 ? "Select child tags" : "Select root tags first to see child tags"}
+                placeholder={selectedParentTagIds.length > 0 ? "Select child tags" : "Select parent tags first to see child tags"}
                 showSearch
                 optionFilterProp="children"
                 loading={tagsLoading}
                 onChange={handleChildTagChange}
-                disabled={selectedRootTagIds.length === 0}
+                disabled={selectedParentTagIds.length === 0}
               >
-                {availableTags.filter(t => t.parentTagId).map(tag => (
+                {availableChildTags.map(tag => (
                   <Option key={tag.id} value={tag.id}>
                     {tag.name} <span style={{ color: '#1677ff' }}>(Child)</span>
                   </Option>
