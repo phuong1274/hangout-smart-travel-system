@@ -22,7 +22,7 @@ namespace HSTS.Application.Tags.Queries
         public async Task<ErrorOr<List<TagDto>>> Handle(GetRootTagsQuery request, CancellationToken ct)
         {
             var rootTags = await _repository.Query()
-                .Where(t => t.Level == 1 && !t.IsDeleted)
+                .Where(t => t.ParentTagId == null && !t.IsDeleted)
                 .OrderBy(t => t.Name)
                 .ToListAsync(ct);
 

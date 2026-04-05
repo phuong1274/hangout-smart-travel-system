@@ -25,8 +25,8 @@ export const deleteLocationApi = (id) => {
 };
 
 // Dropdown data APIs
-export const getAllTagsApi = () => {
-  return apiClient.get('/api/Tags').then(res => res.data);
+export const getAllTagsApi = (params) => {
+  return apiClient.get('/api/Tags', { params }).then(res => res.data);
 };
 
 export const getAllDistrictsApi = () => {
@@ -46,6 +46,10 @@ export const getAllAmenitiesApi = () => {
 
 export const getAllProvincesApi = () => {
   return apiClient.get('/api/common/provinces').then(res => res.data);
+};
+
+export const getDistrictsByProvinceApi = (provinceId) => {
+  return apiClient.get(`/api/common/provinces/${provinceId}/districts`).then(res => res.data);
 };
 
 // Import from location-submissions for SuggestEditModal

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Space, Select, Row, Col, Button, DatePicker } from 'antd';
 import { SearchOutlined, FilterOutlined, ReloadOutlined, CalendarOutlined } from '@ant-design/icons';
-import { getAllTagsApi, getAllLocationTypesApi, getAllDistrictsApi } from '@/features/locations/api';
+import { getRootTagsApi, getChildTagsApi } from '@/features/tags/api';
+import { getAllLocationTypesApi, getAllDistrictsApi } from '@/features/locations/api';
 import dayjs from 'dayjs';
 
 const { Search } = Input;
@@ -15,12 +16,14 @@ const LocationFilter = ({
   ...props
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTagIds, setSelectedTagIds] = useState([]);
+  const [selectedParentTagIds, setSelectedParentTagIds] = useState([]);
+  const [selectedChildTagIds, setSelectedChildTagIds] = useState([]);
   const [selectedLocationTypeIds, setSelectedLocationTypeIds] = useState([]);
   const [selectedDistrictIds, setSelectedDistrictIds] = useState([]);
   const [dateRange, setDateRange] = useState([]);
 
-  const [tags, setTags] = useState([]);
+  const [rootTags, setRootTags] = useState([]);
+  const [availableChildTags, setAvailableChildTags] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
   const [districts, setDistricts] = useState([]);
 
@@ -30,14 +33,13 @@ const LocationFilter = ({
 
   const fetchDropdownData = async () => {
     try {
-      const [tagsRes, typesRes, districtsRes] = await Promise.all([
-        getAllTagsApi(),
+      const [rootTagsRes, typesRes, districtsRes] = await Promise.all([
+        getRootTagsApi(),
         getAllLocationTypesApi(),
         getAllDistrictsApi()
       ]);
 
-      // Handle both paged response {items, totalCount} and direct array
-      setTags(tagsRes?.items || tagsRes?.Items || tagsRes || []);
+      setRootTags(rootTagsRes?.items || rootTagsRes?.Items || rootTagsRes || []);
       setLocationTypes(typesRes?.items || typesRes?.Items || typesRes || []);
       setDistricts(districtsRes?.items || districtsRes?.Items || districtsRes || []);
     } catch (error) {
@@ -45,28 +47,65 @@ const LocationFilter = ({
     }
   };
 
+  const handleParentTagChange = async (parentIds) => {
+    setSelectedParentTagIds(parentIds);
+
+    // Fetch child tags for all selected parents
+    if (parentIds.length > 0) {
+      try {
+        const childTagPromises = parentIds.map(parentId => getChildTagsApi(parentId));
+        const childTagResults = await Promise.all(childTagPromises);
+
+        // Flatten and deduplicate child tags
+        const allChildTags = childTagResults.flatMap(res => res?.items || res?.Items || res || []);
+        const uniqueChildTags = allChildTags.filter(
+          (tag, index, self) => index === self.findIndex(t => t.id === tag.id)
+        );
+        setAvailableChildTags(uniqueChildTags);
+
+        // Clear selected child tags that are no longer available
+        const availableIds = new Set(uniqueChildTags.map(t => t.id));
+        setSelectedChildTagIds(prev => prev.filter(id => availableIds.has(id)));
+      } catch (error) {
+        console.error('Failed to load child tags:', error);
+        setAvailableChildTags([]);
+        setSelectedChildTagIds([]);
+      }
+    } else {
+      setAvailableChildTags([]);
+      setSelectedChildTagIds([]);
+    }
+  };
+
   const handleApplyFilter = () => {
+    // Send both parent and child tag IDs to backend
+    // Backend will resolve parent IDs to child locations
+    const allTagIds = [...selectedParentTagIds, ...selectedChildTagIds];
+
     const filters = {
       searchTerm: searchTerm || undefined,
-      tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
-      locationTypeIds: selectedLocationTypeIds.length > 0 ? selectedLocationTypeIds : undefined,
-      districtIds: selectedDistrictIds.length > 0 ? selectedDistrictIds : undefined,
-      fromDate: dateRange[0] ? dateRange[0].startOf('day').toISOString() : undefined,
-      toDate: dateRange[1] ? dateRange[1].endOf('day').toISOString() : undefined
+      TagIds: allTagIds.length > 0 ? allTagIds : undefined,
+      LocationTypeIds: selectedLocationTypeIds.length > 0 ? selectedLocationTypeIds : undefined,
+      DistrictIds: selectedDistrictIds.length > 0 ? selectedDistrictIds : undefined,
+      FromDate: dateRange[0] ? dateRange[0].startOf('day').toISOString() : undefined,
+      ToDate: dateRange[1] ? dateRange[1].endOf('day').toISOString() : undefined
     };
     onSearch(filters);
   };
 
   const handleReset = () => {
     setSearchTerm('');
-    setSelectedTagIds([]);
+    setSelectedParentTagIds([]);
+    setSelectedChildTagIds([]);
+    setAvailableChildTags([]);
     setSelectedLocationTypeIds([]);
     setSelectedDistrictIds([]);
     setDateRange([]);
     onSearch({});
   };
 
-  const hasActiveFilters = searchTerm || selectedTagIds.length > 0 ||
+  const hasActiveFilters = searchTerm || selectedParentTagIds.length > 0 ||
+    selectedChildTagIds.length > 0 ||
     selectedLocationTypeIds.length > 0 || selectedDistrictIds.length > 0 ||
     (dateRange && dateRange.length > 0 && (dateRange[0] || dateRange[1]));
 
@@ -112,14 +151,14 @@ const LocationFilter = ({
           <Col span={6}>
             <Select
               mode="multiple"
-              placeholder="Filter by Tags"
+              placeholder="Filter by Parent Tags"
               style={{ width: '100%' }}
-              value={selectedTagIds}
-              onChange={setSelectedTagIds}
+              value={selectedParentTagIds}
+              onChange={handleParentTagChange}
               allowClear
               maxTagCount="responsive"
             >
-              {tags.map(tag => (
+              {rootTags.map(tag => (
                 <Option key={tag.id} value={tag.id}>
                   {tag.name}
                 </Option>
@@ -127,6 +166,24 @@ const LocationFilter = ({
             </Select>
           </Col>
           <Col span={6}>
+            <Select
+              mode="multiple"
+              placeholder="Filter by Child Tags"
+              style={{ width: '100%' }}
+              value={selectedChildTagIds}
+              onChange={setSelectedChildTagIds}
+              allowClear
+              maxTagCount="responsive"
+              disabled={selectedParentTagIds.length === 0}
+            >
+              {availableChildTags.map(tag => (
+                <Option key={tag.id} value={tag.id}>
+                  {tag.name}
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={4}>
             <Select
               mode="multiple"
               placeholder="Filter by Location Types"
@@ -143,7 +200,7 @@ const LocationFilter = ({
               ))}
             </Select>
           </Col>
-          <Col span={6}>
+          <Col span={4}>
             <Select
               mode="multiple"
               placeholder="Filter by Districts"

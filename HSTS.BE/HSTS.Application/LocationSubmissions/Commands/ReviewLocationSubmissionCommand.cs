@@ -142,7 +142,8 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 PriceMinUsd = submission.PriceMinUsd,
                 PriceMaxUsd = submission.PriceMaxUsd,
                 RecommendedDurationMinutes = null,
-                Score = submission.Score
+                Score = submission.Score,
+                OwnerId = submission.UserId // Set the submission creator as the location owner (partner)
             };
 
             await _locationRepository.AddAsync(location, cancellationToken);
@@ -224,19 +225,25 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 {
                     foreach (var ohData in openingHoursData)
                     {
-                        var dayOfWeek = ohData.TryGetProperty("dayOfWeek", out var dowProp) 
-                            ? (DayOfWeek)dowProp.GetInt32() 
-                            : DayOfWeek.Monday;
+                        // Try both camelCase and PascalCase for dayOfWeek
+                        int dayOfWeekValue = 1; // default Monday
+                        if (ohData.TryGetProperty("dayOfWeek", out var dowProp) || ohData.TryGetProperty("DayOfWeek", out dowProp))
+                        {
+                            dayOfWeekValue = dowProp.GetInt32();
+                        }
                         
-                        var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) && otProp.ValueKind != JsonValueKind.Null
+                        // Convert from ISO 8601 (1=Monday, ..., 7=Sunday) to .NET DayOfWeek (0=Sunday, 1=Monday, ..., 6=Saturday)
+                        var dayOfWeek = (DayOfWeek)(dayOfWeekValue == 7 ? 0 : dayOfWeekValue);
+
+                        var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) || ohData.TryGetProperty("OpenTime", out otProp)
                             ? otProp.GetString()
                             : "08:00";
-                        
-                        var closeTimeStr = ohData.TryGetProperty("closeTime", out var ctProp) && ctProp.ValueKind != JsonValueKind.Null
+
+                        var closeTimeStr = ohData.TryGetProperty("closeTime", out var ctProp) || ohData.TryGetProperty("CloseTime", out ctProp)
                             ? ctProp.GetString()
                             : "17:00";
-                        
-                        var note = ohData.TryGetProperty("note", out var noteProp) ? noteProp.GetString() : null;
+
+                        var note = ohData.TryGetProperty("note", out var noteProp) || ohData.TryGetProperty("Note", out noteProp) ? noteProp.GetString() : null;
 
                         location.OpeningHours.Add(new LocationOpeningHour
                         {
@@ -318,19 +325,25 @@ namespace HSTS.Application.LocationSubmissions.Commands
                     {
                         foreach (var ohData in openingHoursData)
                         {
-                            var dayOfWeek = ohData.TryGetProperty("dayOfWeek", out var dowProp) 
-                                ? (DayOfWeek)dowProp.GetInt32() 
-                                : DayOfWeek.Monday;
+                            // Try both camelCase and PascalCase for dayOfWeek
+                            int dayOfWeekValue = 1; // default Monday
+                            if (ohData.TryGetProperty("dayOfWeek", out var dowProp) || ohData.TryGetProperty("DayOfWeek", out dowProp))
+                            {
+                                dayOfWeekValue = dowProp.GetInt32();
+                            }
                             
-                            var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) && otProp.ValueKind != JsonValueKind.Null
+                            // Convert from ISO 8601 (1=Monday, ..., 7=Sunday) to .NET DayOfWeek (0=Sunday, 1=Monday, ..., 6=Saturday)
+                            var dayOfWeek = (DayOfWeek)(dayOfWeekValue == 7 ? 0 : dayOfWeekValue);
+
+                            var openTimeStr = ohData.TryGetProperty("openTime", out var otProp) || ohData.TryGetProperty("OpenTime", out otProp)
                                 ? otProp.GetString()
                                 : "08:00";
-                            
-                            var closeTimeStr = ohData.TryGetProperty("closeTime", out var ctProp) && ctProp.ValueKind != JsonValueKind.Null
+
+                            var closeTimeStr = ohData.TryGetProperty("closeTime", out var ctProp) || ohData.TryGetProperty("CloseTime", out ctProp)
                                 ? ctProp.GetString()
                                 : "17:00";
-                            
-                            var note = ohData.TryGetProperty("note", out var noteProp) ? noteProp.GetString() : null;
+
+                            var note = ohData.TryGetProperty("note", out var noteProp) || ohData.TryGetProperty("Note", out noteProp) ? noteProp.GetString() : null;
 
                             location.OpeningHours.Add(new LocationOpeningHour
                             {

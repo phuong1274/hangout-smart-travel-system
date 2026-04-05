@@ -6,9 +6,12 @@ import { useLocations } from '../hooks/useLocations';
 import LocationTable from '../components/LocationTable';
 import LocationForm from '../components/LocationForm';
 import DetailModal from '@/components/DetailModal';
+import ClosureModal from '../components/ClosureModal';
+import ClosureHistoryModal from '../components/ClosureHistoryModal';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '@/routes/paths';
 import { deleteLocationApi, getLocationByIdApi } from '../api';
+import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
 import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
 import { transformLocationForDisplay } from '@/utils/locationMappers';
 
@@ -30,6 +33,12 @@ const LocationsPage = () => {
   const [editingLocation, setEditingLocation] = useState(null);
   const [viewingLocation, setViewingLocation] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  // Closure states
+  const [closureModalOpen, setClosureModalOpen] = useState(false);
+  const [closureHistoryModalOpen, setClosureHistoryModalOpen] = useState(false);
+  const [selectedLocationForClosure, setSelectedLocationForClosure] = useState(null);
+  const [closingLocation, setClosingLocation] = useState(null);
   
   // Reference data for mapping IDs to names (cached to prevent duplicate API calls)
   const [referenceData, setReferenceData] = useState({ allTags: [], locationTypes: [], amenities: [] });
@@ -108,6 +117,50 @@ const LocationsPage = () => {
     }
   };
 
+  // Closure handlers
+  const handleCloseLocation = (location) => {
+    setClosingLocation(location);
+    setClosureModalOpen(true);
+  };
+
+  const handleOpenLocation = async (location) => {
+    try {
+      const closures = await getClosuresByLocationApi(location.id);
+      const activeClosure = closures?.find(c => c.isActive);
+      if (activeClosure) {
+        await endClosureApi(activeClosure.id);
+        message.success(`"${location.name}" is now open.`);
+        fetchLocations();
+      } else {
+        message.warning('No active closure found. The location may already be open.');
+        fetchLocations();
+      }
+    } catch (error) {
+      message.error('Failed to open location.');
+    }
+  };
+
+  const handleViewClosureHistory = (location) => {
+    setSelectedLocationForClosure(location);
+    setClosureHistoryModalOpen(true);
+  };
+
+  const handleClosureSuccess = () => {
+    setClosureModalOpen(false);
+    setClosingLocation(null);
+    fetchLocations();
+  };
+
+  const handleClosureModalClose = () => {
+    setClosureModalOpen(false);
+    setClosingLocation(null);
+  };
+
+  const handleClosureHistoryModalClose = () => {
+    setClosureHistoryModalOpen(false);
+    setSelectedLocationForClosure(null);
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
@@ -141,6 +194,9 @@ const LocationsPage = () => {
               onEdit={handleEdit}
               onView={handleView}
               onDelete={handleDelete}
+              onCloseLocation={handleCloseLocation}
+              onOpenLocation={handleOpenLocation}
+              onViewClosureHistory={handleViewClosureHistory}
             />
           </Card>
         </Space>
@@ -161,6 +217,24 @@ const LocationsPage = () => {
         }}
         data={viewingLocation}
         type="location"
+      />
+
+      {/* Closure Modal */}
+      <ClosureModal
+        open={closureModalOpen}
+        onClose={handleClosureModalClose}
+        onSuccess={handleClosureSuccess}
+        locationId={closingLocation?.id}
+        locationName={closingLocation?.name}
+      />
+
+      {/* Closure History Modal */}
+      <ClosureHistoryModal
+        open={closureHistoryModalOpen}
+        onClose={handleClosureHistoryModalClose}
+        locationId={selectedLocationForClosure?.id}
+        locationName={selectedLocationForClosure?.name}
+        onClosureChange={fetchLocations}
       />
     </Layout>
   );

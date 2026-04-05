@@ -1,9 +1,16 @@
 import React from 'react';
 import { Table, Button, Space, Popconfirm, Tag, Tooltip } from 'antd';
-import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined, PhoneOutlined, MailOutlined, LinkOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined, PhoneOutlined, MailOutlined, LinkOutlined, LockOutlined, UnlockOutlined, HistoryOutlined } from '@ant-design/icons';
 import { PAGINATION } from '@/config/constants';
 
-const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView }) => {
+// LocationStatus enum values (matching backend)
+const LocationStatus = {
+  Active: 1,
+  TemporarilyClosed: 2,
+  Inactive: 3,
+};
+
+const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView, onCloseLocation, onOpenLocation, onViewClosureHistory }) => {
   const columns = [
     {
       title: 'ID',
@@ -98,39 +105,93 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       render: (value) => value ? `${value} min` : '-',
     },
     {
+      title: 'Status',
+      key: 'effectiveStatus',
+      width: 120,
+      render: (_, record) => {
+        const status = record.effectiveStatus || LocationStatus.Active;
+        if (status === LocationStatus.TemporarilyClosed) {
+          return <Tag color="red">Closed</Tag>;
+        }
+        if (status === LocationStatus.Inactive) {
+          return <Tag color="default">Inactive</Tag>;
+        }
+        return <Tag color="green">Active</Tag>;
+      },
+    },
+    {
       title: 'Actions',
       key: 'actions',
-      width: 150,
+      width: 200,
       fixed: 'right',
-      render: (_, record) => (
-        <Space direction="vertical" size="small">
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => onView(record)}
-          >
-            View
-          </Button>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => onEdit(record)}
-          >
-            Edit
-          </Button>
-          <Popconfirm
-            title="Delete Location"
-            description="Are you sure you want to delete this location?"
-            onConfirm={() => onDelete(record)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button type="link" danger icon={<DeleteOutlined />}>
-              Delete
+      render: (_, record) => {
+        const status = record.effectiveStatus || LocationStatus.Active;
+        const isClosed = status === LocationStatus.TemporarilyClosed;
+        const isInactive = status === LocationStatus.Inactive;
+
+        return (
+          <Space direction="vertical" size="small">
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
+              onClick={() => onView(record)}
+            >
+              View
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
+            {!isInactive && (
+              <Button
+                type="link"
+                icon={<EditOutlined />}
+                onClick={() => onEdit(record)}
+              >
+                Edit
+              </Button>
+            )}
+            {!isInactive && (
+              <Button
+                type="link"
+                icon={<HistoryOutlined />}
+                onClick={() => onViewClosureHistory?.(record)}
+              >
+                History
+              </Button>
+            )}
+            {isClosed ? (
+              <Popconfirm
+                title="Open Location"
+                description="Are you sure you want to open this location? It will become active immediately."
+                onConfirm={() => onOpenLocation(record)}
+                okText="Yes, Open"
+                cancelText="Cancel"
+              >
+                <Button type="link" style={{ color: '#52c41a' }} icon={<UnlockOutlined />}>
+                  Open
+                </Button>
+              </Popconfirm>
+            ) : !isInactive ? (
+              <Button
+                type="link"
+                danger
+                icon={<LockOutlined />}
+                onClick={() => onCloseLocation(record)}
+              >
+                Close
+              </Button>
+            ) : null}
+            <Popconfirm
+              title="Delete Location"
+              description="Are you sure you want to delete this location?"
+              onConfirm={() => onDelete(record)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button type="link" danger icon={<DeleteOutlined />}>
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
   ];
 

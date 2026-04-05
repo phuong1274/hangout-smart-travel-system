@@ -2,6 +2,7 @@ using ErrorOr;
 using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
+using HSTS.Application.Common;
 using HSTS.Domain.Entities;
 using HSTS.Application.LocationSubmissions;
 using Microsoft.EntityFrameworkCore;
@@ -57,14 +58,48 @@ namespace HSTS.Application.LocationSubmissions.Commands
 
         public async Task<ErrorOr<LocationSubmissionDto>> Handle(CreateLocationSubmissionCommand request, CancellationToken cancellationToken)
         {
-            var existingSubmission = await _repository.Query()
-                .Where(x => x.Name == request.Name && x.UserId == _currentUser.UserId && !x.IsDeleted)
-                .FirstOrDefaultAsync(cancellationToken);
+            // Duplicate check: same name (case-insensitive, trimmed) AND within 100 meters
+            const double proximityThresholdMeters = 100.0;
+            var normalizedName = request.Name.Trim().ToLowerInvariant();
 
-            if (existingSubmission != null)
+            // Step 1: Find ACTIVE locations with matching name (case-insensitive)
+            var candidateLocations = await _locationRepository.Query()
+                .Where(x => !x.IsDeleted
+                    && x.Status == Domain.Enums.LocationStatus.Active
+                    && x.Name.Trim().ToLower() == normalizedName)
+                .ToListAsync(cancellationToken);
+
+            // Step 2: Filter by proximity using Haversine distance
+            var duplicateLocation = candidateLocations.FirstOrDefault(loc =>
+                GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                    loc.Latitude, loc.Longitude) <= proximityThresholdMeters);
+
+            if (duplicateLocation != null)
             {
-                return Error.Conflict("LocationSubmission.DuplicateName",
-                    $"A submission with the name '{request.Name}' already exists for this user.");
+                var distance = GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                    duplicateLocation.Latitude, duplicateLocation.Longitude);
+                return Error.Conflict("LocationSubmission.Duplicate",
+                    $"A location with the same name already exists within {distance:F0} meters. " +
+                    $"Please verify this is not a duplicate.");
+            }
+
+            // Step 3: Check PENDING submissions with same name AND proximity
+            var candidateSubmissions = await _repository.Query()
+                .Where(x => !x.IsDeleted
+                    && x.Status == Domain.Entities.SubmissionStatus.Pending
+                    && x.Name.Trim().ToLower() == normalizedName)
+                .ToListAsync(cancellationToken);
+
+            var duplicateSubmission = candidateSubmissions.FirstOrDefault(sub =>
+                GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                    sub.Latitude, sub.Longitude) <= proximityThresholdMeters);
+
+            if (duplicateSubmission != null)
+            {
+                var distance = GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                    duplicateSubmission.Latitude, duplicateSubmission.Longitude);
+                return Error.Conflict("LocationSubmission.Duplicate",
+                    $"A pending submission with the same name already exists within {distance:F0} meters.");
             }
 
             // Validate ownership for EditExisting submissions
