@@ -10,11 +10,12 @@ namespace HSTS.Application.Itineraries.Queries
          int LocationId,
          string LocationName,
          string Address,
-         double Score,
+         decimal LocationScore,
          MoneyDto PricePerPersonPerNight,
          MoneyDto TotalCostPerNight,
          double DistanceToCenter,
-         int AmenityCount,
-         IList<int> AmenityIds,
+         IList<string> Amenities,
+         string? Telephone,
+         IList<string> MediaUrls,
          bool IsRecommended);
 }

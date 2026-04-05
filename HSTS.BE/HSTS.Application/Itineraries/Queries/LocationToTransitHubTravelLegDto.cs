@@ -8,7 +8,9 @@ namespace HSTS.Application.Itineraries.Queries
 {
     public record LocationToTransitHubTravelLegDto(
         int FromLocationId,
-        int ToTransitHubId,
+        string FromLocationName,
+        int? ToTransitHubId,
+        string ToTransitHubName,
         TimeOnly DepartureTime,
         TimeOnly ArrivalTime,
         double DistanceKm,

@@ -12,9 +12,8 @@ namespace HSTS.Application.Itineraries.Queries
          DateOnly Date,
          int ProvinceId,
          string? WeatherSummary,
+         MoneyDto BaseDailyBudget,
          MoneyDto DailyBudget,
          MoneyDto EstimatedDayCost,
-         MoneyDto RolloverToNextDay,
-         IList<AccommodationRecommendationDto>? AccommodationRecommendations,
          IList<ItineraryTimelineItemDto> Timeline);
 }

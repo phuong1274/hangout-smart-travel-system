@@ -1,16 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace HSTS.Application.Itineraries.Queries
 {
-    public record LocationToLocationTravelLegDto(
-         int FromLocationId,
-         string FromLocationName,
-         int ToLocationId,
-         string ToLocationName,
+    public record ProvinceToProvinceTravelLegDto(
+         int FromProvinceId,
+         string FromProvinceName,
+         int ToProvinceId,
+         string ToProvinceName,
          TimeOnly DepartureTime,
          TimeOnly ArrivalTime,
          double DistanceKm,
