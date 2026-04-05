@@ -244,12 +244,12 @@ namespace HSTS.Application.Itineraries.Queries
                 else notes.Add("Tag filter returned no results; falling back to all locations.");
             }
 
-            // Filter attractions (Type 1: Tham quan, du l?ch - uu tiên cao)
+            // Filter attractions 
             var attractions = nonAccommodationLocations.Where(x =>
                 x.LocationTypeId == 1 ||
                 (x.LocationType != null && x.LocationType.Name.Contains("Attraction", StringComparison.OrdinalIgnoreCase))).ToList();
 
-            // Filter shopping (Type 5: Mua s?m - uu tiên th?p hon, ch? dùng khi h?t attraction)
+            // Filter shopping 
             var shoppingLocations = nonAccommodationLocations.Where(x =>
                 x.LocationTypeId == 5 ||
                 (x.LocationType != null && x.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase))).ToList();
@@ -833,11 +833,6 @@ namespace HSTS.Application.Itineraries.Queries
                             : new GeoPoint(currentProvince.EnglishName, currentProvince.Latitude ?? 0, currentProvince.Longitude ?? 0);
                         currentLocationName = destAccommodation?.Name;
                         currentLocationId = destAccommodation?.Id ?? 0;
-
-                        // Ch? tính accommodation cost n?u:
-                        // - Có khách s?n
-                        // - KHÔNG ph?i ngày cu?i cùng c?a trip (v? nhà)
-                        // - VÀ KHÔNG ph?i ngày cu?i cùng t?i destination này (ngày mai s? di chuy?n)
                         bool isAccomLastDayOfTrip = (globalDayIndex == totalDays - 1);
                         bool isAccomLastDayAtThisDest = (localDay == daysInDest - 1);
                         bool willAccomMoveToNewDestTomorrow = isAccomLastDayAtThisDest && (destIdx < orderedDestinations.Count - 1);
