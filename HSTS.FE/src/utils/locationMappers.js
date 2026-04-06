@@ -90,8 +90,8 @@ export const transformLocationForDisplay = (data, referenceData) => {
     tags: hasStructuredTags ? data.tags : mapTagIdsToObjects(tagIds, allTags),
     // Use structured amenities if available, otherwise fall back to mapping IDs
     amenities: hasStructuredAmenities ? data.amenities : mapAmenityIdsToObjects(amenityIds, amenities),
-    // Map location type ID to name
-    locationTypeName: mapLocationTypeIdToName(locationTypeId, locationTypes),
+    // Use backend's locationTypeName if available, otherwise map from ID
+    locationTypeName: data.locationTypeName || data.LocationTypeName || mapLocationTypeIdToName(locationTypeId, locationTypes),
     // Map social link platforms to names
     socialLinks: (data.socialLinks || data.SocialLinks || []).map(sl => ({
       ...sl,

@@ -161,7 +161,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
 
   // Pre-fill with existing location data and store original values
   useEffect(() => {
-    if (location && open && rootTags.length > 0 && childTagsByParent) {
+    if (location && open && rootTags.length > 0 && childTagsByParent && locationTypes.length > 0 && districts.length > 0) {
       // Derive parent tag IDs from child tags
       const childTagIds = location.tagIds || [];
       const parentIds = new Set();
@@ -232,7 +232,7 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
         setSeasons(parsedSeasons);
       }
     }
-  }, [location, open, form, rootTags, childTagsByParent]);
+  }, [location, open, form, rootTags, childTagsByParent, locationTypes, districts, amenities]);
 
   // Track which fields have changed
   const handleValuesChange = (changedValues, allValues) => {
@@ -639,7 +639,13 @@ const SuggestEditModal = ({ location, open, onClose, onSuccess }) => {
               name="locationTypeId"
               label="Location Type"
             >
-              <Select placeholder="Select type" allowClear showSearch optionFilterProp="children">
+              <Select 
+                placeholder="Select type" 
+                allowClear 
+                showSearch 
+                optionFilterProp="children"
+                loading={locationTypes.length === 0}
+              >
                 {locationTypes.map(type => (
                   <Option key={type.id} value={type.id}>{type.name}</Option>
                 ))}

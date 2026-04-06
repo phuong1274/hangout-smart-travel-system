@@ -132,7 +132,7 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
 
   // Populate form when editing - derive parent tags from child tags
   useEffect(() => {
-    if (submission && rootTags.length > 0 && childTagsByParent) {
+    if (submission && rootTags.length > 0 && childTagsByParent && locationTypes.length > 0 && districts.length > 0) {
       // Derive parent tag IDs from child tags
       const childTagIds = submission.tagIds || [];
       const parentIds = new Set();
@@ -195,7 +195,7 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
       setOpeningHours([]);
       setSeasons([]);
     }
-  }, [submission, form, rootTags, childTagsByParent]);
+  }, [submission, form, rootTags, childTagsByParent, locationTypes, districts, amenities]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
@@ -605,7 +605,14 @@ Transportation:
                   label="Location Type"
                   tooltip="Select the type that best describes your location"
                 >
-                  <Select placeholder="Select type" allowClear showSearch optionFilterProp="children" size="large">
+                  <Select 
+                    placeholder="Select type" 
+                    allowClear 
+                    showSearch 
+                    optionFilterProp="children" 
+                    size="large"
+                    loading={locationTypes.length === 0}
+                  >
                     {locationTypes.map(type => (
                       <Option key={type.id} value={type.id}>
                         {type.name}

@@ -157,9 +157,9 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     }
   }, [location, rootTags, childTagsByParent]);
 
-  // Set form field values when editing - ONLY runs when location changes (not when tags change)
+  // Set form field values when editing - ONLY runs when location changes AND all reference data is loaded
   useEffect(() => {
-    if (location && amenities.length > 0) {
+    if (location && amenities.length > 0 && locationTypes.length > 0 && districts.length > 0) {
       // Convert tagIds to labelInValue format for proper display
       const tagIdsWithValue = (location.tagIds || []).map(tagId => {
         const tag = availableChildTags.find(t => t.id === tagId);
@@ -222,7 +222,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       setOpeningHours([]);
       setSeasons([]);
     }
-  }, [location, amenities]); // Removed availableChildTags to prevent form reset when parent tags change
+  }, [location, amenities, locationTypes, districts, form]); // Added locationTypes and districts to ensure all data is loaded before setting form values
 
   const handleSubmit = async (values) => {
     setLoading(true);
@@ -563,7 +563,12 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             rules={[{ required: true, message: 'Please select location type' }]}
             style={{ width: '50%', minWidth: '200px' }}
           >
-            <Select placeholder="Select location type" showSearch optionFilterProp="children">
+            <Select 
+              placeholder="Select location type" 
+              showSearch 
+              optionFilterProp="children"
+              loading={locationTypes.length === 0}
+            >
               {Array.isArray(locationTypes) && locationTypes.map(type => (
                 <Option key={type.id} value={type.id}>{type.name}</Option>
               ))}
