@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Space, Select, Row, Col, Button, DatePicker } from 'antd';
 import { SearchOutlined, FilterOutlined, ReloadOutlined, CalendarOutlined } from '@ant-design/icons';
-import { getAllTagsApi, getAllLocationTypesApi, getAllDistrictsApi } from '@/features/locations/api';
+import { getRootTagsApi, getChildTagsApi } from '@/features/tags/api';
+import { getAllLocationTypesApi, getAllDistrictsApi } from '@/features/locations/api';
 import dayjs from 'dayjs';
 
+const { Search } = Input;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
@@ -37,8 +39,7 @@ const LocationFilter = ({
         getAllDistrictsApi()
       ]);
 
-      // Handle both paged response {items, totalCount} and direct array
-      setTags(tagsRes?.items || tagsRes?.Items || tagsRes || []);
+      setRootTags(rootTagsRes?.items || rootTagsRes?.Items || rootTagsRes || []);
       setLocationTypes(typesRes?.items || typesRes?.Items || typesRes || []);
       setDistricts(districtsRes?.items || districtsRes?.Items || districtsRes || []);
     } catch (error) {
@@ -83,17 +84,13 @@ const LocationFilter = ({
 
     const filters = {
       searchTerm: searchTerm || undefined,
-      tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
-      locationTypeIds: selectedLocationTypeIds.length > 0 ? selectedLocationTypeIds : undefined,
-      districtIds: selectedDistrictIds.length > 0 ? selectedDistrictIds : undefined,
-      fromDate: dateRange[0] ? dateRange[0].startOf('day').toISOString() : undefined,
-      toDate: dateRange[1] ? dateRange[1].endOf('day').toISOString() : undefined
+      TagIds: allTagIds.length > 0 ? allTagIds : undefined,
+      LocationTypeIds: selectedLocationTypeIds.length > 0 ? selectedLocationTypeIds : undefined,
+      DistrictIds: selectedDistrictIds.length > 0 ? selectedDistrictIds : undefined,
+      FromDate: dateRange[0] ? dateRange[0].startOf('day').toISOString() : undefined,
+      ToDate: dateRange[1] ? dateRange[1].endOf('day').toISOString() : undefined
     };
     onSearch(filters);
-  };
-
-  const handleSearchKeyPress = (e) => {
-    setSearchTerm(e.target.value);
   };
 
   const handleReset = () => {
@@ -113,60 +110,55 @@ const LocationFilter = ({
     (dateRange && dateRange.length > 0 && (dateRange[0] || dateRange[1]));
 
   return (
-    <div className={styles.filterContainer}>
-      <div className={styles.topRow}>
-        <div className={styles.customSearchPill}>
-          <Input
-            className={styles.pillInput}
-            placeholder="Search locations by name or description..."
-            value={searchTerm}
-            onChange={handleSearchKeyPress}
-            onPressEnter={handleApplyFilter}
-            allowClear
-            bordered={false}
-          />
-          <Button
-            className={styles.pillButton}
-            type="primary"
-            icon={<SearchOutlined />}
-            loading={loading}
-            onClick={handleApplyFilter}
-          />
-        </div>
-
-        <div className={styles.actionButtons}>
-          <Button 
-            className={styles.applyBtn}
-            icon={<FilterOutlined />} 
-            onClick={handleApplyFilter}
-            loading={loading}
-          >
-            Apply Filters
-          </Button>
-          <Button 
-            className={styles.resetBtn}
-            icon={<ReloadOutlined />} 
-            onClick={handleReset}
-            disabled={!hasActiveFilters}
-          >
-            Reset
-          </Button>
-        </div>
-      </div>
+    <div style={{ marginBottom: 16 }}>
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        {/* Search Box */}
+        <Row gutter={16} align="middle">
+          <Col flex="300px">
+            <Search
+              placeholder="Search locations by name or description..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onSearch={handleApplyFilter}
+              loading={loading}
+              allowClear
+              enterButton
+              onPressEnter={handleApplyFilter}
+            />
+          </Col>
+          <Col flex="auto">
+            <Button 
+              type="primary" 
+              icon={<FilterOutlined />} 
+              onClick={handleApplyFilter}
+              loading={loading}
+            >
+              Apply Filters
+            </Button>
+            <Button 
+              icon={<ReloadOutlined />} 
+              onClick={handleReset}
+              disabled={!hasActiveFilters}
+              style={{ marginLeft: 8 }}
+            >
+              Reset
+            </Button>
+          </Col>
+        </Row>
 
         {/* Filter Dropdowns */}
         <Row gutter={16}>
           <Col span={6}>
             <Select
               mode="multiple"
-              placeholder="Filter by Tags"
+              placeholder="Filter by Parent Tags"
               style={{ width: '100%' }}
-              value={selectedTagIds}
-              onChange={setSelectedTagIds}
+              value={selectedParentTagIds}
+              onChange={handleParentTagChange}
               allowClear
               maxTagCount="responsive"
             >
-              {tags.map(tag => (
+              {rootTags.map(tag => (
                 <Option key={tag.id} value={tag.id}>
                   {tag.name}
                 </Option>
@@ -174,6 +166,24 @@ const LocationFilter = ({
             </Select>
           </Col>
           <Col span={6}>
+            <Select
+              mode="multiple"
+              placeholder="Filter by Child Tags"
+              style={{ width: '100%' }}
+              value={selectedChildTagIds}
+              onChange={setSelectedChildTagIds}
+              allowClear
+              maxTagCount="responsive"
+              disabled={selectedParentTagIds.length === 0}
+            >
+              {availableChildTags.map(tag => (
+                <Option key={tag.id} value={tag.id}>
+                  {tag.name}
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={4}>
             <Select
               mode="multiple"
               placeholder="Filter by Location Types"
@@ -190,7 +200,7 @@ const LocationFilter = ({
               ))}
             </Select>
           </Col>
-          <Col span={6}>
+          <Col span={4}>
             <Select
               mode="multiple"
               placeholder="Filter by Districts"

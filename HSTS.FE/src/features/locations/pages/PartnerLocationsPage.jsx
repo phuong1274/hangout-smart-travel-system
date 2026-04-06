@@ -1,23 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Typography, Space, Button, Layout, message, Modal, Tabs, Tag, Table, Popconfirm } from 'antd';
-import { PlusOutlined, HomeOutlined, EditOutlined, EyeOutlined, DeleteOutlined, EnvironmentOutlined, LinkOutlined, PhoneOutlined, MailOutlined } from '@ant-design/icons';
+import { PlusOutlined, HomeOutlined, EditOutlined, EyeOutlined, DeleteOutlined, EnvironmentOutlined, LinkOutlined, PhoneOutlined, MailOutlined, LockOutlined, UnlockOutlined, HistoryOutlined } from '@ant-design/icons';
 import { usePartnerLocations } from '../hooks/usePartnerLocations';
 import { useSubmissions } from '@/features/location-submissions/hooks/useSubmissions';
 import ClosureModal from '../components/ClosureModal';
 import ClosureHistoryModal from '../components/ClosureHistoryModal';
 import SubmissionForm from '@/features/location-submissions/components/SubmissionForm';
 import SubmissionTable from '@/features/location-submissions/components/SubmissionTable';
+import LocationDetailView from '@/components/LocationDetailView';
 import { useNavigate } from 'react-router-dom';
 import { deleteLocationSubmissionApi, getSubmissionByIdApi, getLocationByIdApi } from '@/features/location-submissions/api';
 import { deleteLocationApi } from '../api';
 import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
 import { PAGINATION } from '@/config/constants';
+import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
+import { transformLocationForDisplay } from '@/utils/locationMappers';
+
+// LocationStatus enum values (matching backend)
+const LocationStatus = {
+  Active: 1,
+  TemporarilyClosed: 2,
+  Inactive: 3,
+};
 
 const { Title } = Typography;
+const { Header, Content } = Layout;
 
 const PartnerLocationsPage = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('locations');
   
+  // Locations tab state
   const {
     data: locationsData,
     loading: locationsLoading,
@@ -26,6 +39,7 @@ const PartnerLocationsPage = () => {
     fetchLocations,
   } = usePartnerLocations();
 
+  // Submissions tab state
   const {
     data: submissionsData,
     loading: submissionsLoading,
@@ -34,6 +48,7 @@ const PartnerLocationsPage = () => {
     fetchSubmissions,
   } = useSubmissions();
 
+  // Modal states
   const [suggestEditOpen, setSuggestEditOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [viewingLocation, setViewingLocation] = useState(null);
@@ -70,12 +85,14 @@ const PartnerLocationsPage = () => {
   const [selectedLocationForClosure, setSelectedLocationForClosure] = useState(null);
   const [closingLocation, setClosingLocation] = useState(null);
 
+  // Location handlers
   const handleViewLocation = async (location) => {
     try {
       const fullLocation = await getLocationByIdApi(location.id);
-      setSelectedLocation(fullLocation);
-      // Could open a detail modal here if needed
-      message.info(`Viewing: ${location.name}`);
+      // Transform data to match LocationDetailView format
+      const transformedData = transformLocationForDisplay(fullLocation, referenceData);
+      setViewingLocation(transformedData);
+      setLocationDetailModalOpen(true);
     } catch (error) {
       message.error('Failed to load location details');
     }
@@ -103,6 +120,7 @@ const PartnerLocationsPage = () => {
       message.success('Location deleted successfully');
       fetchLocations();
     } catch (error) {
+      // Handled by global interceptor
     }
   };
 
@@ -150,6 +168,7 @@ const PartnerLocationsPage = () => {
     setSelectedLocationForClosure(null);
   };
 
+  // Submission handlers
   const handleCreateSubmission = () => {
     setEditingSubmission(null);
     setFormOpen(true);
@@ -193,17 +212,11 @@ const PartnerLocationsPage = () => {
       message.success('Submission deleted successfully');
       fetchSubmissions();
     } catch (error) {
+      // Handled by global interceptor
     }
   };
 
-  const handleLocationsPaginationChange = (page, pageSize) => {
-    handleLocationsTableChange(
-      { current: page, pageSize, total: locationsPagination?.total },
-      {},
-      {}
-    );
-  };
-
+  // Tab items
   const tabItems = [
     {
       key: 'locations',
@@ -232,16 +245,16 @@ const PartnerLocationsPage = () => {
         width: 200,
         render: (text, record) => (
           <div>
-            <strong style={{ fontSize: '15px', color: '#1A535C' }}>{text}</strong>
+            <strong>{text}</strong>
             {record.destinationName && (
-              <div style={{ fontSize: 12, color: '#4ECDC4', marginTop: 4, fontWeight: 500 }}>
-                <EnvironmentOutlined className={styles.actionIcon} style={{ marginRight: 4 }} />
+              <div style={{ fontSize: 12, color: '#888' }}>
+                <EnvironmentOutlined style={{ marginRight: 4 }} />
                 {record.destinationName}
               </div>
             )}
             {record.socialLinks && record.socialLinks.length > 0 && (
-              <div style={{ fontSize: 12, color: '#FF6B6B', marginTop: 4, fontWeight: 500 }}>
-                <LinkOutlined className={styles.actionIcon} style={{ marginRight: 4 }} />
+              <div style={{ fontSize: 12, color: '#1677ff', marginTop: 4 }}>
+                <LinkOutlined style={{ marginRight: 4 }} />
                 {record.socialLinks.length} link(s)
               </div>
             )}
@@ -252,8 +265,8 @@ const PartnerLocationsPage = () => {
         title: 'Type',
         dataIndex: 'locationTypeName',
         key: 'locationTypeName',
-        width: 120,
-        render: (text) => <Tag color="#4ECDC4" style={{ color: '#fff' }}>{text || 'N/A'}</Tag>,
+        width: 100,
+        render: (text) => text || 'N/A',
       },
       {
         title: 'Address',
@@ -265,14 +278,14 @@ const PartnerLocationsPage = () => {
       {
         title: 'Contact',
         key: 'contact',
-        width: 150,
+        width: 130,
         render: (_, record) => (
-          <div style={{ fontSize: 13 }}>
+          <div style={{ fontSize: 12 }}>
             {record.telephone && (
-              <div style={{ marginBottom: 4 }}><PhoneOutlined style={{ marginRight: 6, color: '#FF6B6B' }} />{record.telephone}</div>
+              <div><PhoneOutlined style={{ marginRight: 4 }} />{record.telephone}</div>
             )}
             {record.email && (
-              <div style={{ color: '#1A535C', opacity: 0.8 }}><MailOutlined style={{ marginRight: 6, color: '#4ECDC4' }} />{record.email}</div>
+              <div style={{ fontSize: 11, color: '#666' }}><MailOutlined style={{ marginRight: 4 }} />{record.email}</div>
             )}
           </div>
         ),
@@ -280,12 +293,12 @@ const PartnerLocationsPage = () => {
       {
         title: 'Price',
         key: 'price',
-        width: 120,
+        width: 100,
         render: (_, record) => (
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#1A535C' }}>
-            {record.ticketPrice > 0 && <div>${record.ticketPrice.toFixed(2)}</div>}
+          <div style={{ fontSize: 12 }}>
+            {record.ticketPrice > 0 && <div style={{ fontWeight: 500 }}>${record.ticketPrice.toFixed(2)}</div>}
             {(record.priceMinUsd || record.priceMaxUsd) && (
-              <div style={{ fontSize: 12, opacity: 0.7, fontWeight: 500 }}>
+              <div style={{ fontSize: 11, color: '#666' }}>
                 ${record.priceMinUsd?.toFixed(2) || '0'} - ${record.priceMaxUsd?.toFixed(2) || '0'}
               </div>
             )}
@@ -310,75 +323,109 @@ const PartnerLocationsPage = () => {
       {
         title: 'Actions',
         key: 'actions',
-        width: 200,
+        width: 250,
         fixed: 'right',
-        render: (_, record) => (
-          <Space direction="vertical" size="small">
-            <Button
-              type="link"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewLocation(record)}
-            >
-              View Details
-            </Button>
-            <Button
-              type="link"
-              icon={<EditOutlined />}
-              onClick={() => handleRequestEdit(record)}
-            >
-              Request Edit
-            </Button>
-            <Popconfirm
-              title="Delete Location"
-              description="Are you sure you want to delete this location? This action cannot be undone."
-              onConfirm={() => handleDeleteLocation(record)}
-              okText="Yes, Delete"
-              cancelText="Cancel"
-              danger
-            >
-              <Button type="link" danger icon={<DeleteOutlined />}>
-                Delete
+        render: (_, record) => {
+          const status = record.effectiveStatus || LocationStatus.Active;
+          const isClosed = status === LocationStatus.TemporarilyClosed;
+          const isInactive = status === LocationStatus.Inactive;
+
+          return (
+            <Space direction="vertical" size="small">
+              <Button
+                type="link"
+                icon={<EyeOutlined />}
+                onClick={() => handleViewLocation(record)}
+              >
+                View Details
               </Button>
-            </Popconfirm>
-          </Space>
-        ),
+              {!isInactive && (
+                <Button
+                  type="link"
+                  icon={<EditOutlined />}
+                  onClick={() => handleRequestEdit(record)}
+                >
+                  Request Edit
+                </Button>
+              )}
+              {!isInactive && (
+                <Button
+                  type="link"
+                  icon={<HistoryOutlined />}
+                  onClick={() => handleViewClosureHistory(record)}
+                >
+                  History
+                </Button>
+              )}
+              {isClosed ? (
+                <Popconfirm
+                  title="Open Location"
+                  description="Are you sure you want to open this location? It will become active immediately."
+                  onConfirm={() => handleOpenLocation(record)}
+                  okText="Yes, Open"
+                  cancelText="Cancel"
+                >
+                  <Button type="link" style={{ color: '#52c41a' }} icon={<UnlockOutlined />}>
+                    Open
+                  </Button>
+                </Popconfirm>
+              ) : !isInactive ? (
+                <Button
+                  type="link"
+                  danger
+                  icon={<LockOutlined />}
+                  onClick={() => handleCloseLocation(record)}
+                >
+                  Close
+                </Button>
+              ) : null}
+              <Popconfirm
+                title="Delete Location"
+                description="Are you sure you want to delete this location? This action cannot be undone."
+                onConfirm={() => handleDeleteLocation(record)}
+                okText="Yes, Delete"
+                cancelText="Cancel"
+                danger
+              >
+                <Button type="link" danger icon={<DeleteOutlined />}>
+                  Delete
+                </Button>
+              </Popconfirm>
+            </Space>
+          );
+        },
       },
     ];
 
     return (
-      <Card className={styles.tropicalCard}>
+      <Card>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <Title level={4} style={{ margin: 0, color: '#1A535C', fontWeight: 700 }}>Your Managed Locations</Title>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Title level={4} style={{ margin: 0 }}>Your Managed Locations</Title>
             <Button 
-              className={styles.ctaButton}
+              type="primary" 
               icon={<PlusOutlined />} 
               onClick={handleCreateSubmission}
             >
               Submit New Location
             </Button>
           </div>
-          <div className={styles.tableResponsiveWrapper}>
-            <Table
-              columns={columns}
-              dataSource={locationsData}
-              loading={locationsLoading}
-              rowKey="id"
-              scroll={{ x: 'max-content' }}
-              pagination={false}
-              onChange={handleLocationsTableChange}
-            />
-            <div className={styles.paginationWrapper}>
-              <AppPagination
-                current={locationsPagination?.current || PAGINATION.DEFAULT_PAGE}
-                pageSize={locationsPagination?.pageSize || PAGINATION.DEFAULT_PAGE_SIZE}
-                total={locationsPagination?.total || 0}
-                onChange={handleLocationsPaginationChange}
-              />
-            </div>
-          </div>
+          <Table
+            columns={columns}
+            dataSource={locationsData}
+            loading={locationsLoading}
+            rowKey="id"
+            scroll={{ x: 1000 }}
+            pagination={{
+              current: locationsPagination?.current || PAGINATION.DEFAULT_PAGE,
+              pageSize: locationsPagination?.pageSize || PAGINATION.DEFAULT_PAGE_SIZE,
+              total: locationsPagination?.total || 0,
+              showSizeChanger: true,
+              pageSizeOptions: PAGINATION.PAGE_SIZE_OPTIONS,
+              showTotal: (totalItems) => `Total ${totalItems} items`,
+            }}
+            onChange={handleLocationsTableChange}
+          />
         </Space>
       </Card>
     );
@@ -386,14 +433,12 @@ const PartnerLocationsPage = () => {
 
   function renderSubmissionsTab() {
     return (
-      <Card className={styles.tropicalCard}>
+      <Card>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <Title level={4} style={{ margin: 0, color: '#1A535C', fontWeight: 700 }}>Your Location Submissions</Title>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Title level={4} style={{ margin: 0 }}>Your Location Submissions</Title>
             <Button 
-              className={styles.ctaButton}
+              type="primary" 
               icon={<PlusOutlined />} 
               onClick={handleCreateSubmission}
             >
@@ -415,19 +460,29 @@ const PartnerLocationsPage = () => {
   }
 
   return (
-    <div className={styles.tropicalLayout}>
-      <div className={styles.contentWrapper}>
+    <Layout style={{ minHeight: '100vh' }}>
+      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
+          <Title level={3} style={{ margin: 0 }}>Partner Location Management</Title>
+        </div>
+        <Space>
+          <Button onClick={() => navigate('/')}>
+            Back to Home
+          </Button>
+        </Space>
+      </Header>
+      <Content style={{ padding: '24px', background: '#f0f2f5' }}>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
           items={tabItems}
           size="large"
         />
-      </div>
+      </Content>
 
-      {/* Suggest Edit Modal */}
-      <SuggestEditModal
-        location={selectedLocation}
+      {/* Suggest Edit Modal - Using SubmissionForm with existingLocation prop */}
+      <SubmissionForm
         open={suggestEditOpen}
         submission={null}
         existingLocation={selectedLocation}
@@ -438,6 +493,7 @@ const PartnerLocationsPage = () => {
         onSuccess={handleSuggestEditSuccess}
       />
 
+      {/* Submission Form Modal */}
       <SubmissionForm
         open={formOpen}
         submission={editingSubmission}
@@ -445,6 +501,7 @@ const PartnerLocationsPage = () => {
         onSuccess={handleFormSuccess}
       />
 
+      {/* Submission Detail Modal */}
       <Modal
         title={`📝 ${viewingSubmission?.name || 'Submission Details'}`}
         open={detailModalOpen}
@@ -453,40 +510,60 @@ const PartnerLocationsPage = () => {
           setViewingSubmission(null);
         }}
         footer={null}
-        width={800}
+        width={900}
       >
         {viewingSubmission && (
-          <div>
-            <h3>{viewingSubmission.name}</h3>
-            <p><strong>Status:</strong> <Tag color={
-              viewingSubmission.status === SubmissionStatus.Pending ? 'gold' :
-              viewingSubmission.status === SubmissionStatus.Approved ? 'green' :
-              viewingSubmission.status === SubmissionStatus.Rejected ? 'red' : 'blue'
-            }>{SubmissionStatus[viewingSubmission.status]}</Tag></p>
-            <p><strong>Address:</strong> {viewingSubmission.address}</p>
-            <p><strong>Description:</strong> {viewingSubmission.description || 'N/A'}</p>
-            <p><strong>Coordinates:</strong> {viewingSubmission.latitude}, {viewingSubmission.longitude}</p>
-            <p><strong>Price Range:</strong> ${viewingSubmission.priceMinUsd} - ${viewingSubmission.priceMaxUsd}</p>
-            <p><strong>Contact:</strong> {viewingSubmission.telephone} | {viewingSubmission.email}</p>
-            <p><strong>Location Type:</strong> {viewingSubmission.locationTypeName || 'N/A'}</p>
-            <p><strong>Destination:</strong> {viewingSubmission.destinationName || 'N/A'}</p>
-
-            {viewingSubmission.rejectionReason && (
-              <div style={{ color: 'red', marginTop: 16, padding: '12px', background: '#fff2f0', border: '1px solid #ffccc7' }}>
-                <strong>⚠️ Rejection Reason:</strong>
-                <p style={{ margin: '8px 0 0 0' }}>{viewingSubmission.rejectionReason}</p>
-              </div>
-            )}
-
-            {viewingSubmission.createdLocationId && (
-              <div style={{ color: '#52c41a', marginTop: 16, padding: '12px', background: '#f6ffed', border: '1px solid #b7eb8f' }}>
-                <strong>✓ Approved - Location Created</strong>
-                <p style={{ margin: '8px 0 0 0' }}>Location ID: {viewingSubmission.createdLocationId}</p>
-              </div>
-            )}
-          </div>
+          <LocationDetailView
+            data={viewingSubmission}
+            options={{
+              showSubmissionInfo: true,
+              showId: true,
+              showTimestamps: true,
+            }}
+          />
         )}
       </Modal>
+
+      {/* Location Detail Modal */}
+      <Modal
+        title={`📍 ${viewingLocation?.name || 'Location Details'}`}
+        open={locationDetailModalOpen}
+        onCancel={() => {
+          setLocationDetailModalOpen(false);
+          setViewingLocation(null);
+        }}
+        footer={null}
+        width={900}
+      >
+        {viewingLocation && (
+          <LocationDetailView
+            data={viewingLocation}
+            options={{
+              showSubmissionInfo: false,
+              showId: true,
+              showTimestamps: true,
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* Closure Modal */}
+      <ClosureModal
+        open={closureModalOpen}
+        onClose={handleClosureModalClose}
+        onSuccess={handleClosureSuccess}
+        locationId={closingLocation?.id}
+        locationName={closingLocation?.name}
+      />
+
+      {/* Closure History Modal */}
+      <ClosureHistoryModal
+        open={closureHistoryModalOpen}
+        onClose={handleClosureHistoryModalClose}
+        locationId={selectedLocationForClosure?.id}
+        locationName={selectedLocationForClosure?.name}
+        onClosureChange={fetchLocations}
+      />
     </Layout>
   );
 };
