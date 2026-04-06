@@ -44,14 +44,27 @@ namespace HSTS.Domain.Entities
         // Pricing
         [Column(TypeName = "decimal(18,2)")]
         [Range(0, 100000000)]
+        public decimal TicketPrice { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(0, 100000000)]
         public decimal? PriceMinUsd { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         [Range(0, 100000000)]
         public decimal? PriceMaxUsd { get; set; }
 
+        [Range(0, 120)]
+        public int MinimumAge { get; set; }
+
         [Range(0, 5)]
         public decimal? Score { get; set; }
+
+        [Range(0, 1440)]
+        public int? RecommendedDurationMinutes { get; set; }
+
+        [MaxLength(500)]
+        public string? SourceUrl { get; set; }
 
         // Links
         public int? DistrictId { get; set; }

@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Typography, Space, Button, Layout, message, Modal, Tabs, Tag, Table, Popconfirm } from 'antd';
 import { PlusOutlined, HomeOutlined, EditOutlined, EyeOutlined, DeleteOutlined, EnvironmentOutlined, LinkOutlined, PhoneOutlined, MailOutlined, LockOutlined, UnlockOutlined, HistoryOutlined } from '@ant-design/icons';
 import { usePartnerLocations } from '../hooks/usePartnerLocations';
 import { useSubmissions } from '@/features/location-submissions/hooks/useSubmissions';
-import SuggestEditModal from '../components/SuggestEditModal';
 import ClosureModal from '../components/ClosureModal';
 import ClosureHistoryModal from '../components/ClosureHistoryModal';
 import SubmissionForm from '@/features/location-submissions/components/SubmissionForm';
 import SubmissionTable from '@/features/location-submissions/components/SubmissionTable';
+import LocationDetailView from '@/components/LocationDetailView';
 import { useNavigate } from 'react-router-dom';
 import { deleteLocationSubmissionApi, getSubmissionByIdApi, getLocationByIdApi } from '@/features/location-submissions/api';
 import { deleteLocationApi } from '../api';
 import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
-import { SubmissionStatus } from '@/features/location-submissions/types';
 import { PAGINATION } from '@/config/constants';
+import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
+import { transformLocationForDisplay } from '@/utils/locationMappers';
 
 // LocationStatus enum values (matching backend)
 const LocationStatus = {
@@ -50,10 +51,33 @@ const PartnerLocationsPage = () => {
   // Modal states
   const [suggestEditOpen, setSuggestEditOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [viewingLocation, setViewingLocation] = useState(null);
+  const [locationDetailModalOpen, setLocationDetailModalOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingSubmission, setEditingSubmission] = useState(null);
   const [viewingSubmission, setViewingSubmission] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [referenceData, setReferenceData] = useState({ allTags: [], locationTypes: [], amenities: [] });
+
+  // Fetch reference data once on mount
+  useEffect(() => {
+    const loadReferenceData = async () => {
+      const cached = getCachedReferenceData();
+      if (cached) {
+        setReferenceData(cached);
+        return;
+      }
+
+      try {
+        const refData = await fetchReferenceData();
+        setReferenceData(refData);
+      } catch (error) {
+        console.error('Failed to load reference data:', error);
+      }
+    };
+
+    loadReferenceData();
+  }, []);
 
   // Closure states
   const [closureModalOpen, setClosureModalOpen] = useState(false);
@@ -65,17 +89,24 @@ const PartnerLocationsPage = () => {
   const handleViewLocation = async (location) => {
     try {
       const fullLocation = await getLocationByIdApi(location.id);
-      setSelectedLocation(fullLocation);
-      // Could open a detail modal here if needed
-      message.info(`Viewing: ${location.name}`);
+      // Transform data to match LocationDetailView format
+      const transformedData = transformLocationForDisplay(fullLocation, referenceData);
+      setViewingLocation(transformedData);
+      setLocationDetailModalOpen(true);
     } catch (error) {
       message.error('Failed to load location details');
     }
   };
 
-  const handleRequestEdit = (location) => {
-    setSelectedLocation(location);
-    setSuggestEditOpen(true);
+  const handleRequestEdit = async (location) => {
+    try {
+      // Fetch full location detail including opening hours and seasons
+      const fullLocation = await getLocationByIdApi(location.id);
+      setSelectedLocation(fullLocation);
+      setSuggestEditOpen(true);
+    } catch (error) {
+      message.error('Failed to load location details for editing');
+    }
   };
 
   const handleSuggestEditSuccess = () => {
@@ -143,9 +174,15 @@ const PartnerLocationsPage = () => {
     setFormOpen(true);
   };
 
-  const handleEditSubmission = (submission) => {
-    setEditingSubmission(submission);
-    setFormOpen(true);
+  const handleEditSubmission = async (submission) => {
+    try {
+      // Fetch full submission detail including opening hours and seasons
+      const detail = await getSubmissionByIdApi(submission.id);
+      setEditingSubmission(detail);
+      setFormOpen(true);
+    } catch (error) {
+      message.error('Failed to load submission details for editing');
+    }
   };
 
   const handleFormClose = () => {
@@ -160,7 +197,9 @@ const PartnerLocationsPage = () => {
   const handleViewSubmission = async (submission) => {
     try {
       const detail = await getSubmissionByIdApi(submission.id);
-      setViewingSubmission(detail);
+      // Transform data to match LocationDetailView format
+      const transformedData = transformLocationForDisplay(detail, referenceData);
+      setViewingSubmission(transformedData);
       setDetailModalOpen(true);
     } catch (error) {
       message.error('Failed to load submission details');
@@ -442,10 +481,11 @@ const PartnerLocationsPage = () => {
         />
       </Content>
 
-      {/* Suggest Edit Modal */}
-      <SuggestEditModal
-        location={selectedLocation}
+      {/* Suggest Edit Modal - Using SubmissionForm with existingLocation prop */}
+      <SubmissionForm
         open={suggestEditOpen}
+        submission={null}
+        existingLocation={selectedLocation}
         onClose={() => {
           setSuggestEditOpen(false);
           setSelectedLocation(null);
@@ -463,45 +503,47 @@ const PartnerLocationsPage = () => {
 
       {/* Submission Detail Modal */}
       <Modal
-        title="Submission Details"
+        title={`📝 ${viewingSubmission?.name || 'Submission Details'}`}
         open={detailModalOpen}
         onCancel={() => {
           setDetailModalOpen(false);
           setViewingSubmission(null);
         }}
         footer={null}
-        width={800}
+        width={900}
       >
         {viewingSubmission && (
-          <div>
-            <h3>{viewingSubmission.name}</h3>
-            <p><strong>Status:</strong> <Tag color={
-              viewingSubmission.status === SubmissionStatus.Pending ? 'gold' :
-              viewingSubmission.status === SubmissionStatus.Approved ? 'green' :
-              viewingSubmission.status === SubmissionStatus.Rejected ? 'red' : 'blue'
-            }>{SubmissionStatus[viewingSubmission.status]}</Tag></p>
-            <p><strong>Address:</strong> {viewingSubmission.address}</p>
-            <p><strong>Description:</strong> {viewingSubmission.description || 'N/A'}</p>
-            <p><strong>Coordinates:</strong> {viewingSubmission.latitude}, {viewingSubmission.longitude}</p>
-            <p><strong>Price Range:</strong> ${viewingSubmission.priceMinUsd} - ${viewingSubmission.priceMaxUsd}</p>
-            <p><strong>Contact:</strong> {viewingSubmission.telephone} | {viewingSubmission.email}</p>
-            <p><strong>Location Type:</strong> {viewingSubmission.locationTypeName || 'N/A'}</p>
-            <p><strong>Destination:</strong> {viewingSubmission.destinationName || 'N/A'}</p>
+          <LocationDetailView
+            data={viewingSubmission}
+            options={{
+              showSubmissionInfo: true,
+              showId: true,
+              showTimestamps: true,
+            }}
+          />
+        )}
+      </Modal>
 
-            {viewingSubmission.rejectionReason && (
-              <div style={{ color: 'red', marginTop: 16, padding: '12px', background: '#fff2f0', border: '1px solid #ffccc7' }}>
-                <strong>⚠️ Rejection Reason:</strong>
-                <p style={{ margin: '8px 0 0 0' }}>{viewingSubmission.rejectionReason}</p>
-              </div>
-            )}
-
-            {viewingSubmission.createdLocationId && (
-              <div style={{ color: '#52c41a', marginTop: 16, padding: '12px', background: '#f6ffed', border: '1px solid #b7eb8f' }}>
-                <strong>✓ Approved - Location Created</strong>
-                <p style={{ margin: '8px 0 0 0' }}>Location ID: {viewingSubmission.createdLocationId}</p>
-              </div>
-            )}
-          </div>
+      {/* Location Detail Modal */}
+      <Modal
+        title={`📍 ${viewingLocation?.name || 'Location Details'}`}
+        open={locationDetailModalOpen}
+        onCancel={() => {
+          setLocationDetailModalOpen(false);
+          setViewingLocation(null);
+        }}
+        footer={null}
+        width={900}
+      >
+        {viewingLocation && (
+          <LocationDetailView
+            data={viewingLocation}
+            options={{
+              showSubmissionInfo: false,
+              showId: true,
+              showTimestamps: true,
+            }}
+          />
         )}
       </Modal>
 

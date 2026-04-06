@@ -106,11 +106,12 @@ namespace HSTS.Domain.Entities
             var dateToCheck = referenceDate ?? DateTime.UtcNow;
 
             // Check if there's an active closure that covers the reference date
+            // Use .Date to ignore time components and compare dates only
             var hasActiveClosure = Closures?.Any(c =>
                 c.IsActive &&
                 !c.IsDeleted &&
-                c.StartDate <= dateToCheck &&
-                c.EndDate >= dateToCheck
+                c.StartDate.Date <= dateToCheck.Date &&
+                c.EndDate.Date >= dateToCheck.Date
             ) ?? false;
 
             return hasActiveClosure
