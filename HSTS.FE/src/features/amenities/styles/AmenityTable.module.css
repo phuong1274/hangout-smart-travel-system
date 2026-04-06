@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+.amenityName {
+  color: #1A535C !important;
+  font-weight: 700 !important;
+}
+
+.actionBtn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+}
+
+.actionBtn :global(.anticon) {
+  font-size: 18px !important;
+}
+
+:global(.ant-table-wrapper .ant-table) {
+  background: transparent !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  color: #1A535C !important;
+}
+
+:global(.ant-table-thead > tr > th) {
+  background-color: rgba(78, 205, 196, 0.1) !important;
+  color: #1A535C !important;
+  font-weight: 700 !important;
+  border-bottom: none !important;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+:global(.ant-table-tbody > tr:hover > td) {
+  background-color: rgba(78, 205, 196, 0.05) !important;
+}
+
+:global(.ant-btn-link) {
+  color: #4ECDC4 !important;
+}
+
+:global(.ant-btn-link:hover) {
+  color: #FF6B6B !important;
+  transform: scale(1.2) !important;
+  background: rgba(255, 107, 107, 0.1) !important;
+}
+
+:global(.ant-btn-dangerous.ant-btn-link) {
+  color: #FF6B6B !important;
+}
+
+:global(.ant-btn-dangerous.ant-btn-link:hover) {
+  background: rgba(255, 107, 107, 0.1) !important;
+}
+
+@media (max-width: 768px) {
+  :global(.ant-table-wrapper) {
+    overflow-x: auto;
+  }
+}

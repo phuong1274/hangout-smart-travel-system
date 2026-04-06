@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, Select, message } from 'antd';
 import { createTagApi, updateTagApi, getTagsApi } from '../api';
+import styles from '../styles/TagForm.module.css';
 
 const TagForm = ({ open, tag, onClose, onSuccess }) => {
   const [form] = Form.useForm();
@@ -10,19 +11,16 @@ const TagForm = ({ open, tag, onClose, onSuccess }) => {
 
   const isEdit = !!tag;
 
-  // Fetch all tags for parent selection
   useEffect(() => {
     if (open) {
       setFetchingTags(true);
       getTagsApi({ pageSize: 1000 })
         .then(res => {
           const allTags = res.items || res || [];
-          // Filter out current tag when editing (can't be own parent)
           const filteredTags = isEdit ? allTags.filter(t => t.id !== tag.id) : allTags;
           setTags(filteredTags);
         })
         .catch(err => {
-          console.error('Failed to fetch tags:', err);
           message.error('Failed to load tags');
         })
         .finally(() => {
@@ -58,7 +56,6 @@ const TagForm = ({ open, tag, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (error) {
-      // Handled by global interceptor
     } finally {
       setLoading(false);
     }
@@ -66,28 +63,31 @@ const TagForm = ({ open, tag, onClose, onSuccess }) => {
 
   return (
     <Modal
-      title={isEdit ? 'Edit Tag' : 'Create Tag'}
+      title={<span className={styles.modalTitle}>{isEdit ? 'Edit Tag' : 'Create Tag'}</span>}
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
       confirmLoading={loading}
       destroyOnClose
+      className={styles.tropicalModal}
+      okButtonProps={{ className: styles.submitBtn }}
+      cancelButtonProps={{ className: styles.cancelBtn }}
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      <Form form={form} layout="vertical" onFinish={handleSubmit} className={styles.formContainer}>
         <Form.Item
           name="name"
-          label="Tag Name"
+          label={<span className={styles.formLabel}>Tag Name</span>}
           rules={[
             { required: true, message: 'Please enter tag name' },
             { max: 100, message: 'Tag name cannot exceed 100 characters' }
           ]}
         >
-          <Input placeholder="Enter tag name" />
+          <Input placeholder="Enter tag name" className={styles.inputField} />
         </Form.Item>
 
         <Form.Item
           name="parentTagId"
-          label="Parent Tag (Optional)"
+          label={<span className={styles.formLabel}>Parent Tag (Optional)</span>}
           tooltip="Select a parent tag to create a hierarchy. Leave empty for root level."
         >
           <Select
@@ -96,6 +96,7 @@ const TagForm = ({ open, tag, onClose, onSuccess }) => {
             loading={fetchingTags}
             showSearch
             optionFilterProp="children"
+            className={styles.selectField}
             filterOption={(input, option) =>
               (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
             }
@@ -109,10 +110,10 @@ const TagForm = ({ open, tag, onClose, onSuccess }) => {
         {!isEdit && (
           <Form.Item
             name="level"
-            label="Level"
+            label={<span className={styles.formLabel}>Level</span>}
             tooltip="Automatically calculated based on parent tag"
           >
-            <Input disabled value={form.getFieldValue('parentTagId') ? 'Level 2 (Child)' : 'Level 1 (Root)'} />
+            <Input disabled value={form.getFieldValue('parentTagId') ? 'Level 2 (Child)' : 'Level 1 (Root)'} className={styles.inputDisabled} />
           </Form.Item>
         )}
       </Form>

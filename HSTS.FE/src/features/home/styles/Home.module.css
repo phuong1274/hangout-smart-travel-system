@@ -1,89 +1,168 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+.layoutWrapper {
+  background: #F7F9F9;
+  min-height: 100vh;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
 .heroWrapper {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background-color: #fdfcf0;
-    overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #F7F9F9;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.contentSection {
+  background-color: #F7F9F9;
+}
+
+.sectionPadding {
+  padding: clamp(40px, 6vw, 100px) clamp(24px, 5vw, 50px);
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.destSection {
+  width: 100%;
+}
+
+.destHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: clamp(32px, 5vw, 64px);
+}
+
+.destSubTitle {
+  font-family: 'Caveat', cursive;
+  font-size: clamp(28px, 4vw, 36px);
+  color: #FF6B6B;
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: clamp(28px, 4vw, 42px) !important;
+  color: #1A535C !important;
+  margin: 0 !important;
+}
+
+.destCol {
+  opacity: 0;
+  animation: waveFadeUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes waveFadeUp {
+  0% {
+    transform: translateY(40px);
+    opacity: 0;
   }
-  
-  .contentSection {
-    background-color: #ffffff;
+  100% {
+    transform: translateY(0);
+    opacity: 1;
   }
-  
-  /* Story Section */
-  .storyContainer {
-    padding: 80px 50px;
-    background-color: #f5f3e7;
-    border-radius: 30px;
-    margin: 40px 50px;
-  }
-  
-  .storyParagraph {
-    font-size: 16px;
-    line-height: 1.8;
-    color: #555;
-    margin-bottom: 24px;
-  }
-  
-  .quoteText {
-    font-size: 24px;
-    color: #222;
-    font-style: italic;
-    display: block;
-  }
-  
-  /* Destinations Section */
-  .destSection {
-    padding: 40px 50px 80px;
-  }
-  
-  .sectionTitle {
-    margin-bottom: 40px !important;
-  }
-  
-  .destCard {
-    border-radius: 16px;
-    overflow: hidden;
-    border: none !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    transition: transform 0.3s ease;
-  }
-  
-  .destCard:hover {
-    transform: translateY(-5px);
-  }
-  
-  .cardImagePlaceholder {
-    height: 220px;
-    background: #e0e0e0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .cardImagePlaceholder img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  
-  /* CTA Banner */
-  .ctaBanner {
-    background-color: #000;
-    padding: 100px 20px;
-    text-align: center;
-    color: #fff;
-  }
-  
-  .ctaTitle {
-    color: #fff !important;
-    margin-bottom: 30px !important;
-    font-size: 32px !important;
-  }
-  
-  .ctaWhiteBtn {
-    min-width: 150px;
-    height: 48px;
-    font-weight: bold;
-    border-radius: 8px;
-  }
+}
+
+.destCard {
+  border-radius: 20px !important;
+  overflow: hidden;
+  border: none !important;
+  background: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08) !important;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  height: 100%;
+}
+
+.destCard:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 32px rgba(26, 83, 92, 0.12) !important;
+}
+
+.cardImagePlaceholder {
+  height: 260px;
+  background: #F7F9F9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.cardImagePlaceholder img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.destCard:hover .cardImagePlaceholder img {
+  transform: scale(1.1);
+}
+
+.destCard :global(.ant-card-body) {
+  padding: 24px !important;
+}
+
+.cardTitle {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: #1A535C;
+  white-space: normal;
+  display: block;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.cardDesc {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 400;
+  font-size: 15px;
+  color: #1A535C;
+  opacity: 0.8;
+  line-height: 1.6;
+  white-space: normal;
+}
+
+.ctaBanner {
+  background-color: #4ECDC4;
+  padding: clamp(60px, 8vw, 120px) 24px;
+  text-align: center;
+  color: #FFFFFF;
+}
+
+.ctaTitle {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  color: #FFFFFF !important;
+  margin-bottom: 40px !important;
+  font-size: clamp(28px, 4vw, 42px) !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+}
+
+.ctaWhiteBtn {
+  min-width: 180px !important;
+  height: 56px !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
+  border-radius: 9999px !important;
+  background-color: #FFE66D !important;
+  color: #1A535C !important;
+  border: none !important;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.1) !important;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.ctaWhiteBtn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 32px rgba(255, 230, 109, 0.6) !important;
+  color: #1A535C !important;
+}

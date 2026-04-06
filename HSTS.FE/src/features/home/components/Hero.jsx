@@ -12,7 +12,6 @@ const Hero = () => (
     className={styles.heroContent} 
     style={{ '--bg-image': `url(${backgroundHero})` }}
   >
-
     <div className={styles.mainText}>
       <Title level={1} className={styles.titleText}>
         Craft Unforgettable Itineraries with
@@ -26,10 +25,12 @@ const Hero = () => (
       </Paragraph>
       <Link to={PATHS.CREATE_TRIP}>
         <Button type="primary" size="large" className={styles.ctaBtn}>
-          Get Started - It's free
+          GET STARTED - IT'S FREE
         </Button>
       </Link>
     </div>
+    <div className={styles.ambientCircle1}></div>
+    <div className={styles.ambientCircle2}></div>
   </section>
 );
 

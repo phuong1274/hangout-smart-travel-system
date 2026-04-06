@@ -1,0 +1,24 @@
+.tableContainer {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    width: 100%;
+  }
+  
+  .tableContainer :global(.ant-table) {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: #1A535C;
+  }
+  
+  .tableContainer :global(.ant-table-thead > tr > th) {
+    background-color: #F7F9F9 !important;
+    color: #1A535C !important;
+    font-weight: 700 !important;
+    border-bottom: 2px solid rgba(78, 205, 196, 0.2) !important;
+  }
+  
+  .tableContainer :global(.ant-table-tbody > tr > td) {
+    border-bottom: 1px solid rgba(26, 83, 92, 0.05) !important;
+  }
+  
+  .tableContainer :global(.ant-table-tbody > tr:hover > td) {
+    background-color: rgba(78, 205, 196, 0.05) !important;
+  }
