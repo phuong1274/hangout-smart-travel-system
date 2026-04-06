@@ -4,7 +4,7 @@ import { SubmissionStatus } from '../types';
 import { getAllTagsApi, getAllAmenitiesApi } from '../api';
 import { getAllLocationTypesApi, getAllDistrictsApi } from '@/features/locations/api';
 import { buildTagHierarchy } from '@/utils/locationCache';
-import { DAYS_OF_WEEK } from '@/utils/locationConstants';
+import { DAYS_OF_WEEK, MONTH_NAMES } from '@/utils/locationConstants';
 
 /**
  * Component to display before/after comparison with color highlighting
@@ -423,7 +423,13 @@ const BeforeAfterComparison = ({ submission }) => {
           const oldSeasons = existingLocation.seasons || [];
           return renderField('Best Seasons', 'seasons', oldSeasons, newSeasons, (seasons) => {
             if (!seasons || !Array.isArray(seasons) || seasons.length === 0) return 'None';
-            return seasons.map(s => s.description || s.Description).join(', ');
+            return seasons.map(s => {
+              const desc = s.description || s.Description || 'Season';
+              const monthsStr = s.months || s.Months || '';
+              const months = typeof monthsStr === 'string' ? monthsStr.split(',').filter(m => m) : [];
+              const monthNames = months.map(m => MONTH_NAMES[m] || m).join(', ');
+              return `${desc} (${monthNames || 'N/A'})`;
+            }).join('; ');
           });
         })()}
       </Descriptions>

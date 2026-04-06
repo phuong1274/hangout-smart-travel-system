@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, Layout, message, Modal, Table, Tag, Input, Select, Row, Col } from 'antd';
+import { Card, Typography, Space, Button, Layout, message, Modal, Table, Tag, Input, Select, Descriptions, Row, Col } from 'antd';
 import { CheckOutlined, CloseOutlined, EyeOutlined, HomeOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -241,12 +241,14 @@ const LocationSubmissionsReviewPage = () => {
         </Space>
       </Content>
 
-      {/* Detail Modal with Before/After Comparison */}
+      {/* Detail Modal */}
       <Modal
         title={
-          viewingSubmission?.submissionType === 1 
-            ? "Review Suggested Edit (🔴 Red = Old, 🟢 Green = New)" 
-            : "Review New Location Submission"
+          viewingSubmission?.status === SubmissionStatus.Pending
+            ? (viewingSubmission?.submissionType === 1
+                ? "Review Suggested Edit (🔴 Red = Old, 🟢 Green = New)"
+                : "Review New Location Submission")
+            : `Submission Details - ${SubmissionStatus[viewingSubmission?.status]}`
         }
         open={detailModalOpen}
         onCancel={() => {
@@ -273,10 +275,16 @@ const LocationSubmissionsReviewPage = () => {
             </Space>
           ) : null
         }
-        width={1400}
+        width={viewingSubmission?.status === SubmissionStatus.Pending ? 1400 : 900}
       >
         {viewingSubmission && (
-          <BeforeAfterComparison submission={viewingSubmission} />
+          viewingSubmission.status === SubmissionStatus.Pending ? (
+            // For pending submissions: Show Before/After comparison
+            <BeforeAfterComparison submission={viewingSubmission} />
+          ) : (
+            // For approved/rejected/published: Show simple submission details
+            <SubmissionDetail submission={viewingSubmission} />
+          )
         )}
       </Modal>
 
@@ -327,6 +335,127 @@ const LocationSubmissionsReviewPage = () => {
         )}
       </Modal>
     </Layout>
+  );
+};
+
+/**
+ * Simple Submission Detail component for approved/rejected/published submissions
+ * Shows submission data without Before/After comparison
+ */
+const SubmissionDetail = ({ submission }) => {
+  const statusColors = {
+    [SubmissionStatus.Pending]: 'gold',
+    [SubmissionStatus.Approved]: 'green',
+    [SubmissionStatus.Rejected]: 'red',
+    [SubmissionStatus.Published]: 'blue'
+  };
+
+  const statusLabels = {
+    [SubmissionStatus.Pending]: 'Pending',
+    [SubmissionStatus.Approved]: 'Approved',
+    [SubmissionStatus.Rejected]: 'Rejected',
+    [SubmissionStatus.Published]: 'Published'
+  };
+
+  const formatSeasons = (seasons) => {
+    if (!seasons || !Array.isArray(seasons) || seasons.length === 0) return 'None';
+    const monthLabels = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return seasons.map(s => {
+      const desc = s.description || s.Description || 'Season';
+      const monthsStr = s.months || s.Months || '';
+      const months = typeof monthsStr === 'string' ? monthsStr.split(',').filter(m => m) : [];
+      const monthNames = months.map(m => {
+        const monthNum = parseInt(m, 10);
+        return monthLabels[monthNum] || m;
+      }).join(', ');
+      return `${desc} (${monthNames || 'N/A'})`;
+    }).join('; ');
+  };
+
+  const formatOpeningHours = (hours) => {
+    if (!hours || !Array.isArray(hours) || hours.length === 0) return 'None';
+    return hours.map(oh => {
+      const dayName = oh.dayName || oh.DayName || `Day ${oh.dayOfWeek || oh.DayOfWeek}`;
+      return `${dayName}: ${oh.openTime || oh.OpenTime || ''} - ${oh.closeTime || oh.CloseTime || ''}`;
+    }).join('; ');
+  };
+
+  return (
+    <div>
+      {/* Status */}
+      <div style={{ marginBottom: 16 }}>
+        <strong>Status: </strong>
+        <Tag color={statusColors[submission.status]}>{statusLabels[submission.status]}</Tag>
+      </div>
+
+      {/* Basic Info */}
+      <Descriptions title="Basic Information" bordered column={2} style={{ marginBottom: 16 }}>
+        <Descriptions.Item label="Name">{submission.name || 'N/A'}</Descriptions.Item>
+        <Descriptions.Item label="Description">{submission.description || 'N/A'}</Descriptions.Item>
+        <Descriptions.Item label="Address">{submission.address || 'N/A'}</Descriptions.Item>
+        <Descriptions.Item label="Location Type">{submission.locationTypeName || 'N/A'}</Descriptions.Item>
+        <Descriptions.Item label="District">{submission.districtName || 'N/A'}</Descriptions.Item>
+        <Descriptions.Item label="Coordinates">
+          {submission.latitude}, {submission.longitude}
+        </Descriptions.Item>
+      </Descriptions>
+
+      {/* Contact & Pricing */}
+      <Descriptions title="Contact & Pricing" bordered column={2} style={{ marginBottom: 16 }}>
+        <Descriptions.Item label="Telephone">{submission.telephone || 'N/A'}</Descriptions.Item>
+        <Descriptions.Item label="Email">{submission.email || 'N/A'}</Descriptions.Item>
+        <Descriptions.Item label="Price Range">
+          ${submission.priceMinUsd?.toFixed(2) || '0'} - ${submission.priceMaxUsd?.toFixed(2) || '0'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Score">{submission.score ? `${submission.score} / 5` : 'N/A'}</Descriptions.Item>
+      </Descriptions>
+
+      {/* Tags & Amenities */}
+      <Descriptions title="Tags & Amenities" bordered column={2} style={{ marginBottom: 16 }}>
+        <Descriptions.Item label="Tags" span={2}>
+          {submission.tags && submission.tags.length > 0
+            ? submission.tags.map(t => <Tag key={t.id}>{t.name}</Tag>)
+            : 'None'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Amenities" span={2}>
+          {submission.amenities && submission.amenities.length > 0
+            ? submission.amenities.map(a => <Tag key={a.id}>{a.name}</Tag>)
+            : 'None'}
+        </Descriptions.Item>
+      </Descriptions>
+
+      {/* Opening Hours & Seasons */}
+      <Descriptions title="Opening Hours & Seasons" bordered column={1} style={{ marginBottom: 16 }}>
+        <Descriptions.Item label="Opening Hours">{formatOpeningHours(submission.openingHours)}</Descriptions.Item>
+        <Descriptions.Item label="Best Seasons">{formatSeasons(submission.seasons)}</Descriptions.Item>
+      </Descriptions>
+
+      {/* Submission Metadata */}
+      <Descriptions title="Submission Information" bordered column={2}>
+        <Descriptions.Item label="Submitted At">
+          {new Date(submission.createdAt).toLocaleString()}
+        </Descriptions.Item>
+        <Descriptions.Item label="Submission Type">
+          {submission.submissionType === 0 ? 'New Location' : 'Edit Existing'}
+        </Descriptions.Item>
+        {submission.reviewedBy && (
+          <>
+            <Descriptions.Item label="Reviewed By">{submission.reviewedBy}</Descriptions.Item>
+            <Descriptions.Item label="Reviewed At">
+              {submission.reviewedAt ? new Date(submission.reviewedAt).toLocaleString() : 'N/A'}
+            </Descriptions.Item>
+          </>
+        )}
+      </Descriptions>
+
+      {/* Rejection Reason */}
+      {submission.rejectionReason && (
+        <div style={{ marginTop: 16, padding: 12, background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 4 }}>
+          <strong style={{ color: '#cf1322' }}>⚠️ Rejection Reason:</strong>
+          <p style={{ margin: '8px 0 0 0', color: '#cf1322' }}>{submission.rejectionReason}</p>
+        </div>
+      )}
+    </div>
   );
 };
 

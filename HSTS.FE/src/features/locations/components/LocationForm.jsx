@@ -160,24 +160,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   // Set form field values when editing - ONLY runs when location changes AND all reference data is loaded
   useEffect(() => {
     if (location && amenities.length > 0 && locationTypes.length > 0 && districts.length > 0) {
-      // Convert tagIds to labelInValue format for proper display
-      const tagIdsWithValue = (location.tagIds || []).map(tagId => {
-        const tag = availableChildTags.find(t => t.id === tagId);
-        return {
-          value: tagId,
-          label: tag ? tag.name : String(tagId)
-        };
-      });
-
-      // Convert amenityIds to labelInValue format for proper display
-      const amenityIdsWithValue = (location.amenityIds || []).map(amenityId => {
-        const amenity = amenities.find(a => a.id === amenityId);
-        return {
-          value: amenityId,
-          label: amenity ? amenity.name : String(amenityId)
-        };
-      });
-
       form.setFieldsValue({
         name: location.name,
         description: location.description,
@@ -187,15 +169,18 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         minimumAge: location.minimumAge,
         address: location.address,
         locationTypeId: location.locationTypeId,
-        destinationId: location.destinationId,
+        districtId: location.districtId,
         telephone: location.telephone,
         email: location.email,
         priceMinUsd: location.priceMinUsd,
         priceMaxUsd: location.priceMaxUsd,
         recommendedDurationMinutes: location.recommendedDurationMinutes,
-        tagIds: tagIdsWithValue,
-        amenityIds: amenityIdsWithValue
+        score: location.score,
+        tagIds: location.tagIds || [],
+        amenityIds: location.amenityIds || []
       });
+      // CRITICAL: Sync React state with Form state for logic in handleParentTagChange
+      setSelectedChildTagIds(location.tagIds || []);
       setMediaLinks(location.mediaLinks || []);
       // Map social links from BE format (with id) to form state - convert platform enum to string
       setSocialLinks(location.socialLinks?.map(sl => ({
@@ -222,7 +207,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       setOpeningHours([]);
       setSeasons([]);
     }
-  }, [location, amenities, locationTypes, districts, form]); // Added locationTypes and districts to ensure all data is loaded before setting form values
+  }, [location, amenities, locationTypes, districts, form]); // Removed availableChildTags to prevent resetting form state during user interaction
 
   const handleSubmit = async (values) => {
     setLoading(true);
@@ -799,7 +784,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                     width: 130,
                     render: (value, record, index) => (
                       <TimePicker
-                        value={value ? dayjs(value, 'HH:mm') : null}
+                        value={value ? dayjs(String(value).substring(0, 5), 'HH:mm') : null}
                         onChange={(time, timeString) => handleUpdateOpeningHour(index, 'openTime', timeString)}
                         format="HH:mm"
                       />
@@ -812,7 +797,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                     width: 130,
                     render: (value, record, index) => (
                       <TimePicker
-                        value={value ? dayjs(value, 'HH:mm') : null}
+                        value={value ? dayjs(String(value).substring(0, 5), 'HH:mm') : null}
                         onChange={(time, timeString) => handleUpdateOpeningHour(index, 'closeTime', timeString)}
                         format="HH:mm"
                       />
