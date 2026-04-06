@@ -1,6 +1,11 @@
-﻿using HSTS.Domain.Entities;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using HSTS.Domain.Enums;
 
 namespace HSTS.Domain.Entities
 {
@@ -50,6 +55,7 @@ namespace HSTS.Domain.Entities
         // Location Type (foreign key to LocationTypes table)
         public int? LocationTypeId { get; set; }
         public LocationType? LocationType { get; set; }
+        public string? SourceUrl { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         [Range(0, 100000000)]
@@ -72,8 +78,10 @@ namespace HSTS.Domain.Entities
         public Domain.Enums.LocationStatus Status { get; set; } = Domain.Enums.LocationStatus.Active;
 
         // Navigation properties
+        public ICollection<Hub> Hubs { get; set; } = new List<Hub>();
         public ICollection<LocationSocialLink> SocialLinks { get; set; } = new List<LocationSocialLink>();
         public ICollection<LocationTag> LocationTags { get; set; } = new List<LocationTag>();
+        public ICollection<Tag> Tags { get; set; } = new List<Tag>();
         public ICollection<LocationMedia> LocationMedias { get; set; } = new List<LocationMedia>();
         public ICollection<LocationAmenity> LocationAmenities { get; set; } = new List<LocationAmenity>();
         public ICollection<LocationOpeningHour> OpeningHours { get; set; } = new List<LocationOpeningHour>();
@@ -98,11 +106,12 @@ namespace HSTS.Domain.Entities
             var dateToCheck = referenceDate ?? DateTime.UtcNow;
 
             // Check if there's an active closure that covers the reference date
+            // Use .Date to ignore time components and compare dates only
             var hasActiveClosure = Closures?.Any(c =>
                 c.IsActive &&
                 !c.IsDeleted &&
-                c.StartDate <= dateToCheck &&
-                c.EndDate >= dateToCheck
+                c.StartDate.Date <= dateToCheck.Date &&
+                c.EndDate.Date >= dateToCheck.Date
             ) ?? false;
 
             return hasActiveClosure

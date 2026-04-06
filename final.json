@@ -1,0 +1,4778 @@
+{
+  "userLocation": {
+    "latitude": 18.285637074392174,
+    "longitude": 105.8880732637985
+  },
+  "destinations": [
+    {
+      "provinceId": 24,
+      "districtIds": []
+    }
+  ],
+  "startDate": "2026-04-10",
+  "endDate": "2026-04-13",
+  "groupSize": 2,
+  "currencyCode": "USD",
+  "budgetLevel": "Luxury",
+  "budgetSummary": {
+    "totalBudget": {
+      "amount": 1906.63,
+      "currency": "USD",
+      "baseAmount": 50000000,
+      "baseCurrency": "VND"
+    },
+    "contingencyFund": {
+      "amount": 95.33,
+      "currency": "USD",
+      "baseAmount": 2500000,
+      "baseCurrency": "VND"
+    },
+    "usableBudget": {
+      "amount": 1811.29,
+      "currency": "USD",
+      "baseAmount": 47500000,
+      "baseCurrency": "VND"
+    },
+    "estimatedTransportCost": {
+      "amount": 63.2,
+      "currency": "USD",
+      "baseAmount": 1657361.6,
+      "baseCurrency": "VND"
+    },
+    "estimatedAccommodationCost": {
+      "amount": 0.17,
+      "currency": "USD",
+      "baseAmount": 4488,
+      "baseCurrency": "VND"
+    },
+    "estimatedActivityCost": {
+      "amount": 56.44,
+      "currency": "USD",
+      "baseAmount": 1480000,
+      "baseCurrency": "VND"
+    },
+    "estimatedTotalCost": {
+      "amount": 119.81,
+      "currency": "USD",
+      "baseAmount": 3141849.6,
+      "baseCurrency": "VND"
+    },
+    "remainingBudget": {
+      "amount": 1691.49,
+      "currency": "USD",
+      "baseAmount": 44358150.4,
+      "baseCurrency": "VND"
+    }
+  },
+  "days": [
+    {
+      "dayNumber": 1,
+      "dayTitle": "Day 1: Ha Tinh - Ha Noi",
+      "date": "2026-04-10",
+      "provinceId": 24,
+      "weatherSummary": "Ha Noi: Overcast, 23.9 to 34.1 C",
+      "dailyBudget": {
+        "amount": 502.37,
+        "currency": "USD",
+        "baseAmount": 13174266.13,
+        "baseCurrency": "VND"
+      },
+      "estimatedDayCost": {
+        "amount": 36.16,
+        "currency": "USD",
+        "baseAmount": 948265.6,
+        "baseCurrency": "VND"
+      },
+      "rolloverToNextDay": {
+        "amount": 276.3,
+        "currency": "USD",
+        "baseAmount": 7245846.37,
+        "baseCurrency": "VND"
+      },
+      "accommodationRecommendations": [
+        {
+          "locationId": 88,
+          "locationName": "Sofitel Legend Metropole Hanoi",
+          "address": "15 Ngo Quyen Street, Trang Tien Ward, Hoan Kiem District, Hanoi, Vietnam",
+          "score": 87.42166721490234,
+          "pricePerPersonPerNight": {
+            "amount": 0.02,
+            "currency": "USD",
+            "baseAmount": 561,
+            "baseCurrency": "VND"
+          },
+          "totalCostPerNight": {
+            "amount": 0.04,
+            "currency": "USD",
+            "baseAmount": 1122,
+            "baseCurrency": "VND"
+          },
+          "distanceToCenter": 1.353781149710251,
+          "amenityCount": 76,
+          "amenityIds": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76
+          ],
+          "isRecommended": true
+        }
+      ],
+      "timeline": [
+        {
+          "eventType": "travel",
+          "title": "Di chuyen lien tinh",
+          "startTime": "06:30:00",
+          "endTime": "13:20:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 114,
+            "toLocationId": 103,
+            "departureTime": "06:30:00",
+            "arrivalTime": "13:20:00",
+            "distanceKm": 380.0094,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 4,
+                "method": "Bus",
+                "estimatedTravelMinutes": 410,
+                "estimatedTotalCost": {
+                  "amount": 14.49,
+                  "currency": "USD",
+                  "baseAmount": 380000,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "FixedIntercity from bus API",
+                "fromTransitHubId": 114,
+                "toTransitHubId": 103,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 28.98,
+                  "currency": "USD",
+                  "baseAmount": 760000,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 6,
+                "method": "Train",
+                "estimatedTravelMinutes": 456,
+                "estimatedTotalCost": {
+                  "amount": 19.07,
+                  "currency": "USD",
+                  "baseAmount": 500000,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Estimated pricing (API unavailable)",
+                "fromTransitHubId": 114,
+                "toTransitHubId": 103,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 38.13,
+                  "currency": "USD",
+                  "baseAmount": 1000000,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 5,
+                "method": "Plane",
+                "estimatedTravelMinutes": 119,
+                "estimatedTotalCost": {
+                  "amount": 45.76,
+                  "currency": "USD",
+                  "baseAmount": 1200000,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Estimated pricing (API unavailable)",
+                "fromTransitHubId": 12,
+                "toTransitHubId": 5,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 91.52,
+                  "currency": "USD",
+                  "baseAmount": 2400000,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "13:40:00",
+          "endTime": "14:14:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": {
+            "fromTransitHubId": 103,
+            "toLocationId": 88,
+            "departureTime": "13:40:00",
+            "arrivalTime": "14:14:00",
+            "distanceKm": 28.2423,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 34,
+                "estimatedTotalCost": {
+                  "amount": 12.92,
+                  "currency": "USD",
+                  "baseAmount": 338907.6,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 12.92,
+                  "currency": "USD",
+                  "baseAmount": 338907.6,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 34,
+                "estimatedTotalCost": {
+                  "amount": 12.92,
+                  "currency": "USD",
+                  "baseAmount": 338907.6,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 12.92,
+                  "currency": "USD",
+                  "baseAmount": 338907.6,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 42,
+                "estimatedTotalCost": {
+                  "amount": 25.85,
+                  "currency": "USD",
+                  "baseAmount": 677815.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 25.85,
+                  "currency": "USD",
+                  "baseAmount": 677815.2,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 424,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Exceeds recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "check-in",
+          "title": "Nhan phong tai Sofitel Legend Metropole Hanoi - Gui hanh ly",
+          "startTime": "14:24:00",
+          "endTime": "14:54:00",
+          "locationId": 88,
+          "locationTypeId": 3,
+          "tagIds": [
+            82
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0.02,
+            "currency": "USD",
+            "baseAmount": 561,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0.04,
+            "currency": "USD",
+            "baseAmount": 1122,
+            "baseCurrency": "VND"
+          },
+          "note": "Nhan phong va gui hanh ly",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "15:04:00",
+          "endTime": "15:09:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 88,
+            "toLocationId": 35,
+            "departureTime": "15:04:00",
+            "arrivalTime": "15:09:00",
+            "distanceKm": 1.2791,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.59,
+                  "currency": "USD",
+                  "baseAmount": 15349.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.59,
+                  "currency": "USD",
+                  "baseAmount": 15349.2,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.59,
+                  "currency": "USD",
+                  "baseAmount": 15349.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.59,
+                  "currency": "USD",
+                  "baseAmount": 15349.2,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 19,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 1.17,
+                  "currency": "USD",
+                  "baseAmount": 30698.4,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 1.17,
+                  "currency": "USD",
+                  "baseAmount": 30698.4,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan DC Art Gallary",
+          "startTime": "15:09:00",
+          "endTime": "16:39:00",
+          "locationId": 35,
+          "locationTypeId": 1,
+          "tagIds": [
+            179
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 93.0",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 36,
+              "locationName": "Azone Tattoo",
+              "locationTypeId": 1,
+              "tagIds": [
+                179,
+                205
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.4374,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 40,
+              "locationName": "Ames Studio 2 Nha Chung - Handcrafted Souvenir & Gift",
+              "locationTypeId": 1,
+              "tagIds": [
+                179,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.7276,
+              "estimatedTravelMinutes": 2,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 34,
+              "locationName": "Klimt Art Gallery",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.8834,
+              "estimatedTravelMinutes": 2,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "16:54:00",
+          "endTime": "17:00:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 35,
+            "toLocationId": 34,
+            "departureTime": "16:54:00",
+            "arrivalTime": "17:00:00",
+            "distanceKm": 0.42769999999999997,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 6,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.2,
+                  "currency": "USD",
+                  "baseAmount": 5132.4,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.2,
+                  "currency": "USD",
+                  "baseAmount": 5132.4,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.2,
+                  "currency": "USD",
+                  "baseAmount": 5132.4,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.2,
+                  "currency": "USD",
+                  "baseAmount": 5132.4,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.39,
+                  "currency": "USD",
+                  "baseAmount": 10264.8,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0.39,
+                  "currency": "USD",
+                  "baseAmount": 10264.8,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan Klimt Art Gallery",
+          "startTime": "17:00:00",
+          "endTime": "18:30:00",
+          "locationId": 34,
+          "locationTypeId": 1,
+          "tagIds": [
+            179
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 93.0",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 31,
+              "locationName": "Green Palm Gallery",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.0644,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 37,
+              "locationName": "GP Home Handicraft",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.1683,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 32,
+              "locationName": "Empty Wall Gallery",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.1882,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "meal",
+          "title": "An toi",
+          "startTime": "18:45:00",
+          "endTime": "20:00:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Bua toi",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen ve Sofitel Legend Metropole Hanoi",
+          "startTime": "20:15:00",
+          "endTime": "20:20:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 34,
+            "toLocationId": 88,
+            "departureTime": "20:15:00",
+            "arrivalTime": "20:20:00",
+            "distanceKm": 1.0739,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.49,
+                  "currency": "USD",
+                  "baseAmount": 12886.8,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.49,
+                  "currency": "USD",
+                  "baseAmount": 12886.8,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.49,
+                  "currency": "USD",
+                  "baseAmount": 12886.8,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.49,
+                  "currency": "USD",
+                  "baseAmount": 12886.8,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 16,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.98,
+                  "currency": "USD",
+                  "baseAmount": 25773.6,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0.98,
+                  "currency": "USD",
+                  "baseAmount": 25773.6,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        }
+      ]
+    },
+    {
+      "dayNumber": 2,
+      "dayTitle": "Day 2 - Ha Noi",
+      "date": "2026-04-11",
+      "provinceId": 24,
+      "weatherSummary": "Ha Noi: Light drizzle, 23 to 38.7 C",
+      "dailyBudget": {
+        "amount": 701.38,
+        "currency": "USD",
+        "baseAmount": 18393302.33,
+        "baseCurrency": "VND"
+      },
+      "estimatedDayCost": {
+        "amount": 39.49,
+        "currency": "USD",
+        "baseAmount": 1035641.6,
+        "baseCurrency": "VND"
+      },
+      "rolloverToNextDay": {
+        "amount": 251.18,
+        "currency": "USD",
+        "baseAmount": 6587133.07,
+        "baseCurrency": "VND"
+      },
+      "accommodationRecommendations": [
+        {
+          "locationId": 88,
+          "locationName": "Sofitel Legend Metropole Hanoi",
+          "address": "15 Ngo Quyen Street, Trang Tien Ward, Hoan Kiem District, Hanoi, Vietnam",
+          "score": 87.42166721490234,
+          "pricePerPersonPerNight": {
+            "amount": 0.02,
+            "currency": "USD",
+            "baseAmount": 561,
+            "baseCurrency": "VND"
+          },
+          "totalCostPerNight": {
+            "amount": 0.04,
+            "currency": "USD",
+            "baseAmount": 1122,
+            "baseCurrency": "VND"
+          },
+          "distanceToCenter": 1.353781149710251,
+          "amenityCount": 76,
+          "amenityIds": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76
+          ],
+          "isRecommended": true
+        }
+      ],
+      "timeline": [
+        {
+          "eventType": "luggage-refresh",
+          "title": "Gia han / gui hanh ly tai Sofitel Legend Metropole Hanoi",
+          "startTime": "06:30:00",
+          "endTime": "06:45:00",
+          "locationId": 88,
+          "locationTypeId": 3,
+          "tagIds": [
+            82
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Gia han phong hoac gui hanh ly",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "06:55:00",
+          "endTime": "07:00:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 88,
+            "toLocationId": 39,
+            "departureTime": "06:55:00",
+            "arrivalTime": "07:00:00",
+            "distanceKm": 3.6403000000000003,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 1.67,
+                  "currency": "USD",
+                  "baseAmount": 43683.6,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 1.67,
+                  "currency": "USD",
+                  "baseAmount": 43683.6,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 1.67,
+                  "currency": "USD",
+                  "baseAmount": 43683.6,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 1.67,
+                  "currency": "USD",
+                  "baseAmount": 43683.6,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 3.33,
+                  "currency": "USD",
+                  "baseAmount": 87367.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 3.33,
+                  "currency": "USD",
+                  "baseAmount": 87367.2,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 55,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Exceeds recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan Thien Thai Fine Arts",
+          "startTime": "07:00:00",
+          "endTime": "08:30:00",
+          "locationId": 39,
+          "locationTypeId": 1,
+          "tagIds": [
+            179,
+            225
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 93.0",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 32,
+              "locationName": "Empty Wall Gallery",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 1.057,
+              "estimatedTravelMinutes": 2,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 30,
+              "locationName": "Dao Anh Khanh Studio",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 90.6,
+              "distanceFromPrevKm": 4.2835,
+              "estimatedTravelMinutes": 8,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "08:45:00",
+          "endTime": "08:50:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 39,
+            "toLocationId": 80,
+            "departureTime": "08:45:00",
+            "arrivalTime": "08:50:00",
+            "distanceKm": 3.9341,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 1.8,
+                  "currency": "USD",
+                  "baseAmount": 47209.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 1.8,
+                  "currency": "USD",
+                  "baseAmount": 47209.2,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 1.8,
+                  "currency": "USD",
+                  "baseAmount": 47209.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 1.8,
+                  "currency": "USD",
+                  "baseAmount": 47209.2,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 6,
+                "estimatedTotalCost": {
+                  "amount": 3.6,
+                  "currency": "USD",
+                  "baseAmount": 94418.4,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 3.6,
+                  "currency": "USD",
+                  "baseAmount": 94418.4,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 59,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Exceeds recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan Mountain Allure",
+          "startTime": "08:50:00",
+          "endTime": "10:20:00",
+          "locationId": 80,
+          "locationTypeId": 4,
+          "tagIds": [
+            223,
+            225
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 139.5",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 75,
+              "locationName": "Viettime Craft",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 1.868,
+              "estimatedTravelMinutes": 4,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 78,
+              "locationName": "TiredCity",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 1.9251,
+              "estimatedTravelMinutes": 4,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 32,
+              "locationName": "Empty Wall Gallery",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 1.6884,
+              "estimatedTravelMinutes": 3,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "10:35:00",
+          "endTime": "10:40:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 80,
+            "toLocationId": 75,
+            "departureTime": "10:35:00",
+            "arrivalTime": "10:40:00",
+            "distanceKm": 2.3846999999999996,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 1.09,
+                  "currency": "USD",
+                  "baseAmount": 28616.4,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 1.09,
+                  "currency": "USD",
+                  "baseAmount": 28616.4,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 1.09,
+                  "currency": "USD",
+                  "baseAmount": 28616.4,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 1.09,
+                  "currency": "USD",
+                  "baseAmount": 28616.4,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 2.18,
+                  "currency": "USD",
+                  "baseAmount": 57232.8,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 2.18,
+                  "currency": "USD",
+                  "baseAmount": 57232.8,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 36,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Exceeds recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan Viettime Craft",
+          "startTime": "10:40:00",
+          "endTime": "12:10:00",
+          "locationId": 75,
+          "locationTypeId": 4,
+          "tagIds": [
+            223,
+            225
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 139.5",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 78,
+              "locationName": "TiredCity",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 1.6196,
+              "estimatedTravelMinutes": 3,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 82,
+              "locationName": "Moji - Accessories & Gifts",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 2.8331,
+              "estimatedTravelMinutes": 5,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 81,
+              "locationName": "Moji - Accessories & Gifts",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 6.7531,
+              "estimatedTravelMinutes": 12,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "meal",
+          "title": "An trua",
+          "startTime": "12:25:00",
+          "endTime": "13:30:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Bua trua",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "13:45:00",
+          "endTime": "13:51:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 75,
+            "toLocationId": 82,
+            "departureTime": "13:45:00",
+            "arrivalTime": "13:51:00",
+            "distanceKm": 4.8597,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 6,
+                "estimatedTotalCost": {
+                  "amount": 2.22,
+                  "currency": "USD",
+                  "baseAmount": 58316.4,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 2.22,
+                  "currency": "USD",
+                  "baseAmount": 58316.4,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 6,
+                "estimatedTotalCost": {
+                  "amount": 2.22,
+                  "currency": "USD",
+                  "baseAmount": 58316.4,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 2.22,
+                  "currency": "USD",
+                  "baseAmount": 58316.4,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 7,
+                "estimatedTotalCost": {
+                  "amount": 4.45,
+                  "currency": "USD",
+                  "baseAmount": 116632.8,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 4.45,
+                  "currency": "USD",
+                  "baseAmount": 116632.8,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 73,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Exceeds recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan Moji - Accessories & Gifts",
+          "startTime": "13:51:00",
+          "endTime": "15:21:00",
+          "locationId": 82,
+          "locationTypeId": 4,
+          "tagIds": [
+            223,
+            225
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 139.5",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 78,
+              "locationName": "TiredCity",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 0.0615,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 62,
+              "locationName": "CSCB Vintage Eyewear and Clothing",
+              "locationTypeId": 1,
+              "tagIds": [
+                179,
+                215
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.1756,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 38,
+              "locationName": "Inkonic Tattoo Studio",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.2346,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "15:36:00",
+          "endTime": "15:42:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 82,
+            "toLocationId": 81,
+            "departureTime": "15:36:00",
+            "arrivalTime": "15:42:00",
+            "distanceKm": 5.2435,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 6,
+                "estimatedTotalCost": {
+                  "amount": 2.4,
+                  "currency": "USD",
+                  "baseAmount": 62922,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 2.4,
+                  "currency": "USD",
+                  "baseAmount": 62922,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 6,
+                "estimatedTotalCost": {
+                  "amount": 2.4,
+                  "currency": "USD",
+                  "baseAmount": 62922,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 2.4,
+                  "currency": "USD",
+                  "baseAmount": 62922,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 8,
+                "estimatedTotalCost": {
+                  "amount": 4.8,
+                  "currency": "USD",
+                  "baseAmount": 125844,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 4.8,
+                  "currency": "USD",
+                  "baseAmount": 125844,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 79,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Exceeds recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan Moji - Accessories & Gifts",
+          "startTime": "15:42:00",
+          "endTime": "17:12:00",
+          "locationId": 81,
+          "locationTypeId": 4,
+          "tagIds": [
+            223,
+            225
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 139.5",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 78,
+              "locationName": "TiredCity",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 2.9578,
+              "estimatedTravelMinutes": 6,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 27,
+              "locationName": "Nguyen Art Gallery ",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 1.2064,
+              "estimatedTravelMinutes": 3,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 33,
+              "locationName": "Zo Project",
+              "locationTypeId": 1,
+              "tagIds": [
+                155,
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 1.8852,
+              "estimatedTravelMinutes": 4,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "17:27:00",
+          "endTime": "17:34:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 81,
+            "toLocationId": 27,
+            "departureTime": "17:27:00",
+            "arrivalTime": "17:34:00",
+            "distanceKm": 5.9269,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 7,
+                "estimatedTotalCost": {
+                  "amount": 2.71,
+                  "currency": "USD",
+                  "baseAmount": 71122.8,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 2.71,
+                  "currency": "USD",
+                  "baseAmount": 71122.8,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 7,
+                "estimatedTotalCost": {
+                  "amount": 2.71,
+                  "currency": "USD",
+                  "baseAmount": 71122.8,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 2.71,
+                  "currency": "USD",
+                  "baseAmount": 71122.8,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 9,
+                "estimatedTotalCost": {
+                  "amount": 5.42,
+                  "currency": "USD",
+                  "baseAmount": 142245.6,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 5.42,
+                  "currency": "USD",
+                  "baseAmount": 142245.6,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 89,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Exceeds recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan Nguyen Art Gallery ",
+          "startTime": "17:34:00",
+          "endTime": "19:04:00",
+          "locationId": 27,
+          "locationTypeId": 1,
+          "tagIds": [
+            179
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 93.0",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 78,
+              "locationName": "TiredCity",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 6.9361,
+              "estimatedTravelMinutes": 12,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 28,
+              "locationName": "Vincom Center for Contemporary Art (VCCA)",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 85,
+              "distanceFromPrevKm": 4.6926,
+              "estimatedTravelMinutes": 9,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 33,
+              "locationName": "Zo Project",
+              "locationTypeId": 1,
+              "tagIds": [
+                155,
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 5.9042,
+              "estimatedTravelMinutes": 11,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen ve Sofitel Legend Metropole Hanoi",
+          "startTime": "19:19:00",
+          "endTime": "19:24:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 27,
+            "toLocationId": 88,
+            "departureTime": "19:19:00",
+            "arrivalTime": "19:24:00",
+            "distanceKm": 3.5541,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 1.63,
+                  "currency": "USD",
+                  "baseAmount": 42649.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 1.63,
+                  "currency": "USD",
+                  "baseAmount": 42649.2,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 1.63,
+                  "currency": "USD",
+                  "baseAmount": 42649.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 1.63,
+                  "currency": "USD",
+                  "baseAmount": 42649.2,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 3.25,
+                  "currency": "USD",
+                  "baseAmount": 85298.4,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 3.25,
+                  "currency": "USD",
+                  "baseAmount": 85298.4,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 53,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Exceeds recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "check-in",
+          "title": "Nhan phong tai Sofitel Legend Metropole Hanoi",
+          "startTime": "21:00:00",
+          "endTime": "21:20:00",
+          "locationId": 88,
+          "locationTypeId": 3,
+          "tagIds": [
+            82
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Nghi ngoi buoi toi",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        }
+      ]
+    },
+    {
+      "dayNumber": 3,
+      "dayTitle": "Day 3 - Ha Noi",
+      "date": "2026-04-12",
+      "provinceId": 24,
+      "weatherSummary": "Ha Noi: Light drizzle, 22.3 to 30.9 C",
+      "dailyBudget": {
+        "amount": 637.62,
+        "currency": "USD",
+        "baseAmount": 16721183.93,
+        "baseCurrency": "VND"
+      },
+      "estimatedDayCost": {
+        "amount": 31.12,
+        "currency": "USD",
+        "baseAmount": 816139.2,
+        "baseCurrency": "VND"
+      },
+      "rolloverToNextDay": {
+        "amount": 301.42,
+        "currency": "USD",
+        "baseAmount": 7904559.68,
+        "baseCurrency": "VND"
+      },
+      "accommodationRecommendations": [
+        {
+          "locationId": 88,
+          "locationName": "Sofitel Legend Metropole Hanoi",
+          "address": "15 Ngo Quyen Street, Trang Tien Ward, Hoan Kiem District, Hanoi, Vietnam",
+          "score": 87.42166721490234,
+          "pricePerPersonPerNight": {
+            "amount": 0.02,
+            "currency": "USD",
+            "baseAmount": 561,
+            "baseCurrency": "VND"
+          },
+          "totalCostPerNight": {
+            "amount": 0.04,
+            "currency": "USD",
+            "baseAmount": 1122,
+            "baseCurrency": "VND"
+          },
+          "distanceToCenter": 1.353781149710251,
+          "amenityCount": 76,
+          "amenityIds": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76
+          ],
+          "isRecommended": true
+        }
+      ],
+      "timeline": [
+        {
+          "eventType": "luggage-refresh",
+          "title": "Gia han / gui hanh ly tai Sofitel Legend Metropole Hanoi",
+          "startTime": "06:30:00",
+          "endTime": "06:45:00",
+          "locationId": 88,
+          "locationTypeId": 3,
+          "tagIds": [
+            82
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Gia han phong hoac gui hanh ly",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "06:55:00",
+          "endTime": "07:03:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 88,
+            "toLocationId": 30,
+            "departureTime": "06:55:00",
+            "arrivalTime": "07:03:00",
+            "distanceKm": 7.0015,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 8,
+                "estimatedTotalCost": {
+                  "amount": 3.2,
+                  "currency": "USD",
+                  "baseAmount": 84018,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 3.2,
+                  "currency": "USD",
+                  "baseAmount": 84018,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 8,
+                "estimatedTotalCost": {
+                  "amount": 3.2,
+                  "currency": "USD",
+                  "baseAmount": 84018,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 3.2,
+                  "currency": "USD",
+                  "baseAmount": 84018,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 11,
+                "estimatedTotalCost": {
+                  "amount": 6.41,
+                  "currency": "USD",
+                  "baseAmount": 168036,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 6.41,
+                  "currency": "USD",
+                  "baseAmount": 168036,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 105,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Exceeds recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan Dao Anh Khanh Studio",
+          "startTime": "07:03:00",
+          "endTime": "08:33:00",
+          "locationId": 30,
+          "locationTypeId": 1,
+          "tagIds": [
+            179
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 90.6",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 32,
+              "locationName": "Empty Wall Gallery",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 1.057,
+              "estimatedTravelMinutes": 2,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "08:48:00",
+          "endTime": "08:55:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 30,
+            "toLocationId": 32,
+            "departureTime": "08:48:00",
+            "arrivalTime": "08:55:00",
+            "distanceKm": 6.1738,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 7,
+                "estimatedTotalCost": {
+                  "amount": 2.83,
+                  "currency": "USD",
+                  "baseAmount": 74085.6,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 2.83,
+                  "currency": "USD",
+                  "baseAmount": 74085.6,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 7,
+                "estimatedTotalCost": {
+                  "amount": 2.83,
+                  "currency": "USD",
+                  "baseAmount": 74085.6,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 2.83,
+                  "currency": "USD",
+                  "baseAmount": 74085.6,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 9,
+                "estimatedTotalCost": {
+                  "amount": 5.65,
+                  "currency": "USD",
+                  "baseAmount": 148171.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 5.65,
+                  "currency": "USD",
+                  "baseAmount": 148171.2,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 93,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Exceeds recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan Empty Wall Gallery",
+          "startTime": "08:55:00",
+          "endTime": "10:25:00",
+          "locationId": 32,
+          "locationTypeId": 1,
+          "tagIds": [
+            179
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 93.0",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 78,
+              "locationName": "TiredCity",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 3.4952,
+              "estimatedTravelMinutes": 6,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 31,
+              "locationName": "Green Palm Gallery",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 3.8009,
+              "estimatedTravelMinutes": 7,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 23,
+              "locationName": "Chie Dupudupa",
+              "locationTypeId": 1,
+              "tagIds": [
+                217,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 3.9351,
+              "estimatedTravelMinutes": 7,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "10:40:00",
+          "endTime": "10:45:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 32,
+            "toLocationId": 31,
+            "departureTime": "10:40:00",
+            "arrivalTime": "10:45:00",
+            "distanceKm": 0.1779,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.08,
+                  "currency": "USD",
+                  "baseAmount": 2134.8,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.08,
+                  "currency": "USD",
+                  "baseAmount": 2134.8,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.08,
+                  "currency": "USD",
+                  "baseAmount": 2134.8,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.08,
+                  "currency": "USD",
+                  "baseAmount": 2134.8,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.16,
+                  "currency": "USD",
+                  "baseAmount": 4269.6,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0.16,
+                  "currency": "USD",
+                  "baseAmount": 4269.6,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan Green Palm Gallery",
+          "startTime": "10:45:00",
+          "endTime": "12:15:00",
+          "locationId": 31,
+          "locationTypeId": 1,
+          "tagIds": [
+            179
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 93.0",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 78,
+              "locationName": "TiredCity",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 0.3792,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 37,
+              "locationName": "GP Home Handicraft",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.0269,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 23,
+              "locationName": "Chie Dupudupa",
+              "locationTypeId": 1,
+              "tagIds": [
+                217,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.2514,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "meal",
+          "title": "An trua",
+          "startTime": "12:30:00",
+          "endTime": "13:30:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Bua trua",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "13:45:00",
+          "endTime": "13:50:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 31,
+            "toLocationId": 37,
+            "departureTime": "13:45:00",
+            "arrivalTime": "13:50:00",
+            "distanceKm": 1.106,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.51,
+                  "currency": "USD",
+                  "baseAmount": 13272,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.51,
+                  "currency": "USD",
+                  "baseAmount": 13272,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.51,
+                  "currency": "USD",
+                  "baseAmount": 13272,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.51,
+                  "currency": "USD",
+                  "baseAmount": 13272,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 17,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 1.01,
+                  "currency": "USD",
+                  "baseAmount": 26544,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 1.01,
+                  "currency": "USD",
+                  "baseAmount": 26544,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan GP Home Handicraft",
+          "startTime": "13:50:00",
+          "endTime": "15:20:00",
+          "locationId": 37,
+          "locationTypeId": 1,
+          "tagIds": [
+            179
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 93.0",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 78,
+              "locationName": "TiredCity",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 0.3792,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 23,
+              "locationName": "Chie Dupudupa",
+              "locationTypeId": 1,
+              "tagIds": [
+                217,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.1518,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 26,
+              "locationName": "Thang Long Art Gallery",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 91.4,
+              "distanceFromPrevKm": 0.0148,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "15:35:00",
+          "endTime": "15:40:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 37,
+            "toLocationId": 62,
+            "departureTime": "15:35:00",
+            "arrivalTime": "15:40:00",
+            "distanceKm": 1.0238,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.47,
+                  "currency": "USD",
+                  "baseAmount": 12285.6,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.47,
+                  "currency": "USD",
+                  "baseAmount": 12285.6,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.47,
+                  "currency": "USD",
+                  "baseAmount": 12285.6,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.47,
+                  "currency": "USD",
+                  "baseAmount": 12285.6,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 15,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.94,
+                  "currency": "USD",
+                  "baseAmount": 24571.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0.94,
+                  "currency": "USD",
+                  "baseAmount": 24571.2,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan CSCB Vintage Eyewear and Clothing",
+          "startTime": "15:40:00",
+          "endTime": "17:10:00",
+          "locationId": 62,
+          "locationTypeId": 1,
+          "tagIds": [
+            179,
+            215
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 93.0",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 78,
+              "locationName": "TiredCity",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 0.384,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 23,
+              "locationName": "Chie Dupudupa",
+              "locationTypeId": 1,
+              "tagIds": [
+                217,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.2255,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 26,
+              "locationName": "Thang Long Art Gallery",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 91.4,
+              "distanceFromPrevKm": 0.1481,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen",
+          "startTime": "17:25:00",
+          "endTime": "17:30:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 62,
+            "toLocationId": 23,
+            "departureTime": "17:25:00",
+            "arrivalTime": "17:30:00",
+            "distanceKm": 0.9325,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.43,
+                  "currency": "USD",
+                  "baseAmount": 11190,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.43,
+                  "currency": "USD",
+                  "baseAmount": 11190,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.43,
+                  "currency": "USD",
+                  "baseAmount": 11190,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.43,
+                  "currency": "USD",
+                  "baseAmount": 11190,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 14,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.85,
+                  "currency": "USD",
+                  "baseAmount": 22380,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0.85,
+                  "currency": "USD",
+                  "baseAmount": 22380,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "visit",
+          "title": "Tham quan Chie Dupudupa",
+          "startTime": "17:30:00",
+          "endTime": "19:00:00",
+          "locationId": 23,
+          "locationTypeId": 1,
+          "tagIds": [
+            217,
+            225
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Score: 93.0",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": [
+            {
+              "locationId": 78,
+              "locationName": "TiredCity",
+              "locationTypeId": 4,
+              "tagIds": [
+                223,
+                225
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 139.5,
+              "distanceFromPrevKm": 0.2319,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 38,
+              "locationName": "Inkonic Tattoo Studio",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 93,
+              "distanceFromPrevKm": 0.082,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            },
+            {
+              "locationId": 26,
+              "locationName": "Thang Long Art Gallery",
+              "locationTypeId": 1,
+              "tagIds": [
+                179
+              ],
+              "ticketCost": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "extraCostPerPerson": {
+                "amount": 0,
+                "currency": "USD",
+                "baseAmount": 0,
+                "baseCurrency": "VND"
+              },
+              "score": 91.4,
+              "distanceFromPrevKm": 0.3912,
+              "estimatedTravelMinutes": 1,
+              "recommendedStayMinutes": 90
+            }
+          ]
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen ve Sofitel Legend Metropole Hanoi",
+          "startTime": "19:15:00",
+          "endTime": "19:20:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": {
+            "fromLocationId": 23,
+            "toLocationId": 88,
+            "departureTime": "19:15:00",
+            "arrivalTime": "19:20:00",
+            "distanceKm": 1.6805,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.77,
+                  "currency": "USD",
+                  "baseAmount": 20166,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.77,
+                  "currency": "USD",
+                  "baseAmount": 20166,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 0.77,
+                  "currency": "USD",
+                  "baseAmount": 20166,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 0.77,
+                  "currency": "USD",
+                  "baseAmount": 20166,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 25,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 5,
+                "estimatedTotalCost": {
+                  "amount": 1.54,
+                  "currency": "USD",
+                  "baseAmount": 40332,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 1.54,
+                  "currency": "USD",
+                  "baseAmount": 40332,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "check-in",
+          "title": "Nhan phong tai Sofitel Legend Metropole Hanoi",
+          "startTime": "21:00:00",
+          "endTime": "21:20:00",
+          "locationId": 88,
+          "locationTypeId": 3,
+          "tagIds": [
+            82
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Nghi ngoi buoi toi",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        }
+      ]
+    },
+    {
+      "dayNumber": 4,
+      "dayTitle": "Day 4: Ha Noi - Ha Tinh",
+      "date": "2026-04-13",
+      "provinceId": 24,
+      "weatherSummary": "Ha Noi: Light drizzle, 22.8 to 28.1 C",
+      "dailyBudget": {
+        "amount": 765.14,
+        "currency": "USD",
+        "baseAmount": 20065420.72,
+        "baseCurrency": "VND"
+      },
+      "estimatedDayCost": {
+        "amount": 13.03,
+        "currency": "USD",
+        "baseAmount": 341803.2,
+        "baseCurrency": "VND"
+      },
+      "rolloverToNextDay": {
+        "amount": 251.18,
+        "currency": "USD",
+        "baseAmount": 6587133.07,
+        "baseCurrency": "VND"
+      },
+      "accommodationRecommendations": [
+        {
+          "locationId": 88,
+          "locationName": "Sofitel Legend Metropole Hanoi",
+          "address": "15 Ngo Quyen Street, Trang Tien Ward, Hoan Kiem District, Hanoi, Vietnam",
+          "score": 87.42166721490234,
+          "pricePerPersonPerNight": {
+            "amount": 0.02,
+            "currency": "USD",
+            "baseAmount": 561,
+            "baseCurrency": "VND"
+          },
+          "totalCostPerNight": {
+            "amount": 0.04,
+            "currency": "USD",
+            "baseAmount": 1122,
+            "baseCurrency": "VND"
+          },
+          "distanceToCenter": 1.353781149710251,
+          "amenityCount": 76,
+          "amenityIds": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76
+          ],
+          "isRecommended": true
+        }
+      ],
+      "timeline": [
+        {
+          "eventType": "luggage-refresh",
+          "title": "Gia han / gui hanh ly tai Sofitel Legend Metropole Hanoi",
+          "startTime": "06:30:00",
+          "endTime": "06:45:00",
+          "locationId": 88,
+          "locationTypeId": 3,
+          "tagIds": [
+            82
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Gia han phong hoac gui hanh ly",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "check-out",
+          "title": "Tra phong tai Sofitel Legend Metropole Hanoi",
+          "startTime": "12:00:00",
+          "endTime": "12:20:00",
+          "locationId": 88,
+          "locationTypeId": 3,
+          "tagIds": [
+            82
+          ],
+          "ticketCost": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "extraCostPerPerson": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "costForGroup": {
+            "amount": 0,
+            "currency": "USD",
+            "baseAmount": 0,
+            "baseCurrency": "VND"
+          },
+          "note": "Tra phong truoc khi ve",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": null,
+          "alternatives": null
+        },
+        {
+          "eventType": "travel",
+          "title": "Di chuyen den ben xe / san bay",
+          "startTime": "12:30:00",
+          "endTime": "13:04:00",
+          "locationId": 0,
+          "locationTypeId": 0,
+          "tagIds": [],
+          "ticketCost": null,
+          "extraCostPerPerson": null,
+          "costForGroup": null,
+          "note": "",
+          "locationToLocationTravel": null,
+          "transitHubToLocationTravel": null,
+          "locationToTransitHubTravel": {
+            "fromLocationId": 88,
+            "toTransitHubId": 103,
+            "departureTime": "12:30:00",
+            "arrivalTime": "13:04:00",
+            "distanceKm": 28.390099999999997,
+            "selectedMethod": null,
+            "selectedTravelTimeMinutes": 0,
+            "selectedTotalCost": {
+              "amount": 0,
+              "currency": "USD",
+              "baseAmount": 0,
+              "baseCurrency": "VND"
+            },
+            "transportOptions": [
+              {
+                "transportModeId": 3,
+                "method": "4-seater taxi",
+                "estimatedTravelMinutes": 34,
+                "estimatedTotalCost": {
+                  "amount": 12.99,
+                  "currency": "USD",
+                  "baseAmount": 340681.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": true,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 12.99,
+                  "currency": "USD",
+                  "baseAmount": 340681.2,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 4,
+                "method": "7-seater taxi",
+                "estimatedTravelMinutes": 34,
+                "estimatedTotalCost": {
+                  "amount": 12.99,
+                  "currency": "USD",
+                  "baseAmount": 340681.2,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 1,
+                "costForGroup": {
+                  "amount": 12.99,
+                  "currency": "USD",
+                  "baseAmount": 340681.2,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 2,
+                "method": "Grab",
+                "estimatedTravelMinutes": 43,
+                "estimatedTotalCost": {
+                  "amount": 25.98,
+                  "currency": "USD",
+                  "baseAmount": 681362.4,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Within recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 25.98,
+                  "currency": "USD",
+                  "baseAmount": 681362.4,
+                  "baseCurrency": "VND"
+                }
+              },
+              {
+                "transportModeId": 1,
+                "method": "Walking",
+                "estimatedTravelMinutes": 426,
+                "estimatedTotalCost": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                },
+                "recommended": false,
+                "note": "Exceeds recommended distance",
+                "fromTransitHubId": 0,
+                "toTransitHubId": 0,
+                "vehiclesNeeded": 2,
+                "costForGroup": {
+                  "amount": 0,
+                  "currency": "USD",
+                  "baseAmount": 0,
+                  "baseCurrency": "VND"
+                }
+              }
+            ]
+          },
+          "alternatives": null
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Tag ID filter matched 23/77 locations.",
+    "Destination order: Ha Noi (4d).",
+    "First-mile: 300.0km >= 100km -> intercity transport.",
+    "2026-04-11: weather suggests reducing outdoor activities.",
+    "2026-04-12: weather suggests reducing outdoor activities.",
+    "2026-04-13: weather suggests reducing outdoor activities.",
+    "Contingency fund: 2,500,000 VND (5%).",
+    "Usable budget: 47,500,000 VND."
+  ]
+}

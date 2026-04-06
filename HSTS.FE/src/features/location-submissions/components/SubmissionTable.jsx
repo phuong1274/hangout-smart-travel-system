@@ -74,7 +74,11 @@ const SubmissionTable = ({ data, loading, pagination, onTableChange, onEdit, onV
             type="link"
             icon={<EditOutlined />}
             onClick={() => onEdit(record)}
-            disabled={record.status === SubmissionStatus.Approved || record.status === SubmissionStatus.Published}
+            disabled={
+              record.status === SubmissionStatus.Pending ||
+              record.status === SubmissionStatus.Approved ||
+              record.status === SubmissionStatus.Published
+            }
           >
             Edit
           </Button>

@@ -7,6 +7,7 @@ using HSTS.Infrastructure.Settings;
 using HSTS.Application.Auth.Interfaces;
 using HSTS.Application.Interfaces;
 using static HSTS.Application.Interfaces.IRepository;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace HSTS.Infrastructure
 {
@@ -41,6 +42,72 @@ namespace HSTS.Infrastructure
             // Cloudinary
             services.Configure<CloudinarySettings>(configuration.GetSection("Cloudinary"));
             services.AddScoped<ICloudinaryService, CloudinaryService>();
+
+            // Memory cache (used by OSRM route caching and exchange rates)
+            services.AddMemoryCache();
+
+            // Currency service
+            services.Configure<ExchangeRateSettings>(configuration.GetSection("ExchangeRate"));
+            services.AddHttpClient<ICurrencyService, CurrencyService>((serviceProvider, client) =>
+            {
+                var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ExchangeRateSettings>>().Value;
+                if (Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var uri))
+                {
+                    client.BaseAddress = uri;
+                }
+
+                client.Timeout = TimeSpan.FromSeconds(15);
+            });
+
+            // Travel integrations (distance/weather/sandbox)
+            services.Configure<RouteApiSettings>(configuration.GetSection("TravelApis:Route"));
+            services.Configure<WeatherApiSettings>(configuration.GetSection("TravelApis:Weather"));
+            services.Configure<SandboxTravelApiSettings>(configuration.GetSection("TravelApis:Sandbox"));
+            services.Configure<FixedIntercityApiSettings>(configuration.GetSection("TravelApis:FixedIntercity"));
+
+            services.AddHttpClient<IRouteMatrixService, RouteMatrixService>((serviceProvider, client) =>
+            {
+                var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RouteApiSettings>>().Value;
+                if (Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var uri))
+                {
+                    client.BaseAddress = uri;
+                }
+
+                client.Timeout = TimeSpan.FromSeconds(20);
+            });
+
+            services.AddHttpClient<IWeatherAdvisoryService, WeatherAdvisoryService>((serviceProvider, client) =>
+            {
+                var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<WeatherApiSettings>>().Value;
+                if (Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var uri))
+                {
+                    client.BaseAddress = uri;
+                }
+
+                client.Timeout = TimeSpan.FromSeconds(15);
+            });
+
+            services.AddHttpClient<ISandboxTravelSearchService, SandboxTravelSearchService>((serviceProvider, client) =>
+            {
+                var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<SandboxTravelApiSettings>>().Value;
+                if (Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var uri))
+                {
+                    client.BaseAddress = uri;
+                }
+
+                client.Timeout = TimeSpan.FromSeconds(25);
+            });
+
+            services.AddHttpClient<IFixedIntercityTransportService, FixedIntercityTransportService>((serviceProvider, client) =>
+            {
+                var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<FixedIntercityApiSettings>>().Value;
+                if (Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var uri))
+                {
+                    client.BaseAddress = uri;
+                }
+
+                client.Timeout = TimeSpan.FromSeconds(25);
+            });
 
             return services;
         }

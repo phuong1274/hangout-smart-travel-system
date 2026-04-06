@@ -13,7 +13,11 @@ namespace HSTS.Application.Locations
         int DistrictId,
         string? LocationTypeName,
         string? DistrictName = null,
+        // New structured format
+        List<LocationTagDto>? Tags = null,
+        // Backward compatibility
         List<int>? TagIds = null,
+        List<string>? TagNames = null,
         List<string>? MediaLinks = null,
         List<LocationSocialLinkDto>? SocialLinks = null,
         string? Telephone = null,
@@ -22,7 +26,11 @@ namespace HSTS.Application.Locations
         decimal? PriceMaxUsd = null,
         int? RecommendedDurationMinutes = null,
         decimal? Score = null,
+        // New structured format
+        List<LocationAmenityDto>? Amenities = null,
+        // Backward compatibility
         List<int>? AmenityIds = null,
+        List<string>? AmenityNames = null,
         List<LocationOpeningHourDto>? OpeningHours = null,
         List<LocationSeasonDto>? Seasons = null,
         Domain.Enums.LocationStatus Status = default,
@@ -30,6 +38,10 @@ namespace HSTS.Application.Locations
         DateTime CreatedAt = default,
         DateTime? UpdatedAt = null
     );
+
+    public record LocationTagDto(int Id, string Name);
+
+    public record LocationAmenityDto(int Id, string Name);
 
     public record LocationSocialLinkDto(
         int Id,

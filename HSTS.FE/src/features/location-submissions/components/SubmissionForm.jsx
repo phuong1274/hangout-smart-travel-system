@@ -10,7 +10,7 @@ import {
   getAllAmenitiesApi,
   getAllTagsApi
 } from '../api';
-import { getRootTagsApi, getChildTagsApi } from '@/features/tags/api';
+import { buildTagHierarchy } from '@/utils/locationCache';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -34,16 +34,25 @@ const getPlatformEnumValue = (platformName) => {
   return platformObj ? platformObj.enumValue : 14;
 };
 
+// Helper to convert platform enum value to name
+const getPlatformName = (platform) => {
+  if (typeof platform === 'string') return platform;
+  const platformObj = SOCIAL_PLATFORMS.find(p => p.enumValue === platform);
+  return platformObj ? platformObj.value : 'Other';
+};
+
 const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [rootTags, setRootTags] = useState([]);
-  const [availableTags, setAvailableTags] = useState([]);
-  const [selectedRootTagIds, setSelectedRootTagIds] = useState([]);
+  const [availableChildTags, setAvailableChildTags] = useState([]);
+  // Selected parent tag IDs (for filtering child tags, not submitted)
+  const [selectedParentTagIds, setSelectedParentTagIds] = useState([]);
+  // Selected child tag IDs (submitted as tagIds)
+  const [selectedChildTagIds, setSelectedChildTagIds] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
   const [amenities, setAmenities] = useState([]);
-  const [tags, setTags] = useState([]);
   const [mediaLinks, setMediaLinks] = useState([]);
   const [socialLinks, setSocialLinks] = useState([]);
   const [openingHours, setOpeningHours] = useState([]);
@@ -51,33 +60,47 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [submissionType, setSubmissionType] = useState(0); // 0 = NewLocation, 1 = EditExisting
   const [tagsLoading, setTagsLoading] = useState(false);
+  const [childTagsByParent, setChildTagsByParent] = useState({});
 
   const isEdit = !!submission;
-  const isEditExisting = submissionType === 1;
+  const isEditExisting = submissionType === 1 || !!existingLocation;
+
+  // Set submission type based on existingLocation
+  useEffect(() => {
+    if (existingLocation) {
+      setSubmissionType(1); // EditExisting mode
+    } else if (!submission) {
+      setSubmissionType(0); // NewLocation mode
+    }
+  }, [existingLocation, submission]);
 
   // Fetch dropdown data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setTagsLoading(true);
-        const [rootTagsRes, districtsRes, typesRes, amenitiesRes] = await Promise.all([
-          getRootTagsApi(),
+        // Single API call to get all tags - use large pageSize to get all
+        const [allTagsRes, districtsRes, typesRes, amenitiesRes] = await Promise.all([
+          getAllTagsApi({ pageSize: 9999 }),
           getAllDistrictsApi(),
           getAllLocationTypesApi(),
           getAllAmenitiesApi()
         ]);
 
         // Handle paginated responses (extract items array)
-        const rootTags = Array.isArray(rootTagsRes) ? rootTagsRes : (rootTagsRes?.items || []);
+        const allTags = Array.isArray(allTagsRes) ? allTagsRes : (allTagsRes?.items || []);
         const districts = Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []);
         const types = Array.isArray(typesRes) ? typesRes : (typesRes?.items || []);
         const amenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
 
+        // Build tag hierarchy client-side
+        const { rootTags, childTagsByParent } = buildTagHierarchy(allTags);
+
         setRootTags(rootTags);
-        setAvailableTags(rootTags); // Initially show all root tags
         setDistricts(districts);
         setLocationTypes(types);
         setAmenities(amenities);
+        setChildTagsByParent(childTagsByParent);
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
         message.error('Failed to load dropdown data');
@@ -88,103 +111,141 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
     fetchData();
   }, []);
 
-  // Load child tags when a root tag is selected
-  const handleRootTagChange = async (selectedRootIds) => {
-    setSelectedRootTagIds(selectedRootIds);
-    
-    // Get previously selected child tags
-    const currentChildTagIds = form.getFieldValue('tagIds') || [];
-    
-    // Find which root tags were deselected
-    const deselectedRootIds = selectedRootTagIds.filter(id => !selectedRootIds.includes(id));
-    
-    // Load children for deselected root tags to know which child tags to remove
-    const childrenOfDeselectedRoots = new Set();
-    for (const tagId of deselectedRootIds) {
-      try {
-        const childTagsRes = await getChildTagsApi(tagId);
-        const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
-        childTags.forEach(ct => childrenOfDeselectedRoots.add(ct.id));
-      } catch (error) {
-        console.error('Failed to fetch child tags:', error);
-      }
-    }
-    
-    // Remove only child tags whose own parent was deselected
-    const filteredChildTagIds = currentChildTagIds.filter(id => 
-      !childrenOfDeselectedRoots.has(id)
-    );
-    
-    // Update form if child tags were removed
-    if (filteredChildTagIds.length !== currentChildTagIds.length) {
-      form.setFieldValue('tagIds', filteredChildTagIds);
-    }
-    
-    // Load children for ALL currently selected root tags to rebuild available options
-    const allChildTagsFromSelectedRoots = [];
-    for (const tagId of selectedRootIds) {
-      try {
-        const childTagsRes = await getChildTagsApi(tagId);
-        const childTags = Array.isArray(childTagsRes) ? childTagsRes : (childTagsRes?.items || []);
-        allChildTagsFromSelectedRoots.push(...childTags);
-      } catch (error) {
-        console.error('Failed to fetch child tags:', error);
-      }
-    }
-    
-    // Rebuild available tags from scratch: root tags + ALL children from selected roots
-    // Remove duplicate child tags (same child might appear under multiple roots)
-    const uniqueChildTags = allChildTagsFromSelectedRoots.filter(
+  // Handle parent tag change - updates filter for child tag dropdown
+  // Parent tags are NOT submitted, only used to filter child tags
+  const handleParentTagChange = (selectedParentIds) => {
+    setSelectedParentTagIds(selectedParentIds);
+
+    // Get child tags for selected parent tags
+    const filteredChildTags = [];
+    selectedParentIds.forEach(parentId => {
+      const children = childTagsByParent[parentId] || [];
+      filteredChildTags.push(...children);
+    });
+
+    // Remove duplicates
+    const uniqueChildTags = filteredChildTags.filter(
       (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
     );
-    
-    setAvailableTags([...rootTags, ...uniqueChildTags]);
+
+    setAvailableChildTags(uniqueChildTags);
+
+    // Remove selected child tags that are no longer in filtered list
+    const availableChildIds = new Set(uniqueChildTags.map(t => t.id));
+    const filteredChildTagIds = selectedChildTagIds.filter(id => availableChildIds.has(id));
+
+    if (filteredChildTagIds.length !== selectedChildTagIds.length) {
+      setSelectedChildTagIds(filteredChildTagIds);
+      form.setFieldValue('tagIds', filteredChildTagIds);
+    }
   };
 
-  // Handle child tag selection
+  // Handle child tag selection - only child tags are saved
   const handleChildTagChange = (selectedChildIds) => {
+    setSelectedChildTagIds(selectedChildIds);
     form.setFieldValue('tagIds', selectedChildIds);
   };
 
-  // Populate form when editing
+  // Populate form when editing or suggesting edit - derive parent tags from child tags
   useEffect(() => {
-    if (submission) {
-      form.setFieldsValue({
-        name: submission.name,
-        description: submission.description,
-        latitude: submission.latitude,
-        longitude: submission.longitude,
-        address: submission.address,
-        telephone: submission.telephone,
-        email: submission.email,
-        priceMinUsd: submission.priceMinUsd,
-        priceMaxUsd: submission.priceMaxUsd,
-        districtId: submission.districtId,
-        locationTypeId: submission.locationTypeId,
-        amenityIds: submission.amenityIds,
-        tagIds: submission.tagIds
+    const dataToPopulate = existingLocation || submission;
+
+    if (dataToPopulate && rootTags.length > 0 && childTagsByParent && locationTypes.length > 0 && districts.length > 0) {
+      // Derive parent tag IDs from child tags
+      const childTagIds = dataToPopulate.tagIds || dataToPopulate.tags?.map(t => t.id) || [];
+      const parentIds = new Set();
+      childTagIds.forEach(childId => {
+        for (const parentId in childTagsByParent) {
+          const children = childTagsByParent[parentId] || [];
+          if (children.some(c => c.id === childId)) {
+            parentIds.add(parseInt(parentId, 10));
+          }
+        }
       });
 
-      if (submission.mediaLinks) {
-        setMediaLinks(submission.mediaLinks);
+      setSelectedParentTagIds([...parentIds]);
+      setSelectedChildTagIds(childTagIds);
+
+      // Set available child tags based on derived parent tags
+      const filteredChildTags = [];
+      [...parentIds].forEach(parentId => {
+        const children = childTagsByParent[parentId] || [];
+        filteredChildTags.push(...children);
+      });
+
+      const uniqueChildTags = filteredChildTags.filter(
+        (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
+      );
+      setAvailableChildTags(uniqueChildTags);
+
+      form.setFieldsValue({
+        name: dataToPopulate.name,
+        description: dataToPopulate.description,
+        latitude: dataToPopulate.latitude,
+        longitude: dataToPopulate.longitude,
+        address: dataToPopulate.address,
+        telephone: dataToPopulate.telephone,
+        email: dataToPopulate.email,
+        ticketPrice: dataToPopulate.ticketPrice ?? 0,
+        minimumAge: dataToPopulate.minimumAge ?? 0,
+        priceMinUsd: dataToPopulate.priceMinUsd,
+        priceMaxUsd: dataToPopulate.priceMaxUsd,
+        score: dataToPopulate.score,
+        recommendedDurationMinutes: dataToPopulate.recommendedDurationMinutes,
+        districtId: dataToPopulate.districtId || dataToPopulate.district?.id,
+        locationTypeId: dataToPopulate.locationTypeId,
+        amenityIds: dataToPopulate.amenityIds || dataToPopulate.amenities?.map(a => a.id),
+        tagIds: childTagIds
+      });
+
+      if (dataToPopulate.mediaLinks) {
+        setMediaLinks(dataToPopulate.mediaLinks);
       }
-      if (submission.socialLinks) {
-        setSocialLinks(submission.socialLinks);
+      if (dataToPopulate.socialLinks) {
+        // Transform social links to use platform names instead of enum values
+        const transformedSocialLinks = dataToPopulate.socialLinks.map(sl => ({
+          platform: getPlatformName(sl.platform),
+          url: sl.url
+        }));
+        setSocialLinks(transformedSocialLinks);
       }
-      if (submission.openingHours) {
-        setOpeningHours(submission.openingHours);
+      if (dataToPopulate.openingHours) {
+        // Normalize opening hours data - handle both camelCase and PascalCase
+        const normalizedOpeningHours = dataToPopulate.openingHours.map(oh => ({
+          id: oh.id || 0,
+          dayOfWeek: oh.dayOfWeek ?? oh.DayOfWeek,
+          dayName: oh.dayName || oh.DayName || '',
+          openTime: oh.openTime || oh.OpenTime || '',
+          closeTime: oh.closeTime || oh.CloseTime || '',
+          note: oh.note || oh.Note || ''
+        }));
+        setOpeningHours(normalizedOpeningHours);
+      } else {
+        setOpeningHours([]);
       }
-      if (submission.seasons) {
-        setSeasons(submission.seasons);
+      if (dataToPopulate.seasons !== undefined) {
+        // Normalize seasons data - convert months string to array if needed
+        const normalizedSeasons = Array.isArray(dataToPopulate.seasons) 
+          ? dataToPopulate.seasons.map(season => ({
+              id: season.id || 0,
+              description: season.description || '',
+              months: typeof season.months === 'string'
+                ? season.months.split(',').filter(m => m)
+                : (season.months || [])
+            }))
+          : [];
+        setSeasons(normalizedSeasons);
+      } else {
+        setSeasons([]);
       }
-    } else {
+    } else if (!existingLocation && !submission) {
       form.resetFields();
       setMediaLinks([]);
       setSocialLinks([]);
       setOpeningHours([]);
       setSeasons([]);
     }
-  }, [submission, form]);
+  }, [submission, existingLocation, form, rootTags, childTagsByParent, locationTypes, districts, amenities]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
@@ -210,26 +271,32 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
         ...values,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : null,
         // Convert platform string to enum number
-        socialLinks: socialLinks.length > 0 
+        socialLinks: socialLinks.length > 0
           ? socialLinks.map(sl => ({
               platform: getPlatformEnumValue(sl.platform),
               url: sl.url
             }))
           : null,
         amenityIds: values.amenityIds?.length > 0 ? values.amenityIds : null,
-        // Combine root tags and child tags
-        tagIds: [
-          ...(selectedRootTagIds || []),
-          ...(values.tagIds?.length > 0 ? values.tagIds : [])
-        ].filter(id => id !== null && id !== undefined),
+        // Only child tags are submitted (not parent tags)
+        tagIds: selectedChildTagIds,
         openingHours: formattedOpeningHours,
-        seasons: formattedSeasons
+        seasons: formattedSeasons,
+        // Include submission type for edit-existing mode
+        submissionType: isEditExisting ? 1 : 0,
+        existingLocationId: isEditExisting ? (existingLocation?.id || submission?.existingLocationId) : undefined
       };
 
-      if (isEdit) {
+      if (isEdit && !isEditExisting) {
+        // Editing a pending submission
         await updateLocationSubmissionApi(submission.id, payload);
         message.success('Submission updated successfully. It will be reviewed by admin.');
+      } else if (isEditExisting) {
+        // Suggesting edit to existing published location
+        await createLocationSubmissionApi(payload);
+        message.success('Edit suggestion submitted successfully. It will be reviewed by admin.');
       } else {
+        // Creating new submission
         await createLocationSubmissionApi(payload);
         message.success('Submission created successfully. Waiting for admin approval.');
       }
@@ -358,7 +425,7 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
   return (
     <>
       <Modal
-        title={isEdit ? 'Edit Submission' : 'Submit Your Location'}
+        title={isEditExisting ? 'Suggest Edit to Location' : (isEdit ? 'Edit Submission' : 'Submit Your Location')}
         open={open}
         onCancel={onClose}
         onOk={() => form.submit()}
@@ -509,13 +576,56 @@ Transportation:
           <Card size="small" type="inner" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
               <DollarOutlined style={{ fontSize: 20, color: '#faad14', marginRight: 8 }} />
-              <strong style={{ fontSize: 16 }}>Price Range (USD)</strong>
+              <strong style={{ fontSize: 16 }}>Pricing</strong>
             </div>
+            
+            {/* Ticket Price */}
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="ticketPrice"
+                  label="Ticket Price"
+                  rules={[
+                    { required: true, message: 'Please enter ticket price' },
+                    { type: 'number', min: 0, message: 'Price must be 0 or positive' }
+                  ]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="0.00"
+                    min={0}
+                    step={0.01}
+                    prefix="$"
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="minimumAge"
+                  label="Minimum Age"
+                  rules={[
+                    { required: true, message: 'Please enter minimum age' },
+                    { type: 'number', min: 0, max: 120, message: 'Age must be between 0 and 120' }
+                  ]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="e.g., 5"
+                    min={0}
+                    max={120}
+                    addonAfter="+"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            {/* Price Range */}
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
                   name="priceMinUsd"
-                  label="Minimum Price"
+                  label="Min Price (USD)"
                   rules={[
                     { type: 'number', min: 0, message: 'Price must be 0 or positive' }
                   ]}
@@ -533,7 +643,7 @@ Transportation:
               <Col span={12}>
                 <Form.Item
                   name="priceMaxUsd"
-                  label="Maximum Price"
+                  label="Max Price (USD)"
                   rules={[
                     { type: 'number', min: 0, message: 'Price must be 0 or positive' }
                   ]}
@@ -545,6 +655,28 @@ Transportation:
                     step={0.01}
                     prefix="$"
                     parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            {/* Recommended Duration */}
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item
+                  name="recommendedDurationMinutes"
+                  label="Recommended Visit Duration"
+                  tooltip="Suggested time visitors should spend at this location"
+                  rules={[
+                    { type: 'number', min: 0, message: 'Duration must be 0 or positive' }
+                  ]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="e.g., 60"
+                    min={0}
+                    step={15}
+                    addonAfter="minutes"
                   />
                 </Form.Item>
               </Col>
@@ -597,7 +729,14 @@ Transportation:
                   label="Location Type"
                   tooltip="Select the type that best describes your location"
                 >
-                  <Select placeholder="Select type" allowClear showSearch optionFilterProp="children" size="large">
+                  <Select 
+                    placeholder="Select type" 
+                    allowClear 
+                    showSearch 
+                    optionFilterProp="children" 
+                    size="large"
+                    loading={locationTypes.length === 0}
+                  >
                     {locationTypes.map(type => (
                       <Option key={type.id} value={type.id}>
                         {type.name}
@@ -624,45 +763,49 @@ Transportation:
                 </Form.Item>
               </Col>
               <Col span={24}>
-                {/* Root Tags Section */}
+                {/* Parent Tags Section (Filter Only) */}
                 <Form.Item
-                  label="Root Tags"
-                  tooltip="Select root categories. Child tags will load automatically."
+                  label="Parent Tags"
+                  tooltip="Select parent categories to filter child tags"
                   style={{ marginBottom: 8 }}
                 >
                   <Select
                     mode="multiple"
-                    placeholder="Select root tags"
-                    value={selectedRootTagIds}
+                    placeholder="Select parent tags to filter child tags"
+                    value={selectedParentTagIds}
                     style={{ width: '100%' }}
-                    onChange={handleRootTagChange}
+                    onChange={handleParentTagChange}
                     showSearch
                     optionFilterProp="children"
                   >
                     {rootTags.map(tag => (
                       <Option key={tag.id} value={tag.id}>
-                        {tag.name} <span style={{ color: '#52c41a' }}>(Root)</span>
+                        {tag.name} <span style={{ color: '#52c41a' }}>(Parent)</span>
                       </Option>
                     ))}
                   </Select>
                 </Form.Item>
 
-                {/* Child Tags Section */}
+                {/* Child Tags Section (Selected & Submitted) */}
                 <Form.Item
                   name="tagIds"
                   label="Child Tags"
-                  tooltip="Select child tags from chosen root categories"
+                  tooltip="Select child tags to associate with this location"
+                  rules={[
+                    { required: true, message: 'Please select at least one child tag' },
+                    { type: 'array', min: 1, message: 'At least one child tag is required' }
+                  ]}
                 >
                   <Select
                     mode="multiple"
-                    placeholder={selectedRootTagIds.length > 0 ? "Select child tags" : "Select root tags first to see child tags"}
+                    placeholder={selectedParentTagIds.length > 0 ? "Select child tags" : "Select parent tags first to see child tags"}
                     showSearch
                     optionFilterProp="children"
                     loading={tagsLoading}
                     onChange={handleChildTagChange}
-                    disabled={selectedRootTagIds.length === 0}
+                    disabled={selectedParentTagIds.length === 0}
                   >
-                    {availableTags.filter(t => t.level > 1).map(tag => (
+                    {availableChildTags.map(tag => (
                       <Option key={tag.id} value={tag.id}>
                         {tag.name} <span style={{ color: '#1677ff' }}>(Child)</span>
                       </Option>

@@ -1,10 +1,16 @@
 import React from 'react';
-import { Table, Button, Space, Popconfirm, Tag } from 'antd';
+import { Table, Button, Space, Popconfirm, Tag, Tooltip } from 'antd';
 import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined, PhoneOutlined, MailOutlined, LinkOutlined } from '@ant-design/icons';
-import AppPagination from '@/components/UI/AppPagination/AppPagination';
-import styles from '../styles/LocationTable.module.css';
+import { PAGINATION } from '@/config/constants';
 
-const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView }) => {
+// LocationStatus enum values (matching backend)
+const LocationStatus = {
+  Active: 1,
+  TemporarilyClosed: 2,
+  Inactive: 3,
+};
+
+const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView, onCloseLocation, onOpenLocation, onViewClosureHistory }) => {
   const columns = [
     {
       title: 'ID',
@@ -92,34 +98,43 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       ),
     },
     {
+      title: 'Duration',
+      dataIndex: 'recommendedDurationMinutes',
+      key: 'recommendedDurationMinutes',
+      width: 90,
+      render: (value) => value ? `${value} min` : '-',
+    },
+    {
       title: 'Actions',
       key: 'actions',
-      width: 120,
+      width: 150,
       fixed: 'right',
       render: (_, record) => (
-        <Space size="middle" className={styles.actionSpace}>
+        <Space direction="vertical" size="small">
           <Button
-            type="text"
-            className={styles.actionIconView}
+            type="link"
             icon={<EyeOutlined />}
             onClick={() => onView(record)}
-          />
+          >
+            View
+          </Button>
           <Button
-            type="text"
-            className={styles.actionIconEdit}
+            type="link"
             icon={<EditOutlined />}
             onClick={() => onEdit(record)}
-          />
+          >
+            Edit
+          </Button>
           <Popconfirm
             title="Delete Location"
             description="Are you sure you want to delete this location?"
             onConfirm={() => onDelete(record)}
             okText="Yes"
             cancelText="No"
-            okButtonProps={{ className: styles.popConfirmOk }}
-            cancelButtonProps={{ className: styles.popConfirmCancel }}
           >
-            <Button type="text" className={styles.actionIconDelete} icon={<DeleteOutlined />} />
+            <Button type="link" danger icon={<DeleteOutlined />}>
+              Delete
+            </Button>
           </Popconfirm>
         </Space>
       ),
