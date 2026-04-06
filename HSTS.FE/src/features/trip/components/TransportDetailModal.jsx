@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Drawer, Descriptions, Typography, Divider, Spin } from 'antd';
+import { Drawer, Descriptions, Typography, Divider, Spin, Tag } from 'antd';
 import { MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -69,6 +69,92 @@ const formatTime = (timeStr) => {
   return `${parts[0]}:${parts[1]}`;
 };
 
+const formatMinutesAsHourMinute = (minutes) => {
+  const totalMinutes = Number(minutes);
+  if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return '';
+
+  const roundedMinutes = Math.round(totalMinutes);
+  const hours = Math.floor(roundedMinutes / 60);
+  const mins = roundedMinutes % 60;
+  return `${hours}h ${mins}m`;
+};
+
+const toFiniteNumber = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const getMoneyAmount = (moneyDto) => {
+  if (!moneyDto) return null;
+  const amount = Number(moneyDto.amount ?? moneyDto.Amount);
+  return Number.isFinite(amount) ? amount : null;
+};
+
+const pickBestMoney = (...candidates) => {
+  const valid = candidates.filter((candidate) => getMoneyAmount(candidate) != null);
+  if (!valid.length) return null;
+
+  const positive = valid.find((candidate) => (getMoneyAmount(candidate) ?? 0) > 0);
+  return positive || valid[0];
+};
+
+const isSameMoney = (first, second) => {
+  const firstAmount = getMoneyAmount(first);
+  const secondAmount = getMoneyAmount(second);
+  if (firstAmount == null || secondAmount == null) return false;
+  const firstCurrency = String(first?.currency || first?.Currency || '').toUpperCase();
+  const secondCurrency = String(second?.currency || second?.Currency || '').toUpperCase();
+  return firstAmount === secondAmount && firstCurrency === secondCurrency;
+};
+
+const getTransportOptions = (travelDetail) => {
+  const options = travelDetail?.transportOptions || travelDetail?.TransportOptions || [];
+  return Array.isArray(options) ? options : [];
+};
+
+const getRecommendedTransportOption = (transportOptions) => {
+  if (!transportOptions.length) return null;
+  return transportOptions.find((option) => Boolean(option?.recommended ?? option?.Recommended)) || transportOptions[0];
+};
+
+const getTransportOptionRouteText = (option) => {
+  if (!option) return '';
+
+  const fromName = pickFirst(
+    option?.fromTransitHubName,
+    option?.FromTransitHubName,
+    option?.fromProvinceName,
+    option?.FromProvinceName,
+    option?.fromLocationName,
+    option?.FromLocationName,
+    option?.fromName,
+    option?.FromName,
+    option?.from,
+    option?.From,
+    option?.fromTransitHubId != null ? `Hub #${option.fromTransitHubId}` : '',
+    option?.FromTransitHubId != null ? `Hub #${option.FromTransitHubId}` : '',
+  );
+  const toName = pickFirst(
+    option?.toTransitHubName,
+    option?.ToTransitHubName,
+    option?.toProvinceName,
+    option?.ToProvinceName,
+    option?.toLocationName,
+    option?.ToLocationName,
+    option?.toName,
+    option?.ToName,
+    option?.to,
+    option?.To,
+    option?.toTransitHubId != null ? `Hub #${option.toTransitHubId}` : '',
+    option?.ToTransitHubId != null ? `Hub #${option.ToTransitHubId}` : '',
+  );
+
+  if (fromName && toName) return `${fromName} -> ${toName}`;
+  if (fromName) return `From ${fromName}`;
+  if (toName) return `To ${toName}`;
+  return '';
+};
+
 const TransportDetailModal = ({ open, data, onClose }) => {
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState('');
@@ -85,32 +171,83 @@ const TransportDetailModal = ({ open, data, onClose }) => {
   const ticketCost = payload.ticketCost || payload.TicketCost;
   const note = payload.note || payload.Note;
   const travelDetail = payload.travelDetail || payload.TravelDetail || null;
+  const transportOptions = useMemo(() => getTransportOptions(travelDetail), [travelDetail]);
+  const recommendedOption = useMemo(
+    () => getRecommendedTransportOption(transportOptions),
+    [transportOptions],
+  );
   // Extract travel leg details
+  const fromLocationId = pickFirst(travelDetail?.fromLocationId, travelDetail?.FromLocationId);
+  const toLocationId = pickFirst(travelDetail?.toLocationId, travelDetail?.ToLocationId);
+  const fromTransitHubId = pickFirst(travelDetail?.fromTransitHubId, travelDetail?.FromTransitHubId);
+  const toTransitHubId = pickFirst(travelDetail?.toTransitHubId, travelDetail?.ToTransitHubId);
+  const fromProvinceId = pickFirst(travelDetail?.fromProvinceId, travelDetail?.FromProvinceId);
+  const toProvinceId = pickFirst(travelDetail?.toProvinceId, travelDetail?.ToProvinceId);
+
   const fromName = pickFirst(
+    travelDetail?.fromProvinceName,
+    travelDetail?.FromProvinceName,
     travelDetail?.fromEnglishName,
     travelDetail?.FromEnglishName,
     travelDetail?.fromName,
     travelDetail?.FromName,
     travelDetail?.from,
     travelDetail?.From,
-    '',
+    fromLocationId ? `Location #${fromLocationId}` : '',
+    fromTransitHubId ? `Transit hub #${fromTransitHubId}` : '',
+    fromProvinceId ? `Province #${fromProvinceId}` : '',
   );
   const toName = pickFirst(
+    travelDetail?.toProvinceName,
+    travelDetail?.ToProvinceName,
     travelDetail?.toEnglishName,
     travelDetail?.ToEnglishName,
     travelDetail?.toName,
     travelDetail?.ToName,
     travelDetail?.to,
     travelDetail?.To,
+    toLocationId ? `Location #${toLocationId}` : '',
+    toTransitHubId ? `Transit hub #${toTransitHubId}` : '',
+    toProvinceId ? `Province #${toProvinceId}` : '',
+  );
+  const distanceKm = toFiniteNumber(
+    travelDetail?.distanceKm || travelDetail?.DistanceKm || travelDetail?.distance || travelDetail?.Distance,
+  );
+  const durationMinutes = toFiniteNumber(
+    travelDetail?.selectedTravelTimeMinutes
+    || travelDetail?.SelectedTravelTimeMinutes
+    || travelDetail?.durationMinutes
+    || travelDetail?.DurationMinutes
+    || travelDetail?.duration
+    || travelDetail?.Duration
+    || recommendedOption?.estimatedTravelMinutes
+    || recommendedOption?.EstimatedTravelMinutes,
+  );
+  const mode = pickFirst(
+    travelDetail?.selectedMethod,
+    travelDetail?.SelectedMethod,
+    recommendedOption?.method,
+    recommendedOption?.Method,
+    travelDetail?.mode,
+    travelDetail?.Mode,
+    travelDetail?.transportMode,
+    travelDetail?.TransportMode,
     '',
   );
-  const distanceKm = travelDetail?.distanceKm || travelDetail?.DistanceKm || travelDetail?.distance || travelDetail?.Distance;
-  const durationMinutes = travelDetail?.durationMinutes || travelDetail?.DurationMinutes || travelDetail?.duration || travelDetail?.Duration;
-  const mode = travelDetail?.mode || travelDetail?.Mode || travelDetail?.transportMode || travelDetail?.TransportMode || '';
-  const price = travelDetail?.price || travelDetail?.Price || travelDetail?.cost || travelDetail?.Cost;
-
-  const fromLocationId = pickFirst(travelDetail?.fromLocationId, travelDetail?.FromLocationId);
-  const toLocationId = pickFirst(travelDetail?.toLocationId, travelDetail?.ToLocationId);
+  const groupCost = pickBestMoney(
+    costForGroup,
+    travelDetail?.selectedTotalCost,
+    travelDetail?.SelectedTotalCost,
+    recommendedOption?.costForGroup,
+    recommendedOption?.CostForGroup,
+    recommendedOption?.estimatedTotalCost,
+    recommendedOption?.EstimatedTotalCost,
+  );
+  const perPersonCost = pickBestMoney(
+    ticketCost,
+    recommendedOption?.estimatedTotalCost,
+    recommendedOption?.EstimatedTotalCost,
+  );
 
   const hasDirectCoordinates = useMemo(() => {
     const fromLat = parseCoordinate(pickFirst(travelDetail?.fromLatitude, travelDetail?.FromLatitude));
@@ -231,9 +368,7 @@ const TransportDetailModal = ({ open, data, onClose }) => {
         )}
         {durationMinutes && (
           <Descriptions.Item label="⏱️ Duration">
-            {durationMinutes >= 60
-              ? `${Math.floor(durationMinutes / 60)} hr ${durationMinutes % 60 > 0 ? durationMinutes % 60 + ' min' : ''}`
-              : `${durationMinutes} min`}
+            {formatMinutesAsHourMinute(durationMinutes)}
           </Descriptions.Item>
         )}
         {distanceKm && (
@@ -243,6 +378,65 @@ const TransportDetailModal = ({ open, data, onClose }) => {
           <Descriptions.Item label="🚗 Transport Mode">{mode}</Descriptions.Item>
         )}
       </Descriptions>
+
+      {/* Options */}
+      {transportOptions.length > 0 && (
+        <>
+          <Divider orientation="left" plain>Available Options</Divider>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+            {transportOptions.map((option, idx) => {
+              const optionMethod = option?.method || option?.Method || `Option ${idx + 1}`;
+              const optionMinutes = toFiniteNumber(option?.estimatedTravelMinutes || option?.EstimatedTravelMinutes);
+              const optionCost = pickBestMoney(
+                option?.costForGroup,
+                option?.CostForGroup,
+                option?.estimatedTotalCost,
+                option?.EstimatedTotalCost,
+              );
+              const optionVehicles = toFiniteNumber(option?.vehiclesNeeded || option?.VehiclesNeeded);
+              const optionNote = option?.note || option?.Note;
+              const optionRecommended = Boolean(option?.recommended ?? option?.Recommended);
+              const optionRouteText = getTransportOptionRouteText(option);
+
+              return (
+                <div
+                  key={`${optionMethod}-${idx}`}
+                  style={{
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    background: optionRecommended ? '#f0fdf4' : '#fff',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <Text strong>{optionMethod}</Text>
+                    {optionRecommended && <Tag color="green">Recommended</Tag>}
+                  </div>
+                  {optionRouteText && (
+                    <div style={{ marginTop: 2, fontSize: 12, color: '#475569' }}>
+                      {optionRouteText}
+                    </div>
+                  )}
+                  <div style={{ marginTop: 4, fontSize: 12, color: '#64748b' }}>
+                    {optionMinutes != null && optionMinutes > 0 ? formatMinutesAsHourMinute(optionMinutes) : 'Duration N/A'}
+                    {optionVehicles != null && optionVehicles > 0 ? ` • ${optionVehicles} vehicle(s)` : ''}
+                  </div>
+                  {optionCost && (
+                    <div style={{ marginTop: 2, fontSize: 12, color: '#334155' }}>
+                      Cost: {formatMoney(optionCost)}
+                    </div>
+                  )}
+                  {optionNote && (
+                    <div style={{ marginTop: 2, fontSize: 12, color: '#64748b' }}>
+                      {optionNote}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* OSRM Map */}
       <Divider orientation="left" plain>Map (OSRM)</Divider>
@@ -286,7 +480,7 @@ const TransportDetailModal = ({ open, data, onClose }) => {
           <Text type="secondary">
             OSRM estimate: {osrmDistanceKm != null ? `${osrmDistanceKm} km` : 'N/A'}
             {' • '}
-            {osrmDurationMinutes != null ? `${osrmDurationMinutes} min` : 'N/A'}
+            {osrmDurationMinutes != null ? formatMinutesAsHourMinute(osrmDurationMinutes) : 'N/A'}
           </Text>
         </div>
       )}
@@ -294,14 +488,11 @@ const TransportDetailModal = ({ open, data, onClose }) => {
       {/* Cost */}
       <Divider orientation="left" plain>Fare</Divider>
       <Descriptions size="small" column={1} bordered>
-        {ticketCost && (
-          <Descriptions.Item label="💰 Price/person">{formatMoney(ticketCost)}</Descriptions.Item>
+        {perPersonCost && (
+          <Descriptions.Item label="💰 Price/person">{formatMoney(perPersonCost)}</Descriptions.Item>
         )}
-        {costForGroup && (
-          <Descriptions.Item label="💰 Group Total">{formatMoney(costForGroup)}</Descriptions.Item>
-        )}
-        {price && !ticketCost && (
-          <Descriptions.Item label="💰 Cost">{formatMoney(price)}</Descriptions.Item>
+        {groupCost && !isSameMoney(groupCost, perPersonCost) && (
+          <Descriptions.Item label="💰 Group Total">{formatMoney(groupCost)}</Descriptions.Item>
         )}
       </Descriptions>
 

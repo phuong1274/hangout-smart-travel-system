@@ -387,12 +387,6 @@ const CreateTripPage = () => {
               Open full map picker
             </Button>
 
-            {userLocation && (
-              <div className={styles.locationDisplay}>
-                Lat: {userLocation.latitude.toFixed(6)}, Lng: {userLocation.longitude.toFixed(6)}
-              </div>
-            )}
-
             <Row gutter={16} style={{ marginTop: 12 }}>
               <Col span={4} style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 24 }}>
                 <Button onClick={handleGetCurrentLocation}>

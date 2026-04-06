@@ -45,7 +45,7 @@ const AccommodationDetailModal = ({ open, data, onClose }) => {
   const description = data.description || data.Description || '';
   const rating = data.rating || data.Rating || data.starRating || data.StarRating;
   const pricePerNight = data.pricePerNight || data.PricePerNight || data.estimatedCost || data.EstimatedCost;
-  const amenities = data.amenities || data.Amenities || [];
+  const amenities = (data.amenities || data.Amenities || []).slice(0, 5);
   const images = data.images || data.Images || [];
   const checkIn = data.checkInTime || data.CheckInTime;
   const checkOut = data.checkOutTime || data.CheckOutTime;

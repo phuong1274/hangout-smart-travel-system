@@ -50,6 +50,16 @@ const formatRatingOutOfFive = (value) => {
   return `${rounded}/5`;
 };
 
+const formatMinutesAsHourMinute = (minutes) => {
+  const totalMinutes = Number(minutes);
+  if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return '';
+
+  const roundedMinutes = Math.round(totalMinutes);
+  const hours = Math.floor(roundedMinutes / 60);
+  const mins = roundedMinutes % 60;
+  return `${hours}h ${mins}m`;
+};
+
 const LocationDetailModal = ({ open, locationId, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [location, setLocation] = useState(null);
@@ -83,7 +93,7 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
   const recommendedDuration = location?.recommendedDurationMinutes || location?.RecommendedDurationMinutes;
   const minimumAge = location?.minimumAge || location?.MinimumAge || 0;
   const tags = location?.tags || location?.Tags || [];
-  const amenities = location?.amenities || location?.Amenities || [];
+  const amenities = (location?.amenities || location?.Amenities || []).slice(0, 5);
   const openingHours = location?.openingHours || location?.OpeningHours || [];
   const closures = location?.closures || location?.Closures || [];
   const images = location?.images || location?.Images || location?.medias || location?.Medias || [];
@@ -162,9 +172,7 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
             </Descriptions.Item>
             {recommendedDuration && (
               <Descriptions.Item label="⏱️ Suggested Duration">
-                {recommendedDuration >= 60
-                  ? `${Math.floor(recommendedDuration / 60)}h${recommendedDuration % 60 > 0 ? recommendedDuration % 60 + 'm' : ''}`
-                  : `${recommendedDuration}m`}
+                {formatMinutesAsHourMinute(recommendedDuration)}
               </Descriptions.Item>
             )}
             <Descriptions.Item label="👤 Minimum Age">
