@@ -61,6 +61,11 @@ namespace HSTS.Infrastructure.Services
             FlightCabinTypes.Business
         };
 
+        private static readonly HashSet<string> IgnoredParsingKeys = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "baggages", "fare_rules", "pickup_points", "dropoff_points", "segments"
+        };
+
         private readonly HttpClient _httpClient;
         private readonly FixedIntercityApiSettings _settings;
         private readonly ILogger<FixedIntercityTransportService> _logger;
@@ -888,11 +893,93 @@ namespace HSTS.Infrastructure.Services
                 return null;
             }
 
+            // Extract from/to hub info from the first trip in the API response
+            int? fromHubId = null;
+            string? fromHubName = null;
+            int? toHubId = null;
+            string? toHubName = null;
+            TryExtractBusHubInfo(root, out fromHubId, out fromHubName, out toHubId, out toHubName);
+
             return new FixedIntercityOption(
                 method,
                 durationMinutes <= 0 ? 0 : Math.Max(1, (int)Math.Round(durationMinutes)),
                 hasCost ? Decimal.Round((decimal)costRaw, 2) : 0,
-                "FixedIntercity from bus API");
+                "FixedIntercity from bus API",
+                fromHubId, fromHubName, toHubId, toHubName);
+        }
+
+        /// <summary>
+        /// Extracts from.id, from.name, to.id, to.name from the bus API response.
+        /// The API returns: { "outbound": { "trips": [{ "from": { "id": 123, "name": "..." }, "to": { "id": 456, "name": "..." } }] } }
+        /// </summary>
+        private static void TryExtractBusHubInfo(JsonElement root, out int? fromId, out string? fromName, out int? toId, out string? toName)
+        {
+            fromId = null; fromName = null; toId = null; toName = null;
+
+            // Try to find the first trip element that has from/to objects
+            var tripElement = FindFirstTripWithFromTo(root, 0);
+            if (tripElement == null) return;
+
+            var trip = tripElement.Value;
+            if (trip.TryGetProperty("from", out var fromEl) && fromEl.ValueKind == JsonValueKind.Object)
+            {
+                if (fromEl.TryGetProperty("id", out var fromIdEl))
+                {
+                    if (fromIdEl.ValueKind == JsonValueKind.Number && fromIdEl.TryGetInt32(out var fid))
+                        fromId = fid;
+                    else if (fromIdEl.ValueKind == JsonValueKind.String && int.TryParse(fromIdEl.GetString(), out var fidStr))
+                        fromId = fidStr;
+                }
+                if (fromEl.TryGetProperty("name", out var fromNameEl) && fromNameEl.ValueKind == JsonValueKind.String)
+                    fromName = fromNameEl.GetString();
+            }
+
+            if (trip.TryGetProperty("to", out var toEl) && toEl.ValueKind == JsonValueKind.Object)
+            {
+                if (toEl.TryGetProperty("id", out var toIdEl))
+                {
+                    if (toIdEl.ValueKind == JsonValueKind.Number && toIdEl.TryGetInt32(out var tid))
+                        toId = tid;
+                    else if (toIdEl.ValueKind == JsonValueKind.String && int.TryParse(toIdEl.GetString(), out var tidStr))
+                        toId = tidStr;
+                }
+                if (toEl.TryGetProperty("name", out var toNameEl) && toNameEl.ValueKind == JsonValueKind.String)
+                    toName = toNameEl.GetString();
+            }
+        }
+
+        /// <summary>
+        /// Recursively searches for the first JSON object that has both "from" and "to" properties
+        /// (representing a bus trip element in the API response).
+        /// </summary>
+        private static JsonElement? FindFirstTripWithFromTo(JsonElement element, int depth)
+        {
+            if (depth > 6) return null;
+
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                if (element.TryGetProperty("from", out var fromEl) && fromEl.ValueKind == JsonValueKind.Object
+                    && element.TryGetProperty("to", out var toEl) && toEl.ValueKind == JsonValueKind.Object)
+                {
+                    return element;
+                }
+
+                foreach (var prop in element.EnumerateObject())
+                {
+                    var result = FindFirstTripWithFromTo(prop.Value, depth + 1);
+                    if (result != null) return result;
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in element.EnumerateArray())
+                {
+                    var result = FindFirstTripWithFromTo(item, depth + 1);
+                    if (result != null) return result;
+                }
+            }
+
+            return null;
         }
 
         private static FixedIntercityOption? ParseTrainOption(JsonElement root)
@@ -1053,6 +1140,11 @@ namespace HSTS.Infrastructure.Services
             {
                 foreach (var property in element.EnumerateObject())
                 {
+                    if (IgnoredParsingKeys.Contains(property.Name))
+                    {
+                        continue;
+                    }
+
                     if (keys.Contains(property.Name))
                     {
                         found = property.Value;

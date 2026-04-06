@@ -8,7 +8,9 @@ namespace HSTS.Application.Itineraries.Queries
 {
     public record IntercityTransportDto(
         int FromProvinceId,
+        string FromProvinceName,
         int ToProvinceId,
+        string ToProvinceName,
         double DistanceKm,
         string? SelectedMethod,
         int SelectedTravelTimeMinutes,

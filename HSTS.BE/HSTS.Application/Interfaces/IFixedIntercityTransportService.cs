@@ -77,7 +77,11 @@ namespace HSTS.Application.Interfaces
         string Method,
         int EstimatedTravelMinutes,
         decimal EstimatedTotalCost,
-        string Note);
+        string Note,
+        int? FromHubId = null,
+        string? FromHubName = null,
+        int? ToHubId = null,
+        string? ToHubName = null);
 
     public record FixedIntercitySearchResult(
         bool IsSuccess,

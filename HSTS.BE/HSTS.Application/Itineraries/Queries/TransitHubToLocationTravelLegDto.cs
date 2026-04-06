@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 namespace HSTS.Application.Itineraries.Queries
 {
     public record TransitHubToLocationTravelLegDto(
-        int FromTransitHubId,
+        int? FromTransitHubId,
+        string FromTransitHubName,
         int ToLocationId,
+        string ToLocationName,
         TimeOnly DepartureTime,
         TimeOnly ArrivalTime,
         double DistanceKm,

@@ -13,8 +13,10 @@ namespace HSTS.Application.Itineraries.Queries
         MoneyDto EstimatedTotalCost,
         bool Recommended,
         string Note,
-        int FromTransitHubId,
-        int ToTransitHubId,
+        int? FromTransitHubId,
+        string? FromTransitHubName,
+        int? ToTransitHubId,
+        string? ToTransitHubName,
         int VehiclesNeeded,
         MoneyDto CostForGroup);
 }
