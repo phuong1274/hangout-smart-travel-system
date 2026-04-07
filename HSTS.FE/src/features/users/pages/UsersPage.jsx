@@ -21,7 +21,7 @@ const UsersPage = () => {
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <div>
           <Title level={1} className={styles.headingMain}>User Management</Title>
-          <Text className={styles.subHeading}>Manage the Explorers</Text>
+          <Text className={styles.subHeading}>View users, inspect details, and update role assignments.</Text>
         </div>
         <Card className={styles.cardWrapper}>
           <SearchFilter 

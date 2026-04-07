@@ -11,6 +11,9 @@ namespace HSTS.Application.Interfaces
         DbSet<UserRole> UserRoles { get; }
         DbSet<Otp> Otps { get; }
         DbSet<AccountRefreshToken> AccountRefreshTokens { get; }
+        DbSet<Location> Locations { get; }
+        DbSet<LocationReview> LocationReviews { get; }
+        DbSet<LocationReviewReport> LocationReviewReports { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

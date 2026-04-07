@@ -20,15 +20,14 @@ export const useUsers = () => {
     setLoading(true);
     try {
       const response = await usersApi.getUsers({
-        pageIndex, 
-        pageSize, 
-        searchTerm: searchTerm || undefined 
+        pageIndex,
+        pageSize,
+        searchTerm: searchTerm || undefined,
       });
-      
-      setData(response.items || []);
-      setTotal(response.totalCount || 0);
-    } catch {
-      // Handled by global interceptor
+      const payload = response.data;
+
+      setData(payload.items || []);
+      setTotal(payload.totalCount || 0);
     } finally {
       setLoading(false);
     }

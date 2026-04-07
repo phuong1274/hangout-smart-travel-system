@@ -30,6 +30,8 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<LocationOpeningHour> LocationOpeningHours => Set<LocationOpeningHour>();
         public DbSet<LocationSeason> LocationSeasons => Set<LocationSeason>();
         public DbSet<LocationType> LocationTypes => Set<LocationType>();
+        public DbSet<LocationReview> LocationReviews => Set<LocationReview>();
+        public DbSet<LocationReviewReport> LocationReviewReports => Set<LocationReviewReport>();
 
         #region Logging
         /// <summary>

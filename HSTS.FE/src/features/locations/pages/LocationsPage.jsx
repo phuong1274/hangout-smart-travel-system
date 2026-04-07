@@ -9,6 +9,7 @@ import DetailModal from '@/components/UI/DetailModal/DetailModal';
 import { deleteLocationApi, getLocationByIdApi } from '../api';
 import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
 import { transformLocationForDisplay } from '@/utils/locationMappers';
+import { LocationReviewSection } from '@/features/reviews/components/LocationReviewSection';
 import styles from '../styles/LocationsPage.module.css';
 
 const { Title } = Typography;
@@ -148,7 +149,9 @@ const LocationsPage = () => {
         }}
         data={viewingLocation}
         type="location"
-      />
+      >
+        {viewingLocation?.id && <LocationReviewSection locationId={viewingLocation.id} />}
+      </DetailModal>
     </div>
   );
 };
