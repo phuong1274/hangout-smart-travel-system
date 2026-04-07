@@ -1,9 +1,9 @@
 export const REVIEW_REPORT_REASONS = [
-  { value: 'Spam', label: 'Spam' },
-  { value: 'Offensive', label: 'Offensive language' },
-  { value: 'FalseInformation', label: 'False information' },
-  { value: 'Irrelevant', label: 'Irrelevant content' },
-  { value: 'Other', label: 'Other' },
+  { value: 0, label: 'Spam' },
+  { value: 1, label: 'Offensive language' },
+  { value: 2, label: 'False information' },
+  { value: 3, label: 'Irrelevant content' },
+  { value: 4, label: 'Other' },
 ];
 
 export const REVIEW_STATUS = {
