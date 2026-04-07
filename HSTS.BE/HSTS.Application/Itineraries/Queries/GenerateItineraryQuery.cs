@@ -166,8 +166,8 @@ namespace HSTS.Application.Itineraries.Queries
                 .AsNoTracking()
                 .Where(x => x.Score >= 0)
                 .Where(x => x.District != null && x.District.ProvinceId.HasValue && allProvIds.Contains(x.District.ProvinceId.Value))
-                // Filter: exclude "Travel Service" type, only Active & TemporarilyClosed (not Inactive) & not deleted
-                .Where(x => x.LocationType != null && x.LocationType.Name != "Travel Service")
+                // Filter: exclude ID 5 and "Travel Service" type, only Active & TemporarilyClosed (not Inactive) & not deleted
+                .Where(x => x.LocationTypeId != 5 && (x.LocationType == null || !x.LocationType.Name.Contains("Travel Service")))
                 .Where(x => x.Status == LocationStatus.Active || x.Status == LocationStatus.TemporarilyClosed)
                 .Where(x => !x.IsDeleted);
 
@@ -228,11 +228,19 @@ namespace HSTS.Application.Itineraries.Queries
 
             var favoriteTagIds = request.UserFavoriteTagIds.ToHashSet();
 
-            // Separate accommodations BEFORE tag filtering so hotels aren't excluded by tag preferences
+            // Separate accommodations and restaurants BEFORE tag filtering so they aren't excluded by tag preferences
             var accommodations = hasHotelPreference
                 ? locations.Where(IsAccommodationType).ToList()
                 : new List<Location>();
-            var nonAccommodationLocations = locations.Where(x => !IsAccommodationType(x)).ToList();
+
+            var restaurantLocations = locations.Where(x =>
+                x.LocationTypeId == 2 ||
+                (x.LocationType != null && (
+                    x.LocationType.Name.Contains("Restaurant", StringComparison.OrdinalIgnoreCase) ||
+                    x.LocationType.Name.Contains("Food", StringComparison.OrdinalIgnoreCase) ||
+                    x.LocationType.Name.Contains("Cafe", StringComparison.OrdinalIgnoreCase)))).ToList();
+
+            var nonAccommodationLocations = locations.Where(x => !IsAccommodationType(x) && !restaurantLocations.Any(r => r.Id == x.Id)).ToList();
 
             // STAGE 2: Tag Scoring and Filtering (applies only to attractions)
             if (favoriteTagIds.Count > 0)
@@ -251,16 +259,9 @@ namespace HSTS.Application.Itineraries.Queries
 
             // Filter shopping 
             var shoppingLocations = nonAccommodationLocations.Where(x =>
-                x.LocationTypeId == 5 ||
                 (x.LocationType != null && x.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase))).ToList();
 
-            // Keep restaurant/food locations for meal picker (Type 2: Restaurant/Food)
-            var restaurantLocations = nonAccommodationLocations.Where(x =>
-                x.LocationTypeId == 2 ||
-                (x.LocationType != null && (
-                    x.LocationType.Name.Contains("Restaurant", StringComparison.OrdinalIgnoreCase) ||
-                    x.LocationType.Name.Contains("Food", StringComparison.OrdinalIgnoreCase) ||
-                    x.LocationType.Name.Contains("Cafe", StringComparison.OrdinalIgnoreCase)))).ToList();
+            // (Restaurants are already safely extracted above to prevent tag-filter obliteration)
 
             if (attractions.Count == 0)
                 return Error.NotFound("Itinerary.Attraction", "No attraction locations available after filtering.");
@@ -973,7 +974,7 @@ namespace HSTS.Application.Itineraries.Queries
                             null, null, null, "", 0,
                             LocationToLocationTravel: localLeg));
 
-                        var extraCostPerPerson = ((nextAttraction.Location.PriceMinUsd ?? 0) + (nextAttraction.Location.PriceMaxUsd ?? 0)) / 2m;
+                        var extraCostPerPerson = extraSpending / groupSize;
 
                         var alternativeLocations = alternativeCandidates
                             .Where(a => a.Location.Id != nextAttraction.Location.Id)
@@ -984,7 +985,7 @@ namespace HSTS.Application.Itineraries.Queries
                                     a.Location.Latitude, a.Location.Longitude);
                                 var altTravelMin = (int)Math.Ceiling((altDist / DefaultSpeedKmh) * 60.0);
                                 var altTicket = a.Location.TicketPrice;
-                                var altExtra = ((a.Location.PriceMinUsd ?? 0) + (a.Location.PriceMaxUsd ?? 0)) / 2m;
+                                var altExtra = EstimateExtraSpending(a.Location, request.TripSegment, groupSize) / groupSize;
                                 var altTagNames = GetTags(a.Location);
                                 return new AlternativeLocationDto(
                                     a.Location.Id, a.Location.Name, altTagNames,
@@ -1008,7 +1009,7 @@ namespace HSTS.Application.Itineraries.Queries
                             TimeOnly.FromDateTime(activityArrival), TimeOnly.FromDateTime(activityEnd),
                             nextAttraction.Location.Id, visitTagNames,
                             toMoney(ticketPerPerson), toMoney(extraCostPerPerson),
-                            toMoney(extraCostPerPerson * groupSize),
+                            toMoney((ticketPerPerson * groupSize) + extraSpending),
                             $"Score: {nextAttraction.CompositeScore:F1}",
                             Math.Round((double)(nextAttraction.Location.Score ?? 0), 2),
                             nextAttraction.Location.Address, nextAttraction.Location.Telephone, GetMediaUrls(nextAttraction.Location),
