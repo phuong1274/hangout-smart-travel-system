@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { Input, Button } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import styles from './SearchFilter.module.css';
 
 const SearchFilter = ({ 
   onSearch, 
   placeholder = "Search...", 
-  loading = false,
   extra,
   ...props 
 }) => {
@@ -18,9 +16,16 @@ const SearchFilter = ({
     }
   };
 
-  const handleClear = (e) => {
-    setSearchValue(e.target.value);
-    if (e.type === 'click' && onSearch) {
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  const handleChange = (e) => {
+    const value = e.target.value;
+    setSearchValue(value);
+    if (value === '' && onSearch) {
       onSearch('');
     }
   };
@@ -28,23 +33,22 @@ const SearchFilter = ({
   return (
     <div className={styles.searchContainer}>
       <div className={styles.customSearchPill}>
-        <Input
+        <input
+          type="text"
           className={styles.pillInput}
           placeholder={placeholder}
           value={searchValue}
-          onChange={handleClear}
-          onPressEnter={handleSearch}
-          allowClear
-          bordered={false}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
           {...props}
         />
-        <Button
+        <button
+          type="button"
           className={styles.pillButton}
-          type="primary"
-          icon={<SearchOutlined />}
-          loading={loading}
           onClick={handleSearch}
-        />
+        >
+          <SearchOutlined />
+        </button>
       </div>
       {extra && <div className={styles.extraWrapper}>{extra}</div>}
     </div>

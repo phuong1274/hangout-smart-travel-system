@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Input, Space, Select, Row, Col, Button, DatePicker } from 'antd';
-import { SearchOutlined, FilterOutlined, ReloadOutlined, CalendarOutlined } from '@ant-design/icons';
+import { Select, Row, Col, Button, DatePicker, Popover } from 'antd';
+import { FilterOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { getRootTagsApi, getChildTagsApi } from '@/features/tags/api';
 import { getAllLocationTypesApi, getAllDistrictsApi } from '@/features/locations/api';
 import dayjs from 'dayjs';
+import styles from './LocationFilter.module.css';
 
-const { Search } = Input;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const LocationFilter = ({
   onSearch,
   loading = false,
+  actionButton,
   extra,
   ...props
 }) => {
@@ -42,32 +43,26 @@ const LocationFilter = ({
       setRootTags(rootTagsRes?.items || rootTagsRes?.Items || rootTagsRes || []);
       setLocationTypes(typesRes?.items || typesRes?.Items || typesRes || []);
       setDistricts(districtsRes?.items || districtsRes?.Items || districtsRes || []);
-    } catch (error) {
-      console.error('Failed to load dropdown data:', error);
-    }
+    } catch (error) {}
   };
 
   const handleParentTagChange = async (parentIds) => {
     setSelectedParentTagIds(parentIds);
 
-    // Fetch child tags for all selected parents
     if (parentIds.length > 0) {
       try {
         const childTagPromises = parentIds.map(parentId => getChildTagsApi(parentId));
         const childTagResults = await Promise.all(childTagPromises);
 
-        // Flatten and deduplicate child tags
         const allChildTags = childTagResults.flatMap(res => res?.items || res?.Items || res || []);
         const uniqueChildTags = allChildTags.filter(
           (tag, index, self) => index === self.findIndex(t => t.id === tag.id)
         );
         setAvailableChildTags(uniqueChildTags);
 
-        // Clear selected child tags that are no longer available
         const availableIds = new Set(uniqueChildTags.map(t => t.id));
         setSelectedChildTagIds(prev => prev.filter(id => availableIds.has(id)));
       } catch (error) {
-        console.error('Failed to load child tags:', error);
         setAvailableChildTags([]);
         setSelectedChildTagIds([]);
       }
@@ -78,8 +73,6 @@ const LocationFilter = ({
   };
 
   const handleApplyFilter = () => {
-    // Send both parent and child tag IDs to backend
-    // Backend will resolve parent IDs to child locations
     const allTagIds = [...selectedParentTagIds, ...selectedChildTagIds];
 
     const filters = {
@@ -109,126 +102,152 @@ const LocationFilter = ({
     selectedLocationTypeIds.length > 0 || selectedDistrictIds.length > 0 ||
     (dateRange && dateRange.length > 0 && (dateRange[0] || dateRange[1]));
 
+  const filterContent = (
+    <div className={styles.popoverContent}>
+      <Row gutter={[16, 16]}>
+        <Col span={12}>
+          <div className={styles.filterLabel}>Parent Tags</div>
+          <Select
+            mode="multiple"
+            placeholder="Select parent tags"
+            style={{ width: '100%' }}
+            value={selectedParentTagIds}
+            onChange={handleParentTagChange}
+            allowClear
+            maxTagCount="responsive"
+          >
+            {rootTags.map(tag => (
+              <Option key={tag.id} value={tag.id}>{tag.name}</Option>
+            ))}
+          </Select>
+        </Col>
+        <Col span={12}>
+          <div className={styles.filterLabel}>Child Tags</div>
+          <Select
+            mode="multiple"
+            placeholder="Select child tags"
+            style={{ width: '100%' }}
+            value={selectedChildTagIds}
+            onChange={setSelectedChildTagIds}
+            allowClear
+            maxTagCount="responsive"
+            disabled={selectedParentTagIds.length === 0}
+          >
+            {availableChildTags.map(tag => (
+              <Option key={tag.id} value={tag.id}>{tag.name}</Option>
+            ))}
+          </Select>
+        </Col>
+        <Col span={12}>
+          <div className={styles.filterLabel}>Location Types</div>
+          <Select
+            mode="multiple"
+            placeholder="Select types"
+            style={{ width: '100%' }}
+            value={selectedLocationTypeIds}
+            onChange={setSelectedLocationTypeIds}
+            allowClear
+            maxTagCount="responsive"
+          >
+            {locationTypes.map(type => (
+              <Option key={type.id} value={type.id}>{type.name}</Option>
+            ))}
+          </Select>
+        </Col>
+        <Col span={12}>
+          <div className={styles.filterLabel}>Districts</div>
+          <Select
+            mode="multiple"
+            placeholder="Select districts"
+            style={{ width: '100%' }}
+            value={selectedDistrictIds}
+            onChange={setSelectedDistrictIds}
+            allowClear
+            maxTagCount="responsive"
+          >
+            {districts.map(district => (
+              <Option key={district.id} value={district.id}>{district.name}</Option>
+            ))}
+          </Select>
+        </Col>
+        <Col span={24}>
+          <div className={styles.filterLabel}>Date Range</div>
+          <RangePicker
+            placeholder={['From Date', 'To Date']}
+            value={dateRange}
+            onChange={setDateRange}
+            style={{ width: '100%' }}
+            allowClear
+          />
+        </Col>
+      </Row>
+      <div className={styles.popoverFooter}>
+        <Button 
+          className={styles.btnResetInner}
+          icon={<ReloadOutlined />} 
+          onClick={handleReset}
+          disabled={!hasActiveFilters}
+        >
+          RESET
+        </Button>
+        <Button 
+          className={styles.btnApplyInner}
+          icon={<FilterOutlined />} 
+          onClick={handleApplyFilter}
+          loading={loading}
+        >
+          APPLY FILTERS
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ marginBottom: 16 }}>
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        {/* Search Box */}
-        <Row gutter={16} align="middle">
-          <Col flex="300px">
-            <Search
-              placeholder="Search locations by name or description..."
+    <div className={styles.filterWrapper}>
+      <div className={styles.topRow}>
+        <div className={styles.leftActions}>
+          <div className={styles.tropicalSearchContainer}>
+            <input
+              type="text"
+              placeholder="Search locations by name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onSearch={handleApplyFilter}
-              loading={loading}
-              allowClear
-              enterButton
-              onPressEnter={handleApplyFilter}
+              onKeyDown={(e) => e.key === 'Enter' && handleApplyFilter()}
+              className={styles.customSearchInput}
             />
-          </Col>
-          <Col flex="auto">
-            <Button 
-              type="primary" 
-              icon={<FilterOutlined />} 
+            <button 
+              type="button"
+              className={styles.customSearchBtn}
               onClick={handleApplyFilter}
-              loading={loading}
+              disabled={loading}
             >
-              Apply Filters
-            </Button>
-            <Button 
-              icon={<ReloadOutlined />} 
-              onClick={handleReset}
-              disabled={!hasActiveFilters}
-              style={{ marginLeft: 8 }}
-            >
-              Reset
-            </Button>
-          </Col>
-        </Row>
+              <SearchOutlined />
+            </button>
+          </div>
 
-        {/* Filter Dropdowns */}
-        <Row gutter={16}>
-          <Col span={6}>
-            <Select
-              mode="multiple"
-              placeholder="Filter by Parent Tags"
-              style={{ width: '100%' }}
-              value={selectedParentTagIds}
-              onChange={handleParentTagChange}
-              allowClear
-              maxTagCount="responsive"
+          <Popover 
+            content={filterContent} 
+            trigger="hover" 
+            placement="bottomLeft"
+            overlayClassName={styles.customPopover}
+          >
+            <Button 
+              className={styles.btnTrigger}
+              icon={<FilterOutlined />}
             >
-              {rootTags.map(tag => (
-                <Option key={tag.id} value={tag.id}>
-                  {tag.name}
-                </Option>
-              ))}
-            </Select>
-          </Col>
-          <Col span={6}>
-            <Select
-              mode="multiple"
-              placeholder="Filter by Child Tags"
-              style={{ width: '100%' }}
-              value={selectedChildTagIds}
-              onChange={setSelectedChildTagIds}
-              allowClear
-              maxTagCount="responsive"
-              disabled={selectedParentTagIds.length === 0}
-            >
-              {availableChildTags.map(tag => (
-                <Option key={tag.id} value={tag.id}>
-                  {tag.name}
-                </Option>
-              ))}
-            </Select>
-          </Col>
-          <Col span={4}>
-            <Select
-              mode="multiple"
-              placeholder="Filter by Location Types"
-              style={{ width: '100%' }}
-              value={selectedLocationTypeIds}
-              onChange={setSelectedLocationTypeIds}
-              allowClear
-              maxTagCount="responsive"
-            >
-              {locationTypes.map(type => (
-                <Option key={type.id} value={type.id}>
-                  {type.name}
-                </Option>
-              ))}
-            </Select>
-          </Col>
-          <Col span={4}>
-            <Select
-              mode="multiple"
-              placeholder="Filter by Districts"
-              style={{ width: '100%' }}
-              value={selectedDistrictIds}
-              onChange={setSelectedDistrictIds}
-              allowClear
-              maxTagCount="responsive"
-            >
-              {districts.map(district => (
-                <Option key={district.id} value={district.id}>
-                  {district.name}
-                </Option>
-              ))}
-            </Select>
-          </Col>
-          <Col span={6}>
-            <RangePicker
-              placeholder={['From Date', 'To Date']}
-              value={dateRange}
-              onChange={setDateRange}
-              style={{ width: '100%' }}
-              allowClear
-            />
-          </Col>
-        </Row>
-      </Space>
-      {extra && <div className="filter-extra" style={{ marginTop: 16 }}>{extra}</div>}
+              ADVANCED FILTERS
+              {hasActiveFilters && <div className={styles.activeDot} />}
+            </Button>
+          </Popover>
+        </div>
+        
+        {actionButton && (
+          <div className={styles.rightActions}>
+            {actionButton}
+          </div>
+        )}
+      </div>
+      {extra && <div className={styles.filterExtra}>{extra}</div>}
     </div>
   );
 };

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Form, DatePicker, Input, message } from 'antd';
 import dayjs from 'dayjs';
 import { createClosureApi } from '../api/closures';
+import styles from '../styles/ClosureModal.module.css';
 
 const { TextArea } = Input;
 
@@ -34,7 +35,6 @@ const ClosureModal = ({ open, onClose, onSuccess, locationId, locationName }) =>
           message.error('Failed to create closure. Please check your inputs.');
         }
       } else if (error.errorFields) {
-        // Form validation error
         return;
       } else {
         message.error('Failed to create closure.');
@@ -50,25 +50,28 @@ const ClosureModal = ({ open, onClose, onSuccess, locationId, locationName }) =>
   };
 
   const disabledDate = (current) => {
-    // Disable dates before today
     return current && current.isBefore(dayjs().startOf('day'));
   };
 
   return (
     <Modal
-      title={`Close Location: ${locationName}`}
+      title={<span className={styles.modalTitle}>Close Location: <span className={styles.highlightName}>{locationName}</span></span>}
       open={open}
       onCancel={handleCancel}
       onOk={handleOk}
       confirmLoading={submitting}
-      okText="Close Location"
-      cancelText="Cancel"
+      okText="CLOSE LOCATION"
+      cancelText="CANCEL"
       width={500}
       destroyOnClose
+      rootClassName={styles.tropicalModal}
+      okButtonProps={{ className: styles.btnSubmit }}
+      cancelButtonProps={{ className: styles.btnCancel }}
     >
       <Form
         form={form}
         layout="vertical"
+        className={styles.tropicalForm}
         initialValues={{
           startDate: dayjs(),
           endDate: dayjs().add(7, 'day'),
@@ -76,10 +79,11 @@ const ClosureModal = ({ open, onClose, onSuccess, locationId, locationName }) =>
       >
         <Form.Item
           name="startDate"
-          label="Start Date"
+          label={<span className={styles.formLabel}>Start Date</span>}
           rules={[{ required: true, message: 'Please select a start date' }]}
         >
           <DatePicker
+            className={styles.customInput}
             style={{ width: '100%' }}
             disabledDate={disabledDate}
             format="YYYY-MM-DD"
@@ -88,7 +92,7 @@ const ClosureModal = ({ open, onClose, onSuccess, locationId, locationName }) =>
 
         <Form.Item
           name="endDate"
-          label="End Date"
+          label={<span className={styles.formLabel}>End Date</span>}
           rules={[
             { required: true, message: 'Please select an end date' },
             ({ getFieldValue }) => ({
@@ -105,6 +109,7 @@ const ClosureModal = ({ open, onClose, onSuccess, locationId, locationName }) =>
           ]}
         >
           <DatePicker
+            className={styles.customInput}
             style={{ width: '100%' }}
             disabledDate={disabledDate}
             format="YYYY-MM-DD"
@@ -113,9 +118,10 @@ const ClosureModal = ({ open, onClose, onSuccess, locationId, locationName }) =>
 
         <Form.Item
           name="reason"
-          label="Reason (optional)"
+          label={<span className={styles.formLabel}>Reason (optional)</span>}
         >
           <TextArea
+            className={styles.customInputArea}
             rows={4}
             maxLength={500}
             showCount

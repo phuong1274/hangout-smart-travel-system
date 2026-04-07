@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Space, Button, Layout, message, Modal, Tabs, Tag, Table, Popconfirm } from 'antd';
-import { PlusOutlined, HomeOutlined, EditOutlined, EyeOutlined, DeleteOutlined, EnvironmentOutlined, LinkOutlined, PhoneOutlined, MailOutlined, LockOutlined, UnlockOutlined, HistoryOutlined } from '@ant-design/icons';
+import { Card, Typography, Space, Button, message, Modal, Tabs, Tag, Table, Popconfirm, ConfigProvider } from 'antd';
+import { PlusOutlined, EnvironmentOutlined, LinkOutlined, PhoneOutlined, MailOutlined, LockOutlined, UnlockOutlined, HistoryOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { usePartnerLocations } from '../hooks/usePartnerLocations';
 import { useSubmissions } from '@/features/location-submissions/hooks/useSubmissions';
 import ClosureModal from '../components/ClosureModal';
@@ -15,8 +15,8 @@ import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
 import { PAGINATION } from '@/config/constants';
 import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
 import { transformLocationForDisplay } from '@/utils/locationMappers';
+import styles from '../styles/PartnerLocationsPage.module.css';
 
-// LocationStatus enum values (matching backend)
 const LocationStatus = {
   Active: 1,
   TemporarilyClosed: 2,
@@ -24,13 +24,11 @@ const LocationStatus = {
 };
 
 const { Title } = Typography;
-const { Header, Content } = Layout;
 
 const PartnerLocationsPage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('locations');
   
-  // Locations tab state
   const {
     data: locationsData,
     loading: locationsLoading,
@@ -39,7 +37,6 @@ const PartnerLocationsPage = () => {
     fetchLocations,
   } = usePartnerLocations();
 
-  // Submissions tab state
   const {
     data: submissionsData,
     loading: submissionsLoading,
@@ -48,7 +45,6 @@ const PartnerLocationsPage = () => {
     fetchSubmissions,
   } = useSubmissions();
 
-  // Modal states
   const [suggestEditOpen, setSuggestEditOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [viewingLocation, setViewingLocation] = useState(null);
@@ -59,7 +55,6 @@ const PartnerLocationsPage = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [referenceData, setReferenceData] = useState({ allTags: [], locationTypes: [], amenities: [] });
 
-  // Fetch reference data once on mount
   useEffect(() => {
     const loadReferenceData = async () => {
       const cached = getCachedReferenceData();
@@ -72,24 +67,21 @@ const PartnerLocationsPage = () => {
         const refData = await fetchReferenceData();
         setReferenceData(refData);
       } catch (error) {
-        console.error('Failed to load reference data:', error);
+        console.error(error);
       }
     };
 
     loadReferenceData();
   }, []);
 
-  // Closure states
   const [closureModalOpen, setClosureModalOpen] = useState(false);
   const [closureHistoryModalOpen, setClosureHistoryModalOpen] = useState(false);
   const [selectedLocationForClosure, setSelectedLocationForClosure] = useState(null);
   const [closingLocation, setClosingLocation] = useState(null);
 
-  // Location handlers
   const handleViewLocation = async (location) => {
     try {
       const fullLocation = await getLocationByIdApi(location.id);
-      // Transform data to match LocationDetailView format
       const transformedData = transformLocationForDisplay(fullLocation, referenceData);
       setViewingLocation(transformedData);
       setLocationDetailModalOpen(true);
@@ -100,7 +92,6 @@ const PartnerLocationsPage = () => {
 
   const handleRequestEdit = async (location) => {
     try {
-      // Fetch full location detail including opening hours and seasons
       const fullLocation = await getLocationByIdApi(location.id);
       setSelectedLocation(fullLocation);
       setSuggestEditOpen(true);
@@ -120,11 +111,9 @@ const PartnerLocationsPage = () => {
       message.success('Location deleted successfully');
       fetchLocations();
     } catch (error) {
-      // Handled by global interceptor
     }
   };
 
-  // Closure handlers
   const handleCloseLocation = (location) => {
     setClosingLocation(location);
     setClosureModalOpen(true);
@@ -168,7 +157,6 @@ const PartnerLocationsPage = () => {
     setSelectedLocationForClosure(null);
   };
 
-  // Submission handlers
   const handleCreateSubmission = () => {
     setEditingSubmission(null);
     setFormOpen(true);
@@ -176,7 +164,6 @@ const PartnerLocationsPage = () => {
 
   const handleEditSubmission = async (submission) => {
     try {
-      // Fetch full submission detail including opening hours and seasons
       const detail = await getSubmissionByIdApi(submission.id);
       setEditingSubmission(detail);
       setFormOpen(true);
@@ -197,7 +184,6 @@ const PartnerLocationsPage = () => {
   const handleViewSubmission = async (submission) => {
     try {
       const detail = await getSubmissionByIdApi(submission.id);
-      // Transform data to match LocationDetailView format
       const transformedData = transformLocationForDisplay(detail, referenceData);
       setViewingSubmission(transformedData);
       setDetailModalOpen(true);
@@ -212,11 +198,9 @@ const PartnerLocationsPage = () => {
       message.success('Submission deleted successfully');
       fetchSubmissions();
     } catch (error) {
-      // Handled by global interceptor
     }
   };
 
-  // Tab items
   const tabItems = [
     {
       key: 'locations',
@@ -245,15 +229,15 @@ const PartnerLocationsPage = () => {
         width: 200,
         render: (text, record) => (
           <div>
-            <strong>{text}</strong>
+            <strong style={{ color: '#1A535C' }}>{text}</strong>
             {record.destinationName && (
-              <div style={{ fontSize: 12, color: '#888' }}>
+              <div style={{ fontSize: 12, color: '#4ECDC4', marginTop: 4 }}>
                 <EnvironmentOutlined style={{ marginRight: 4 }} />
                 {record.destinationName}
               </div>
             )}
             {record.socialLinks && record.socialLinks.length > 0 && (
-              <div style={{ fontSize: 12, color: '#1677ff', marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: '#FF6B6B', marginTop: 4 }}>
                 <LinkOutlined style={{ marginRight: 4 }} />
                 {record.socialLinks.length} link(s)
               </div>
@@ -266,7 +250,7 @@ const PartnerLocationsPage = () => {
         dataIndex: 'locationTypeName',
         key: 'locationTypeName',
         width: 100,
-        render: (text) => text || 'N/A',
+        render: (text) => <span style={{ color: '#1A535C' }}>{text || 'N/A'}</span>,
       },
       {
         title: 'Address',
@@ -280,12 +264,12 @@ const PartnerLocationsPage = () => {
         key: 'contact',
         width: 130,
         render: (_, record) => (
-          <div style={{ fontSize: 12 }}>
+          <div style={{ fontSize: 12, color: '#1A535C' }}>
             {record.telephone && (
-              <div><PhoneOutlined style={{ marginRight: 4 }} />{record.telephone}</div>
+              <div><PhoneOutlined style={{ marginRight: 4, color: '#4ECDC4' }} />{record.telephone}</div>
             )}
             {record.email && (
-              <div style={{ fontSize: 11, color: '#666' }}><MailOutlined style={{ marginRight: 4 }} />{record.email}</div>
+              <div style={{ fontSize: 11, marginTop: 4 }}><MailOutlined style={{ marginRight: 4, color: '#4ECDC4' }} />{record.email}</div>
             )}
           </div>
         ),
@@ -295,10 +279,10 @@ const PartnerLocationsPage = () => {
         key: 'price',
         width: 100,
         render: (_, record) => (
-          <div style={{ fontSize: 12 }}>
-            {record.ticketPrice > 0 && <div style={{ fontWeight: 500 }}>${record.ticketPrice.toFixed(2)}</div>}
+          <div style={{ fontSize: 12, color: '#1A535C' }}>
+            {record.ticketPrice > 0 && <div style={{ fontWeight: 600 }}>${record.ticketPrice.toFixed(2)}</div>}
             {(record.priceMinUsd || record.priceMaxUsd) && (
-              <div style={{ fontSize: 11, color: '#666' }}>
+              <div style={{ fontSize: 11 }}>
                 ${record.priceMinUsd?.toFixed(2) || '0'} - ${record.priceMaxUsd?.toFixed(2) || '0'}
               </div>
             )}
@@ -312,12 +296,12 @@ const PartnerLocationsPage = () => {
         render: (_, record) => {
           const status = record.effectiveStatus || LocationStatus.Active;
           if (status === LocationStatus.TemporarilyClosed) {
-            return <Tag color="red">Closed</Tag>;
+            return <Tag color="#FF6B6B">Closed</Tag>;
           }
           if (status === LocationStatus.Inactive) {
-            return <Tag color="default">Inactive</Tag>;
+            return <Tag color="#1A535C">Inactive</Tag>;
           }
-          return <Tag color="green">Active</Tag>;
+          return <Tag color="#4ECDC4">Active</Tag>;
         },
       },
       {
@@ -365,7 +349,7 @@ const PartnerLocationsPage = () => {
                   okText="Yes, Open"
                   cancelText="Cancel"
                 >
-                  <Button type="link" style={{ color: '#52c41a' }} icon={<UnlockOutlined />}>
+                  <Button type="link" style={{ color: '#4ECDC4' }} icon={<UnlockOutlined />}>
                     Open
                   </Button>
                 </Popconfirm>
@@ -398,12 +382,12 @@ const PartnerLocationsPage = () => {
     ];
 
     return (
-      <Card>
+      <Card className={styles.tropicalCard}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={4} style={{ margin: 0 }}>Your Managed Locations</Title>
+          <div className={styles.headerContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Title level={4} className={styles.sectionTitle}>Your Managed Locations</Title>
             <Button 
-              type="primary" 
+              className={styles.ctaButton}
               icon={<PlusOutlined />} 
               onClick={handleCreateSubmission}
             >
@@ -433,12 +417,12 @@ const PartnerLocationsPage = () => {
 
   function renderSubmissionsTab() {
     return (
-      <Card>
+      <Card className={styles.tropicalCard}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={4} style={{ margin: 0 }}>Your Location Submissions</Title>
+          <div className={styles.headerContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Title level={4} className={styles.sectionTitle}>Your Location Submissions</Title>
             <Button 
-              type="primary" 
+              className={styles.ctaButton}
               icon={<PlusOutlined />} 
               onClick={handleCreateSubmission}
             >
@@ -460,111 +444,104 @@ const PartnerLocationsPage = () => {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
-          <Title level={3} style={{ margin: 0 }}>Partner Location Management</Title>
-        </div>
-        <Space>
-          <Button onClick={() => navigate('/')}>
-            Back to Home
-          </Button>
-        </Space>
-      </Header>
-      <Content style={{ padding: '24px', background: '#f0f2f5' }}>
+    <ConfigProvider 
+      theme={{ 
+        token: { 
+          colorPrimary: '#FF6B6B', 
+          borderRadius: 16,
+          colorText: '#1A535C',
+          fontFamily: "'Plus Jakarta Sans', sans-serif"
+        } 
+      }}
+    >
+      <div className={styles.tropicalContainer}>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
           items={tabItems}
           size="large"
+          className={styles.tropicalTabs}
         />
-      </Content>
 
-      {/* Suggest Edit Modal - Using SubmissionForm with existingLocation prop */}
-      <SubmissionForm
-        open={suggestEditOpen}
-        submission={null}
-        existingLocation={selectedLocation}
-        onClose={() => {
-          setSuggestEditOpen(false);
-          setSelectedLocation(null);
-        }}
-        onSuccess={handleSuggestEditSuccess}
-      />
+        <SubmissionForm
+          open={suggestEditOpen}
+          submission={null}
+          existingLocation={selectedLocation}
+          onClose={() => {
+            setSuggestEditOpen(false);
+            setSelectedLocation(null);
+          }}
+          onSuccess={handleSuggestEditSuccess}
+        />
 
-      {/* Submission Form Modal */}
-      <SubmissionForm
-        open={formOpen}
-        submission={editingSubmission}
-        onClose={handleFormClose}
-        onSuccess={handleFormSuccess}
-      />
+        <SubmissionForm
+          open={formOpen}
+          submission={editingSubmission}
+          onClose={handleFormClose}
+          onSuccess={handleFormSuccess}
+        />
 
-      {/* Submission Detail Modal */}
-      <Modal
-        title={`📝 ${viewingSubmission?.name || 'Submission Details'}`}
-        open={detailModalOpen}
-        onCancel={() => {
-          setDetailModalOpen(false);
-          setViewingSubmission(null);
-        }}
-        footer={null}
-        width={900}
-      >
-        {viewingSubmission && (
-          <LocationDetailView
-            data={viewingSubmission}
-            options={{
-              showSubmissionInfo: true,
-              showId: true,
-              showTimestamps: true,
-            }}
-          />
-        )}
-      </Modal>
+        <Modal
+          title={`📝 ${viewingSubmission?.name || 'Submission Details'}`}
+          open={detailModalOpen}
+          onCancel={() => {
+            setDetailModalOpen(false);
+            setViewingSubmission(null);
+          }}
+          footer={null}
+          width={900}
+        >
+          {viewingSubmission && (
+            <LocationDetailView
+              data={viewingSubmission}
+              options={{
+                showSubmissionInfo: true,
+                showId: true,
+                showTimestamps: true,
+              }}
+            />
+          )}
+        </Modal>
 
-      {/* Location Detail Modal */}
-      <Modal
-        title={`📍 ${viewingLocation?.name || 'Location Details'}`}
-        open={locationDetailModalOpen}
-        onCancel={() => {
-          setLocationDetailModalOpen(false);
-          setViewingLocation(null);
-        }}
-        footer={null}
-        width={900}
-      >
-        {viewingLocation && (
-          <LocationDetailView
-            data={viewingLocation}
-            options={{
-              showSubmissionInfo: false,
-              showId: true,
-              showTimestamps: true,
-            }}
-          />
-        )}
-      </Modal>
+        <Modal
+          title={`📍 ${viewingLocation?.name || 'Location Details'}`}
+          open={locationDetailModalOpen}
+          onCancel={() => {
+            setLocationDetailModalOpen(false);
+            setViewingLocation(null);
+          }}
+          footer={null}
+          width={900}
+        >
+          {viewingLocation && (
+            <LocationDetailView
+              data={viewingLocation}
+              options={{
+                showSubmissionInfo: false,
+                showId: true,
+                showTimestamps: true,
+              }}
+            />
+          )}
+        </Modal>
 
-      {/* Closure Modal */}
-      <ClosureModal
-        open={closureModalOpen}
-        onClose={handleClosureModalClose}
-        onSuccess={handleClosureSuccess}
-        locationId={closingLocation?.id}
-        locationName={closingLocation?.name}
-      />
+        <ClosureModal
+          open={closureModalOpen}
+          onClose={handleClosureModalClose}
+          onSuccess={handleClosureSuccess}
+          locationId={closingLocation?.id}
+          locationName={closingLocation?.name}
+        />
 
-      {/* Closure History Modal */}
-      <ClosureHistoryModal
-        open={closureHistoryModalOpen}
-        onClose={handleClosureHistoryModalClose}
-        locationId={selectedLocationForClosure?.id}
-        locationName={selectedLocationForClosure?.name}
-        onClosureChange={fetchLocations}
-      />
-    </Layout>
+        <ClosureHistoryModal
+          open={closureHistoryModalOpen}
+          onClose={handleClosureHistoryModalClose}
+          locationId={selectedLocationForClosure?.id}
+          locationName={selectedLocationForClosure?.name}
+          onClosureChange={fetchLocations}
+        />
+      </div>
+    </ConfigProvider>
   );
 };
 

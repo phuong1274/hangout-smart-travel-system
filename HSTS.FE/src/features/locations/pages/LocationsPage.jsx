@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Space, Button, Layout, message } from 'antd';
-import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
+import { Card, Typography, Space, Button, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import LocationFilter from '@/components/UI/LocationFilter';
 import { useLocations } from '../hooks/useLocations';
 import LocationTable from '../components/LocationTable';
@@ -8,18 +8,15 @@ import LocationForm from '../components/LocationForm';
 import DetailModal from '@/components/DetailModal';
 import ClosureModal from '../components/ClosureModal';
 import ClosureHistoryModal from '../components/ClosureHistoryModal';
-import { useNavigate } from 'react-router-dom';
-import { PATHS } from '@/routes/paths';
 import { deleteLocationApi, getLocationByIdApi } from '../api';
 import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
 import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
 import { transformLocationForDisplay } from '@/utils/locationMappers';
+import styles from '../styles/LocationsPage.module.css';
 
 const { Title } = Typography;
-const { Header, Content } = Layout;
 
 const LocationsPage = () => {
-  const navigate = useNavigate();
   const {
     data,
     loading,
@@ -34,20 +31,16 @@ const LocationsPage = () => {
   const [viewingLocation, setViewingLocation] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
-  // Closure states
   const [closureModalOpen, setClosureModalOpen] = useState(false);
   const [closureHistoryModalOpen, setClosureHistoryModalOpen] = useState(false);
   const [selectedLocationForClosure, setSelectedLocationForClosure] = useState(null);
   const [closingLocation, setClosingLocation] = useState(null);
   
-  // Reference data for mapping IDs to names (cached to prevent duplicate API calls)
   const [referenceData, setReferenceData] = useState({ allTags: [], locationTypes: [], amenities: [] });
   const [referenceDataLoading, setReferenceDataLoading] = useState(false);
 
-  // Fetch reference data once on mount (cached for reuse)
   useEffect(() => {
     const loadReferenceData = async () => {
-      // Check cache first
       const cached = getCachedReferenceData();
       if (cached) {
         setReferenceData(cached);
@@ -58,12 +51,7 @@ const LocationsPage = () => {
       try {
         const refData = await fetchReferenceData();
         setReferenceData(refData);
-      } catch (error) {
-        console.error('Failed to load reference data:', error);
-        message.error('Failed to load reference data');
-      } finally {
-        setReferenceDataLoading(false);
-      }
+      } catch (error) {}
     };
 
     loadReferenceData();
@@ -76,7 +64,6 @@ const LocationsPage = () => {
 
   const handleEdit = async (location) => {
     try {
-      // Fetch full location details including opening hours and seasons
       const fullLocation = await getLocationByIdApi(location.id);
       setEditingLocation(fullLocation);
       setFormOpen(true);
@@ -97,12 +84,10 @@ const LocationsPage = () => {
   const handleView = async (location) => {
     try {
       const detail = await getLocationByIdApi(location.id);
-      // Transform data: map IDs to readable names using cached reference data
       const transformedData = transformLocationForDisplay(detail, referenceData);
       setViewingLocation(transformedData);
       setDetailModalOpen(true);
     } catch (error) {
-      console.error('Failed to load location details:', error);
       message.error('Failed to load location details');
     }
   };
@@ -112,12 +97,9 @@ const LocationsPage = () => {
       await deleteLocationApi(location.id);
       message.success('Location deleted successfully');
       fetchLocations();
-    } catch (error) {
-      // Handled by global interceptor
-    }
+    } catch (error) {}
   };
 
-  // Closure handlers
   const handleCloseLocation = (location) => {
     setClosingLocation(location);
     setClosureModalOpen(true);
@@ -162,29 +144,24 @@ const LocationsPage = () => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
-          <Title level={3} style={{ margin: 0 }}>Hangout - Locations</Title>
-        </div>
-        <Button type="primary" onClick={() => navigate(PATHS.AUTH.LOGIN)}>
-          Login
-        </Button>
-      </Header>
-      <Content style={{ padding: '24px', background: '#f0f2f5' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={2} style={{ margin: 0 }}>Location Management</Title>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Add Location
-            </Button>
+    <div className={styles.layout}>
+      <div className={styles.floatingCircle1}></div>
+      <div className={styles.floatingCircle2}></div>
+      
+      <div className={styles.content}>
+        <Space direction="vertical" size="large" className={styles.mainContainer}>
+          <div className={styles.pageHeader}>
+            <Title level={2} className={styles.pageTitle}>Location Management</Title>
           </div>
-          <Card>
+          <Card className={styles.mainCard} bordered={false}>
             <LocationFilter
               onSearch={handleSearch}
               loading={loading}
-              placeholder="Search locations..."
+              actionButton={
+                <Button className={styles.btnCreate} icon={<PlusOutlined />} onClick={handleCreate}>
+                  ADD LOCATION
+                </Button>
+              }
             />
             <LocationTable
               data={data}
@@ -200,15 +177,15 @@ const LocationsPage = () => {
             />
           </Card>
         </Space>
-      </Content>
+      </div>
+
       <LocationForm
         open={formOpen}
         location={editingLocation}
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
       />
-
-      {/* Detail Modal */}
+      
       <DetailModal
         open={detailModalOpen}
         onClose={() => {
@@ -218,8 +195,7 @@ const LocationsPage = () => {
         data={viewingLocation}
         type="location"
       />
-
-      {/* Closure Modal */}
+      
       <ClosureModal
         open={closureModalOpen}
         onClose={handleClosureModalClose}
@@ -227,8 +203,7 @@ const LocationsPage = () => {
         locationId={closingLocation?.id}
         locationName={closingLocation?.name}
       />
-
-      {/* Closure History Modal */}
+      
       <ClosureHistoryModal
         open={closureHistoryModalOpen}
         onClose={handleClosureHistoryModalClose}
@@ -236,7 +211,7 @@ const LocationsPage = () => {
         locationName={selectedLocationForClosure?.name}
         onClosureChange={fetchLocations}
       />
-    </Layout>
+    </div>
   );
 };
 
