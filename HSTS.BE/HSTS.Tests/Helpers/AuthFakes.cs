@@ -31,6 +31,9 @@ public static class AuthFakes
     }
 
     public static Role TravelerRole() => new() { Id = 1, Name = "TRAVELER" };
+    public static Role AdminRole() => new() { Id = 2, Name = "ADMIN" };
+    public static Role PartnerRole() => new() { Id = 3, Name = "PARTNER" };
+    public static Role ContentModeratorRole() => new() { Id = 4, Name = "CONTENT_MODERATOR" };
 
     public static Otp ValidOtp(string email, OtpType type) =>
         new() { Id = 1, Email = email, Code = "123456", Type = type, IsUsed = false, ExpiredAt = DateTime.UtcNow.AddMinutes(5) };

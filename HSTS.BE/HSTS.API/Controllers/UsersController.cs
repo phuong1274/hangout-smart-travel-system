@@ -85,5 +85,42 @@ namespace HSTS.API.Controllers
 
             return result.Match<IActionResult>(_ => NoContent(), MapErrors);
         }
+
+        [HttpGet]
+        [Authorize(Roles = "ADMIN")]
+        public async Task<IActionResult> GetUsers([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10, [FromQuery] string? searchTerm = null)
+        {
+            var result = await Mediator.Send(new GetUsersPagingQuery(pageIndex, pageSize, searchTerm));
+            return result.Match<IActionResult>(Ok, MapErrors);
+        }
+
+        [HttpGet("{userId:int}")]
+        [Authorize(Roles = "ADMIN")]
+        public async Task<IActionResult> GetUserById(int userId)
+        {
+            var result = await Mediator.Send(new GetUserByIdQuery(userId));
+            return result.Match<IActionResult>(Ok, MapErrors);
+        }
+
+        [HttpPut("{userId:int}/role")]
+        [Authorize(Roles = "ADMIN")]
+        public async Task<IActionResult> ChangeUserRole(int userId, [FromBody] ChangeUserRoleBody body)
+        {
+            if (userId != body.UserId)
+                return BadRequest(new { message = "User ID in route does not match request body." });
+
+            var result = await Mediator.Send(new ChangeUserRoleCommand(body.UserId, body.RoleId));
+            return result.Match<IActionResult>(_ => NoContent(), MapErrors);
+        }
+
+        [HttpGet("roles")]
+        [Authorize(Roles = "ADMIN")]
+        public async Task<IActionResult> GetRoles()
+        {
+            var result = await Mediator.Send(new GetRolesQuery());
+            return result.Match<IActionResult>(Ok, MapErrors);
+        }
+
+        public record ChangeUserRoleBody(int UserId, int RoleId);
     }
 }

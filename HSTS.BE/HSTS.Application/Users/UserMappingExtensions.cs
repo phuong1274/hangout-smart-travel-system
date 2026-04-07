@@ -25,5 +25,37 @@ namespace HSTS.Application.Users
                 ProfileName: profile.ProfileName,
                 Address: profile.Address,
                 AvatarUrl: profile.AvatarUrl);
+
+        public static UserListItemDto ToListItemDto(this User user, Account account) =>
+            new(
+                Id: user.Id,
+                Email: account.Email,
+                FullName: user.FullName,
+                PrimaryRole: user.UserRoles
+                    .Where(ur => ur.Role is not null)
+                    .Select(ur => ur.Role.Name)
+                    .OrderBy(name => name)
+                    .FirstOrDefault() ?? string.Empty,
+                Status: account.Status.ToString(),
+                CreatedAt: user.CreatedAt);
+
+        public static UserAdminDetailDto ToAdminDetailDto(this User user, Account account) =>
+            new(
+                Id: user.Id,
+                Email: account.Email,
+                FullName: user.FullName,
+                AvatarUrl: user.AvatarUrl,
+                Bio: user.Bio,
+                DateOfBirth: user.DateOfBirth,
+                Gender: user.Gender,
+                PhoneNumber: user.PhoneNumber,
+                Roles: user.UserRoles.Where(ur => ur.Role is not null).Select(ur => ur.Role.Name).ToList(),
+                AccountStatus: account.Status.ToString(),
+                CreatedAt: user.CreatedAt,
+                HasPassword: account.PasswordHash != null,
+                HasGoogleLinked: account.GoogleId != null);
+
+        public static RoleOptionDto ToRoleOptionDto(this Role role) =>
+            new(role.Id, role.Name);
     }
 }
