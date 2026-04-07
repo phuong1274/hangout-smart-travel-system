@@ -28,6 +28,8 @@ namespace HSTS.Application.Users
         string FullName,
         string PrimaryRole,
         string Status,
+        string GovernanceState,
+        bool IsDeleted,
         DateTime CreatedAt);
 
     public record UserAdminDetailDto(
@@ -41,6 +43,8 @@ namespace HSTS.Application.Users
         string? PhoneNumber,
         IList<string> Roles,
         string AccountStatus,
+        string GovernanceState,
+        bool IsDeleted,
         DateTime CreatedAt,
         bool HasPassword,
         bool HasGoogleLinked);

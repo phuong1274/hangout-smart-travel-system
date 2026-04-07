@@ -1,10 +1,11 @@
 import React from 'react';
-import { Avatar, Card, Descriptions, Space, Tag, Typography } from 'antd';
+import { Avatar, Card, Descriptions, Divider, Space, Typography } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { formatDate } from '@/utils/date';
+import { UserGovernanceStatus } from './UserGovernanceStatus';
 import styles from '../styles/UserDetailCard.module.css';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 export const UserDetailCard = ({ user }) => (
   <Card className={styles.container}>
@@ -14,10 +15,9 @@ export const UserDetailCard = ({ user }) => (
         <div>
           <Title level={3} style={{ marginBottom: 0 }}>{user.fullName}</Title>
           <div>{user.email}</div>
-          <Space wrap style={{ marginTop: 8 }}>
-            {user.roles?.map((role) => <Tag key={role}>{role}</Tag>)}
-            <Tag color={user.accountStatus === 'Active' ? 'green' : 'orange'}>{user.accountStatus}</Tag>
-          </Space>
+          <div style={{ marginTop: 8 }}>
+            <UserGovernanceStatus user={user} showDescription />
+          </div>
         </div>
       </Space>
 
@@ -30,6 +30,13 @@ export const UserDetailCard = ({ user }) => (
         <Descriptions.Item label="Google linked">{user.hasGoogleLinked ? 'Yes' : 'No'}</Descriptions.Item>
         <Descriptions.Item label="Bio" span={2}>{user.bio || '—'}</Descriptions.Item>
       </Descriptions>
+
+      <Divider style={{ margin: 0 }} />
+
+      <Space direction="vertical" size="small">
+        <Title level={5} style={{ margin: 0 }}>Lifecycle semantics</Title>
+        <Text type="secondary">Ban and unban are status actions that control access. Deactivate and restore are soft-delete lifecycle actions and are shown separately.</Text>
+      </Space>
     </Space>
   </Card>
 );

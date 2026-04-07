@@ -76,7 +76,7 @@ export const router = createBrowserRouter([
             element: <div><h2>Algorithm Scheduling Management</h2></div>
           },
           {
-            path: '/my-locations',
+            path: PATHS.MY_LOCATIONS,
             element: <SubmissionsPage />
           },
           {
@@ -100,7 +100,7 @@ export const router = createBrowserRouter([
             element: <LocationsPage />
           },
           {
-            path: '/admin/location-submissions',
+            path: PATHS.LOCATION_SUBMISSIONS_REVIEW,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
             children: [
               { index: true, element: <LocationSubmissionsReviewPage /> }

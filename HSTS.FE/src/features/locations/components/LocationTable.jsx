@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Button, Space, Popconfirm, Tag } from 'antd';
+import { Table, Button, Space, Popconfirm, Tag, Tooltip } from 'antd';
 import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined, PhoneOutlined, MailOutlined, LinkOutlined } from '@ant-design/icons';
 import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import styles from '../styles/LocationTable.module.css';
@@ -98,18 +98,24 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       fixed: 'right',
       render: (_, record) => (
         <Space size="middle" className={styles.actionSpace}>
-          <Button
-            type="text"
-            className={styles.actionIconView}
-            icon={<EyeOutlined />}
-            onClick={() => onView(record)}
-          />
-          <Button
-            type="text"
-            className={styles.actionIconEdit}
-            icon={<EditOutlined />}
-            onClick={() => onEdit(record)}
-          />
+          <Tooltip title="View details & reviews">
+            <Button
+              type="text"
+              className={styles.actionIconView}
+              icon={<EyeOutlined />}
+              onClick={() => onView(record)}
+              aria-label="View details & reviews"
+            />
+          </Tooltip>
+          <Tooltip title="Edit location">
+            <Button
+              type="text"
+              className={styles.actionIconEdit}
+              icon={<EditOutlined />}
+              onClick={() => onEdit(record)}
+              aria-label="Edit location"
+            />
+          </Tooltip>
           <Popconfirm
             title="Delete Location"
             description="Are you sure you want to delete this location?"
@@ -119,7 +125,9 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
             okButtonProps={{ className: styles.popConfirmOk }}
             cancelButtonProps={{ className: styles.popConfirmCancel }}
           >
-            <Button type="text" className={styles.actionIconDelete} icon={<DeleteOutlined />} />
+            <Tooltip title="Delete location">
+              <Button type="text" className={styles.actionIconDelete} icon={<DeleteOutlined />} aria-label="Delete location" />
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),

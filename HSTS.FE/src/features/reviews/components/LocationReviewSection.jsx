@@ -9,7 +9,7 @@ import { ReviewList } from './ReviewList';
 import { ReviewForm } from './ReviewForm';
 import { ReportReviewModal } from './ReportReviewModal';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 export const LocationReviewSection = ({ locationId }) => {
   const { user, isAuthenticated } = useAuthStore();
@@ -48,6 +48,9 @@ export const LocationReviewSection = ({ locationId }) => {
   return (
     <Card>
       <Title level={4}>Reviews</Title>
+      <Text type="secondary">
+        Read community feedback, write your own review, or report inappropriate feedback here. You can report other users' reviews from each review card.
+      </Text>
 
       {isTraveler ? (
         myReview && !editing ? (

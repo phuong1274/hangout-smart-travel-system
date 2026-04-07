@@ -29,7 +29,6 @@ namespace HSTS.Application.Users.Queries
                 .Include(u => u.Account)
                 .Include(u => u.UserRoles)
                     .ThenInclude(ur => ur.Role)
-                .Where(u => !u.IsDeleted)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))

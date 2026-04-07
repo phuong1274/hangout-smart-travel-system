@@ -1,20 +1,22 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
 import { usersApi } from '../api';
 
 export const useUsers = () => {
-  const { 
-    pagination, 
-    searchTerm, 
-    handleTableChange, 
-    handleSearch, 
+  const {
+    pagination,
+    searchTerm,
+    handleTableChange,
+    handleSearch,
     setTotal,
     pageIndex,
-    pageSize 
+    pageSize
   } = usePagination();
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [roleFilter, setRoleFilter] = useState();
+  const [statusFilter, setStatusFilter] = useState();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -31,18 +33,26 @@ export const useUsers = () => {
     } finally {
       setLoading(false);
     }
-  }, [pageIndex, pageSize, searchTerm, setTotal]);
+  }, [pageIndex, pageSize, roleFilter, searchTerm, setTotal, statusFilter]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
+  const filterState = useMemo(
+    () => ({ roleFilter, statusFilter }),
+    [roleFilter, statusFilter]
+  );
+
   return {
     data,
     loading,
     pagination,
+    filterState,
     handleTableChange,
     handleSearch,
+    setRoleFilter,
+    setStatusFilter,
     fetchUsers,
   };
 };

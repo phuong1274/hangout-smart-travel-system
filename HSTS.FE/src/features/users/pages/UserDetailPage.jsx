@@ -5,6 +5,7 @@ import { useUserDetail } from '../hooks/useUserDetail';
 import { useRoles } from '../hooks/useRoles';
 import { UserDetailCard } from '../components/UserDetailCard';
 import { ChangeUserRoleForm } from '../components/ChangeUserRoleForm';
+import { UserGovernanceActions } from '../components/UserGovernanceActions';
 import styles from '../styles/UserDetailPage.module.css';
 
 const { Title, Text } = Typography;
@@ -22,7 +23,7 @@ const UserDetailPage = () => {
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <div>
           <Title level={2}>User Detail</Title>
-          <Text type="secondary">Inspect account data and update the assigned role.</Text>
+          <Text type="secondary">Inspect account data, understand lifecycle semantics, and run governance actions.</Text>
         </div>
 
         <Row gutter={[24, 24]}>
@@ -30,9 +31,14 @@ const UserDetailPage = () => {
             <UserDetailCard user={data} />
           </Col>
           <Col xs={24} lg={8}>
-            <Card title="Change role">
-              <ChangeUserRoleForm user={data} roles={roles} onChanged={refresh} />
-            </Card>
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              <Card title="Change role">
+                <ChangeUserRoleForm user={data} roles={roles} onChanged={refresh} />
+              </Card>
+              <Card title="Lifecycle actions">
+                <UserGovernanceActions user={data} onChanged={refresh} />
+              </Card>
+            </Space>
           </Col>
         </Row>
       </Space>

@@ -38,4 +38,28 @@ public class GetUserByIdQueryTests
         result.IsError.Should().BeTrue();
         result.FirstError.Code.Should().Be("User.NotFound");
     }
+
+    [Fact]
+    public async Task Handle_DeactivatedUser_ReturnsAdminDetailWithGovernanceState()
+    {
+        var account = AuthFakes.ActiveAccount("deactivated@test.com");
+        account.IsDeleted = true;
+        var role = AuthFakes.TravelerRole();
+        var user = AuthFakes.UserWithRole(account, role, "Traveler Test");
+        user.IsDeleted = true;
+
+        var ctx = MockDbContextFactory.Create()
+            .WithAccounts(account)
+            .WithRoles(role)
+            .WithUsers(user)
+            .Build();
+
+        var handler = new GetUserByIdQueryHandler(ctx.Object);
+        var result = await handler.Handle(new GetUserByIdQuery(user.Id), default);
+
+        result.IsError.Should().BeFalse();
+        result.Value.Email.Should().Be("deactivated@test.com");
+        result.Value.GovernanceState.Should().Be("Deactivated");
+        result.Value.IsDeleted.Should().BeTrue();
+    }
 }

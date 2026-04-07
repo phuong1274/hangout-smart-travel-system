@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { Layout, Menu, Avatar, Dropdown } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  DashboardOutlined, 
-  ScheduleOutlined, 
-  EnvironmentOutlined, 
-  CompassOutlined, 
-  TagsOutlined, 
-  AppstoreOutlined, 
-  GoldOutlined, 
-  ShopOutlined, 
-  UserOutlined, 
-  LogoutOutlined 
+import {
+  DashboardOutlined,
+  ScheduleOutlined,
+  EnvironmentOutlined,
+  CompassOutlined,
+  TagsOutlined,
+  AppstoreOutlined,
+  GoldOutlined,
+  ShopOutlined,
+  UserOutlined,
+  LogoutOutlined,
+  SafetyCertificateOutlined,
+  AuditOutlined
 } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/features/auth/hooks/useAuth';
@@ -28,9 +30,8 @@ const Sidebar = () => {
   const { user } = useAuthStore();
   const { logout } = useLogout();
 
-  const role = user?.roles?.[0];
+  const hasRole = (allowedRoles = []) => allowedRoles.some((allowedRole) => user?.roles?.includes(allowedRole));
 
-  // Đã gộp đầy đủ menu từ cả 2 nhánh
   const sideMenuItems = [
     {
       key: PATHS.DASHBOARD,
@@ -54,7 +55,8 @@ const Sidebar = () => {
       key: PATHS.DESTINATIONS,
       icon: <CompassOutlined />,
       label: 'Destinations',
-      onClick: () => navigate(PATHS.DESTINATIONS)
+      onClick: () => navigate(PATHS.DESTINATIONS),
+      hidden: !hasRole([ROLES.ADMIN]),
     },
     {
       key: PATHS.LOCATIONS,
@@ -84,14 +86,36 @@ const Sidebar = () => {
       key: PATHS.PARTNER_LOCATIONS,
       icon: <ShopOutlined />,
       label: 'My Locations',
-      onClick: () => navigate(PATHS.PARTNER_LOCATIONS)
+      onClick: () => navigate(PATHS.PARTNER_LOCATIONS),
+      hidden: !hasRole([ROLES.PARTNER]),
+    },
+    {
+      key: PATHS.MY_LOCATIONS,
+      icon: <ShopOutlined />,
+      label: 'My Submissions',
+      onClick: () => navigate(PATHS.MY_LOCATIONS),
+      hidden: !hasRole([ROLES.TRAVELER]),
     },
     {
       key: PATHS.USERS,
       icon: <UserOutlined />,
       label: 'Users',
       onClick: () => navigate(PATHS.USERS),
-      hidden: role !== ROLES.ADMIN,
+      hidden: !hasRole([ROLES.ADMIN]),
+    },
+    {
+      key: PATHS.REPORTED_REVIEWS,
+      icon: <SafetyCertificateOutlined />,
+      label: 'Reported Reviews',
+      onClick: () => navigate(PATHS.REPORTED_REVIEWS),
+      hidden: !hasRole([ROLES.ADMIN]),
+    },
+    {
+      key: PATHS.LOCATION_SUBMISSIONS_REVIEW,
+      icon: <AuditOutlined />,
+      label: 'Submission Review',
+      onClick: () => navigate(PATHS.LOCATION_SUBMISSIONS_REVIEW),
+      hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
     },
   ].filter((item) => !item.hidden);
 

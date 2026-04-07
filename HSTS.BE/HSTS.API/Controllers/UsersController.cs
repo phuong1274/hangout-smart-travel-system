@@ -102,6 +102,14 @@ namespace HSTS.API.Controllers
             return result.Match<IActionResult>(Ok, MapErrors);
         }
 
+        [HttpPost]
+        [Authorize(Roles = "ADMIN")]
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserBody body)
+        {
+            var result = await Mediator.Send(new AdminCreateUserCommand(body.Email, body.FullName, body.RoleId));
+            return result.Match<IActionResult>(value => Ok(new { message = value }), MapErrors);
+        }
+
         [HttpPut("{userId:int}/role")]
         [Authorize(Roles = "ADMIN")]
         public async Task<IActionResult> ChangeUserRole(int userId, [FromBody] ChangeUserRoleBody body)
@@ -113,6 +121,38 @@ namespace HSTS.API.Controllers
             return result.Match<IActionResult>(_ => NoContent(), MapErrors);
         }
 
+        [HttpPost("{userId:int}/ban")]
+        [Authorize(Roles = "ADMIN")]
+        public async Task<IActionResult> BanUser(int userId)
+        {
+            var result = await Mediator.Send(new BanUserCommand(userId));
+            return result.Match<IActionResult>(_ => NoContent(), MapErrors);
+        }
+
+        [HttpPost("{userId:int}/unban")]
+        [Authorize(Roles = "ADMIN")]
+        public async Task<IActionResult> UnbanUser(int userId)
+        {
+            var result = await Mediator.Send(new UnbanUserCommand(userId));
+            return result.Match<IActionResult>(_ => NoContent(), MapErrors);
+        }
+
+        [HttpDelete("{userId:int}")]
+        [Authorize(Roles = "ADMIN")]
+        public async Task<IActionResult> DeactivateUser(int userId)
+        {
+            var result = await Mediator.Send(new DeactivateUserCommand(userId));
+            return result.Match<IActionResult>(_ => NoContent(), MapErrors);
+        }
+
+        [HttpPost("{userId:int}/restore")]
+        [Authorize(Roles = "ADMIN")]
+        public async Task<IActionResult> RestoreUser(int userId)
+        {
+            var result = await Mediator.Send(new RestoreUserCommand(userId));
+            return result.Match<IActionResult>(_ => NoContent(), MapErrors);
+        }
+
         [HttpGet("roles")]
         [Authorize(Roles = "ADMIN")]
         public async Task<IActionResult> GetRoles()
@@ -121,6 +161,7 @@ namespace HSTS.API.Controllers
             return result.Match<IActionResult>(Ok, MapErrors);
         }
 
+        public record CreateUserBody(string Email, string FullName, int RoleId);
         public record ChangeUserRoleBody(int UserId, int RoleId);
     }
 }

@@ -16,7 +16,7 @@ namespace HSTS.Application.Users.Queries
             var user = await _ctx.Users
                 .Include(u => u.Account)
                 .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
-                .FirstOrDefaultAsync(u => u.Id == request.UserId && !u.IsDeleted, cancellationToken);
+                .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
             if (user is null)
                 return Error.NotFound("User.NotFound", "User not found.");
