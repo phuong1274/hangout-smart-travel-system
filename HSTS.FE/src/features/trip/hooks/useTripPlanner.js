@@ -34,7 +34,7 @@ export const useTripPlanner = () => {
           userFavoriteTagIds: formData.userFavoriteTagIds || [],
           currencyCode: 'VND',
           groupSize: formData.groupSize,
-          minimumAge: formData.minimumAge ?? 0,
+          minimumAge: formData.minimumAge ?? null,
           totalBudget: normalizedBudget,
           includeContingencyFund: formData.includeContingencyFund !== false,
           startDate: formData.startDate,

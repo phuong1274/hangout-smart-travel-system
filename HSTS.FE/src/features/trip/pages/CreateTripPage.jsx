@@ -297,7 +297,7 @@ const CreateTripPage = () => {
       userFavoriteTagIds: selectedTagIds.map((id) => Number(id)).filter((id) => Number.isFinite(id)),
       currencyCode: values.currencyCode,
       groupSize: values.groupSize,
-      minimumAge: values.minimumAge ?? 0,
+      minimumAge: values.enableMinimumAge ? values.minimumAge : null,
       totalBudget: values.totalBudget,
       includeContingencyFund: values.includeContingencyFund !== false,
       startDate: startDate.format('YYYY-MM-DD'),
@@ -348,7 +348,7 @@ const CreateTripPage = () => {
           onFinish={handleSubmit}
           initialValues={{
             groupSize: 2,
-            minimumAge: 0,
+            enableMinimumAge: false,
             currencyCode: 'VND',
             includeContingencyFund: true,
             tripSegment: 'Standard',
@@ -383,10 +383,6 @@ const CreateTripPage = () => {
                 <InlineMapCenterSync center={mapCenter} />
               </MapContainer>
             </div>
-            <Button type="link" style={{ paddingLeft: 0 }} onClick={() => setMapOpen(true)}>
-              Open full map picker
-            </Button>
-
             <Row gutter={16} style={{ marginTop: 12 }}>
               <Col span={4} style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 24 }}>
                 <Button onClick={handleGetCurrentLocation}>
@@ -601,12 +597,27 @@ const CreateTripPage = () => {
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12}>
-                <Form.Item
-                  name="minimumAge"
-                  label="Minimum Age"
-                  rules={[{ required: true, message: 'Please enter minimum age' }]}
-                >
-                  <InputNumber min={0} max={120} style={{ width: '100%' }} addonAfter="years" />
+                <Form.Item name="enableMinimumAge" valuePropName="checked" style={{ marginBottom: 8 }}>
+                  <Checkbox
+                    onChange={(e) => {
+                      if (!e.target.checked) {
+                        form.setFieldsValue({ minimumAge: undefined });
+                      }
+                    }}
+                  >
+                    Apply minimum age filter
+                  </Checkbox>
+                </Form.Item>
+                <Form.Item shouldUpdate={(prev, cur) => prev.enableMinimumAge !== cur.enableMinimumAge} noStyle>
+                  {({ getFieldValue }) => getFieldValue('enableMinimumAge') && (
+                    <Form.Item
+                      name="minimumAge"
+                      label="Minimum Age"
+                      rules={[{ required: true, message: 'Please enter minimum age' }]}
+                    >
+                      <InputNumber min={0} max={120} style={{ width: '100%' }} addonAfter="years" />
+                    </Form.Item>
+                  )}
                 </Form.Item>
               </Col>
             </Row>
@@ -655,22 +666,6 @@ const CreateTripPage = () => {
               <Checkbox>Include contingency fund (recommended)</Checkbox>
             </Form.Item>
 
-            {computedFields && totalBudget > 0 && (
-              <div className={styles.computedInfo}>
-                <div className={styles.computedItem}>
-                  <span className={styles.computedLabel}>Budget per person:</span>
-                  <span className={styles.computedValue}>
-                    {computedFields.perPerson.toLocaleString()} {form.getFieldValue('currencyCode')}
-                  </span>
-                </div>
-                <div className={styles.computedItem}>
-                  <span className={styles.computedLabel}>Budget per day:</span>
-                  <span className={styles.computedValue}>
-                    {computedFields.perDay.toLocaleString()} {form.getFieldValue('currencyCode')}
-                  </span>
-                </div>
-              </div>
-            )}
           </Card>
 
           {/* 6. Dates */}
