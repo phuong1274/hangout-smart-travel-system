@@ -28,6 +28,9 @@ const LocationFilter = ({
   const [locationTypes, setLocationTypes] = useState([]);
   const [districts, setDistricts] = useState([]);
 
+  // Track applied filters to determine if reset button should be enabled
+  const [appliedFilters, setAppliedFilters] = useState({});
+
   useEffect(() => {
     fetchDropdownData();
   }, []);
@@ -83,6 +86,7 @@ const LocationFilter = ({
       FromDate: dateRange[0] ? dateRange[0].startOf('day').toISOString() : undefined,
       ToDate: dateRange[1] ? dateRange[1].endOf('day').toISOString() : undefined
     };
+    setAppliedFilters(filters);
     onSearch(filters);
   };
 
@@ -94,160 +98,154 @@ const LocationFilter = ({
     setSelectedLocationTypeIds([]);
     setSelectedDistrictIds([]);
     setDateRange([]);
+    setAppliedFilters({});
     onSearch({});
   };
 
-  const hasActiveFilters = searchTerm || selectedParentTagIds.length > 0 ||
-    selectedChildTagIds.length > 0 ||
-    selectedLocationTypeIds.length > 0 || selectedDistrictIds.length > 0 ||
-    (dateRange && dateRange.length > 0 && (dateRange[0] || dateRange[1]));
+  // Handle search input clear - auto-trigger search with empty term
+  const handleSearchClear = () => {
+    setSearchTerm('');
+    // Re-apply filters with empty search term
+    handleApplyFilter();
+  };
 
-  const filterContent = (
-    <div className={styles.popoverContent}>
-      <Row gutter={[16, 16]}>
-        <Col span={12}>
-          <div className={styles.filterLabel}>Parent Tags</div>
-          <Select
-            mode="multiple"
-            placeholder="Select parent tags"
-            style={{ width: '100%' }}
-            value={selectedParentTagIds}
-            onChange={handleParentTagChange}
-            allowClear
-            maxTagCount="responsive"
-          >
-            {rootTags.map(tag => (
-              <Option key={tag.id} value={tag.id}>{tag.name}</Option>
-            ))}
-          </Select>
-        </Col>
-        <Col span={12}>
-          <div className={styles.filterLabel}>Child Tags</div>
-          <Select
-            mode="multiple"
-            placeholder="Select child tags"
-            style={{ width: '100%' }}
-            value={selectedChildTagIds}
-            onChange={setSelectedChildTagIds}
-            allowClear
-            maxTagCount="responsive"
-            disabled={selectedParentTagIds.length === 0}
-          >
-            {availableChildTags.map(tag => (
-              <Option key={tag.id} value={tag.id}>{tag.name}</Option>
-            ))}
-          </Select>
-        </Col>
-        <Col span={12}>
-          <div className={styles.filterLabel}>Location Types</div>
-          <Select
-            mode="multiple"
-            placeholder="Select types"
-            style={{ width: '100%' }}
-            value={selectedLocationTypeIds}
-            onChange={setSelectedLocationTypeIds}
-            allowClear
-            maxTagCount="responsive"
-          >
-            {locationTypes.map(type => (
-              <Option key={type.id} value={type.id}>{type.name}</Option>
-            ))}
-          </Select>
-        </Col>
-        <Col span={12}>
-          <div className={styles.filterLabel}>Districts</div>
-          <Select
-            mode="multiple"
-            placeholder="Select districts"
-            style={{ width: '100%' }}
-            value={selectedDistrictIds}
-            onChange={setSelectedDistrictIds}
-            allowClear
-            maxTagCount="responsive"
-          >
-            {districts.map(district => (
-              <Option key={district.id} value={district.id}>{district.name}</Option>
-            ))}
-          </Select>
-        </Col>
-        <Col span={24}>
-          <div className={styles.filterLabel}>Date Range</div>
-          <RangePicker
-            placeholder={['From Date', 'To Date']}
-            value={dateRange}
-            onChange={setDateRange}
-            style={{ width: '100%' }}
-            allowClear
-          />
-        </Col>
-      </Row>
-      <div className={styles.popoverFooter}>
-        <Button 
-          className={styles.btnResetInner}
-          icon={<ReloadOutlined />} 
-          onClick={handleReset}
-          disabled={!hasActiveFilters}
-        >
-          RESET
-        </Button>
-        <Button 
-          className={styles.btnApplyInner}
-          icon={<FilterOutlined />} 
-          onClick={handleApplyFilter}
-          loading={loading}
-        >
-          APPLY FILTERS
-        </Button>
-      </div>
-    </div>
-  );
+  const hasActiveFilters = Object.keys(appliedFilters).length > 0 && 
+    (appliedFilters.searchTerm || 
+     appliedFilters.TagIds || 
+     appliedFilters.LocationTypeIds || 
+     appliedFilters.DistrictIds || 
+     appliedFilters.FromDate || 
+     appliedFilters.ToDate);
 
   return (
-    <div className={styles.filterWrapper}>
-      <div className={styles.topRow}>
-        <div className={styles.leftActions}>
-          <div className={styles.tropicalSearchContainer}>
-            <input
-              type="text"
-              placeholder="Search locations by name..."
+    <div style={{ marginBottom: 16 }}>
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        {/* Search Box */}
+        <Row gutter={16} align="middle">
+          <Col flex="300px">
+            <Search
+              placeholder="Search locations by name or description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleApplyFilter()}
-              className={styles.customSearchInput}
+              onSearch={handleApplyFilter}
+              loading={loading}
+              allowClear
+              onClear={handleSearchClear}
+              enterButton
+              onPressEnter={handleApplyFilter}
             />
-            <button 
-              type="button"
-              className={styles.customSearchBtn}
-              onClick={handleApplyFilter}
-              disabled={loading}
-            >
-              <SearchOutlined />
-            </button>
-          </div>
-
-          <Popover 
-            content={filterContent} 
-            trigger="hover" 
-            placement="bottomLeft"
-            overlayClassName={styles.customPopover}
-          >
+          </Col>
+          <Col flex="auto">
             <Button 
-              className={styles.btnTrigger}
-              icon={<FilterOutlined />}
+              type="primary" 
+              icon={<FilterOutlined />} 
+              onClick={handleApplyFilter}
+              loading={loading}
             >
-              ADVANCED FILTERS
-              {hasActiveFilters && <div className={styles.activeDot} />}
+              Apply Filters
             </Button>
-          </Popover>
-        </div>
-        
-        {actionButton && (
-          <div className={styles.rightActions}>
-            {actionButton}
-          </div>
-        )}
-      </div>
-      {extra && <div className={styles.filterExtra}>{extra}</div>}
+            <Button 
+              icon={<ReloadOutlined />} 
+              onClick={handleReset}
+              disabled={!hasActiveFilters}
+              style={{ marginLeft: 8 }}
+            >
+              Reset
+            </Button>
+          </Col>
+        </Row>
+
+        {/* Filter Dropdowns */}
+        <Row gutter={16}>
+          <Col span={6}>
+            <Select
+              mode="multiple"
+              placeholder="Filter by Parent Tags"
+              style={{ width: '100%' }}
+              value={selectedParentTagIds}
+              onChange={handleParentTagChange}
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              maxTagCount="responsive"
+            >
+              {rootTags.map(tag => (
+                <Option key={tag.id} value={tag.id}>
+                  {tag.name}
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={6}>
+            <Select
+              mode="multiple"
+              placeholder="Filter by Child Tags"
+              style={{ width: '100%' }}
+              value={selectedChildTagIds}
+              onChange={setSelectedChildTagIds}
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              maxTagCount="responsive"
+              disabled={selectedParentTagIds.length === 0}
+            >
+              {availableChildTags.map(tag => (
+                <Option key={tag.id} value={tag.id}>
+                  {tag.name}
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={4}>
+            <Select
+              mode="multiple"
+              placeholder="Filter by Location Types"
+              style={{ width: '100%' }}
+              value={selectedLocationTypeIds}
+              onChange={setSelectedLocationTypeIds}
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              maxTagCount="responsive"
+            >
+              {locationTypes.map(type => (
+                <Option key={type.id} value={type.id}>
+                  {type.name}
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={4}>
+            <Select
+              mode="multiple"
+              placeholder="Filter by Districts"
+              style={{ width: '100%' }}
+              value={selectedDistrictIds}
+              onChange={setSelectedDistrictIds}
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              maxTagCount="responsive"
+            >
+              {districts.map(district => (
+                <Option key={district.id} value={district.id}>
+                  {district.name}
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={6}>
+            <RangePicker
+              placeholder={['From Date', 'To Date']}
+              value={dateRange}
+              onChange={setDateRange}
+              style={{ width: '100%' }}
+              allowClear
+            />
+          </Col>
+        </Row>
+      </Space>
+      {extra && <div className="filter-extra" style={{ marginTop: 16 }}>{extra}</div>}
     </div>
   );
 };
