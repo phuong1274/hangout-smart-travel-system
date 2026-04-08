@@ -137,22 +137,6 @@ namespace HSTS.API.Controllers
             return result.Match<IActionResult>(_ => NoContent(), MapErrors);
         }
 
-        [HttpDelete("{userId:int}")]
-        [Authorize(Roles = "ADMIN")]
-        public async Task<IActionResult> DeactivateUser(int userId)
-        {
-            var result = await Mediator.Send(new DeactivateUserCommand(userId));
-            return result.Match<IActionResult>(_ => NoContent(), MapErrors);
-        }
-
-        [HttpPost("{userId:int}/restore")]
-        [Authorize(Roles = "ADMIN")]
-        public async Task<IActionResult> RestoreUser(int userId)
-        {
-            var result = await Mediator.Send(new RestoreUserCommand(userId));
-            return result.Match<IActionResult>(_ => NoContent(), MapErrors);
-        }
-
         [HttpGet("roles")]
         [Authorize(Roles = "ADMIN")]
         public async Task<IActionResult> GetRoles()

@@ -35,7 +35,7 @@ export const UserDetailCard = ({ user }) => (
 
       <Space direction="vertical" size="small">
         <Title level={5} style={{ margin: 0 }}>Lifecycle semantics</Title>
-        <Text type="secondary">Ban and unban are status actions that control access. Deactivate and restore are soft-delete lifecycle actions and are shown separately.</Text>
+        <Text type="secondary">Ban and unban are governance actions that control access.</Text>
       </Space>
     </Space>
   </Card>

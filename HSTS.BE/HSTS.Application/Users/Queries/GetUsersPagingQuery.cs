@@ -29,6 +29,7 @@ namespace HSTS.Application.Users.Queries
                 .Include(u => u.Account)
                 .Include(u => u.UserRoles)
                     .ThenInclude(ur => ur.Role)
+                .Where(u => !u.IsDeleted && !u.Account.IsDeleted)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
@@ -48,10 +49,7 @@ namespace HSTS.Application.Users.Queries
             if (!string.IsNullOrWhiteSpace(request.Status))
             {
                 var status = request.Status.Trim().ToUpper();
-                query = query.Where(u =>
-                    status == "DEACTIVATED"
-                        ? u.IsDeleted || u.Account.IsDeleted
-                        : !u.IsDeleted && !u.Account.IsDeleted && u.Account.Status.ToString().ToUpper() == status);
+                query = query.Where(u => u.Account.Status.ToString().ToUpper() == status);
             }
 
             var total = await query.CountAsync(cancellationToken);

@@ -36,8 +36,8 @@ namespace HSTS.Application.Users
                     .Select(ur => ur.Role.Name)
                     .OrderBy(name => name)
                     .FirstOrDefault() ?? string.Empty,
-                Status: user.IsDeleted || account.IsDeleted ? "Deactivated" : account.Status.ToString(),
-                GovernanceState: user.IsDeleted || account.IsDeleted ? "Deactivated" : account.Status.ToString(),
+                Status: account.Status.ToString(),
+                GovernanceState: account.Status.ToString(),
                 IsDeleted: user.IsDeleted || account.IsDeleted,
                 CreatedAt: user.CreatedAt);
 
@@ -53,7 +53,7 @@ namespace HSTS.Application.Users
                 PhoneNumber: user.PhoneNumber,
                 Roles: user.UserRoles.Where(ur => ur.Role is not null).Select(ur => ur.Role.Name).ToList(),
                 AccountStatus: account.Status.ToString(),
-                GovernanceState: user.IsDeleted || account.IsDeleted ? "Deactivated" : account.Status.ToString(),
+                GovernanceState: account.Status.ToString(),
                 IsDeleted: user.IsDeleted || account.IsDeleted,
                 CreatedAt: user.CreatedAt,
                 HasPassword: account.PasswordHash != null,

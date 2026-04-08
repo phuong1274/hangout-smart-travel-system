@@ -40,12 +40,12 @@ public class GetUserByIdQueryTests
     }
 
     [Fact]
-    public async Task Handle_DeactivatedUser_ReturnsAdminDetailWithGovernanceState()
+    public async Task Handle_SoftDeletedUser_ReturnsNotFound()
     {
-        var account = AuthFakes.ActiveAccount("deactivated@test.com");
+        var account = AuthFakes.ActiveAccount("deleted@test.com");
         account.IsDeleted = true;
         var role = AuthFakes.TravelerRole();
-        var user = AuthFakes.UserWithRole(account, role, "Traveler Test");
+        var user = AuthFakes.UserWithRole(account, role, "Deleted User");
         user.IsDeleted = true;
 
         var ctx = MockDbContextFactory.Create()
@@ -57,9 +57,8 @@ public class GetUserByIdQueryTests
         var handler = new GetUserByIdQueryHandler(ctx.Object);
         var result = await handler.Handle(new GetUserByIdQuery(user.Id), default);
 
-        result.IsError.Should().BeFalse();
-        result.Value.Email.Should().Be("deactivated@test.com");
-        result.Value.GovernanceState.Should().Be("Deactivated");
-        result.Value.IsDeleted.Should().BeTrue();
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("User.NotFound");
     }
+
 }

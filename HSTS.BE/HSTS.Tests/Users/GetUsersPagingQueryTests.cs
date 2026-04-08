@@ -92,25 +92,4 @@ public class GetUsersPagingQueryTests
         result.Value.Items.Should().NotContain(x => x.Email == "active@test.com");
     }
 
-    [Fact]
-    public async Task Handle_DeactivatedUser_RemainsVisibleWithExplicitGovernanceState()
-    {
-        var account = AuthFakes.ActiveAccount("deactivated@test.com");
-        account.IsDeleted = true;
-        var role = AuthFakes.TravelerRole();
-        var user = AuthFakes.UserWithRole(account, role, "Deactivated User");
-        user.IsDeleted = true;
-
-        var ctx = MockDbContextFactory.Create()
-            .WithAccounts(account)
-            .WithRoles(role)
-            .WithUsers(user)
-            .Build();
-
-        var handler = new GetUsersPagingQueryHandler(ctx.Object);
-        var result = await handler.Handle(new GetUsersPagingQuery(), default);
-
-        result.IsError.Should().BeFalse();
-        result.Value.Items.Should().ContainSingle(x => x.Email == "deactivated@test.com" && x.Status == "Deactivated");
-    }
 }

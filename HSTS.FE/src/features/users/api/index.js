@@ -9,8 +9,6 @@ export const usersApi = {
     apiClient.put(`/api/users/${userId}/role`, { userId, roleId }),
   banUser: (userId) => apiClient.post(`/api/users/${userId}/ban`),
   unbanUser: (userId) => apiClient.post(`/api/users/${userId}/unban`),
-  deactivateUser: (userId) => apiClient.delete(`/api/users/${userId}`),
-  restoreUser: (userId) => apiClient.post(`/api/users/${userId}/restore`),
   getMyInfo: () => apiClient.get('/api/users/me'),
   updateMyInfo: (data) => apiClient.put('/api/users/me', data),
   uploadAvatar: (formData) => apiClient.post('/api/users/me/avatar', formData, {

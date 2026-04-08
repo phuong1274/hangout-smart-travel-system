@@ -7,7 +7,6 @@ const STATUS_OPTIONS = [
   { value: 'Active', label: 'Active' },
   { value: 'PendingVerification', label: 'Pending verification' },
   { value: 'Banned', label: 'Banned' },
-  { value: 'Deactivated', label: 'Deactivated' },
 ];
 
 export const UserFilters = ({ roles = [], filterState, onRoleChange, onStatusChange }) => {
@@ -34,7 +33,7 @@ export const UserFilters = ({ roles = [], filterState, onRoleChange, onStatusCha
         onChange={onStatusChange}
         style={{ minWidth: 220 }}
       />
-      <Text type="secondary">Filter users by role or lifecycle state. Deactivated users remain visible to admins and can be filtered explicitly.</Text>
+      <Text type="secondary">Filter users by role or lifecycle state.</Text>
     </Space>
   );
 };
