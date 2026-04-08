@@ -17,5 +17,6 @@ namespace HSTS.Domain.Entities
         public Account Account { get; set; } = null!;
         public ICollection<Profile> Profiles { get; set; } = new List<Profile>();
         public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+        public ICollection<Trip> Trips { get; set; } = new List<Trip>();
     }
 }

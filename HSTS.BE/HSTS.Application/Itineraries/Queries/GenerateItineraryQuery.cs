@@ -321,6 +321,12 @@ namespace HSTS.Application.Itineraries.Queries
             var contingencyFund = Math.Round(request.TotalBudget * contingencyPercent, 0);
             var usableBudget = request.TotalBudget - contingencyFund;
 
+            var maxAccommodationBudget = usableBudget * 0.40m;
+            var maxIntercityTransportBudget = usableBudget * 0.30m;
+
+            var maxPerPersonPerNight = maxAccommodationBudget / Math.Max(1, groupSize) / Math.Max(1, totalDays);
+            var maxTransportPerLeg = maxIntercityTransportBudget / Math.Max(1, orderedDestinations.Count);
+
             var transportModes = await _context.TransportModes
                 .AsNoTracking()
                 .Include(x => x.LocalTransportMetrics)
@@ -366,7 +372,7 @@ namespace HSTS.Application.Itineraries.Queries
 
                 intercityTransport = await BuildIntercityTransportAsync(
                     userGeo, firstDestGeo, groupSize, transportModes, outboundReq,
-                    transitHubs, userProvinceId, userProvinceName, firstDest.Id, firstDest.EnglishName, request.StartDate, toMoney, isLuxuryTrip, cancellationToken);
+                    transitHubs, userProvinceId, userProvinceName, firstDest.Id, firstDest.EnglishName, request.StartDate, toMoney, isLuxuryTrip, maxTransportPerLeg, cancellationToken);
                 notes.Add($"First-mile: {firstMileDistance:F1}km >= {FirstMileIntercityThresholdKm}km -> intercity transport.");
             }
 
@@ -392,7 +398,7 @@ namespace HSTS.Application.Itineraries.Queries
                     var seg = await BuildIntercityTransportAsync(
                         new GeoPoint(fromDest.EnglishName, fromDest.Latitude ?? 0, fromDest.Longitude ?? 0),
                         new GeoPoint(toDest.EnglishName, toDest.Latitude ?? 0, toDest.Longitude ?? 0),
-                        groupSize, transportModes, segReq, transitHubs, fromDest.Id, fromDest.EnglishName, toDest.Id, toDest.EnglishName, segDate, toMoney, isLuxuryTrip, cancellationToken);
+                        groupSize, transportModes, segReq, transitHubs, fromDest.Id, fromDest.EnglishName, toDest.Id, toDest.EnglishName, segDate, toMoney, isLuxuryTrip, maxTransportPerLeg, cancellationToken);
                     interDestTransports.Add(seg);
                     totalTransportBudget += GetRecommendedOption(seg).EstimatedTotalCost.BaseAmount;
                 }
@@ -425,7 +431,7 @@ namespace HSTS.Application.Itineraries.Queries
                     request.EndDate, null, 1, 5);
                 returnTransport = await BuildIntercityTransportAsync(
                     new GeoPoint(lastDest.EnglishName, lastDest.Latitude ?? 0, lastDest.Latitude ?? 0), userGeo,
-                    groupSize, transportModes, returnReq, transitHubs, lastDest.Id, lastDest.EnglishName, userProvinceId, userProvinceName, request.EndDate, toMoney, isLuxuryTrip, cancellationToken);
+                    groupSize, transportModes, returnReq, transitHubs, lastDest.Id, lastDest.EnglishName, userProvinceId, userProvinceName, request.EndDate, toMoney, isLuxuryTrip, maxTransportPerLeg, cancellationToken);
             }
             else
             {
@@ -460,7 +466,7 @@ namespace HSTS.Application.Itineraries.Queries
                     var (hotel, recommendations) = SelectAndScoreAccommodation(
                         provHotels, provAttractions, groupSize,
                         usableBudget / totalDays, request.HotelPreference!, prov,
-                        toMoney);
+                        toMoney, maxPerPersonPerNight);
 
                     accommodationRecommendations.AddRange(recommendations);
                     if (hotel is not null)
@@ -493,13 +499,14 @@ namespace HSTS.Application.Itineraries.Queries
             }
 
             var activityBudget = usableBudget - totalTransportBudget - totalAccommodationBudget;
-            if (activityBudget < 0) activityBudget = usableBudget * 0.3m;
+            if (activityBudget < 0) activityBudget = 0m;
 
             var dayWeights = CalculateDayWeights(totalDays);
             var totalWeight = dayWeights.Values.Sum();
 
             // STAGE 6: Day-By-Day Scheduling
             var visitedLocationIds = new HashSet<int>();
+            var visitedRestaurantIds = new HashSet<int>();
             var days = new List<ItineraryDayDto>();
             decimal totalTransportCost = 0m;
             decimal totalAccommodationCost = 0m;
@@ -868,7 +875,7 @@ namespace HSTS.Application.Itineraries.Queries
                             var mealEnd = date.ToDateTime(LunchEnd);
                             if (mealEnd <= dayEndTime)
                             {
-                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, out var lunchAlternatives, toMoney);
+                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, remainingDayBudget, groupSize, request.TripSegment, out var lunchAlternatives, toMoney);
                                 var rLoc = restaurant?.Location;
                                 var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
                                 var mealGroupCost = mealExtraCost * groupSize;
@@ -877,7 +884,7 @@ namespace HSTS.Application.Itineraries.Queries
                                     rLoc is not null ? $"Lunch at {rLoc.Name}" : "Lunch",
                                     currentTimeOnly, LunchEnd,
                                     rLoc?.Id ?? 0, lunchTagNames,
-                                    toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), "Lunch",
+                                    toMoney(0), toMoney(mealGroupCost > 0 ? mealExtraCost : 0m), toMoney(mealGroupCost), "Lunch",
                                     rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
                                     Alternatives: lunchAlternatives.Count > 0 ? lunchAlternatives : null));
                                 dayActivityCost += mealGroupCost;
@@ -900,7 +907,7 @@ namespace HSTS.Application.Itineraries.Queries
                             var mealEnd = date.ToDateTime(DinnerEnd);
                             if (mealEnd <= dayEndTime)
                             {
-                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, out var dinnerAlternatives, toMoney);
+                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, remainingDayBudget, groupSize, request.TripSegment, out var dinnerAlternatives, toMoney);
                                 var rLoc = restaurant?.Location;
                                 var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
                                 var mealGroupCost = mealExtraCost * groupSize;
@@ -909,7 +916,7 @@ namespace HSTS.Application.Itineraries.Queries
                                     rLoc is not null ? $"Dinner at {rLoc.Name}" : "Dinner",
                                     currentTimeOnly, DinnerEnd,
                                     rLoc?.Id ?? 0, dinnerTagNames,
-                                    toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), "Dinner",
+                                    toMoney(0), toMoney(mealGroupCost > 0 ? mealExtraCost : 0m), toMoney(mealGroupCost), "Dinner",
                                     rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
                                     Alternatives: dinnerAlternatives.Count > 0 ? dinnerAlternatives : null));
                                 dayActivityCost += mealGroupCost;
@@ -1029,7 +1036,7 @@ namespace HSTS.Application.Itineraries.Queries
                     // Inject dinner if not yet (late day) — skip on last day (user is heading home)
                     if (!dinnerInserted && globalDayIndex != totalDays - 1 && TimeOnly.FromDateTime(currentTime) < DinnerStart)
                     {
-                        var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, out var lateDinnerAlts, toMoney);
+                        var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, remainingDayBudget, groupSize, request.TripSegment, out var lateDinnerAlts, toMoney);
                         var rLoc = restaurant?.Location;
                         var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
                         var mealGroupCost = mealExtraCost * groupSize;
@@ -1038,7 +1045,7 @@ namespace HSTS.Application.Itineraries.Queries
                             rLoc is not null ? $"Dinner at {rLoc.Name}" : "Dinner",
                             DinnerStart, DinnerEnd,
                             rLoc?.Id ?? 0, lateDinnerTagNames,
-                            toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), "Dinner",
+                            toMoney(0), toMoney(mealGroupCost > 0 ? mealExtraCost : 0m), toMoney(mealGroupCost), "Dinner",
                             rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
                             Alternatives: lateDinnerAlts.Count > 0 ? lateDinnerAlts : null));
                         dayActivityCost += mealGroupCost;
@@ -1176,20 +1183,8 @@ namespace HSTS.Application.Itineraries.Queries
                     var nextDayLimit = nextDayBase * 1.3m;
                     rolloverBudget = Math.Min(budgetLeftover, nextDayLimit * 0.5m);
 
-                    // Phân ph?i remaining budget vào ngày cu?i cùng c?a trip
-                    bool isLastDayOfTrip = (globalDayIndex == totalDays - 1);
-                    if (isLastDayOfTrip)
-                    {
-                        decimal totalRemaining = usableBudget - totalTransportCost - dayTransportCost 
-                            - totalAccommodationCost - dayAccommodationCost - totalActivityCost - dayActivityCost;
-                        
-                        if (totalRemaining > 0)
-                        {
-                            dailyBudget += totalRemaining;
-                            remainingDayBudget += totalRemaining;
-                            notes.Add($"Remaining budget {toMoney(totalRemaining).BaseAmount:N0} VND allocated to last day.");
-                        }
-                    }
+                    // Last day: do NOT dump remaining budget to avoid overshoot
+                    // The remaining budget is saved as contingency for the user
 
                     totalTransportCost += dayTransportCost;
                     totalAccommodationCost += dayAccommodationCost;
@@ -1224,8 +1219,6 @@ namespace HSTS.Application.Itineraries.Queries
 
                     days.Add(new ItineraryDayDto(dayNumber, dayTitle, date,
                         currentProvince.Id, weatherSummary,
-                        toMoney(baseDailyBudget),
-                        toMoney(dailyBudget),
                         toMoney(daySpent),
                         timeline.OrderBy(x => x.StartTime).ToList()));
 
@@ -1236,7 +1229,9 @@ namespace HSTS.Application.Itineraries.Queries
             // STAGE 7: Budget Validation & Output Assembly
             var estimatedTotal = totalTransportCost + totalAccommodationCost + totalActivityCost;
 
-            if (estimatedTotal > usableBudget)
+            // Allow up to 10% overrun tolerance (transport costs are estimates)
+            var budgetTolerance = usableBudget * 1.10m;
+            if (estimatedTotal > budgetTolerance)
             {
                 var deficit = estimatedTotal - usableBudget;
                 var suggestions = new List<string>
@@ -1374,18 +1369,53 @@ namespace HSTS.Application.Itineraries.Queries
 
         private static ScoredLocation? PickRestaurantNearby(
             IList<ScoredLocation> attractions, GeoPoint currentPoint, HashSet<int> visitedIds,
+            HashSet<int> visitedRestaurantIds, decimal remainingDayBudget, int groupSize, string tripSegment,
             out List<AlternativeLocationDto> alternativeRestaurants, Func<decimal, MoneyDto> toMoney)
         {
+            // Define price bounds per person based on trip segment for restaurant matching
+            var (minPricePerPerson, maxPricePerPerson) = tripSegment switch
+            {
+                "Budget" => (0m, 150_000m),
+                "Luxury" => (1_000_000m, decimal.MaxValue),
+                _ => (300_000m, 600_000m) // Standard
+            };
+
+            // Calculate max affordable per-person price from remaining budget
+            var maxAffordablePerPerson = remainingDayBudget / Math.Max(groupSize, 1);
+
             var restaurants = attractions
-                .Where(x => !visitedIds.Contains(x.Location.Id))
+                .Where(x => !visitedIds.Contains(x.Location.Id) && !visitedRestaurantIds.Contains(x.Location.Id))
                 .Where(x => x.Location.LocationTypeId == 2 ||
                     (x.Location.LocationType != null && (
                         x.Location.LocationType.Name.Contains("Restaurant", StringComparison.OrdinalIgnoreCase) ||
                         x.Location.LocationType.Name.Contains("Food", StringComparison.OrdinalIgnoreCase) ||
                         x.Location.LocationType.Name.Contains("Cafe", StringComparison.OrdinalIgnoreCase))))
-                .OrderBy(x => HaversineKmOrMax(currentPoint.Latitude, currentPoint.Longitude, x.Location.Latitude, x.Location.Longitude))
-                .Take(5)
+                // Filter by budget: restaurant price must be within remaining budget
+                .Where(x =>
+                {
+                    var pricePerPerson = GetPerPersonPrice(x.Location);
+                    return pricePerPerson <= maxAffordablePerPerson && pricePerPerson >= 0;
+                })
+                // Filter by trip segment price range (relaxed if no restaurants match)
                 .ToList();
+
+            // If no restaurants match segment + budget, relax segment filter but keep budget filter
+            if (restaurants.Count == 0)
+            {
+                restaurants = attractions
+                    .Where(x => !visitedIds.Contains(x.Location.Id) && !visitedRestaurantIds.Contains(x.Location.Id))
+                    .Where(x => x.Location.LocationTypeId == 2 ||
+                        (x.Location.LocationType != null && (
+                            x.Location.LocationType.Name.Contains("Restaurant", StringComparison.OrdinalIgnoreCase) ||
+                            x.Location.LocationType.Name.Contains("Food", StringComparison.OrdinalIgnoreCase) ||
+                            x.Location.LocationType.Name.Contains("Cafe", StringComparison.OrdinalIgnoreCase))))
+                    .Where(x =>
+                    {
+                        var pricePerPerson = GetPerPersonPrice(x.Location);
+                        return pricePerPerson <= maxAffordablePerPerson && pricePerPerson >= 0;
+                    })
+                    .ToList();
+            }
 
             if (restaurants.Count == 0)
             {
@@ -1393,26 +1423,44 @@ namespace HSTS.Application.Itineraries.Queries
                 return null;
             }
 
-            var picked = restaurants[Random.Shared.Next(Math.Min(restaurants.Count, 3))];
-            alternativeRestaurants = restaurants
-                .Where(r => r.Location.Id != picked.Location.Id)
+            // Score by combining distance (closer is better) and composite score (higher is better)
+            // Use weighted ratio: 40% score, 60% proximity
+            var scoredRestaurants = restaurants
+                .Select(x =>
+                {
+                    var dist = HaversineKmOrMax(currentPoint.Latitude, currentPoint.Longitude,
+                        x.Location.Latitude, x.Location.Longitude);
+                    var travelMin = (int)Math.Ceiling((dist / DefaultSpeedKmh) * 60.0);
+                    // Normalize: lower distance = higher proximity score (max 10)
+                    var proximityScore = Math.Max(0.0, 10.0 - dist);
+                    // Composite score is already 0-10 scale
+                    var combinedScore = (x.CompositeScore * 0.4) + (proximityScore * 0.6);
+                    return new { Scored = x, Distance = dist, TravelMin = travelMin, CombinedScore = combinedScore };
+                })
+                .OrderByDescending(x => x.CombinedScore)
+                .Take(5)
+                .ToList();
+
+            // Pick randomly from top candidates to add variety
+            var picked = scoredRestaurants[Random.Shared.Next(Math.Min(scoredRestaurants.Count, 3))];
+            visitedRestaurantIds.Add(picked.Scored.Location.Id);
+
+            alternativeRestaurants = scoredRestaurants
+                .Where(r => r.Scored.Location.Id != picked.Scored.Location.Id)
                 .Take(3)
                 .Select(r =>
                 {
-                    var dist = HaversineKmOrMax(currentPoint.Latitude, currentPoint.Longitude,
-                        r.Location.Latitude, r.Location.Longitude);
-                    var travelMin = (int)Math.Ceiling((dist / DefaultSpeedKmh) * 60.0);
-                    var extraCost = ((r.Location.PriceMinUsd ?? 0) + (r.Location.PriceMaxUsd ?? 0)) / 2m;
-                    var tagNames = GetTags(r.Location);
+                    var pricePerPerson = GetPerPersonPrice(r.Scored.Location);
+                    var tagNames = GetTags(r.Scored.Location);
                     return new AlternativeLocationDto(
-                        r.Location.Id, r.Location.Name, tagNames,
-                        toMoney(0), toMoney(extraCost),
-                        (double)r.Location.Score,
-                        Math.Round(dist, 2), travelMin,
-                        r.Location.Address, r.Location.Telephone, GetMediaUrls(r.Location));
+                        r.Scored.Location.Id, r.Scored.Location.Name, tagNames,
+                        toMoney(0), toMoney(pricePerPerson),
+                        (double)r.Scored.Location.Score,
+                        Math.Round(r.Distance, 2), r.TravelMin,
+                        r.Scored.Location.Address, r.Scored.Location.Telephone, GetMediaUrls(r.Scored.Location));
                 }).ToList();
 
-            return picked;
+            return picked.Scored;
         }
 
         // === DESTINATION ORDERING ===
@@ -1567,11 +1615,16 @@ namespace HSTS.Application.Itineraries.Queries
             SelectAndScoreAccommodation(
                 IList<Location> hotels, IList<ScoredLocation> attractions,
                 int groupSize, decimal dailyBudget, string hotelPreference,
-                Province province, Func<decimal, MoneyDto> toMoney)
+                Province province, Func<decimal, MoneyDto> toMoney, decimal maxPerPersonPerNight)
         {
             if (hotels.Count == 0) return (null, new List<AccommodationRecommendationDto>());
 
             if (dailyBudget / Math.Max(groupSize, 1) >= 5_000_000m) hotelPreference = "Luxury";
+
+            if (hotelPreference == "Luxury" && maxPerPersonPerNight < 2_000_000m)
+            {
+                hotelPreference = "Standard";
+            }
 
             var (minPrice, maxPrice) = hotelPreference switch
             {
@@ -1579,6 +1632,8 @@ namespace HSTS.Application.Itineraries.Queries
                 "Luxury" => (2_000_000m, decimal.MaxValue),
                 _ => (500_000m, 2_000_000m)
             };
+
+            maxPrice = Math.Min(maxPrice, Math.Max(minPrice + 100_000m, maxPerPersonPerNight));
 
             var filtered = hotels.Where(h => { var avg = GetPerPersonPrice(h); return avg >= minPrice && avg <= maxPrice; }).ToList();
             if (filtered.Count == 0) filtered = hotels.ToList();
@@ -1636,7 +1691,7 @@ namespace HSTS.Application.Itineraries.Queries
             GeoPoint from, GeoPoint to, int groupSize, IList<TransportMode> transportModes,
             FixedIntercitySearchRequest outboundReq, IList<TransitHubs> transitHubs,
             int fromProvinceId, string fromProvinceName, int toProvinceId, string toProvinceName, DateOnly departDate,
-            Func<decimal, MoneyDto> toMoney, bool isLuxuryTrip, CancellationToken cancellationToken)
+            Func<decimal, MoneyDto> toMoney, bool isLuxuryTrip, decimal maxBudgetPerLeg, CancellationToken cancellationToken)
         {
             RouteEstimate? routeEstimate = await _routeMatrixService.EstimateAsync(
                 from.Latitude, from.Longitude, to.Latitude, to.Longitude, cancellationToken);
@@ -1762,10 +1817,13 @@ namespace HSTS.Application.Itineraries.Queries
             }
 
             // Mark best as recommended
+            var affordableOptions = allOptions.Where(o => o.EstimatedTotalCost.BaseAmount * groupSize <= maxBudgetPerLeg).ToList();
+            var candidateList = affordableOptions.Count > 0 ? affordableOptions : allOptions;
+
             TransportOptionDto recommended;
             if (isLuxuryTrip)
             {
-                recommended = allOptions
+                recommended = candidateList
                     .OrderByDescending(o => o.Method == "Plane")
                     .ThenByDescending(o => o.Method == "Train")
                     .ThenBy(o => o.EstimatedTotalCost.BaseAmount > 0 ? o.EstimatedTotalCost.BaseAmount : decimal.MaxValue)
@@ -1773,7 +1831,7 @@ namespace HSTS.Application.Itineraries.Queries
             }
             else
             {
-                recommended = allOptions
+                recommended = candidateList
                     .OrderBy(o => o.EstimatedTotalCost.BaseAmount > 0 ? o.EstimatedTotalCost.BaseAmount : decimal.MaxValue)
                     .First();
             }

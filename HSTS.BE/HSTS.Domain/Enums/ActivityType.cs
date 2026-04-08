@@ -4,8 +4,11 @@ namespace HSTS.Domain.Enums
     {
         CheckIn = 0,
         CheckOut = 1,
-        Transport = 2,
+        Travel = 2,
         Visit = 3,
-        Accommodation = 4
+        Shopping = 4,
+        LuggageRefresh = 5,
+        Meal = 6,
+
     }
 }

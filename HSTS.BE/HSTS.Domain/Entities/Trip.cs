@@ -17,21 +17,23 @@ namespace HSTS.Domain.Entities
         public string? Description { get; set; }
 
         [Required]
-        public int ProfileId { get; set; }
+        public int UserId { get; set; }
 
         [Required]
         public DateTime StartDate { get; set; }
 
         [Required]
         public DateTime EndDate { get; set; }
+        [Required]
+        public int GroupSize { get; set; }
 
-        [MaxLength(50)]
-        public string? StartingLocation { get; set; }
-
+        [Required]
+        [MaxLength(3)]
+        public String Currency { get; set; }
         public TripStatus Status { get; set; } = TripStatus.Planned;
 
         // Navigation properties
-        public Profile Profile { get; set; } = null!;
+        public User User { get; set; } = null!;
         public ICollection<TripDay> TripDays { get; set; } = new List<TripDay>();
         public TripSummary? TripSummary { get; set; }
     }

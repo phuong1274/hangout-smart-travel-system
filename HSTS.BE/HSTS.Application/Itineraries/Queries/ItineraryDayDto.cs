@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,8 +12,6 @@ namespace HSTS.Application.Itineraries.Queries
          DateOnly Date,
          int ProvinceId,
          string? WeatherSummary,
-         MoneyDto BaseDailyBudget,
-         MoneyDto DailyBudget,
-         MoneyDto EstimatedDayCost,
+         MoneyDto EstimatedCost,
          IList<ItineraryTimelineItemDto> Timeline);
 }
