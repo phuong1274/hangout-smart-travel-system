@@ -9,7 +9,9 @@ export const CreateUserModal = ({ open, onClose, onCreated, roles = [] }) => {
   const [submitting, setSubmitting] = useState(false);
 
   const roleOptions = useMemo(
-    () => roles.map((role) => ({ value: role.id, label: role.name })),
+    () => roles
+      .filter((role) => role.name !== 'TRAVELER')
+      .map((role) => ({ value: role.id, label: role.name })),
     [roles]
   );
 

@@ -1,8 +1,8 @@
 using HSTS.Application.Auth.Interfaces;
+using HSTS.Application.Common.LoggingInterfaces;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
-using HSTS.Application.Common.LoggingInterfaces;
 using System.Security.Cryptography;
 
 namespace HSTS.Application.Users.Commands
@@ -37,8 +37,12 @@ namespace HSTS.Application.Users.Commands
 
             var role = await _ctx.Roles
                 .FirstOrDefaultAsync(r => r.Id == request.RoleId && !r.IsDeleted, cancellationToken);
+
             if (role is null)
                 return Error.NotFound("Role.NotFound", "Role not found.");
+
+            if (string.Equals(role.Name, "TRAVELER", StringComparison.OrdinalIgnoreCase))
+                return Error.Validation("Role.NotAllowed", "Traveler accounts must register through the public sign-up flow.");
 
             var account = new Account
             {

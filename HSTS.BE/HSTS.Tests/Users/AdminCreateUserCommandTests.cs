@@ -32,6 +32,22 @@ public class AdminCreateUserCommandTests
     }
 
     [Fact]
+    public async Task Handle_TravelerRole_ReturnsValidation()
+    {
+        var role = AuthFakes.TravelerRole();
+        var ctx = MockDbContextFactory.Create()
+            .WithRoles(role)
+            .Build();
+
+        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var result = await handler.Handle(new AdminCreateUserCommand("traveler-invite@test.com", "Traveler Invite", role.Id), default);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("Role.NotAllowed");
+        ctx.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Handle_ValidRequest_DoesNotReuseForgotPasswordOtpTypeForOnboarding()
     {
         var role = AuthFakes.PartnerRole();
