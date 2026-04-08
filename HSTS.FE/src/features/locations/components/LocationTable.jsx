@@ -1,7 +1,7 @@
 import React from 'react';
 import { Table, Button, Space, Popconfirm, Tag } from 'antd';
 import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined, PhoneOutlined, MailOutlined, LinkOutlined, LockOutlined, UnlockOutlined, HistoryOutlined } from '@ant-design/icons';
-import { PAGINATION } from '@/config/constants';
+import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import styles from '../styles/LocationTable.module.css';
 
 const LocationStatus = {
@@ -145,23 +145,33 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
     },
   ];
 
+  const handlePaginationChange = (page, pageSize) => {
+    if (onTableChange) {
+      onTableChange({ current: page, pageSize });
+    }
+  };
+
   return (
-    <Table
-      className={styles.tropicalTable}
-      columns={columns}
-      dataSource={data}
-      loading={loading}
-      rowKey="id"
-      scroll={{ x: 'max-content' }}
-      pagination={{
-        current: pagination?.current || PAGINATION.DEFAULT_PAGE,
-        pageSize: pagination?.pageSize || PAGINATION.DEFAULT_PAGE_SIZE,
-        total: pagination?.total || 0,
-        showSizeChanger: true,
-        pageSizeOptions: PAGINATION.PAGE_SIZE_OPTIONS,
-      }}
-      onChange={onTableChange}
-    />
+    <div className={styles.tableWrapper}>
+      <Table
+        className={styles.tropicalTable}
+        columns={columns}
+        dataSource={data}
+        loading={loading}
+        rowKey="id"
+        scroll={{ x: 'max-content' }}
+        pagination={false}
+        onChange={onTableChange}
+      />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+        <AppPagination
+          current={pagination?.current}
+          pageSize={pagination?.pageSize}
+          total={pagination?.total}
+          onChange={handlePaginationChange}
+        />
+      </div>
+    </div>
   );
 };
 

@@ -8,6 +8,7 @@ import ClosureHistoryModal from '../components/ClosureHistoryModal';
 import SubmissionForm from '@/features/location-submissions/components/SubmissionForm';
 import SubmissionTable from '@/features/location-submissions/components/SubmissionTable';
 import LocationDetailView from '@/components/LocationDetailView';
+import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import { useNavigate } from 'react-router-dom';
 import { deleteLocationSubmissionApi, getSubmissionByIdApi, getLocationByIdApi } from '@/features/location-submissions/api';
 import { deleteLocationApi } from '../api';
@@ -400,16 +401,17 @@ const PartnerLocationsPage = () => {
             loading={locationsLoading}
             rowKey="id"
             scroll={{ x: 1000 }}
-            pagination={{
-              current: locationsPagination?.current || PAGINATION.DEFAULT_PAGE,
-              pageSize: locationsPagination?.pageSize || PAGINATION.DEFAULT_PAGE_SIZE,
-              total: locationsPagination?.total || 0,
-              showSizeChanger: true,
-              pageSizeOptions: PAGINATION.PAGE_SIZE_OPTIONS,
-              showTotal: (totalItems) => `Total ${totalItems} items`,
-            }}
+            pagination={false}
             onChange={handleLocationsTableChange}
           />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '24px' }}>
+            <AppPagination
+              current={locationsPagination?.current || PAGINATION.DEFAULT_PAGE}
+              pageSize={locationsPagination?.pageSize || PAGINATION.DEFAULT_PAGE_SIZE}
+              total={locationsPagination?.total || 0}
+              onChange={(page, pageSize) => handleLocationsTableChange({ current: page, pageSize })}
+            />
+          </div>
         </Space>
       </Card>
     );
@@ -432,12 +434,20 @@ const PartnerLocationsPage = () => {
           <SubmissionTable
             data={submissionsData}
             loading={submissionsLoading}
-            pagination={submissionsPagination}
+            pagination={false}
             onTableChange={handleSubmissionsTableChange}
             onEdit={handleEditSubmission}
             onView={handleViewSubmission}
             onDelete={handleDeleteSubmission}
           />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '24px' }}>
+            <AppPagination
+              current={submissionsPagination?.current || PAGINATION.DEFAULT_PAGE}
+              pageSize={submissionsPagination?.pageSize || PAGINATION.DEFAULT_PAGE_SIZE}
+              total={submissionsPagination?.total || 0}
+              onChange={(page, pageSize) => handleSubmissionsTableChange({ current: page, pageSize })}
+            />
+          </div>
         </Space>
       </Card>
     );

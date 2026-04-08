@@ -1,0 +1,130 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+.tropicalFormModal :global(.ant-modal-content) {
+  border-radius: 20px;
+  background-color: #F7F9F9;
+}
+
+.modalTitle {
+  font-family: 'Poppins', sans-serif;
+  color: #FF6B6B;
+  font-size: 1.5rem;
+}
+
+.tropicalForm {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #1A535C;
+}
+
+.tropicalFormCard {
+  margin-bottom: 24px;
+  border: none;
+  background-color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(26, 83, 92, 0.04);
+  border-radius: 16px;
+  animation: fadeUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes fadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.cardIcon {
+  font-size: 24px;
+  margin-right: 12px;
+}
+
+.cardTitle {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.25rem;
+  color: #1A535C;
+}
+
+.formLabel {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  color: #1A535C;
+}
+
+.customTextArea {
+  border-radius: 12px !important;
+}
+
+.mapBtn {
+  color: #4ECDC4 !important;
+  font-weight: 700;
+}
+
+.tropicalRate :global(.ant-rate-star) {
+  color: #FFE66D;
+}
+
+.dashedBtn {
+  border: 2px dashed #4ECDC4 !important;
+  color: #4ECDC4 !important;
+  background: transparent !important;
+  border-radius: 999px !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.dashedBtn:hover {
+  background: rgba(78, 205, 196, 0.1) !important;
+  transform: translateY(-2px);
+}
+
+.dangerIconBtn {
+  background: #FF6B6B !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 8px !important;
+}
+
+.emptyStateText {
+  color: rgba(26, 83, 92, 0.5);
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+}
+
+.innerSocialCard {
+  background: rgba(247, 249, 249, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(26, 83, 92, 0.1);
+}
+
+.dangerTextBtn {
+  color: #FF6B6B !important;
+}
+
+.tropicalDivider :global(.ant-divider-inner-text) {
+  font-family: 'Caveat', cursive;
+  color: #4ECDC4;
+  font-size: 1.8rem;
+}
+
+.ctaButtonSubmit {
+  background-color: #FFE66D !important;
+  color: #1A535C !important;
+  border: none !important;
+  border-radius: 999px !important;
+  text-transform: uppercase;
+  font-weight: 600 !important;
+  letter-spacing: 0.8px;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.ctaButtonSubmit:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(255, 230, 109, 0.4);
+}

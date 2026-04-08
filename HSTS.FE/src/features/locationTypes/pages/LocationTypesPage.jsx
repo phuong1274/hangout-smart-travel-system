@@ -71,24 +71,29 @@ const LocationTypesPage = () => {
           <div className={styles.titleGroup}>
             <Title level={2} className={styles.mainTitle}>Location Type Management</Title>
           </div>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
-            onClick={handleCreate}
-            className={styles.addBtn}
-          >
-            ADD LOCATION TYPE
-          </Button>
+          {/* Nút ADD LOCATION TYPE đã được di chuyển khỏi đây */}
         </div>
         
         <Card className={styles.mainCard}>
-          <div className={styles.filterSection}>
+          {/* Thêm flexbox để căn chỉnh SearchFilter và Button trên cùng một dòng */}
+          <div className={styles.filterSection} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <SearchFilter
               onSearch={handleSearch}
               loading={loading}
               placeholder="Search location types..."
             />
+            
+            {/* Nút ADD LOCATION TYPE được đặt vào đây */}
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />} 
+              onClick={handleCreate}
+              className={styles.addBtn}
+            >
+              ADD LOCATION TYPE
+            </Button>
           </div>
+          
           <LocationTypeTable
             data={data}
             loading={loading}

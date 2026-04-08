@@ -1,16 +1,50 @@
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, Layout, message, Modal, Table, Tag, Input, Select, Descriptions, Row, Col } from 'antd';
-import { CheckOutlined, CloseOutlined, EyeOutlined, HomeOutlined } from '@ant-design/icons';
+import { Card, Space, Button, message, Modal, Table, Tag, Input, Select, Descriptions, ConfigProvider } from 'antd';
+import { CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getAllSubmissionsApi, reviewSubmissionApi } from '../api';
 import { SubmissionStatus } from '../types';
 import BeforeAfterComparison from '../components/BeforeAfterComparison';
+import SearchFilter from '@/components/UI/SearchFilter/SearchFilter';
+import AppPagination from '@/components/UI/AppPagination/AppPagination';
+import styles from '../styles/LocationSubmissionsReviewPage.module.css';
 
-const { Title } = Typography;
-const { Header, Content } = Layout;
 const { TextArea } = Input;
 const { Option } = Select;
+
+const tropicalTheme = {
+  token: {
+    colorPrimary: '#FF6B6B',
+    colorInfo: '#4ECDC4',
+    colorTextBase: '#1A535C',
+    colorBgBase: '#F7F9F9',
+    fontFamily: "'Plus Jakarta Sans', 'Poppins', sans-serif",
+    borderRadius: 16,
+  },
+  components: {
+    Button: {
+      borderRadius: 8,
+      controlHeight: 44,
+      fontWeight: 600,
+    },
+    Card: {
+      borderRadiusLG: 20,
+      boxShadowTertiary: '0 8px 24px rgba(26, 83, 92, 0.08)',
+    },
+    Select: {
+      controlHeight: 44,
+      borderRadius: 9999,
+      colorBorder: 'rgba(26, 83, 92, 0.2)',
+      colorPrimary: '#4ECDC4',
+      colorPrimaryHover: '#4ECDC4',
+      controlOutline: 'rgba(78, 205, 196, 0.15)',
+      controlOutlineWidth: 3,
+      colorTextPlaceholder: 'rgba(26, 83, 92, 0.5)',
+      fontSize: 14,
+    }
+  }
+};
 
 const LocationSubmissionsReviewPage = () => {
   const queryClient = useQueryClient();
@@ -20,16 +54,22 @@ const LocationSubmissionsReviewPage = () => {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewAction, setReviewAction] = useState('approve');
   const [rejectionReason, setRejectionReason] = useState('');
+  
+  const [paginationState, setPaginationState] = useState({
+    current: 1,
+    pageSize: 10
+  });
+
   const [filters, setFilters] = useState({
     status: undefined,
     searchTerm: ''
   });
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['location-submissions', filters],
+    queryKey: ['location-submissions', filters, paginationState],
     queryFn: () => getAllSubmissionsApi({
-      pageIndex: 1,
-      pageSize: 100,
+      pageIndex: paginationState.current,
+      pageSize: paginationState.pageSize,
       status: filters.status,
       searchTerm: filters.searchTerm
     }),
@@ -80,10 +120,16 @@ const LocationSubmissionsReviewPage = () => {
 
   const handleStatusChange = (value) => {
     setFilters({ ...filters, status: value });
+    setPaginationState({ ...paginationState, current: 1 });
   };
 
   const handleSearch = (value) => {
     setFilters({ ...filters, searchTerm: value });
+    setPaginationState({ ...paginationState, current: 1 });
+  };
+
+  const handlePaginationChange = (page, pageSize) => {
+    setPaginationState({ current: page, pageSize });
   };
 
   const columns = [
@@ -98,7 +144,7 @@ const LocationSubmissionsReviewPage = () => {
       key: 'type',
       width: 100,
       render: (_, record) => (
-        <Tag color={record.submissionType === 0 ? 'blue' : 'purple'}>
+        <Tag color={record.submissionType === 0 ? '#4ECDC4' : '#FF6B6B'} className={styles.bouncyTag}>
           {record.submissionType === 0 ? 'New' : 'Edit'}
         </Tag>
       )
@@ -126,21 +172,14 @@ const LocationSubmissionsReviewPage = () => {
       key: 'status',
       render: (status) => {
         const statusConfig = {
-          [SubmissionStatus.Pending]: { color: 'warning', text: 'Pending' },
-          [SubmissionStatus.Approved]: { color: 'success', text: 'Approved' },
-          [SubmissionStatus.Rejected]: { color: 'error', text: 'Rejected' },
-          [SubmissionStatus.Published]: { color: 'blue', text: 'Published' }
+          [SubmissionStatus.Pending]: { color: '#FFE66D', text: 'Pending', textColor: '#1A535C' },
+          [SubmissionStatus.Approved]: { color: '#4ECDC4', text: 'Approved', textColor: '#FFFFFF' },
+          [SubmissionStatus.Rejected]: { color: '#FF6B6B', text: 'Rejected', textColor: '#FFFFFF' },
+          [SubmissionStatus.Published]: { color: '#1A535C', text: 'Published', textColor: '#FFFFFF' }
         };
-        const config = statusConfig[status] || { color: 'default', text: 'Unknown' };
-        return <Tag color={config.color}>{config.text}</Tag>;
-      },
-      filters: [
-        { text: 'Pending', value: SubmissionStatus.Pending },
-        { text: 'Approved', value: SubmissionStatus.Approved },
-        { text: 'Rejected', value: SubmissionStatus.Rejected },
-        { text: 'Published', value: SubmissionStatus.Published }
-      ],
-      onFilter: (value, record) => record.status === value
+        const config = statusConfig[status] || { color: 'default', text: 'Unknown', textColor: '#1A535C' };
+        return <Tag color={config.color} style={{ color: config.textColor, fontWeight: 700 }} className={styles.bouncyTag}>{config.text}</Tag>;
+      }
     },
     {
       title: 'Submitted At',
@@ -153,11 +192,13 @@ const LocationSubmissionsReviewPage = () => {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
-        <Space>
+        <Space direction="vertical" size="small" style={{ alignItems: 'flex-start' }}>
           <Button
             type="link"
             icon={<EyeOutlined />}
             onClick={() => handleView(record)}
+            className={styles.actionBtn}
+            style={{ padding: 0 }}
           >
             View
           </Button>
@@ -166,22 +207,24 @@ const LocationSubmissionsReviewPage = () => {
               <Button
                 type="link"
                 icon={<CheckOutlined />}
-                style={{ color: '#52c41a' }}
+                style={{ color: '#4ECDC4', padding: 0 }}
                 onClick={() => {
                   setViewingSubmission(record);
                   handleReview('approve');
                 }}
+                className={styles.actionBtn}
               >
                 Approve
               </Button>
               <Button
                 type="link"
                 icon={<CloseOutlined />}
-                danger
+                style={{ color: '#FF6B6B', padding: 0 }}
                 onClick={() => {
                   setViewingSubmission(record);
                   handleReview('reject');
                 }}
+                className={styles.actionBtn}
               >
                 Reject
               </Button>
@@ -193,161 +236,154 @@ const LocationSubmissionsReviewPage = () => {
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
-          <Title level={3} style={{ margin: 0 }}>Location Submissions Review</Title>
-        </div>
-        <Button onClick={() => window.history.back()}>Back</Button>
-      </Header>
-      <Content style={{ padding: '24px', background: '#f0f2f5' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
-          <Card>
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={12}>
-                <Input.Search
-                  placeholder="Search by name, address, or description"
-                  allowClear
-                  onSearch={handleSearch}
-                  style={{ maxWidth: 400 }}
-                />
-              </Col>
-              <Col span={12} style={{ textAlign: 'right' }}>
+    <ConfigProvider theme={tropicalTheme}>
+      <div className={styles.pageContainer}>
+        <div className={styles.content}>
+          <Space direction="vertical" size="large" className={styles.mainSpace}>
+            <Card className={styles.tropicalCard}>
+              <div className={styles.filterRow}>
+                <div className={styles.searchWrapper}>
+                  <SearchFilter
+                    placeholder="Search by name, address, or description"
+                    onSearch={handleSearch}
+                  />
+                </div>
                 <Select
                   placeholder="Filter by status"
                   allowClear
                   onChange={handleStatusChange}
-                  style={{ width: 200 }}
+                  className={styles.statusSelectPill}
                 >
                   <Option value={SubmissionStatus.Pending}>Pending</Option>
                   <Option value={SubmissionStatus.Approved}>Approved</Option>
                   <Option value={SubmissionStatus.Rejected}>Rejected</Option>
                   <Option value={SubmissionStatus.Published}>Published</Option>
                 </Select>
-              </Col>
-            </Row>
-            <Table
-              columns={columns}
-              dataSource={data?.items || []}
-              loading={isLoading}
-              rowKey="id"
-              pagination={{
-                showSizeChanger: true,
-                showTotal: (total) => `Total ${total} submissions`
-              }}
-            />
-          </Card>
-        </Space>
-      </Content>
+              </div>
+              <Table
+                columns={columns}
+                dataSource={data?.items || []}
+                loading={isLoading}
+                rowKey="id"
+                pagination={false}
+                className={styles.tropicalTable}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '24px' }}>
+                <AppPagination
+                  current={paginationState.current}
+                  pageSize={paginationState.pageSize}
+                  total={data?.totalCount || 0}
+                  onChange={handlePaginationChange}
+                />
+              </div>
+            </Card>
+          </Space>
+        </div>
 
-      {/* Detail Modal */}
-      <Modal
-        title={
-          viewingSubmission?.status === SubmissionStatus.Pending
-            ? (viewingSubmission?.submissionType === 1
-                ? "Review Suggested Edit (🔴 Red = Old, 🟢 Green = New)"
-                : "Review New Location Submission")
-            : `Submission Details - ${SubmissionStatus[viewingSubmission?.status]}`
-        }
-        open={detailModalOpen}
-        onCancel={() => {
-          setDetailModalOpen(false);
-          setViewingSubmission(null);
-        }}
-        footer={
-          viewingSubmission?.status === SubmissionStatus.Pending ? (
-            <Space>
-              <Button
-                onClick={() => handleReview('reject')}
-                danger
-                icon={<CloseOutlined />}
-              >
-                Reject
-              </Button>
-              <Button
-                onClick={() => handleReview('approve')}
-                type="primary"
-                icon={<CheckOutlined />}
-              >
-                Approve
-              </Button>
-            </Space>
-          ) : null
-        }
-        width={viewingSubmission?.status === SubmissionStatus.Pending ? 1400 : 900}
-      >
-        {viewingSubmission && (
-          viewingSubmission.status === SubmissionStatus.Pending ? (
-            // For pending submissions: Show Before/After comparison
-            <BeforeAfterComparison submission={viewingSubmission} />
-          ) : (
-            // For approved/rejected/published: Show simple submission details
-            <SubmissionDetail submission={viewingSubmission} />
-          )
-        )}
-      </Modal>
-
-      {/* Review Confirmation Modal */}
-      <Modal
-        title={reviewAction === 'approve' ? 'Approve Submission' : 'Reject Submission'}
-        open={reviewModalOpen}
-        onCancel={() => {
-          setReviewModalOpen(false);
-          setRejectionReason('');
-        }}
-        onOk={handleConfirmReview}
-        confirmLoading={reviewMutation.isPending}
-        okText={reviewAction === 'approve' ? 'Approve' : 'Reject'}
-        okButtonProps={{
-          danger: reviewAction === 'reject',
-          type: reviewAction === 'approve' ? 'primary' : 'default'
-        }}
-      >
-        {reviewAction === 'approve' ? (
-          <div>
-            <p>Are you sure you want to <strong>approve</strong> this submission?</p>
-            {viewingSubmission?.submissionType === 0 ? (
-              <p style={{ color: '#52c41a' }}>
-                <CheckOutlined /> This will <strong>create a new location</strong> in the system.
-              </p>
+        <Modal
+          title={
+            <span className={styles.modalTitle}>
+              {viewingSubmission?.status === SubmissionStatus.Pending
+                ? (viewingSubmission?.submissionType === 1
+                  ? "Review Suggested Edit"
+                  : "Review New Location Submission")
+                : `Submission Details - ${SubmissionStatus[viewingSubmission?.status]}`}
+            </span>
+          }
+          open={detailModalOpen}
+          onCancel={() => {
+            setDetailModalOpen(false);
+            setViewingSubmission(null);
+          }}
+          footer={
+            viewingSubmission?.status === SubmissionStatus.Pending ? (
+              <Space>
+                <Button
+                  onClick={() => handleReview('reject')}
+                  className={styles.dangerBtn}
+                  icon={<CloseOutlined />}
+                >
+                  Reject
+                </Button>
+                <Button
+                  onClick={() => handleReview('approve')}
+                  className={styles.ctaButton}
+                  icon={<CheckOutlined />}
+                >
+                  Approve
+                </Button>
+              </Space>
+            ) : null
+          }
+          width={viewingSubmission?.status === SubmissionStatus.Pending ? 1400 : 900}
+          className={styles.tropicalModal}
+        >
+          {viewingSubmission && (
+            viewingSubmission.status === SubmissionStatus.Pending ? (
+              <BeforeAfterComparison submission={viewingSubmission} />
             ) : (
-              <p style={{ color: '#1890ff' }}>
-                <EyeOutlined /> This will <strong>update the existing location</strong> with the proposed changes.
+              <SubmissionDetail submission={viewingSubmission} />
+            )
+          )}
+        </Modal>
+
+        <Modal
+          title={<span className={styles.modalTitle}>{reviewAction === 'approve' ? 'Approve Submission' : 'Reject Submission'}</span>}
+          open={reviewModalOpen}
+          onCancel={() => {
+            setReviewModalOpen(false);
+            setRejectionReason('');
+          }}
+          onOk={handleConfirmReview}
+          confirmLoading={reviewMutation.isPending}
+          okText={reviewAction === 'approve' ? 'Approve' : 'Reject'}
+          okButtonProps={{
+            className: reviewAction === 'approve' ? styles.ctaButton : styles.dangerBtn
+          }}
+          className={styles.tropicalModal}
+        >
+          {reviewAction === 'approve' ? (
+            <div className={styles.modalContentBody}>
+              <p className={styles.bodyText}>Are you sure you want to <strong className={styles.highlightText}>approve</strong> this submission?</p>
+              {viewingSubmission?.submissionType === 0 ? (
+                <p className={styles.successText}>
+                  <CheckOutlined /> This will <strong>create a new location</strong> in the system.
+                </p>
+              ) : (
+                <p className={styles.infoText}>
+                  <EyeOutlined /> This will <strong>update the existing location</strong> with the proposed changes.
+                </p>
+              )}
+              <p className={styles.bodyText}><strong>Submission:</strong> {viewingSubmission?.name}</p>
+            </div>
+          ) : (
+            <div className={styles.modalContentBody}>
+              <p className={styles.bodyText}>Please provide a reason for rejection:</p>
+              <TextArea
+                rows={4}
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="e.g., Missing required information, Invalid location data, Inappropriate content, etc."
+                autoFocus
+                className={styles.tropicalTextArea}
+              />
+              <p className={styles.dangerText}>
+                <CloseOutlined /> The user will be able to edit and resubmit after seeing this reason.
               </p>
-            )}
-            <p><strong>Submission:</strong> {viewingSubmission?.name}</p>
-          </div>
-        ) : (
-          <div>
-            <p>Please provide a reason for rejection:</p>
-            <TextArea
-              rows={4}
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="e.g., Missing required information, Invalid location data, Inappropriate content, etc."
-              autoFocus
-            />
-            <p style={{ color: '#ff4d4f', marginTop: 8 }}>
-              <CloseOutlined /> The user will be able to edit and resubmit after seeing this reason.
-            </p>
-          </div>
-        )}
-      </Modal>
-    </Layout>
+            </div>
+          )}
+        </Modal>
+      </div>
+    </ConfigProvider>
   );
 };
 
-/**
- * Simple Submission Detail component for approved/rejected/published submissions
- * Shows submission data without Before/After comparison
- */
 const SubmissionDetail = ({ submission }) => {
   const statusColors = {
-    [SubmissionStatus.Pending]: 'gold',
-    [SubmissionStatus.Approved]: 'green',
-    [SubmissionStatus.Rejected]: 'red',
-    [SubmissionStatus.Published]: 'blue'
+    [SubmissionStatus.Pending]: '#FFE66D',
+    [SubmissionStatus.Approved]: '#4ECDC4',
+    [SubmissionStatus.Rejected]: '#FF6B6B',
+    [SubmissionStatus.Published]: '#1A535C'
   };
 
   const statusLabels = {
@@ -381,15 +417,15 @@ const SubmissionDetail = ({ submission }) => {
   };
 
   return (
-    <div>
-      {/* Status */}
-      <div style={{ marginBottom: 16 }}>
-        <strong>Status: </strong>
-        <Tag color={statusColors[submission.status]}>{statusLabels[submission.status]}</Tag>
+    <div className={styles.fadeUpAnim}>
+      <div className={styles.detailSection}>
+        <strong className={styles.labelDark}>Status: </strong>
+        <Tag color={statusColors[submission.status]} style={{ color: submission.status === SubmissionStatus.Pending ? '#1A535C' : '#FFFFFF', fontWeight: 700 }} className={styles.bouncyTag}>
+          {statusLabels[submission.status]}
+        </Tag>
       </div>
 
-      {/* Basic Info */}
-      <Descriptions title="Basic Information" bordered column={2} style={{ marginBottom: 16 }}>
+      <Descriptions title={<span className={styles.subHeading}>Basic Information</span>} bordered column={2} className={styles.tropicalDescriptions}>
         <Descriptions.Item label="Name">{submission.name || 'N/A'}</Descriptions.Item>
         <Descriptions.Item label="Description">{submission.description || 'N/A'}</Descriptions.Item>
         <Descriptions.Item label="Address">{submission.address || 'N/A'}</Descriptions.Item>
@@ -400,8 +436,7 @@ const SubmissionDetail = ({ submission }) => {
         </Descriptions.Item>
       </Descriptions>
 
-      {/* Contact & Pricing */}
-      <Descriptions title="Contact & Pricing" bordered column={2} style={{ marginBottom: 16 }}>
+      <Descriptions title={<span className={styles.subHeading}>Contact & Pricing</span>} bordered column={2} className={styles.tropicalDescriptions}>
         <Descriptions.Item label="Telephone">{submission.telephone || 'N/A'}</Descriptions.Item>
         <Descriptions.Item label="Email">{submission.email || 'N/A'}</Descriptions.Item>
         <Descriptions.Item label="Price Range">
@@ -410,28 +445,25 @@ const SubmissionDetail = ({ submission }) => {
         <Descriptions.Item label="Score">{submission.score ? `${submission.score} / 5` : 'N/A'}</Descriptions.Item>
       </Descriptions>
 
-      {/* Tags & Amenities */}
-      <Descriptions title="Tags & Amenities" bordered column={2} style={{ marginBottom: 16 }}>
+      <Descriptions title={<span className={styles.subHeading}>Tags & Amenities</span>} bordered column={2} className={styles.tropicalDescriptions}>
         <Descriptions.Item label="Tags" span={2}>
           {submission.tags && submission.tags.length > 0
-            ? submission.tags.map(t => <Tag key={t.id}>{t.name}</Tag>)
+            ? submission.tags.map(t => <Tag key={t.id} color="#4ECDC4" className={styles.bouncyTag}>{t.name}</Tag>)
             : 'None'}
         </Descriptions.Item>
         <Descriptions.Item label="Amenities" span={2}>
           {submission.amenities && submission.amenities.length > 0
-            ? submission.amenities.map(a => <Tag key={a.id}>{a.name}</Tag>)
+            ? submission.amenities.map(a => <Tag key={a.id} color="#FF6B6B" className={styles.bouncyTag}>{a.name}</Tag>)
             : 'None'}
         </Descriptions.Item>
       </Descriptions>
 
-      {/* Opening Hours & Seasons */}
-      <Descriptions title="Opening Hours & Seasons" bordered column={1} style={{ marginBottom: 16 }}>
+      <Descriptions title={<span className={styles.subHeading}>Opening Hours & Seasons</span>} bordered column={1} className={styles.tropicalDescriptions}>
         <Descriptions.Item label="Opening Hours">{formatOpeningHours(submission.openingHours)}</Descriptions.Item>
         <Descriptions.Item label="Best Seasons">{formatSeasons(submission.seasons)}</Descriptions.Item>
       </Descriptions>
 
-      {/* Submission Metadata */}
-      <Descriptions title="Submission Information" bordered column={2}>
+      <Descriptions title={<span className={styles.subHeading}>Submission Information</span>} bordered column={2} className={styles.tropicalDescriptions}>
         <Descriptions.Item label="Submitted At">
           {new Date(submission.createdAt).toLocaleString()}
         </Descriptions.Item>
@@ -448,11 +480,10 @@ const SubmissionDetail = ({ submission }) => {
         )}
       </Descriptions>
 
-      {/* Rejection Reason */}
       {submission.rejectionReason && (
-        <div style={{ marginTop: 16, padding: 12, background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 4 }}>
-          <strong style={{ color: '#cf1322' }}>⚠️ Rejection Reason:</strong>
-          <p style={{ margin: '8px 0 0 0', color: '#cf1322' }}>{submission.rejectionReason}</p>
+        <div className={styles.rejectionBox}>
+          <strong className={styles.dangerText}>Rejection Reason:</strong>
+          <p className={styles.dangerTextMsg}>{submission.rejectionReason}</p>
         </div>
       )}
     </div>
