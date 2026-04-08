@@ -7,18 +7,17 @@ import GoogleMapPicker from '@/components/GoogleMapPicker';
 import { SOCIAL_PLATFORMS, DAYS_OF_WEEK, MONTHS } from '@/utils/locationConstants';
 import { buildTagHierarchy } from '@/utils/locationCache';
 import dayjs from 'dayjs';
+import styles from '../styles/LocationForm.module.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
-// Helper to convert platform enum value to string
 const getPlatformName = (platform) => {
   if (typeof platform === 'string') return platform;
   const platformObj = SOCIAL_PLATFORMS.find(p => p.enumValue === platform);
   return platformObj ? platformObj.value : 'Other';
 };
 
-// Helper to convert platform string back to enum value
 const getPlatformEnumValue = (platformName) => {
   if (typeof platformName === 'number') return platformName;
   const platformObj = SOCIAL_PLATFORMS.find(p => p.value === platformName);
@@ -46,7 +45,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
   const isEdit = !!location;
 
-  // Fetch dropdown data
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
@@ -71,7 +69,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         setAmenities(amenities);
         setChildTagsByParent(childTagsByParent);
       } catch (error) {
-        console.error('Failed to fetch dropdown data:', error);
         message.error('Failed to load dropdown data');
       } finally {
         setTagsLoading(false);
@@ -165,7 +162,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       
       setSelectedChildTagIds(location.tagIds || []);
       setMediaLinks(location.mediaLinks || []);
-      // Map social links from BE format (with id) to form state - convert platform enum to string
       setSocialLinks(location.socialLinks?.map(sl => ({
         id: sl.id,
         platform: getPlatformName(sl.platform),
@@ -173,17 +169,14 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       })) || []);
     }
 
-    // Always set opening hours and seasons when location changes (independent of tags/amenities)
     if (location) {
       setOpeningHours(location.openingHours || []);
-      // Set seasons - convert comma-separated months string to array
       setSeasons(location.seasons?.map(season => ({
         id: season.id,
         description: season.description,
         months: typeof season.months === 'string' ? season.months.split(',').filter(m => m) : (season.months || [])
       })) || []);
     } else if (!location) {
-      // Only reset when location changes to null (Modal opened for create), not when availableTags changes
       form.resetFields();
       setMediaLinks([]);
       setSocialLinks([]);
@@ -195,10 +188,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      // Transform social links to match backend format (send platform as enum number)
-      // Filter out links with empty platform or URL
-      // BUG FIX: Previously used Number(sl.platform) which returned NaN for strings like "Facebook".
-      // Now uses getPlatformEnumValue() to properly map platform name to enum number.
       const formattedSocialLinks = socialLinks.length > 0
         ? socialLinks
             .filter(sl => sl.platform && sl.url && sl.url.trim() !== '')
@@ -208,7 +197,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
               }))
         : [];
 
-      // Transform seasons to convert months array to comma-separated string
       const formattedSeasons = seasons.length > 0
         ? seasons.map(season => ({
             id: season.id,
@@ -221,7 +209,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         ...values,
         tagIds: selectedChildTagIds,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : [],
-        // Extract IDs from labelInValue format
         amenityIds: values.amenityIds?.length > 0 ? values.amenityIds.map(a => a.value) : [],
         socialLinks: formattedSocialLinks,
         openingHours: openingHours.length > 0 ? openingHours : [],
@@ -236,12 +223,10 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (error) {
-      // Handle duplicate name error specifically
       if (error?.response?.status === 409) {
         const errorMessage = error.response.data?.description || error.response.data?.message || 'Duplicate name detected';
         message.error(errorMessage);
       } else if (error?.response?.status === 400) {
-        // Handle validation errors
         const errors = error.response.data;
         if (Array.isArray(errors)) {
           errors.forEach(err => {
@@ -273,7 +258,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     } catch (error) {
       message.error(error.message || 'Upload failed');
     }
-    return Upload.LIST_IGNORE; // Prevent default upload behavior
+    return Upload.LIST_IGNORE;
   };
 
   const handleMapConfirm = (lat, lng) => {
@@ -284,7 +269,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     message.success('Location coordinates updated!');
   };
 
-  // Social Links handlers
   const handleAddSocialLink = (platform) => {
     if (!socialLinks.find(sl => sl.platform === platform)) {
       setSocialLinks([...socialLinks, { id: 0, platform, url: '' }]);
@@ -305,7 +289,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     return socialLinks.map(sl => sl.platform);
   };
 
-  // Opening Hours handlers
   const handleAddOpeningHour = (dayOfWeek) => {
     if (!openingHours.find(oh => oh.dayOfWeek === dayOfWeek)) {
       setOpeningHours([...openingHours, {
@@ -341,7 +324,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     setOpeningHours(openingHours.filter((_, i) => i !== index));
   };
 
-  // Seasons handlers
   const handleAddSeason = () => {
     setSeasons([...seasons, { id: 0, description: '', months: [] }]);
   };
@@ -397,7 +379,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                 <span className={styles.formLabel}>Latitude</span>
                 <Button
                   type="link"
-                  type="link"
                   size="small"
                   icon={<EnvironmentOutlined />}
                   onClick={() => setMapPickerOpen(true)}
@@ -412,7 +393,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
               { type: 'number', min: -90, max: 90, message: 'Latitude must be between -90 and 90' }
             ]}
             style={{ width: '48%' }}
-            style={{ width: '48%' }}
           >
             <InputNumber style={{ width: '100%' }} step={0.000001} placeholder="e.g., 10.823099" className={styles.customInput} />
           </Form.Item>
@@ -424,7 +404,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
               { required: true, message: 'Please enter longitude' },
               { type: 'number', min: -180, max: 180, message: 'Longitude must be between -180 and 180' }
             ]}
-            style={{ width: '48%' }}
             style={{ width: '48%' }}
           >
             <InputNumber style={{ width: '100%' }} step={0.000001} placeholder="e.g., 106.629664" className={styles.customInput} />
@@ -440,7 +419,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
               { type: 'number', min: 0, message: 'Price must be >= 0' }
             ]}
             style={{ width: '48%' }}
-            style={{ width: '48%' }}
           >
             <InputNumber style={{ width: '100%' }} step={0.01} prefix="$" placeholder="0.00" className={styles.customInput} />
           </Form.Item>
@@ -453,7 +431,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
               { type: 'number', min: 0, max: 120, message: 'Age must be between 0 and 120' }
             ]}
             style={{ width: '48%' }}
-            style={{ width: '48%' }}
           >
             <InputNumber style={{ width: '100%' }} placeholder="e.g., 5" className={styles.customInput} />
           </Form.Item>
@@ -465,7 +442,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             label={<span className={styles.formLabel}>Min Price (USD)</span>}
             rules={[{ min: 0, type: 'number', message: 'Min price must be >= 0' }]}
             style={{ width: '48%' }}
-            style={{ width: '48%' }}
           >
             <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" className={styles.customInput} />
           </Form.Item>
@@ -474,7 +450,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             name="priceMaxUsd"
             label={<span className={styles.formLabel}>Max Price (USD)</span>}
             rules={[{ min: 0, type: 'number', message: 'Max price must be >= 0' }]}
-            style={{ width: '48%' }}
             style={{ width: '48%' }}
           >
             <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" className={styles.customInput} />
@@ -498,7 +473,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             label={<span className={styles.formLabel}>Telephone</span>}
             rules={[{ max: 50, message: 'Telephone cannot exceed 50 characters' }]}
             style={{ width: '48%' }}
-            style={{ width: '48%' }}
           >
             <Input placeholder="Enter telephone" className={styles.customInput} />
           </Form.Item>
@@ -510,7 +484,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
               { type: 'email', message: 'Please enter a valid email' },
               { max: 200, message: 'Email cannot exceed 200 characters' }
             ]}
-            style={{ width: '48%' }}
             style={{ width: '48%' }}
           >
             <Input placeholder="Enter email" className={styles.customInput} />
@@ -538,7 +511,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             label={<span className={styles.formLabel}>Location Type</span>}
             rules={[{ required: true, message: 'Please select location type' }]}
             style={{ width: '50%', minWidth: '200px' }}
-            style={{ width: '50%', minWidth: '200px' }}
           >
             <Select 
               placeholder="Select location type" 
@@ -557,7 +529,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             name="districtId"
             label={<span className={styles.formLabel}>District</span>}
             rules={[{ required: true, message: 'Please select district' }]}
-            style={{ width: '50%', minWidth: '200px' }}
             style={{ width: '50%', minWidth: '200px' }}
           >
             <Select placeholder="Select district" showSearch optionFilterProp="children" className={styles.customInput}>
@@ -612,13 +583,12 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           >
             {availableChildTags.map(tag => (
               <Option key={tag.id} value={tag.id}>
-                {tag.name} <span style={{ color: '#1677ff' }}>(Child)</span>
+                {tag.name} <span style={{ color: '#FF6B6B' }}>(Child)</span>
               </Option>
             ))}
           </Select>
         </Form.Item>
 
-        {/* Amenities Selector */}
         <Form.Item
           name="amenityIds"
           label={<span className={styles.formLabel}>Amenities</span>}
@@ -648,7 +618,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             <Button className={styles.btnActionSecondary} icon={<UploadOutlined />}>Upload Image to Cloudinary</Button>
           </Upload>
 
-          {/* Or paste URL */}
           <div style={{ marginTop: 12 }}>
             <Space.Compact style={{ width: '100%' }}>
               <Input
@@ -664,7 +633,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             </Space.Compact>
           </div>
           
-          {/* Display uploaded links */}
           {mediaLinks.length > 0 && (
             <div className={styles.mediaList}>
               {mediaLinks.map((link, index) => (
@@ -685,7 +653,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
         <Form.Item label={<span className={styles.formLabel}>Social Links</span>}>
           <Space direction="vertical" size="small" style={{ width: '100%' }}>
-            {/* Add platform selector */}
             <Select
               placeholder="Add social platform"
               onChange={handleAddSocialLink}
@@ -700,7 +667,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                 ))}
             </Select>
 
-            {/* Display added social links */}
             {socialLinks.length > 0 && (
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
                 {socialLinks.map((socialLink, index) => (
@@ -885,7 +851,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         </Form.Item>
       </Form>
 
-      {/* Google Map Picker Modal */}
       <GoogleMapPicker
         open={mapPickerOpen}
         onClose={() => setMapPickerOpen(false)}

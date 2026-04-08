@@ -6,7 +6,6 @@ import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
 
-// Lazy load layouts and pages
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
@@ -18,7 +17,6 @@ const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
 const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const HomePage = lazy(() => import('@/features/home/pages/Home'));
 
-// Global Pages
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
 const DestinationsPage = lazy(() => import('@/features/destinations/pages/DestinationsPage'));
@@ -28,13 +26,25 @@ const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPag
 const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPage'));
 const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
+const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
+
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
 const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
 
-const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
+const DashboardOverview = () => (
+  <div>
+    <h2>Overview</h2>
+    <p>Algorithm-based destination scheduling system.</p>
+  </div>
+);
+
+const ScheduleManagement = () => (
+  <div>
+    <h2>Algorithm Scheduling Management</h2>
+  </div>
+);
 
 export const router = createBrowserRouter([
-  // Public Routes (Auth pages)
   {
     path: '/',
     element: <SuspenseWrapper><HomePage /></SuspenseWrapper>,
@@ -56,34 +66,6 @@ export const router = createBrowserRouter([
       }
     ]
   },
-
-  // Public Routes (Feature pages - for testing/demo)
-  {
-    path: PATHS.DESTINATIONS.replace('/', ''),
-    element: <SuspenseWrapper><DestinationsPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.TAGS.replace('/', ''),
-    element: <SuspenseWrapper><TagsPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.LOCATION_TYPES.replace('/', ''),
-    element: <SuspenseWrapper><LocationTypesPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.AMENITIES.replace('/', ''),
-    element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.CREATE_TRIP.replace('/', ''),
-    element: <SuspenseWrapper><CreateTripPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.ITINERARY.replace('/', ''),
-    element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
-  },
-
-  // Protected Routes (Admin/Authenticated users)
   {
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
@@ -99,6 +81,14 @@ export const router = createBrowserRouter([
             element: <ScheduleManagement />
           },
           {
+            path: PATHS.CREATE_TRIP,
+            element: <CreateTripPage />
+          },
+          {
+            path: '/itinerary-result',
+            element: <ItineraryResultPage />
+          },
+          {
             path: '/my-locations',
             element: <SubmissionsPage />
           },
@@ -106,7 +96,6 @@ export const router = createBrowserRouter([
             path: PATHS.PARTNER_LOCATIONS,
             element: <PartnerLocationsPage />
           },
-          // === CÁC ROUTE ĐƯỢC CHUYỂN VÀO MAIN LAYOUT ===
           {
             path: PATHS.DESTINATIONS,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
@@ -128,7 +117,6 @@ export const router = createBrowserRouter([
               { index: true, element: <AmenitiesPage /> }
             ]
           },
-          // ===============================================
           {
             path: PATHS.TAGS,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
@@ -169,8 +157,6 @@ export const router = createBrowserRouter([
       }
     ]
   },
-
-  // Error Routes
   {
     path: PATHS.UNAUTHORIZED,
     element: <SuspenseWrapper><Error403 /></SuspenseWrapper>
