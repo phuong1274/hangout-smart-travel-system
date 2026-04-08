@@ -29,7 +29,7 @@ namespace HSTS.Application.Users.Commands
                 return Error.Validation("Email.DomainNotAllowed", "This email domain is not supported.");
 
             var emailExists = await _ctx.Accounts
-                .AnyAsync(a => a.Email == request.Email && !a.IsDeleted, cancellationToken);
+                .AnyAsync(a => a.Email == request.Email, cancellationToken);
 
             if (emailExists)
                 return Error.Conflict("Account.EmailExists", "An account with this email already exists.");

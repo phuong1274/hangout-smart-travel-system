@@ -68,6 +68,25 @@ public class AdminCreateUserCommandTests
 
 
     [Fact]
+    public async Task Handle_DeactivatedAccountWithSameEmail_ReturnsConflict()
+    {
+        var existingAccount = AuthFakes.ActiveAccount("existing@test.com");
+        existingAccount.IsDeleted = true;
+        var role = AuthFakes.PartnerRole();
+        var ctx = MockDbContextFactory.Create()
+            .WithAccounts(existingAccount)
+            .WithRoles(role)
+            .Build();
+
+        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var result = await handler.Handle(new AdminCreateUserCommand("existing@test.com", "New User", role.Id), default);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("Account.EmailExists");
+        ctx.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Handle_EmailSendFails_DoesNotPersistBlockingAccountState()
     {
         var role = AuthFakes.PartnerRole();
