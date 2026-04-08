@@ -40,6 +40,7 @@ namespace HSTS.Infrastructure.Services
             {
                 OtpType.EmailVerification => "Verify Your Email - Hangout",
                 OtpType.ForgotPassword => "Reset Your Password - Hangout",
+                OtpType.OnboardingPasswordSetup => "Complete Your Account Setup - Hangout",
                 _ => "Your OTP Code - Hangout"
             };
 
@@ -56,6 +57,11 @@ namespace HSTS.Infrastructure.Services
                     $"<h1 style='color: #FF5722; letter-spacing: 8px;'>{otpCode}</h1>" +
                     $"<p>This code will expire in 5 minutes.</p>" +
                     $"<p>If you didn't request this, please ignore this email.</p>",
+                OtpType.OnboardingPasswordSetup =>
+                    $"<h2>Welcome to Hangout!</h2>" +
+                    $"<p>Your account has been created. Use this code to finish setting your password:</p>" +
+                    $"<h1 style='color: #3F51B5; letter-spacing: 8px;'>{otpCode}</h1>" +
+                    $"<p>This code will expire in 5 minutes.</p>",
                 _ =>
                     $"<h2>Your OTP Code</h2>" +
                     $"<h1 style='letter-spacing: 8px;'>{otpCode}</h1>" +

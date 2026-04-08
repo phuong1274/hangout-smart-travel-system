@@ -60,13 +60,13 @@ namespace HSTS.Application.Users.Commands
             {
                 Email = request.Email,
                 Code = otpCode,
-                Type = OtpType.ForgotPassword,
+                Type = OtpType.OnboardingPasswordSetup,
                 ExpiredAt = DateTime.UtcNow.AddMinutes(5)
             };
 
             try
             {
-                await _emailService.SendOtpEmailAsync(request.Email, otpCode, OtpType.ForgotPassword, cancellationToken);
+                await _emailService.SendOtpEmailAsync(request.Email, otpCode, OtpType.OnboardingPasswordSetup, cancellationToken);
             }
             catch (Exception ex)
             {

@@ -32,7 +32,7 @@ public class AdminCreateUserCommandTests
     }
 
     [Fact]
-    public async Task Handle_ValidRequest_CreatesOnboardingAccountAndSendsResetOtp()
+    public async Task Handle_ValidRequest_DoesNotReuseForgotPasswordOtpTypeForOnboarding()
     {
         var role = AuthFakes.PartnerRole();
         var ctx = MockDbContextFactory.Create()
@@ -43,11 +43,29 @@ public class AdminCreateUserCommandTests
         var result = await handler.Handle(new AdminCreateUserCommand("new-user@test.com", "New User", role.Id), default);
 
         result.IsError.Should().BeFalse();
-        result.Value.Should().Contain("onboarding");
         ctx.Verify(x => x.Users.Add(It.IsAny<HSTS.Domain.Entities.User>()), Times.Once);
-        ctx.Verify(x => x.Otps.Add(It.Is<HSTS.Domain.Entities.Otp>(o => o.Email == "new-user@test.com" && o.Type == OtpType.ForgotPassword)), Times.Once);
-        _email.Verify(x => x.SendOtpEmailAsync("new-user@test.com", It.IsAny<string>(), OtpType.ForgotPassword, It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Verify(x => x.Otps.Add(It.Is<HSTS.Domain.Entities.Otp>(o => o.Email == "new-user@test.com" && o.Type == OtpType.ForgotPassword)), Times.Never);
+        _email.Verify(x => x.SendOtpEmailAsync("new-user@test.com", It.IsAny<string>(), OtpType.ForgotPassword, It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task Handle_ValidRequest_UsesDedicatedOnboardingOtpType()
+    {
+        var onboardingOtpType = (OtpType)2;
+        var role = AuthFakes.PartnerRole();
+        var ctx = MockDbContextFactory.Create()
+            .WithRoles(role)
+            .Build();
+
+        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var result = await handler.Handle(new AdminCreateUserCommand("new-user@test.com", "New User", role.Id), default);
+
+        result.IsError.Should().BeFalse();
+        ctx.Verify(x => x.Otps.Add(It.Is<HSTS.Domain.Entities.Otp>(o => o.Email == "new-user@test.com" && o.Type == onboardingOtpType)), Times.Once);
+        _email.Verify(x => x.SendOtpEmailAsync("new-user@test.com", It.IsAny<string>(), onboardingOtpType, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+
 
     [Fact]
     public async Task Handle_EmailSendFails_DoesNotPersistBlockingAccountState()
