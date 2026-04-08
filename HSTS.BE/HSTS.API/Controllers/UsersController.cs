@@ -88,9 +88,9 @@ namespace HSTS.API.Controllers
 
         [HttpGet]
         [Authorize(Roles = "ADMIN")]
-        public async Task<IActionResult> GetUsers([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10, [FromQuery] string? searchTerm = null)
+        public async Task<IActionResult> GetUsers([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10, [FromQuery] string? searchTerm = null, [FromQuery] string? role = null, [FromQuery] string? status = null)
         {
-            var result = await Mediator.Send(new GetUsersPagingQuery(pageIndex, pageSize, searchTerm));
+            var result = await Mediator.Send(new GetUsersPagingQuery(pageIndex, pageSize, searchTerm, role, status));
             return result.Match<IActionResult>(Ok, MapErrors);
         }
 

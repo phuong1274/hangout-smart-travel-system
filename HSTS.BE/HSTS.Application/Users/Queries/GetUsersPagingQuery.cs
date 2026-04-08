@@ -5,7 +5,7 @@ namespace HSTS.Application.Users.Queries
 {
     public record UserPagedResponse(IEnumerable<UserListItemDto> Items, int TotalCount, int PageIndex, int PageSize);
 
-    public record GetUsersPagingQuery(int PageIndex = 1, int PageSize = 10, string? SearchTerm = null)
+    public record GetUsersPagingQuery(int PageIndex = 1, int PageSize = 10, string? SearchTerm = null, string? Role = null, string? Status = null)
         : IRequest<ErrorOr<UserPagedResponse>>;
 
     public class GetUsersPagingQueryValidator : AbstractValidator<GetUsersPagingQuery>
@@ -37,6 +37,21 @@ namespace HSTS.Application.Users.Queries
                 query = query.Where(u =>
                     u.FullName.ToLower().Contains(term) ||
                     u.Account.Email.ToLower().Contains(term));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Role))
+            {
+                var role = request.Role.Trim().ToUpper();
+                query = query.Where(u => u.UserRoles.Any(ur => ur.Role != null && ur.Role.Name.ToUpper() == role));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Status))
+            {
+                var status = request.Status.Trim().ToUpper();
+                query = query.Where(u =>
+                    status == "DEACTIVATED"
+                        ? u.IsDeleted || u.Account.IsDeleted
+                        : !u.IsDeleted && !u.Account.IsDeleted && u.Account.Status.ToString().ToUpper() == status);
             }
 
             var total = await query.CountAsync(cancellationToken);

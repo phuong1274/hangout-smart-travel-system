@@ -25,6 +25,8 @@ export const useUsers = () => {
         pageIndex,
         pageSize,
         searchTerm: searchTerm || undefined,
+        role: roleFilter || undefined,
+        status: statusFilter || undefined,
       });
       const payload = response.data;
 

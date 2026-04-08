@@ -34,7 +34,7 @@ export const UserFilters = ({ roles = [], filterState, onRoleChange, onStatusCha
         onChange={onStatusChange}
         style={{ minWidth: 220 }}
       />
-      <Text type="secondary">Filters are visual only until backend filtering is available. Deactivated users remain visible to admins in current results.</Text>
+      <Text type="secondary">Filter users by role or lifecycle state. Deactivated users remain visible to admins and can be filtered explicitly.</Text>
     </Space>
   );
 };
