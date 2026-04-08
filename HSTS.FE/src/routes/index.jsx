@@ -28,23 +28,9 @@ const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPag
 const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPage'));
 const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
+const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
+const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
 
-// Dashboard overview component
-const DashboardOverview = () => (
-  <div>
-    <h2>Overview</h2>
-    <p>Algorithm-based destination scheduling system.</p>
-  </div>
-);
-
-// Schedule management component
-const ScheduleManagement = () => (
-  <div>
-    <h2>Algorithm Scheduling Management</h2>
-  </div>
-);
-
-// Partner locations page
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 
 export const router = createBrowserRouter([
@@ -69,6 +55,32 @@ export const router = createBrowserRouter([
         ]
       }
     ]
+  },
+
+  // Public Routes (Feature pages - for testing/demo)
+  {
+    path: PATHS.DESTINATIONS.replace('/', ''),
+    element: <SuspenseWrapper><DestinationsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.TAGS.replace('/', ''),
+    element: <SuspenseWrapper><TagsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.LOCATION_TYPES.replace('/', ''),
+    element: <SuspenseWrapper><LocationTypesPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.AMENITIES.replace('/', ''),
+    element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.CREATE_TRIP.replace('/', ''),
+    element: <SuspenseWrapper><CreateTripPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.ITINERARY.replace('/', ''),
+    element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
   },
 
   // Protected Routes (Admin/Authenticated users)

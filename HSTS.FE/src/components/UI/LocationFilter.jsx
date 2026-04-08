@@ -6,6 +6,7 @@ import { getAllLocationTypesApi, getAllDistrictsApi } from '@/features/locations
 import dayjs from 'dayjs';
 import styles from './LocationFilter.module.css';
 
+const { Search } = Input;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 

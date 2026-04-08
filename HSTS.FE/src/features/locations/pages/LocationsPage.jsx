@@ -9,7 +9,6 @@ import DetailModal from '@/components/DetailModal';
 import ClosureModal from '../components/ClosureModal';
 import ClosureHistoryModal from '../components/ClosureHistoryModal';
 import { deleteLocationApi, getLocationByIdApi } from '../api';
-import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
 import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
 import { transformLocationForDisplay } from '@/utils/locationMappers';
 import styles from '../styles/LocationsPage.module.css';
@@ -171,9 +170,6 @@ const LocationsPage = () => {
               onEdit={handleEdit}
               onView={handleView}
               onDelete={handleDelete}
-              onCloseLocation={handleCloseLocation}
-              onOpenLocation={handleOpenLocation}
-              onViewClosureHistory={handleViewClosureHistory}
             />
           </Card>
         </Space>
