@@ -19,8 +19,8 @@ const UsersPage = () => {
     filterState,
     handleTableChange,
     handleSearch,
-    setRoleFilter,
-    setStatusFilter,
+    handleRoleFilterChange,
+    handleStatusFilterChange,
     fetchUsers,
   } = useUsers();
   const { roles } = useRoles();
@@ -42,8 +42,8 @@ const UsersPage = () => {
                 <UserFilters
                   roles={roles}
                   filterState={filterState}
-                  onRoleChange={setRoleFilter}
-                  onStatusChange={setStatusFilter}
+                  onRoleChange={handleRoleFilterChange}
+                  onStatusChange={handleStatusFilterChange}
                 />
                 <Button type="primary" onClick={() => setCreateModalOpen(true)}>
                   Create user

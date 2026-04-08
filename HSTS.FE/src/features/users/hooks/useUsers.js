@@ -41,6 +41,16 @@ export const useUsers = () => {
     fetchUsers();
   }, [fetchUsers]);
 
+  const handleRoleFilterChange = useCallback((value) => {
+    setRoleFilter(value);
+    handleTableChange({ current: 1, pageSize });
+  }, [handleTableChange, pageSize]);
+
+  const handleStatusFilterChange = useCallback((value) => {
+    setStatusFilter(value);
+    handleTableChange({ current: 1, pageSize });
+  }, [handleTableChange, pageSize]);
+
   const filterState = useMemo(
     () => ({ roleFilter, statusFilter }),
     [roleFilter, statusFilter]
@@ -53,8 +63,8 @@ export const useUsers = () => {
     filterState,
     handleTableChange,
     handleSearch,
-    setRoleFilter,
-    setStatusFilter,
+    handleRoleFilterChange,
+    handleStatusFilterChange,
     fetchUsers,
   };
 };
