@@ -20,6 +20,7 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<Otp> Otps => Set<Otp>();
+        public DbSet<PasswordSetupToken> PasswordSetupTokens => Set<PasswordSetupToken>();
         public DbSet<AccountRefreshToken> AccountRefreshTokens => Set<AccountRefreshToken>();
         public DbSet<Amenity> Amenities => Set<Amenity>();
         public DbSet<LocationAmenity> LocationAmenities => Set<LocationAmenity>();

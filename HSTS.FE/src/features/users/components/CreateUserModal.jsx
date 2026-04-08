@@ -41,7 +41,7 @@ export const CreateUserModal = ({ open, onClose, onCreated, roles = [] }) => {
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <Text type="secondary">
-          The admin selects the initial role and sends an onboarding email. The user completes setup and chooses the final password.
+          The admin selects the initial role and sends an onboarding email link. The user opens the link and chooses the final password.
         </Text>
 
         <Form form={form} layout="vertical" onFinish={handleFinish}>

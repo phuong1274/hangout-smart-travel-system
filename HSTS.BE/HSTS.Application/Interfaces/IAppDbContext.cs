@@ -10,6 +10,7 @@ namespace HSTS.Application.Interfaces
         DbSet<Role> Roles { get; }
         DbSet<UserRole> UserRoles { get; }
         DbSet<Otp> Otps { get; }
+        DbSet<PasswordSetupToken> PasswordSetupTokens { get; }
         DbSet<AccountRefreshToken> AccountRefreshTokens { get; }
         DbSet<Location> Locations { get; }
         DbSet<LocationReview> LocationReviews { get; }

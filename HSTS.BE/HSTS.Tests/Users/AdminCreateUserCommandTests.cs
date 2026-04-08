@@ -44,14 +44,13 @@ public class AdminCreateUserCommandTests
 
         result.IsError.Should().BeFalse();
         ctx.Verify(x => x.Users.Add(It.IsAny<HSTS.Domain.Entities.User>()), Times.Once);
-        ctx.Verify(x => x.Otps.Add(It.Is<HSTS.Domain.Entities.Otp>(o => o.Email == "new-user@test.com" && o.Type == OtpType.ForgotPassword)), Times.Never);
-        _email.Verify(x => x.SendOtpEmailAsync("new-user@test.com", It.IsAny<string>(), OtpType.ForgotPassword, It.IsAny<CancellationToken>()), Times.Never);
+        ctx.Verify(x => x.Otps.Add(It.IsAny<HSTS.Domain.Entities.Otp>()), Times.Never);
+        _email.Verify(x => x.SendOtpEmailAsync("new-user@test.com", It.IsAny<string>(), It.IsAny<OtpType>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Handle_ValidRequest_UsesDedicatedOnboardingOtpType()
+    public async Task Handle_ValidRequest_CreatesPasswordSetupTokenAndSendsLinkEmail()
     {
-        var onboardingOtpType = (OtpType)2;
         var role = AuthFakes.PartnerRole();
         var ctx = MockDbContextFactory.Create()
             .WithRoles(role)
@@ -61,9 +60,27 @@ public class AdminCreateUserCommandTests
         var result = await handler.Handle(new AdminCreateUserCommand("new-user@test.com", "New User", role.Id), default);
 
         result.IsError.Should().BeFalse();
-        ctx.Verify(x => x.Otps.Add(It.Is<HSTS.Domain.Entities.Otp>(o => o.Email == "new-user@test.com" && o.Type == onboardingOtpType)), Times.Once);
-        _email.Verify(x => x.SendOtpEmailAsync("new-user@test.com", It.IsAny<string>(), onboardingOtpType, It.IsAny<CancellationToken>()), Times.Once);
+        ctx.Verify(x => x.PasswordSetupTokens.Add(It.Is<HSTS.Domain.Entities.PasswordSetupToken>(t => t.ExpiredAt > DateTime.UtcNow && !string.IsNullOrWhiteSpace(t.Token))), Times.Once);
+        _email.Verify(x => x.SendOnboardingLinkEmailAsync("new-user@test.com", It.Is<string>(link => link.Contains("token=")), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_ValidRequest_DoesNotCreateOnboardingOtp()
+    {
+        var role = AuthFakes.PartnerRole();
+        var ctx = MockDbContextFactory.Create()
+            .WithRoles(role)
+            .Build();
+
+        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var result = await handler.Handle(new AdminCreateUserCommand("new-user@test.com", "New User", role.Id), default);
+
+        result.IsError.Should().BeFalse();
+        ctx.Verify(x => x.Otps.Add(It.IsAny<HSTS.Domain.Entities.Otp>()), Times.Never);
+    }
+
+
+
 
 
 
@@ -93,7 +110,7 @@ public class AdminCreateUserCommandTests
         var ctx = MockDbContextFactory.Create()
             .WithRoles(role)
             .Build();
-        _email.Setup(x => x.SendOtpEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OtpType>(), It.IsAny<CancellationToken>()))
+        _email.Setup(x => x.SendOnboardingLinkEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("provider failure"));
 
         var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
@@ -101,9 +118,9 @@ public class AdminCreateUserCommandTests
 
         result.IsError.Should().BeTrue();
         result.FirstError.Code.Should().Be("Email.SendFailed");
-        ctx.Verify(x => x.Users.Add(It.IsAny<HSTS.Domain.Entities.User>()), Times.Never);
-        ctx.Verify(x => x.Otps.Add(It.IsAny<HSTS.Domain.Entities.Otp>()), Times.Never);
-        ctx.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        ctx.Verify(x => x.Users.Add(It.IsAny<HSTS.Domain.Entities.User>()), Times.Once);
+        ctx.Verify(x => x.PasswordSetupTokens.Add(It.IsAny<HSTS.Domain.Entities.PasswordSetupToken>()), Times.Once);
+        ctx.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]
@@ -113,7 +130,7 @@ public class AdminCreateUserCommandTests
         var ctx = MockDbContextFactory.Create()
             .WithRoles(role)
             .Build();
-        _email.Setup(x => x.SendOtpEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OtpType>(), It.IsAny<CancellationToken>()))
+        _email.Setup(x => x.SendOnboardingLinkEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("provider failure"));
 
         var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
@@ -138,7 +155,7 @@ public class AdminCreateUserCommandTests
 
         result.IsError.Should().BeFalse();
         ctx.Verify(x => x.Users.Add(It.IsAny<HSTS.Domain.Entities.User>()), Times.Once);
-        ctx.Verify(x => x.Otps.Add(It.IsAny<HSTS.Domain.Entities.Otp>()), Times.Once);
+        ctx.Verify(x => x.PasswordSetupTokens.Add(It.IsAny<HSTS.Domain.Entities.PasswordSetupToken>()), Times.Once);
         ctx.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -149,7 +166,7 @@ public class AdminCreateUserCommandTests
         var ctx = MockDbContextFactory.Create()
             .WithRoles(role)
             .Build();
-        _email.Setup(x => x.SendOtpEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OtpType>(), It.IsAny<CancellationToken>()))
+        _email.Setup(x => x.SendOnboardingLinkEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("provider failure"));
         _logging.Setup(x => x.LogErrorAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new Exception("logging failure"));

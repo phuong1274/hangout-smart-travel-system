@@ -3,6 +3,7 @@ using HSTS.Application.Interfaces;
 using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using HSTS.Application.Common.LoggingInterfaces;
+using System.Security.Cryptography;
 
 namespace HSTS.Application.Users.Commands
 {
@@ -55,30 +56,36 @@ namespace HSTS.Application.Users.Commands
             user.Profiles.Add(new Profile { ProfileName = "Default" });
             user.UserRoles.Add(new UserRole { RoleId = role.Id, Role = role, User = user });
 
-            var otpCode = Random.Shared.Next(100000, 999999).ToString();
-            var otp = new Otp
+            var setupToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+            var passwordSetupToken = new PasswordSetupToken
             {
-                Email = request.Email,
-                Code = otpCode,
-                Type = OtpType.OnboardingPasswordSetup,
-                ExpiredAt = DateTime.UtcNow.AddMinutes(5)
+                Account = account,
+                Token = setupToken,
+                ExpiredAt = DateTime.UtcNow.AddMinutes(30),
+                IsUsed = false
             };
+
+            var setupLink = $"http://localhost:5173/auth/reset-password?mode=onboarding&token={Uri.EscapeDataString(setupToken)}&email={Uri.EscapeDataString(request.Email)}";
+
+            _ctx.Users.Add(user);
+            _ctx.PasswordSetupTokens.Add(passwordSetupToken);
+            await _ctx.SaveChangesAsync(cancellationToken);
 
             try
             {
-                await _emailService.SendOtpEmailAsync(request.Email, otpCode, OtpType.OnboardingPasswordSetup, cancellationToken);
+                await _emailService.SendOnboardingLinkEmailAsync(request.Email, setupLink, cancellationToken);
             }
             catch (Exception ex)
             {
+                user.IsDeleted = true;
+                account.IsDeleted = true;
+                passwordSetupToken.IsUsed = true;
+                await _ctx.SaveChangesAsync(cancellationToken);
                 await TryLogErrorAsync($"Failed to send onboarding email for {request.Email}: {ex.Message}");
                 return Error.Failure("Email.SendFailed", "Failed to send onboarding email. No user was created. Please try again.");
             }
 
-            _ctx.Users.Add(user);
-            _ctx.Otps.Add(otp);
-            await _ctx.SaveChangesAsync(cancellationToken);
-
-            await TryLogActivityAsync($"Admin created user {request.Email} with role {role.Name} and sent onboarding email.");
+            await TryLogActivityAsync($"Admin created user {request.Email} with role {role.Name} and sent onboarding link.");
 
             return "User created and onboarding email sent for password setup.";
         }
