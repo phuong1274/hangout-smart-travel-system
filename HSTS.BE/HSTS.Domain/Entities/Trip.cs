@@ -17,24 +17,28 @@ namespace HSTS.Domain.Entities
         public string? Description { get; set; }
 
         [Required]
-        public int UserId { get; set; }
-
-        [Required]
         public DateTime StartDate { get; set; }
 
         [Required]
         public DateTime EndDate { get; set; }
+
         [Required]
         public int GroupSize { get; set; }
 
         [Required]
-        [MaxLength(3)]
-        public String Currency { get; set; }
-        public TripStatus Status { get; set; } = TripStatus.Planned;
+        public int UserId { get; set; }
 
         [Required]
         [MaxLength(10)]
         public string Currency { get; set; } = "VND";
+
+        public TripStatus Status { get; set; } = TripStatus.Planned;
+
+        // Backward compatibility (ProfileId maps to UserId)
+        public int ProfileId { get => UserId; set => UserId = value; }
+
+        [NotMapped]
+        public string? StartingLocation { get; set; }
 
         // Navigation properties
         public User User { get; set; } = null!;

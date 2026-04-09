@@ -22,7 +22,7 @@ namespace HSTS.Application.Trips.Queries
         public async Task<ErrorOr<TripDto>> Handle(GetTripByIdQuery request, CancellationToken cancellationToken)
         {
             var trip = await _tripRepository.Query()
-                .Include(t => t.Profile)
+                .Include(t => t.User)
                 .FirstOrDefaultAsync(t => t.Id == request.TripId, cancellationToken);
 
             if (trip == null)

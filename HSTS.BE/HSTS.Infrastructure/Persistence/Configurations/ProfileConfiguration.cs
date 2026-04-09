@@ -14,11 +14,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .WithMany(x => x.Profiles)
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasMany(x => x.Trips)
-                .WithOne(x => x.Profile)
-                .HasForeignKey(x => x.ProfileId)
-                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

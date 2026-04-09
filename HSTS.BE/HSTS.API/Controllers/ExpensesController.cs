@@ -83,6 +83,24 @@ namespace HSTS.API.Controllers
             return Ok(result.Value);
         }
 
+        [HttpGet("trip/{tripId}/budget-vs-actual")]
+        public async Task<IActionResult> GetTripBudgetVsActual(int tripId, CancellationToken ct)
+        {
+            var query = new GetTripBudgetVsActualQuery(tripId);
+            var result = await _mediator.Send(query, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(result.Value);
+        }
+
         [HttpPost]
         public async Task<IActionResult> CreateExpense([FromBody] CreateExpenseCommand command, CancellationToken ct)
         {

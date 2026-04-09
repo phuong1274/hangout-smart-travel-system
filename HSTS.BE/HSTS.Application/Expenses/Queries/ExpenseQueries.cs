@@ -115,10 +115,10 @@ namespace HSTS.Application.Expenses.Queries
                 .Include(e => e.TripActivity)
                     .ThenInclude(a => a.TripDay)
                 .Where(e => e.TripActivity.TripDay.TripId == request.TripId)
-                .GroupBy(e => new { e.TripActivityId, e.TripActivity.Description, e.TripActivity.TripDay.DayNumber })
+                .GroupBy(e => new { e.TripActivityId, e.TripActivity.Title, e.TripActivity.TripDay.DayNumber })
                 .Select(g => new ExpenseByTimelineDto(
                     g.Key.TripActivityId,
-                    g.Key.Description,
+                    g.Key.Title,
                     g.Key.DayNumber,
                     g.Sum(e => e.TotalAmount),
                     trip.Currency,

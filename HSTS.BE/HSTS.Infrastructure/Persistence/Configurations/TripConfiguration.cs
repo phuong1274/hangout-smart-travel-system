@@ -26,7 +26,7 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasConversion<int>();
 
             builder.HasOne(t => t.User)
-                .WithMany()
+                .WithMany(u => u.Trips)
                 .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
