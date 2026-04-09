@@ -86,6 +86,8 @@ namespace HSTS.Application.Itineraries.Queries
         private static readonly HashSet<string> OutdoorTagKeywords = new(StringComparer.OrdinalIgnoreCase)
             { "park", "beach", "hiking", "waterfall", "garden", "mountain", "lake", "camping" };
 
+        private static readonly TimeOnly BreakfastStart = new(6, 0);
+        private static readonly TimeOnly BreakfastEnd = new(8, 30);
         private static readonly TimeOnly LunchStart = new(11, 30);
         private static readonly TimeOnly LunchEnd = new(13, 30);
         private static readonly TimeOnly DinnerStart = new(18, 0);
@@ -517,10 +519,13 @@ namespace HSTS.Application.Itineraries.Queries
                                     altHotel.Latitude, altHotel.Longitude);
                                 var altTravelMin = (int)Math.Ceiling((altDist / DefaultSpeedKmh) * 60.0);
                                 var tagNames = GetTags(altHotel);
+                                var altPricePerPerson = r.PricePerPersonPerNight.BaseAmount;
+                                var altCostForGroup = altPricePerPerson * groupSize;
                                 return new AlternativeLocationDto(
                                     r.LocationId, r.LocationName, tagNames,
                                     toMoney(0),
-                                    toMoney(r.PricePerPersonPerNight.BaseAmount),
+                                    toMoney(altPricePerPerson),
+                                    toMoney(altCostForGroup),
                                     (double)altHotel.Score,
                                     Math.Round(altDist, 2), altTravelMin,
                                     altHotel.Address, altHotel.Telephone, GetMediaUrls(altHotel));
@@ -584,6 +589,7 @@ namespace HSTS.Application.Itineraries.Queries
                     GeoPoint currentPoint;
                     string? currentLocationName = null;
                     int currentLocationId = 0;
+                    bool breakfastInserted = false;
                     bool lunchInserted = false;
                     bool dinnerInserted = false;
 
@@ -961,6 +967,47 @@ namespace HSTS.Application.Itineraries.Queries
                     {
                         var currentTimeOnly = TimeOnly.FromDateTime(currentTime);
 
+                        // Inject Breakfast
+                        if (!breakfastInserted && currentTimeOnly >= BreakfastStart && currentTimeOnly < BreakfastEnd)
+                        {
+                            var mealEnd = date.ToDateTime(BreakfastEnd);
+                            if (mealEnd <= dayEndTime)
+                            {
+                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, remainingDayBudget, groupSize, request.TripSegment, out var breakfastAlternatives, toMoney, recentlyVisitedLocationIds);
+                                var rLoc = restaurant?.Location;
+                                var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
+                                var mealGroupCost = mealExtraCost * groupSize;
+
+                                // Skip breakfast if even the cheapest restaurant exceeds remaining budget
+                                if (mealGroupCost > remainingDayBudget)
+                                {
+                                    rLoc = null;
+                                    mealExtraCost = 0m;
+                                    mealGroupCost = 0m;
+                                }
+
+                                var breakfastTagNames = rLoc is not null ? GetTags(rLoc) : new List<string>();
+                                timeline.Add(new ItineraryTimelineItemDto("meal",
+                                    rLoc is not null ? $"Breakfast at {rLoc.Name}" : "Breakfast",
+                                    currentTimeOnly, BreakfastEnd,
+                                    rLoc?.Id ?? 0, breakfastTagNames,
+                                    toMoney(0), toMoney(mealGroupCost > 0 ? mealExtraCost : 0m), toMoney(mealGroupCost), "Breakfast",
+                                    rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
+                                    Alternatives: breakfastAlternatives.Count > 0 ? breakfastAlternatives : null));
+                                dayActivityCost += mealGroupCost;
+                                remainingDayBudget -= mealGroupCost;
+                                currentTime = date.ToDateTime(BreakfastEnd).AddMinutes(15);
+                                breakfastInserted = true;
+                                if (rLoc is not null)
+                                {
+                                    currentPoint = GeoPoint.FromLocation(rLoc);
+                                    currentLocationName = rLoc.Name;
+                                    currentLocationId = rLoc.Id;
+                                }
+                                continue;
+                            }
+                        }
+
                         // Inject Lunch
                         if (!lunchInserted && currentTimeOnly >= LunchStart && currentTimeOnly < LunchEnd)
                         {
@@ -1096,6 +1143,7 @@ namespace HSTS.Application.Itineraries.Queries
 
                         var alternativeLocations = alternativeCandidates
                             .Where(a => a.Location.Id != nextAttraction.Location.Id)
+                            .Where(a => !visitedLocationIds.Contains(a.Location.Id))
                             .Take(3)
                             .Select(a =>
                             {
@@ -1104,10 +1152,12 @@ namespace HSTS.Application.Itineraries.Queries
                                 var altTravelMin = (int)Math.Ceiling((altDist / DefaultSpeedKmh) * 60.0);
                                 var altTicket = a.Location.TicketPrice;
                                 var altExtra = EstimateExtraSpending(a.Location, request.TripSegment, groupSize) / groupSize;
+                                var altCostForGroup = (altTicket * groupSize) + (altExtra * groupSize);
                                 var altTagNames = GetTags(a.Location);
                                 return new AlternativeLocationDto(
                                     a.Location.Id, a.Location.Name, altTagNames,
                                     toMoney(altTicket), toMoney(altExtra),
+                                    toMoney(altCostForGroup),
                                     Math.Round((double)(a.Location.Score ?? 0), 2),
                                     Math.Round(altDist, 2), altTravelMin,
                                     a.Location.Address, a.Location.Telephone, GetMediaUrls(a.Location));
@@ -1345,6 +1395,17 @@ namespace HSTS.Application.Itineraries.Queries
                     globalDayIndex++;
                 }
             }
+
+            // Post-process: Re-filter alternatives against ALL main locations in the ENTIRE trip
+            // This ensures alternatives don't include ANY location that appears as a main item
+            // across ALL days (not just the current day)
+            var allMainLocationIdsInTrip = days
+                .SelectMany(d => d.Timeline)
+                .Where(t => t.EventType is "visit" or "shopping" or "meal" or "check-in" or "check-out")
+                .Select(t => t.LocationId)
+                .Where(id => id > 0)
+                .ToHashSet();
+            days = ReFilterAllDaysAlternatives(days, allMainLocationIdsInTrip);
 
             // STAGE 7: Budget Validation & Output Assembly
             var estimatedTotal = totalTransportCost + totalAccommodationCost + totalActivityCost;
@@ -1639,14 +1700,17 @@ namespace HSTS.Application.Itineraries.Queries
 
             alternativeRestaurants = scoredRestaurants
                 .Where(r => r.Scored.Location.Id != picked.Scored.Location.Id)
+                .Where(r => !visitedRestaurantIds.Contains(r.Scored.Location.Id))
                 .Take(3)
                 .Select(r =>
                 {
                     var pricePerPerson = GetPerPersonPrice(r.Scored.Location);
+                    var costForGroup = pricePerPerson * groupSize;
                     var tagNames = GetTags(r.Scored.Location);
                     return new AlternativeLocationDto(
                         r.Scored.Location.Id, r.Scored.Location.Name, tagNames,
                         toMoney(0), toMoney(pricePerPerson),
+                        toMoney(costForGroup),
                         (double)r.Scored.Location.Score,
                         Math.Round(r.Distance, 2), r.TravelMin,
                         r.Scored.Location.Address, r.Scored.Location.Telephone, GetMediaUrls(r.Scored.Location));
@@ -1772,6 +1836,80 @@ namespace HSTS.Application.Itineraries.Queries
                 >= 1_300_000m => "Standard",
                 _ => "Budget"
             };
+        }
+
+        // === POST-PROCESSING: Re-filter alternatives against ALL main locations in the entire trip ===
+
+        private static List<ItineraryDayDto> ReFilterAllDaysAlternatives(
+            List<ItineraryDayDto> days, HashSet<int> allMainLocationIdsInTrip)
+        {
+            var result = new List<ItineraryDayDto>(days.Count);
+
+            foreach (var day in days)
+            {
+                var filteredTimeline = new List<ItineraryTimelineItemDto>(day.Timeline.Count);
+                bool anyChanged = false;
+
+                foreach (var item in day.Timeline)
+                {
+                    IList<AlternativeLocationDto>? filteredAlternatives = null;
+                    IList<AccommodationRecommendationDto>? filteredAccomRecs = null;
+
+                    // Filter AlternativeLocationDto: exclude any location that is a main location ANYWHERE in the trip
+                    if (item.Alternatives is { Count: > 0 })
+                    {
+                        filteredAlternatives = item.Alternatives
+                            .Where(a => !allMainLocationIdsInTrip.Contains(a.LocationId))
+                            .ToList();
+                        if (filteredAlternatives.Count == 0) filteredAlternatives = null;
+                    }
+
+                    // Filter AccommodationRecommendationDto: exclude any hotel that is a main location ANYWHERE in the trip
+                    if (item.AccommodationRecommendations is { Count: > 0 })
+                    {
+                        filteredAccomRecs = item.AccommodationRecommendations
+                            .Where(r => !allMainLocationIdsInTrip.Contains(r.LocationId))
+                            .ToList();
+                        if (filteredAccomRecs.Count == 0) filteredAccomRecs = null;
+                    }
+
+                    if (filteredAlternatives != item.Alternatives || filteredAccomRecs != item.AccommodationRecommendations)
+                    {
+                        anyChanged = true;
+                        filteredTimeline.Add(new ItineraryTimelineItemDto(
+                            item.EventType, item.Title, item.StartTime, item.EndTime,
+                            item.LocationId, item.TagNames,
+                            item.TicketCost, item.ExtraCostPerPerson, item.CostForGroup,
+                            item.Note, item.Score,
+                            item.Address, item.Telephone, item.MediaUrls,
+                            item.LocationToLocationTravel,
+                            item.TransitHubToLocationTravel,
+                            item.LocationToTransitHubTravel,
+                            item.ProvinceToProvinceTravel,
+                            filteredAlternatives,
+                            filteredAccomRecs));
+                    }
+                    else
+                    {
+                        filteredTimeline.Add(item);
+                    }
+                }
+
+                if (anyChanged)
+                {
+                    result.Add(new ItineraryDayDto(
+                        day.DayNumber, day.DayTitle, day.Date,
+                        day.ProvinceId, day.WeatherSummary,
+                        day.EstimatedCost,
+                        filteredTimeline));
+                }
+                else
+                {
+                    result.Add(day);
+                }
+            }
+
+            return result;
         }
 
         private static decimal EstimateExtraSpending(Location location, string tripSegment, int groupSize)
@@ -1901,12 +2039,14 @@ namespace HSTS.Application.Itineraries.Queries
             {
                 var perPerson = GetPerPersonPrice(item.v.Hotel);
                 var totalPerNight = perPerson * groupSize;
+                var costForGroup = totalPerNight; // Per night cost * group size (accommodation is already per-night based)
                 var amenities = item.v.Hotel.LocationAmenities.Select(a => a.Amenity.Name).Take(5).ToList();
                 recommendations.Add(new AccommodationRecommendationDto(
-                    item.v.Hotel.Id, item.v.Hotel.Name, item.v.Hotel.Address, 
+                    item.v.Hotel.Id, item.v.Hotel.Name, item.v.Hotel.Address,
                     item.v.Hotel.Score ?? 0m,
                     toMoney(perPerson),
                     toMoney(totalPerNight),
+                    toMoney(costForGroup),
                     Math.Round(item.v.Distance, 2),
                     amenities,
                     item.v.Hotel.Telephone,
