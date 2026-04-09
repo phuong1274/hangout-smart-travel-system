@@ -30,7 +30,7 @@ namespace HSTS.Domain.Entities
         [Column("WeatherSummary")]
         public string? WeatherSummary { get; set; }
 
-        [Column("EstimateCost", TypeName = "decimal(18,2)")]
+        [Column("EstimateCost")]
         public decimal EstimateCost { get; set; }
 
         // Navigation properties

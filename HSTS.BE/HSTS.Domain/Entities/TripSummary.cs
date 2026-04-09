@@ -13,31 +13,29 @@ namespace HSTS.Domain.Entities
         [Column("TripId")]
         public int TripId { get; set; }
 
-        [Column("TotalBudget", TypeName = "decimal(18,2)")]
+        [Column("TotalBudget")]
         public decimal TotalBudget { get; set; }
 
-        [Column("UsableBudget", TypeName = "decimal(18,2)")]
+        [Column("UsableBudget" )]
         public decimal UsableBudget { get; set; }
 
-        [Column("EstimatedAccommodationCost", TypeName = "decimal(18,2)")]
+        [Column("EstimatedAccommodationCost")]
         public decimal EstimatedAccommodationCost { get; set; }
 
-        [Column("EstimatedTransportCost", TypeName = "decimal(18,2)")]
+        [Column("EstimatedTransportCost")]
         public decimal EstimatedTransportCost { get; set; }
 
-        [Column("EstimatedActivityCost", TypeName = "decimal(18,2)")]
+        [Column("EstimatedActivityCost")]
         public decimal EstimatedActivityCost { get; set; }
 
-        [Column("EstimatedTotalCost", TypeName = "decimal(18,2)")]
+        [Column("EstimatedTotalCost")]
         public decimal EstimatedTotalCost { get; set; }
 
-        [Column("RemainingBudget", TypeName = "decimal(18,2)")]
+        [Column("RemainingBudget")]
         public decimal RemainingBudget { get; set; }
 
-        [Column("ContingencyFund", TypeName = "decimal(18,2)")]
+        [Column("ContingencyFund")]
         public decimal? ContingencyFund { get; set; }
-
-        [Column("ActualTotalExpense", TypeName = "decimal(18,2)")]
 
         // Navigation properties
         public Trip Trip { get; set; } = null!;

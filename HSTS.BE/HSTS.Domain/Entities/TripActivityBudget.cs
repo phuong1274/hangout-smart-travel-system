@@ -13,7 +13,7 @@ namespace HSTS.Domain.Entities
         [Column("TripActivityId")]
         public int TripActivityId { get; set; }
 
-        [Column("EstimateCost", TypeName = "decimal(18,2)")]
+        [Column("EstimateCost")]
         public decimal EstimateCost { get; set; }
 
         [MaxLength(200)]
@@ -24,7 +24,7 @@ namespace HSTS.Domain.Entities
         [Column("Description")]
         public string? Description { get; set; }
 
-        [Column("ActualExpense", TypeName = "decimal(18,2)")]
+        [Column("ActualExpense")]
         public decimal? ActualExpense { get; set; }
 
         // Navigation properties

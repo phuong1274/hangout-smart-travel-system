@@ -21,8 +21,8 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasColumnType("decimal(18,2)");
 
             builder.HasOne(tt => tt.TripActivity)
-                .WithMany(a => a.Transports)
-                .HasForeignKey(tt => tt.TripActivityId)
+                .WithOne(a => a.Transport)
+                .HasForeignKey<TripTransport>(tt => tt.TripActivityId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(tt => tt.TransportMode)

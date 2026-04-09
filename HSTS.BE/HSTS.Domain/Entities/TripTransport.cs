@@ -17,16 +17,16 @@ namespace HSTS.Domain.Entities
         [Column("TransportModeId")]
         public int? TransportModeId { get; set; }
 
-        [Column("DistanceKm", TypeName = "decimal(18,2)")]
+        [Column("DistanceKm")]
         public decimal DistanceKm { get; set; }
 
         [Column("TravelTimeMinutes")]
         public int TravelTimeMinutes { get; set; }
 
-        [Column("TotalCost", TypeName = "decimal(18,2)")]
+        [Column("TotalCost")]
         public decimal TotalCost { get; set; }
 
-        [Column("Cost", TypeName = "decimal(18,2)")]
+        [Column("Cost")]
         public decimal Cost { get; set; }
 
         [Column("FromYourLocation")]
