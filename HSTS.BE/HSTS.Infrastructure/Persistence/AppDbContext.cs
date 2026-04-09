@@ -35,6 +35,11 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<LocationClosure> LocationClosures => Set<LocationClosure>();
         public DbSet<LocationSubmission> LocationSubmissions => Set<LocationSubmission>();
         public DbSet<LocationSeason> LocationSeasons => Set<LocationSeason>();
+        public DbSet<Trip> Trips => Set<Trip>();
+        public DbSet<TripDay> TripDays => Set<TripDay>();
+        public DbSet<TripActivity> TripActivities => Set<TripActivity>();
+        public DbSet<TripMember> TripMembers => Set<TripMember>();
+        public DbSet<Expense> Expenses => Set<Expense>();
 
         #region Logging
         /// <summary>

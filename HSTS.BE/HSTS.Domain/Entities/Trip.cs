@@ -30,9 +30,14 @@ namespace HSTS.Domain.Entities
 
         public TripStatus Status { get; set; } = TripStatus.Planned;
 
+        [Required]
+        [MaxLength(10)]
+        public string Currency { get; set; } = "VND";
+
         // Navigation properties
         public Profile Profile { get; set; } = null!;
         public ICollection<TripDay> TripDays { get; set; } = new List<TripDay>();
+        public ICollection<TripMember> TripMembers { get; set; } = new List<TripMember>();
         public TripSummary? TripSummary { get; set; }
     }
 }
