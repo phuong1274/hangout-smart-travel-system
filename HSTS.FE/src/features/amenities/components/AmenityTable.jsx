@@ -1,9 +1,9 @@
 import React from 'react';
-import { Table, Button, Space, Popconfirm } from 'antd';
+import { Table, Button, Space, Popconfirm, Tooltip } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
-import { PAGINATION } from '@/config/constants';
+import styles from '../styles/AmenityTable.module.css';
 
-const AmenityTable = ({ data, loading, pagination, onTableChange, onEdit, onView, onDelete }) => {
+const AmenityTable = ({ data, loading, onEdit, onView, onDelete }) => {
   const columns = [
     {
       title: 'ID',
@@ -16,7 +16,7 @@ const AmenityTable = ({ data, loading, pagination, onTableChange, onEdit, onView
       dataIndex: 'name',
       key: 'name',
       width: 200,
-      render: (text) => <strong>{text}</strong>,
+      render: (text) => <strong className={styles.amenityName}>{text}</strong>,
     },
     {
       title: 'Description',
@@ -29,34 +29,41 @@ const AmenityTable = ({ data, loading, pagination, onTableChange, onEdit, onView
     {
       title: 'Actions',
       key: 'actions',
-      width: 200,
+      width: 150,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => onView(record)}
-          >
-            View
-          </Button>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => onEdit(record)}
-          >
-            Edit
-          </Button>
+        <Space size="small">
+          <Tooltip title="View">
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
+              onClick={() => onView(record)}
+              className={styles.actionBtn}
+            />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => onEdit(record)}
+              className={styles.actionBtn}
+            />
+          </Tooltip>
           <Popconfirm
             title="Delete Amenity"
-            description="Are you sure you want to delete this amenity?"
+            description="Are you sure?"
             onConfirm={() => onDelete(record)}
             okText="Yes"
             cancelText="No"
           >
-            <Button type="link" danger icon={<DeleteOutlined />}>
-              Delete
-            </Button>
+            <Tooltip title="Delete">
+              <Button 
+                type="link" 
+                danger 
+                icon={<DeleteOutlined />} 
+                className={styles.actionBtn}
+              />
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),
@@ -69,16 +76,8 @@ const AmenityTable = ({ data, loading, pagination, onTableChange, onEdit, onView
       dataSource={data}
       loading={loading}
       rowKey="id"
-      scroll={{ x: 800 }}
-      pagination={{
-        current: pagination?.current || PAGINATION.DEFAULT_PAGE,
-        pageSize: pagination?.pageSize || PAGINATION.DEFAULT_PAGE_SIZE,
-        total: pagination?.total || 0,
-        showSizeChanger: true,
-        pageSizeOptions: PAGINATION.PAGE_SIZE_OPTIONS,
-        showTotal: (totalItems) => `Total ${totalItems} items`,
-      }}
-      onChange={onTableChange}
+      scroll={{ x: 'max-content' }}
+      pagination={false}
     />
   );
 };

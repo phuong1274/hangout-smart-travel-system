@@ -14,9 +14,12 @@ export const PATHS = {
   LOCATION_TYPES: '/location-types',
   LOCATIONS: '/locations',
   AMENITIES: '/amenities',
+  ITINERARY: '/itinerary',
   USERS: '/users',
   PROFILE: '/profile',
   PARTNER_LOCATIONS: '/partner/locations',
+  CREATE_TRIP: '/create-trip',
+  ITINERARY: '/itinerary',
   UNAUTHORIZED: '/403',
   NOT_FOUND: '*',
 };

@@ -1,0 +1,258 @@
+.modalTitle {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
+    font-size: 24px;
+    color: #1A535C;
+  }
+  
+  .tropicalModal :global(.ant-modal-content) {
+    border-radius: 24px !important;
+    padding: 32px !important;
+    box-shadow: 0 24px 48px rgba(26, 83, 92, 0.12) !important;
+  }
+  
+  .tropicalModal :global(.ant-modal-header) {
+    margin-bottom: 24px !important;
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+  }
+  
+  .tropicalModal :global(.ant-modal-close) {
+    top: 24px !important;
+    right: 24px !important;
+    color: #1A535C !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  .tropicalModal :global(.ant-modal-close:hover) {
+    background-color: #F7F9F9 !important;
+    color: #FF6B6B !important;
+    transform: scale(1.1);
+    border-radius: 50%;
+  }
+  
+  .modalContentWrapper {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+  
+  .modalContentWrapper::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .modalContentWrapper::-webkit-scrollbar-track {
+    background: #F7F9F9;
+    border-radius: 10px;
+  }
+  
+  .modalContentWrapper::-webkit-scrollbar-thumb {
+    background: #4ECDC4;
+    border-radius: 10px;
+  }
+  
+  .tropicalDescriptions {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  
+  .tropicalDescriptions :global(.ant-descriptions-view) {
+    border: 1px solid rgba(78, 205, 196, 0.2) !important;
+    border-radius: 16px !important;
+    overflow: hidden;
+  }
+  
+  .tropicalDescriptions :global(.ant-descriptions-item-label) {
+    background-color: #F7F9F9 !important;
+    color: #1A535C !important;
+    font-weight: 600 !important;
+    width: 35%;
+    border-right: 1px solid rgba(78, 205, 196, 0.1) !important;
+    border-bottom: 1px solid rgba(78, 205, 196, 0.1) !important;
+  }
+  
+  .tropicalDescriptions :global(.ant-descriptions-item-content) {
+    color: #1A535C !important;
+    background-color: #FFFFFF !important;
+    font-weight: 400;
+    border-bottom: 1px solid rgba(78, 205, 196, 0.1) !important;
+  }
+  
+  .customTag {
+    border-radius: 9999px !important;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600 !important;
+    padding: 2px 12px !important;
+    border: none !important;
+    letter-spacing: 0.5px;
+  }
+  
+  .fullWidth {
+    width: 100%;
+  }
+  
+  .iconText {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .iconBlue { color: #4ECDC4; }
+  .iconGreen { color: #52c41a; }
+  .iconCoral { color: #FF6B6B; }
+  .iconYellow { color: #FFE66D; }
+  .iconTeal { color: #1A535C; }
+  
+  .socialLinkRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .hoverLink {
+    color: #1A535C;
+    text-decoration: none;
+    transition: color 0.3s ease;
+  }
+  
+  .hoverLink:hover {
+    color: #FF6B6B;
+  }
+  
+  .locationImage {
+    object-fit: cover;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  
+  .locationImage:hover {
+    transform: scale(1.05);
+  }
+  
+  .hoursRowEven,
+  .hoursRowOdd {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-radius: 12px;
+    transition: transform 0.2s ease;
+  }
+  
+  .hoursRowEven {
+    background: #F7F9F9;
+    border: 1px solid rgba(78, 205, 196, 0.1);
+  }
+  
+  .hoursRowOdd {
+    background: #FFFFFF;
+    border: 1px solid rgba(78, 205, 196, 0.2);
+  }
+  
+  .hoursRowEven:hover,
+  .hoursRowOdd:hover {
+    transform: translateX(4px);
+    border-color: #4ECDC4;
+  }
+  
+  .dayNameBadge {
+    width: 120px;
+    font-weight: 700;
+    color: #4ECDC4;
+    text-transform: uppercase;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+  
+  .hoursContent {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    flex: 1;
+  }
+  
+  .timeBlockOpen {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #4ECDC4;
+    background-color: rgba(78, 205, 196, 0.1);
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 13px;
+  }
+  
+  .timeBlockClose {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #FF6B6B;
+    background-color: rgba(255, 107, 107, 0.1);
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 13px;
+  }
+  
+  .noteText {
+    color: #1A535C;
+    font-style: italic;
+    font-size: 13px;
+    opacity: 0.7;
+  }
+  
+  .seasonCard {
+    padding: 16px;
+    background: #F7F9F9;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 107, 107, 0.1);
+    transition: all 0.3s ease;
+  }
+  
+  .seasonCard:hover {
+    border-color: #FF6B6B;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.1);
+  }
+  
+  .seasonTitle {
+    color: #FF6B6B;
+    font-size: 16px;
+  }
+  
+  .seasonLabel {
+    color: #1A535C;
+    margin-right: 8px;
+  }
+  
+  .unknownText {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: #FF6B6B;
+    text-align: center;
+    padding: 24px;
+  }
+  
+  @media (max-width: 767px) {
+    .tropicalModal :global(.ant-modal) {
+      margin: 0 !important;
+      width: 100% !important;
+      top: auto !important;
+      bottom: 0 !important;
+    }
+  
+    .tropicalModal :global(.ant-modal-content) {
+      border-radius: 24px 24px 0 0 !important;
+      padding: 24px 16px !important;
+    }
+    
+    .tropicalDescriptions :global(.ant-descriptions-item-label) {
+      width: 100%;
+      display: block;
+      border-right: none !important;
+    }
+    
+    .hoursRowEven,
+    .hoursRowOdd {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+  }

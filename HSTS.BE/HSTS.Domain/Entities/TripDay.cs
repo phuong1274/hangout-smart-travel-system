@@ -6,31 +6,32 @@ namespace HSTS.Domain.Entities
     public class TripDay : BaseEntity
     {
         [Key]
+        [Column("Id")]
         public int Id { get; set; }
 
         [Required]
+        [Column("TripId")]
         public int TripId { get; set; }
 
         [Required]
+        [Column("DayNumber")]
         public int DayNumber { get; set; }
 
         [Required]
+        [Column("Date")]
+        public DateTime Date { get; set; }
+
+        [Required]
         [MaxLength(200)]
+        [Column("DayTitle")]
         public string DayTitle { get; set; } = null!;
 
-        [MaxLength(50)]
-        public string? LocationReference { get; set; }
+        [MaxLength(200)]
+        [Column("WeatherSummary")]
+        public string? WeatherSummary { get; set; }
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal DailyBudgetSpent { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal DailyBudgetLimit { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal DailyBudgetFloor { get; set; }
-
-        public double DailyBudgetWeight { get; set; }
+        [Column("EstimateCost")]
+        public decimal EstimateCost { get; set; }
 
         // Navigation properties
         public Trip Trip { get; set; } = null!;

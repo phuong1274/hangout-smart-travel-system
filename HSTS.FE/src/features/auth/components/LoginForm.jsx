@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useLogin, useGoogleLogin } from '../hooks/useAuth';
 import { PATHS } from '@/routes/paths';
 
-import styles from './LoginForm.module.css';
+import styles from '../styles/LoginForm.module.css';
 
 const { Title, Text } = Typography;
 
@@ -18,8 +18,8 @@ const LoginForm = () => {
   return (
     <div className={styles.loginContainer}>
       
-    
       <div className={styles.loginLeft}>
+        <div className={styles.subHeading}>Welcome back</div>
         <Title level={2} className={styles.loginTitle}>Sign in to Hangout</Title>
 
         <div className={styles.googleLoginWrapper}>
@@ -31,8 +31,8 @@ const LoginForm = () => {
           />
         </div>
 
-        <Text type="secondary" className={styles.loginDividerText}>
-          or use your email account:
+        <Text className={styles.loginDividerText}>
+          or use your email account
         </Text>
 
         <Form 
@@ -75,13 +75,12 @@ const LoginForm = () => {
             </Link>
           </div>
 
-          <Form.Item style={{ textAlign: 'center' }}>
+          <Form.Item style={{ textAlign: 'center', margin: 0 }}>
             <Button 
               type="primary" 
               htmlType="submit" 
               size="large" 
               loading={loading}
-              shape="round"
               className={styles.btnSignin}
             >
               SIGN IN
@@ -90,8 +89,8 @@ const LoginForm = () => {
         </Form>
       </div>
 
-      
       <div className={styles.loginRight}>
+        <div className={styles.subHeadingRight}>New here?</div>
         <Title level={2} className={styles.welcomeTitle}>Hello, Friend!</Title>
         <Text className={styles.welcomeText}>
           Enter your personal details and start<br />journey with us
@@ -99,7 +98,6 @@ const LoginForm = () => {
         
         <Button 
           size="large" 
-          shape="round" 
           onClick={() => navigate(PATHS.AUTH.REGISTER)}
           className={styles.btnSignup}
         >

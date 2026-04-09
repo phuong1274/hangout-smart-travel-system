@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input } from 'antd';
 import { createLocationTypeApi, updateLocationTypeApi } from '../api';
+import styles from '../styles/LocationTypeForm.module.css';
 
 const LocationTypeForm = ({ open, locationType, onClose, onSuccess }) => {
   const [form] = Form.useForm();
@@ -29,7 +30,6 @@ const LocationTypeForm = ({ open, locationType, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (error) {
-      // Handled by global interceptor
     } finally {
       setLoading(false);
     }
@@ -37,23 +37,35 @@ const LocationTypeForm = ({ open, locationType, onClose, onSuccess }) => {
 
   return (
     <Modal
-      title={isEdit ? 'Edit Location Type' : 'Create Location Type'}
+      title={<span className={styles.modalTitle}>{isEdit ? 'Update Destination Type' : 'New Destination Type'}</span>}
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
       confirmLoading={loading}
       destroyOnClose
+      className={styles.tropicalModal}
+      okText={isEdit ? 'SAVE CHANGES' : 'CREATE NOW'}
+      cancelText="CANCEL"
+      centered
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      <Form 
+        form={form} 
+        layout="vertical" 
+        onFinish={handleSubmit}
+        className={styles.customForm}
+      >
         <Form.Item
           name="name"
-          label="Location Type Name"
+          label={<span className={styles.inputLabel}>LOCATION TYPE NAME</span>}
           rules={[
             { required: true, message: 'Please enter location type name' },
             { max: 100, message: 'Location type name cannot exceed 100 characters' }
           ]}
         >
-          <Input placeholder="Enter location type name" />
+          <Input 
+            placeholder="e.g. Tropical Beach, Mountain Retreat" 
+            className={styles.customInput}
+          />
         </Form.Item>
       </Form>
     </Modal>

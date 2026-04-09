@@ -77,6 +77,7 @@ namespace HSTS.Application.LocationClosures.Commands
                     c.EndDate >= request.StartDate,
                     cancellationToken);
 
+
             if (hasOverlap)
             {
                 return Error.Conflict("Closure.Overlapping", "Another active closure already exists for this location that overlaps with the requested date range.");

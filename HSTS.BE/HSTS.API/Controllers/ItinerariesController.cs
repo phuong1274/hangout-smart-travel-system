@@ -19,5 +19,12 @@ namespace HSTS.API.Controllers
             var result = await Mediator.Send(query);
             return result.Match<IActionResult>(Ok, MapErrors);
         }
+
+        [HttpGet("local-travel-estimate")]
+        public async Task<IActionResult> EstimateLocalTravel([FromQuery] EstimateLocalTravelQuery query)
+        {
+            var result = await Mediator.Send(query);
+            return result.Match<IActionResult>(Ok, MapErrors);
+        }
     }
 }

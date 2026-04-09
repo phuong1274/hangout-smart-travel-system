@@ -25,19 +25,22 @@ namespace HSTS.Application.Common.LoggingInterfaces
             try
             {
                 // 1. Log Activity before processing 
-                await _loggingService.LogActivityAsync($"Request start: {requestName}. Data: {requestData}");
+                try { await _loggingService.LogActivityAsync($"Request start: {requestName}. Data: {requestData}"); }
+                catch { /* logging should not break the request pipeline */ }
 
                 var response = await next();
 
                 // 2. Log Activity after processing
-                await _loggingService.LogActivityAsync($"Finish {requestName}");
+                try { await _loggingService.LogActivityAsync($"Finish {requestName}"); }
+                catch { /* logging should not break the request pipeline */ }
 
                 return response;
             }
             catch (Exception ex)
             {
                 // 3. Automatic Error Logging
-                await _loggingService.LogErrorAsync(ex.Message + " : " + ex.StackTrace, requestName);
+                try { await _loggingService.LogErrorAsync(ex.Message + " : " + ex.StackTrace, requestName); }
+                catch { /* logging should not break the request pipeline */ }
                 throw;
             }
         }

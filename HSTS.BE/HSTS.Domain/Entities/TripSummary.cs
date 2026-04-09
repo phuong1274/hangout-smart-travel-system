@@ -6,38 +6,36 @@ namespace HSTS.Domain.Entities
     public class TripSummary : BaseEntity
     {
         [Key]
+        [Column("Id")]
         public int Id { get; set; }
 
         [Required]
+        [Column("TripId")]
         public int TripId { get; set; }
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal TotalEstimatedCost { get; set; }
+        [Column("TotalBudget")]
+        public decimal TotalBudget { get; set; }
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal AccommodationTotal { get; set; }
+        [Column("UsableBudget" )]
+        public decimal UsableBudget { get; set; }
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal TransportTotal { get; set; }
+        [Column("EstimatedAccommodationCost")]
+        public decimal EstimatedAccommodationCost { get; set; }
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal FoodTotal { get; set; }
+        [Column("EstimatedTransportCost")]
+        public decimal EstimatedTransportCost { get; set; }
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal ActivityTotal { get; set; }
+        [Column("EstimatedActivityCost")]
+        public decimal EstimatedActivityCost { get; set; }
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? RemainingContingencyFund { get; set; }
+        [Column("EstimatedTotalCost")]
+        public decimal EstimatedTotalCost { get; set; }
 
-        public decimal? ContingencyFundPercentage { get; set; }
+        [Column("RemainingBudget")]
+        public decimal RemainingBudget { get; set; }
 
-        public bool IsBudgetInsufficient { get; set; }
-
-        [MaxLength(500)]
-        public string? BudgetWarning { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? MinimumRecommendedBudget { get; set; }
+        [Column("ContingencyFund")]
+        public decimal? ContingencyFund { get; set; }
 
         // Navigation properties
         public Trip Trip { get; set; } = null!;

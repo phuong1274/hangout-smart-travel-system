@@ -1,11 +1,10 @@
 import { useCallback } from 'react';
-import { Card, Typography } from 'antd';
 import { Link, Navigate, useLocation } from 'react-router-dom';
+import { LeftOutlined } from '@ant-design/icons';
 import { useVerifyEmail, useResendOtp } from '../hooks/useAuth';
 import OtpVerificationStep from './OtpVerificationStep';
 import { PATHS } from '@/routes/paths';
-
-const { Title } = Typography;
+import styles from '../styles/VerifyEmailForm.module.css';
 
 const VerifyEmailForm = () => {
   const location = useLocation();
@@ -26,11 +25,7 @@ const VerifyEmailForm = () => {
   if (!email) return <Navigate to={PATHS.AUTH.REGISTER} replace />;
 
   return (
-    <Card>
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <Title level={3}>Verify Your Email</Title>
-      </div>
-
+    <div className={styles.verifyPageWrapper}>
       <OtpVerificationStep
         email={email}
         onSubmitOtp={handleSubmitOtp}
@@ -38,11 +33,13 @@ const VerifyEmailForm = () => {
         isSubmitting={verifyLoading}
         isResending={resendLoading}
       />
-
-      <div style={{ textAlign: 'center', marginTop: 24 }}>
-        <Link to={PATHS.AUTH.LOGIN}>Back to Login</Link>
+      
+      <div className={styles.floatingBackLink}>
+        <Link to={PATHS.AUTH.LOGIN} className={styles.backLink}>
+          <LeftOutlined className={styles.backIcon} /> BACK TO LOGIN
+        </Link>
       </div>
-    </Card>
+    </div>
   );
 };
 
