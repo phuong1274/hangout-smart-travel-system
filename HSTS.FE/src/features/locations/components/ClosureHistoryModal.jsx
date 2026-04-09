@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Table, Tag, Button, Popconfirm, message, Space } from 'antd';
+import { Modal, Table, Tag, Button, Popconfirm, message } from 'antd';
 import { CloseCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
+import styles from '../styles/ClosureHistoryModal.module.css';
 
 const ClosureHistoryModal = ({ open, onClose, locationId, locationName, onClosureChange }) => {
   const [closures, setClosures] = useState([]);
@@ -49,21 +50,21 @@ const ClosureHistoryModal = ({ open, onClose, locationId, locationName, onClosur
       dataIndex: 'startDate',
       key: 'startDate',
       width: 120,
-      render: (date) => dayjs(date).format('YYYY-MM-DD'),
+      render: (date) => <span className={styles.bodyText}>{dayjs(date).format('YYYY-MM-DD')}</span>,
     },
     {
       title: 'End Date',
       dataIndex: 'endDate',
       key: 'endDate',
       width: 120,
-      render: (date) => dayjs(date).format('YYYY-MM-DD'),
+      render: (date) => <span className={styles.bodyText}>{dayjs(date).format('YYYY-MM-DD')}</span>,
     },
     {
       title: 'Reason',
       dataIndex: 'reason',
       key: 'reason',
       ellipsis: true,
-      render: (text) => text || '—',
+      render: (text) => <span className={styles.bodyText}>{text || '—'}</span>,
     },
     {
       title: 'Status',
@@ -71,15 +72,15 @@ const ClosureHistoryModal = ({ open, onClose, locationId, locationName, onClosur
       key: 'status',
       width: 100,
       render: (isActive) => (
-        <Tag color={isActive ? 'red' : 'default'}>
-          {isActive ? 'Active' : 'Ended'}
+        <Tag className={isActive ? styles.customTagDanger : styles.customTagDefault}>
+          {isActive ? 'ACTIVE' : 'ENDED'}
         </Tag>
       ),
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 100,
+      width: 120,
       render: (_, record) =>
         record.isActive ? (
           <Popconfirm
@@ -90,38 +91,42 @@ const ClosureHistoryModal = ({ open, onClose, locationId, locationName, onClosur
             cancelText="No"
           >
             <Button
-              type="link"
-              danger
-              size="small"
+              type="text"
+              className={styles.actionBtnDanger}
               icon={<CloseCircleOutlined />}
               loading={endingId === record.id}
             >
-              Cancel
+              CANCEL
             </Button>
           </Popconfirm>
         ) : (
-          '—'
+          <span className={styles.bodyText}>—</span>
         ),
     },
   ];
 
   return (
     <Modal
-      title={`Closure History: ${locationName}`}
+      title={<span className={styles.modalTitle}>Closure History: {locationName}</span>}
       open={open}
       onCancel={onClose}
       footer={null}
       width={700}
       destroyOnClose
+      rootClassName={styles.tropicalModal}
     >
-      <Table
-        columns={columns}
-        dataSource={closures}
-        loading={loading}
-        rowKey="id"
-        pagination={false}
-        locale={{ emptyText: 'No closures found for this location.' }}
-      />
+      <div className={styles.tableWrapper}>
+        <Table
+          className={styles.tropicalTable}
+          columns={columns}
+          dataSource={closures}
+          loading={loading}
+          rowKey="id"
+          pagination={false}
+          locale={{ emptyText: 'No closures found for this location.' }}
+          scroll={{ x: 'max-content' }}
+        />
+      </div>
     </Modal>
   );
 };

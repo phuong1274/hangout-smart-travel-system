@@ -1,17 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Space, Button, Layout, message, Modal } from 'antd';
-import { PlusOutlined, HomeOutlined, EditOutlined } from '@ant-design/icons';
+import { Card, Typography, Space, Button, message, Modal, ConfigProvider } from 'antd';
+import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
 import { useSubmissions } from '../hooks/useSubmissions';
 import SubmissionTable from '../components/SubmissionTable';
 import SubmissionForm from '../components/SubmissionForm';
 import LocationDetailView from '@/components/LocationDetailView';
 import { useNavigate } from 'react-router-dom';
-import { deleteLocationSubmissionApi, getSubmissionByIdApi, getLocationByIdApi } from '../api';
+import { deleteLocationSubmissionApi, getSubmissionByIdApi } from '../api';
 import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
 import { transformLocationForDisplay } from '@/utils/locationMappers';
+import styles from '../styles/SubmissionsPage.module.css';
 
 const { Title } = Typography;
-const { Header, Content } = Layout;
+
+const tropicalTheme = {
+  token: {
+    colorPrimary: '#FF6B6B',
+    colorInfo: '#4ECDC4',
+    colorTextBase: '#1A535C',
+    colorBgBase: '#F7F9F9',
+    fontFamily: "'Plus Jakarta Sans', 'Poppins', sans-serif",
+    borderRadius: 16,
+  },
+  components: {
+    Button: {
+      borderRadius: 8,
+      controlHeight: 44,
+      fontWeight: 600,
+    },
+    Card: {
+      borderRadiusLG: 20,
+      boxShadowTertiary: '0 8px 24px rgba(26, 83, 92, 0.08)',
+    }
+  }
+};
 
 const SubmissionsPage = () => {
   const navigate = useNavigate();
@@ -29,7 +51,6 @@ const SubmissionsPage = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [referenceData, setReferenceData] = useState({ allTags: [], locationTypes: [], amenities: [] });
 
-  // Fetch reference data for transforming submission data
   useEffect(() => {
     const loadReferenceData = async () => {
       const cached = getCachedReferenceData();
@@ -56,7 +77,6 @@ const SubmissionsPage = () => {
 
   const handleEdit = async (submission) => {
     try {
-      // Fetch full submission detail including opening hours and seasons
       const detail = await getSubmissionByIdApi(submission.id);
       setEditingSubmission(detail);
       setFormOpen(true);
@@ -77,7 +97,6 @@ const SubmissionsPage = () => {
   const handleView = async (submission) => {
     try {
       const detail = await getSubmissionByIdApi(submission.id);
-      // Transform data to match LocationDetailView format (same as Location detail)
       const transformedData = transformLocationForDisplay(detail, referenceData);
       setViewingSubmission(transformedData);
       setDetailModalOpen(true);
@@ -92,73 +111,77 @@ const SubmissionsPage = () => {
       message.success('Submission deleted successfully');
       fetchSubmissions();
     } catch (error) {
-      // Handled by global interceptor
     }
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
-          <Title level={3} style={{ margin: 0 }}>My Location Submissions</Title>
-        </div>
-        <Button type="primary" onClick={() => navigate('/')}>
-          Back to Home
-        </Button>
-      </Header>
-      <Content style={{ padding: '24px', background: '#f0f2f5' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={2} style={{ margin: 0 }}>Your Submissions</Title>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Submit New Location
-            </Button>
+    <ConfigProvider theme={tropicalTheme}>
+      <div className={styles.pageContainer}>
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            <HomeOutlined className={styles.floatingIcon} />
+            <Title level={3} className={styles.mainTitle}>My Location Submissions</Title>
           </div>
-          <Card>
-            <SubmissionTable
-              data={data}
-              loading={loading}
-              pagination={pagination}
-              onTableChange={handleTableChange}
-              onEdit={handleEdit}
-              onView={handleView}
-              onDelete={handleDelete}
-            />
-          </Card>
-        </Space>
-      </Content>
+          <Button className={styles.navButton} onClick={() => navigate('/')}>
+            Back to Home
+          </Button>
+        </div>
+        
+        <div className={styles.content}>
+          <Space direction="vertical" size="large" className={styles.mainSpace}>
+            <div className={styles.actionHeader}>
+              <Title level={2} className={styles.subHeadingTitle}>Your Submissions</Title>
+              <Button className={styles.ctaButton} icon={<PlusOutlined />} onClick={handleCreate}>
+                Submit New Location
+              </Button>
+            </div>
+            <Card className={styles.tropicalCard}>
+              <SubmissionTable
+                data={data}
+                loading={loading}
+                pagination={pagination}
+                onTableChange={handleTableChange}
+                onEdit={handleEdit}
+                onView={handleView}
+                onDelete={handleDelete}
+              />
+            </Card>
+          </Space>
+        </div>
 
-      <SubmissionForm
-        open={formOpen}
-        submission={editingSubmission}
-        onClose={handleFormClose}
-        onSuccess={handleFormSuccess}
-      />
+        <SubmissionForm
+          open={formOpen}
+          submission={editingSubmission}
+          onClose={handleFormClose}
+          onSuccess={handleFormSuccess}
+        />
 
-      {/* Detail Modal */}
-      <Modal
-        title={`📝 ${viewingSubmission?.name || 'Submission Details'}`}
-        open={detailModalOpen}
-        onCancel={() => {
-          setDetailModalOpen(false);
-          setViewingSubmission(null);
-        }}
-        footer={null}
-        width={900}
-      >
-        {viewingSubmission && (
-          <LocationDetailView
-            data={viewingSubmission}
-            options={{
-              showSubmissionInfo: true,
-              showId: true,
-              showTimestamps: true,
-            }}
-          />
-        )}
-      </Modal>
-    </Layout>
+        <Modal
+          title={<span className={styles.modalTitle}>🌴 {viewingSubmission?.name || 'Submission Details'}</span>}
+          open={detailModalOpen}
+          onCancel={() => {
+            setDetailModalOpen(false);
+            setViewingSubmission(null);
+          }}
+          footer={null}
+          width={900}
+          className={styles.tropicalModal}
+        >
+          {viewingSubmission && (
+            <div className={styles.fadeUpAnim}>
+              <LocationDetailView
+                data={viewingSubmission}
+                options={{
+                  showSubmissionInfo: true,
+                  showId: true,
+                  showTimestamps: true,
+                }}
+              />
+            </div>
+          )}
+        </Modal>
+      </div>
+    </ConfigProvider>
   );
 };
 

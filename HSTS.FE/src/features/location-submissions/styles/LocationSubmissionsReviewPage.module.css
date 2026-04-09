@@ -1,0 +1,238 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+.pageContainer {
+  min-height: 100vh;
+  background-color: #F7F9F9;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #1A535C;
+}
+
+.subHeading {
+  font-family: 'Caveat', cursive;
+  color: #FF6B6B;
+  font-size: 1.5rem;
+  letter-spacing: 1px;
+}
+
+.ctaButton {
+  background-color: #FFE66D !important;
+  color: #1A535C !important;
+  border: none !important;
+  border-radius: 999px !important;
+  text-transform: uppercase;
+  font-weight: 600 !important;
+  letter-spacing: 0.8px;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  min-width: 120px;
+}
+
+.ctaButton:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(255, 230, 109, 0.4);
+}
+
+.dangerBtn {
+  background-color: #FFFFFF !important;
+  color: #FF6B6B !important;
+  border: 2px solid #FF6B6B !important;
+  border-radius: 999px !important;
+  text-transform: uppercase;
+  font-weight: 600 !important;
+  letter-spacing: 0.8px;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.dangerBtn:hover {
+  background-color: #FF6B6B !important;
+  color: #FFFFFF !important;
+  transform: scale(1.05);
+}
+
+.content {
+  padding: 40px 24px;
+}
+
+.mainSpace {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.tropicalCard {
+  background: #FFFFFF;
+  border: none;
+  animation: fadeUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+@keyframes fadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.filterRow {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.searchWrapper {
+  flex: 0 1 auto;
+  width: 350px;
+}
+
+.searchWrapper > div {
+  margin-bottom: 0 !important;
+}
+
+.statusSelectPill {
+  width: 200px;
+  height: 44px;
+  margin: 0 !important;
+  box-shadow: 0 2px 8px rgba(26, 83, 92, 0.08);
+  border-radius: 9999px;
+}
+
+.bouncyTag {
+  border-radius: 12px;
+  padding: 4px 12px;
+  border: none;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.bouncyTag:hover {
+  transform: scale(1.1);
+}
+
+.actionBtn {
+  font-weight: 600;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.actionBtn:hover {
+  transform: translateY(-2px);
+}
+
+.tropicalModal :global(.ant-modal-content) {
+  border-radius: 20px;
+  padding: 32px;
+}
+
+.modalTitle {
+  font-family: 'Poppins', sans-serif;
+  color: #1A535C;
+  font-size: 1.25rem;
+}
+
+.modalContentBody {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #1A535C;
+}
+
+.bodyText {
+  font-size: 1rem;
+}
+
+.highlightText {
+  color: #FF6B6B;
+}
+
+.successText {
+  color: #4ECDC4;
+  font-weight: 500;
+  background: rgba(78, 205, 196, 0.1);
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.infoText {
+  color: #FF6B6B;
+  font-weight: 500;
+  background: rgba(255, 107, 107, 0.1);
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.tropicalTextArea {
+  border-radius: 12px;
+  border: 2px solid rgba(26, 83, 92, 0.1);
+}
+
+.tropicalTextArea:focus {
+  border-color: #FF6B6B;
+  box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
+}
+
+.dangerText {
+  color: #FF6B6B;
+  margin-top: 12px;
+  font-weight: 600;
+}
+
+.detailSection {
+  margin-bottom: 24px;
+}
+
+.labelDark {
+  color: #1A535C;
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+.tropicalDescriptions {
+  margin-bottom: 24px;
+}
+
+.tropicalDescriptions :global(.ant-descriptions-item-label) {
+  background-color: rgba(78, 205, 196, 0.05);
+  color: #1A535C;
+  font-weight: 600;
+}
+
+.rejectionBox {
+  margin-top: 24px;
+  padding: 16px;
+  background: rgba(255, 107, 107, 0.05);
+  border: 2px solid rgba(255, 107, 107, 0.2);
+  border-radius: 16px;
+}
+
+.dangerTextMsg {
+  margin: 8px 0 0 0;
+  color: #FF6B6B;
+  font-weight: 500;
+}
+
+.fadeUpAnim {
+  animation: fadeUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+:global(.ant-btn-primary) {
+  background-color: #FF6B6B;
+}
+
+:global(.ant-btn-primary:hover) {
+  background-color: #ff5252 !important;
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: 20px 12px;
+  }
+  .ctaButton {
+    width: 100%;
+  }
+  .statusSelectPill {
+    width: 100%;
+  }
+  .filterRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+}

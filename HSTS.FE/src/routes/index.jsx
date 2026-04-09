@@ -16,7 +16,6 @@ const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPassword
 const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
 const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const HomePage = lazy(() => import('@/features/home/pages/Home'));
-const ItineraryPage = lazy(() => import('@/features/schedules/pages/ItineraryPage'));
 
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
@@ -27,10 +26,23 @@ const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPag
 const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPage'));
 const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
+const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
+
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
 const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
 
-const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
+const DashboardOverview = () => (
+  <div>
+    <h2>Overview</h2>
+    <p>Algorithm-based destination scheduling system.</p>
+  </div>
+);
+
+const ScheduleManagement = () => (
+  <div>
+    <h2>Algorithm Scheduling Management</h2>
+  </div>
+);
 
 export const router = createBrowserRouter([
   {
@@ -54,34 +66,6 @@ export const router = createBrowserRouter([
       }
     ]
   },
-
-  // Public Routes (Feature pages - for testing/demo)
-  {
-    path: PATHS.DESTINATIONS.replace('/', ''),
-    element: <SuspenseWrapper><DestinationsPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.TAGS.replace('/', ''),
-    element: <SuspenseWrapper><TagsPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.LOCATION_TYPES.replace('/', ''),
-    element: <SuspenseWrapper><LocationTypesPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.AMENITIES.replace('/', ''),
-    element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.CREATE_TRIP.replace('/', ''),
-    element: <SuspenseWrapper><CreateTripPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.ITINERARY.replace('/', ''),
-    element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
-  },
-
-  // Protected Routes (Admin/Authenticated users)
   {
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
@@ -90,18 +74,19 @@ export const router = createBrowserRouter([
         children: [
           {
             path: PATHS.DASHBOARD,
-            element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div>
-          },
-          {
-            path: PATHS.DESTINATIONS,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
-            children: [
-              { index: true, element: <DestinationsPage /> }
-            ]
+            element: <DashboardOverview />
           },
           {
             path: PATHS.SCHEDULES,
-            element: <div><h2>Algorithm Scheduling Management</h2></div>
+            element: <ScheduleManagement />
+          },
+          {
+            path: PATHS.CREATE_TRIP,
+            element: <CreateTripPage />
+          },
+          {
+            path: PATHS.ITINERARY,
+            element: <ItineraryResultPage />
           },
           {
             path: '/my-locations',
@@ -112,20 +97,39 @@ export const router = createBrowserRouter([
             element: <PartnerLocationsPage />
           },
           {
-            path: PATHS.TAGS,
-            element: <TagsPage />
+            path: PATHS.DESTINATIONS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <DestinationsPage /> }
+            ]
           },
           {
             path: PATHS.LOCATION_TYPES,
-            element: <LocationTypesPage />
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <LocationTypesPage /> }
+            ]
           },
           {
             path: PATHS.AMENITIES,
-            element: <AmenitiesPage />
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <AmenitiesPage /> }
+            ]
+          },
+          {
+            path: PATHS.TAGS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <TagsPage /> }
+            ]
           },
           {
             path: PATHS.LOCATIONS,
-            element: <LocationsPage />
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <LocationsPage /> }
+            ]
           },
           {
             path: '/admin/location-submissions',
@@ -133,10 +137,6 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <LocationSubmissionsReviewPage /> }
             ]
-          },
-          {
-            path: PATHS.ITINERARY,
-            element: <ItineraryPage />,
           },
           {
             path: PATHS.USERS,
