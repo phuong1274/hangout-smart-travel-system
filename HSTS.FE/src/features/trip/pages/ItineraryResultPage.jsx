@@ -330,13 +330,47 @@ const getEnglishPreferredName = (item) => {
 };
 
 const extractMediaUrls = (value) => {
-  const list = Array.isArray(value) ? value : [];
-  return list
-    .map((item) => {
-      if (typeof item === 'string') return item.trim();
-      return String(item?.url || item?.Url || item?.mediaUrl || item?.MediaUrl || '').trim();
-    })
-    .filter(Boolean);
+  if (!value) return [];
+
+  const toUrl = (item) => {
+    if (!item) return '';
+    if (typeof item === 'string') return item.trim();
+    return String(
+      item?.url
+      || item?.Url
+      || item?.mediaUrl
+      || item?.MediaUrl
+      || item?.link
+      || item?.Link
+      || item?.href
+      || item?.Href
+      || ''
+    ).trim();
+  };
+
+  const asList = (() => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+
+    const candidateArrays = [
+      value?.mediaUrls,
+      value?.MediaUrls,
+      value?.mediaLinks,
+      value?.MediaLinks,
+      value?.images,
+      value?.Images,
+      value?.medias,
+      value?.Medias,
+    ].filter(Array.isArray);
+
+    if (candidateArrays.length > 0) {
+      return candidateArrays.flat();
+    }
+
+    return [value];
+  })();
+
+  return [...new Set(asList.map(toUrl).filter(Boolean))];
 };
 
 const extractAmenityNames = (value) => {
@@ -529,6 +563,8 @@ const ItineraryResultPage = () => {
   const [locationTelephoneById, setLocationTelephoneById] = useState(new Map());
   const [locationAmenitiesById, setLocationAmenitiesById] = useState(new Map());
   const [showBudgetDetails, setShowBudgetDetails] = useState(false);
+  const [showAlternativeItems, setShowAlternativeItems] = useState(true);
+  const [showTransportOptionItems, setShowTransportOptionItems] = useState(true);
   const [recalculatingDayNumber, setRecalculatingDayNumber] = useState(null);
   const [addBetweenModal, setAddBetweenModal] = useState({
     open: false,
@@ -605,17 +641,7 @@ const ItineraryResultPage = () => {
         const entries = await Promise.all(locationIds.map(async (id) => {
           try {
             const data = await getLocationByIdApi(id);
-            const mediaUrls = extractMediaUrls(
-              data?.mediaUrls
-              || data?.MediaUrls
-              || data?.mediaLinks
-              || data?.MediaLinks
-              || data?.images
-              || data?.Images
-              || data?.medias
-              || data?.Medias
-              || []
-            );
+            const mediaUrls = extractMediaUrls(data);
             const telephone = pickFirstText(data?.telephone, data?.Telephone);
             const amenities = extractAmenityNames(
               data?.amenityNames
@@ -1325,6 +1351,22 @@ const ItineraryResultPage = () => {
               {budgetLevel}
             </span>
           </div>
+          <div className={styles.sectionToggleRow}>
+            <Button
+              size="small"
+              className={styles.sectionToggleBtn}
+              onClick={() => setShowAlternativeItems((prev) => !prev)}
+            >
+              {showAlternativeItems ? 'Hide alternatives' : 'Show alternatives'}
+            </Button>
+            <Button
+              size="small"
+              className={styles.sectionToggleBtn}
+              onClick={() => setShowTransportOptionItems((prev) => !prev)}
+            >
+              {showTransportOptionItems ? 'Hide transport options' : 'Show transport options'}
+            </Button>
+          </div>
         </Card>
 
         {/* Budget Summary */}
@@ -1496,21 +1538,17 @@ const ItineraryResultPage = () => {
                     : [];
                   const displayAmenities = (itemAmenities.length > 0 ? itemAmenities : fallbackAmenities).slice(0, 5);
                   const mediaUrls = (() => {
-                    const fromItem = extractMediaUrls(
-                      item.mediaUrls
-                      || item.MediaUrls
-                      || item.mediaLinks
-                      || item.MediaLinks
-                      || item.images
-                      || item.Images
-                      || item.medias
-                      || item.Medias
-                      || []
-                    );
+                    const fromItem = extractMediaUrls(item);
                     if (fromItem.length > 0) return fromItem;
+
                     if (Number.isFinite(locationIdNum)) {
-                      return locationMediaById.get(locationIdNum) || [];
+                      const fromMap = locationMediaById.get(locationIdNum) || [];
+                      if (fromMap.length > 0) return fromMap;
                     }
+
+                    const fromAlternatives = extractMediaUrls(item.alternatives || item.Alternatives || []);
+                    if (fromAlternatives.length > 0) return fromAlternatives;
+
                     return [];
                   })();
 
@@ -1590,61 +1628,89 @@ const ItineraryResultPage = () => {
                           </div>
                         )}
 
-                        {isTravel && transportOptions.length > 0 && (
-                          <div className={styles.transportOptionList}>
-                            {transportOptions.map((option, optionIdx) => {
-                              const optionMethod = pickFirstText(
-                                option?.method,
-                                option?.Method,
-                                `Option ${optionIdx + 1}`,
-                              );
-                              const optionMinutes = toFiniteNumber(
-                                option?.estimatedTravelMinutes ?? option?.EstimatedTravelMinutes,
-                              );
-                              const optionCost = pickBestMoney(
-                                option?.costForGroup,
-                                option?.CostForGroup,
-                                option?.estimatedTotalCost,
-                                option?.EstimatedTotalCost,
-                              );
-                              const optionRecommended = Boolean(option?.recommended ?? option?.Recommended);
-                              const optionRouteText = getTransportOptionRouteText(option);
+                        {isTravel && showTransportOptionItems && transportOptions.length > 0 && (
+                          <>
+                            <div className={styles.inlineToggleRow}>
+                              <span className={styles.inlineToggleLabel}>Transport options ({transportOptions.length})</span>
+                              <Button
+                                type="link"
+                                size="small"
+                                disabled={isDayUpdating}
+                                style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                                onClick={() => setShowTransportOptionItems(false)}
+                              >
+                                Hide
+                              </Button>
+                            </div>
+                            <div className={styles.transportOptionList}>
+                              {transportOptions.map((option, optionIdx) => {
+                                const optionMethod = pickFirstText(
+                                  option?.method,
+                                  option?.Method,
+                                  `Option ${optionIdx + 1}`,
+                                );
+                                const optionMinutes = toFiniteNumber(
+                                  option?.estimatedTravelMinutes ?? option?.EstimatedTravelMinutes,
+                                );
+                                const optionCost = pickBestMoney(
+                                  option?.costForGroup,
+                                  option?.CostForGroup,
+                                  option?.estimatedTotalCost,
+                                  option?.EstimatedTotalCost,
+                                );
+                                const optionRecommended = Boolean(option?.recommended ?? option?.Recommended);
+                                const optionRouteText = getTransportOptionRouteText(option);
 
-                              return (
-                                <div
-                                  key={`${idx}-transport-option-${optionIdx}`}
-                                  className={`${styles.transportOptionItem} ${styles.transportOptionItemClickable} ${optionRecommended ? styles.transportOptionItemSelected : ''}`}
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() => {
-                                    if (!isDayUpdating) {
-                                      handleSelectTransportOption(dayIdx, idx, optionIdx);
-                                    }
-                                  }}
-                                  onKeyDown={(event) => {
-                                    if (isDayUpdating) return;
-                                    if (event.key === 'Enter' || event.key === ' ') {
-                                      event.preventDefault();
-                                      handleSelectTransportOption(dayIdx, idx, optionIdx);
-                                    }
-                                  }}
-                                >
-                                  <div className={styles.transportOptionMain}>
-                                    <span className={styles.transportOptionName}>{optionMethod}</span>
-                                    {optionRecommended && (
-                                      <span className={styles.transportOptionRecommended}>Recommended</span>
+                                return (
+                                  <div
+                                    key={`${idx}-transport-option-${optionIdx}`}
+                                    className={`${styles.transportOptionItem} ${styles.transportOptionItemClickable} ${optionRecommended ? styles.transportOptionItemSelected : ''}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => {
+                                      if (!isDayUpdating) {
+                                        handleSelectTransportOption(dayIdx, idx, optionIdx);
+                                      }
+                                    }}
+                                    onKeyDown={(event) => {
+                                      if (isDayUpdating) return;
+                                      if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        handleSelectTransportOption(dayIdx, idx, optionIdx);
+                                      }
+                                    }}
+                                  >
+                                    <div className={styles.transportOptionMain}>
+                                      <span className={styles.transportOptionName}>{optionMethod}</span>
+                                      {optionRecommended && (
+                                        <span className={styles.transportOptionRecommended}>Recommended</span>
+                                      )}
+                                    </div>
+                                    {optionRouteText && (
+                                      <div className={styles.transportOptionRoute}>{optionRouteText}</div>
                                     )}
+                                    <div className={styles.transportOptionMeta}>
+                                      {optionMinutes != null && optionMinutes > 0 ? formatMinutesAsHourMinute(optionMinutes) : 'N/A'}
+                                      {optionCost ? ` • ${formatMoney(optionCost)}` : ''}
+                                    </div>
                                   </div>
-                                  {optionRouteText && (
-                                    <div className={styles.transportOptionRoute}>{optionRouteText}</div>
-                                  )}
-                                  <div className={styles.transportOptionMeta}>
-                                    {optionMinutes != null && optionMinutes > 0 ? formatMinutesAsHourMinute(optionMinutes) : 'N/A'}
-                                    {optionCost ? ` • ${formatMoney(optionCost)}` : ''}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+                        {isTravel && !showTransportOptionItems && transportOptions.length > 0 && (
+                          <div className={styles.collapsedHint}>
+                            <span>Transport options hidden ({transportOptions.length})</span>
+                            <Button
+                              type="link"
+                              size="small"
+                              disabled={isDayUpdating}
+                              style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                              onClick={() => setShowTransportOptionItems(true)}
+                            >
+                              Show
+                            </Button>
                           </div>
                         )}
 
@@ -1704,9 +1770,22 @@ const ItineraryResultPage = () => {
                           )}
                         </div>
 
-                        {alternatives.length > 0 && (
-                          <div className={styles.alternativeList}>
-                            {alternatives.map((alternative, altIdx) => {
+                        {showAlternativeItems && alternatives.length > 0 && (
+                          <>
+                            <div className={styles.inlineToggleRow}>
+                              <span className={styles.inlineToggleLabel}>Alternative options ({alternatives.length})</span>
+                              <Button
+                                type="link"
+                                size="small"
+                                disabled={isDayUpdating}
+                                style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                                onClick={() => setShowAlternativeItems(false)}
+                              >
+                                Hide
+                              </Button>
+                            </div>
+                            <div className={styles.alternativeList}>
+                              {alternatives.map((alternative, altIdx) => {
                               const altLocationId = alternative.locationId || alternative.LocationId;
                               const altLocationIdNum = Number(altLocationId);
                               const fallbackAltName = Number.isFinite(altLocationIdNum)
@@ -1750,11 +1829,11 @@ const ItineraryResultPage = () => {
                                 return [];
                               })();
 
-                              return (
-                                <div
-                                  key={`${idx}-alt-${altLocationId || altIdx}`}
-                                  className={styles.alternativeItem}
-                                >
+                                return (
+                                  <div
+                                    key={`${idx}-alt-${altLocationId || altIdx}`}
+                                    className={styles.alternativeItem}
+                                  >
                                   <div className={styles.alternativeMain}>
                                     <span className={styles.alternativeName}>{altName}</span>
                                   </div>
@@ -1826,9 +1905,24 @@ const ItineraryResultPage = () => {
                                       </Button>
                                     )}
                                   </div>
-                                </div>
-                              );
-                            })}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+                        {!showAlternativeItems && alternatives.length > 0 && (
+                          <div className={styles.collapsedHint}>
+                            <span>Alternative options hidden ({alternatives.length})</span>
+                            <Button
+                              type="link"
+                              size="small"
+                              disabled={isDayUpdating}
+                              style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                              onClick={() => setShowAlternativeItems(true)}
+                            >
+                              Show
+                            </Button>
                           </div>
                         )}
                       </div>

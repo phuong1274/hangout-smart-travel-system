@@ -1,5 +1,8 @@
 import apiClient from '@/lib/axios';
 
+// Temporary switch: disable /api/Locations/{id} requests while replacement API is being developed.
+const ENABLE_LOCATION_DETAIL_API = false;
+
 // Generate itinerary from trip plan request
 export const generateItineraryApi = (data) => {
   return apiClient.post('/api/Itineraries/generate', data, { timeout: 120000 }).then(res => res.data);
@@ -104,6 +107,9 @@ export const getChildTagsApi = (parentTagId) => {
 
 // Get location detail by id
 export const getLocationByIdApi = (id) => {
+  if (!ENABLE_LOCATION_DETAIL_API) {
+    return Promise.resolve(null);
+  }
   return apiClient.get(`/api/Locations/${id}`).then(res => res.data);
 };
 
