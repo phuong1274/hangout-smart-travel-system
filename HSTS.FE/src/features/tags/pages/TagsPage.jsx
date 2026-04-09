@@ -1,21 +1,18 @@
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, Layout } from 'antd';
-import { PlusOutlined, HomeOutlined } from '@ant-design/icons';
-import SearchFilter from '@/components/UI/SearchFilter';
+import { Card, Typography, Space, Button } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import SearchFilter from '@/components/UI/SearchFilter/SearchFilter';
 import { useTags } from '../hooks/useTags';
 import TagTable from '../components/TagTable';
 import TagForm from '../components/TagForm';
-import DetailModal from '@/components/DetailModal';
-import { useNavigate } from 'react-router-dom';
-import { PATHS } from '@/routes/paths';
+import DetailModal from '@/components/UI/DetailModal/DetailModal';
 import { message } from 'antd';
 import { deleteTagApi, getTagByIdApi } from '../api';
+import styles from '../styles/TagsPage.module.css';
 
 const { Title } = Typography;
-const { Header, Content } = Layout;
 
 const TagsPage = () => {
-  const navigate = useNavigate();
   const {
     data,
     loading,
@@ -65,55 +62,53 @@ const TagsPage = () => {
       message.success('Tag deleted successfully');
       fetchTags();
     } catch (error) {
-      // Handled by global interceptor
     }
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <HomeOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
-          <Title level={3} style={{ margin: 0 }}>Hangout - Tags</Title>
-        </div>
-        <Button type="primary" onClick={() => navigate(PATHS.AUTH.LOGIN)}>
-          Login
-        </Button>
-      </Header>
-      <Content style={{ padding: '24px', background: '#f0f2f5' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={2} style={{ margin: 0 }}>Tag Management</Title>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              Add Tag
-            </Button>
+    <div className={styles.layout}>
+      <div className={styles.content}>
+        <div className={styles.ambientCircle1} />
+        <div className={styles.ambientCircle2} />
+        <Space direction="vertical" size="large" className={styles.mainContainer}>
+          <div className={styles.pageHeader}>
+            <Title level={2} className={styles.mainHeading}>Tag Management</Title>
           </div>
-          <Card>
-            <SearchFilter
-              onSearch={handleSearch}
-              loading={loading}
-              placeholder="Search tags..."
-            />
-            <TagTable
-              data={data}
-              loading={loading}
-              pagination={pagination}
-              onTableChange={handleTableChange}
-              onEdit={handleEdit}
-              onView={handleView}
-              onDelete={handleDelete}
-            />
+          <Card className={styles.tropicalCard}>
+            <div className={styles.cardInner}>
+              <div className={styles.toolbar}>
+                <div className={styles.searchWrapper}>
+                  <SearchFilter
+                    onSearch={handleSearch}
+                    loading={loading}
+                    placeholder="Search tags..."
+                  />
+                </div>
+                <Button type="primary" className={styles.ctaButton} icon={<PlusOutlined />} onClick={handleCreate}>
+                  Add Tag
+                </Button>
+              </div>
+              <div className={styles.tableWrapper}>
+                <TagTable
+                  data={data}
+                  loading={loading}
+                  pagination={pagination}
+                  onTableChange={handleTableChange}
+                  onEdit={handleEdit}
+                  onView={handleView}
+                  onDelete={handleDelete}
+                />
+              </div>
+            </div>
           </Card>
         </Space>
-      </Content>
+      </div>
       <TagForm
         open={formOpen}
         tag={editingTag}
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
       />
-
-      {/* Detail Modal */}
       <DetailModal
         open={detailModalOpen}
         onClose={() => {
@@ -123,7 +118,7 @@ const TagsPage = () => {
         data={viewingTag}
         type="tag"
       />
-    </Layout>
+    </div>
   );
 };
 

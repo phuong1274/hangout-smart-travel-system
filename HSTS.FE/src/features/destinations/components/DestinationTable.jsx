@@ -1,7 +1,8 @@
 import React from 'react';
 import { Table, Button, Space, Popconfirm } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
-import { PAGINATION } from '@/config/constants';
+import AppPagination from '@/components/UI/AppPagination/AppPagination';
+import styles from '../styles/DestinationTable.module.css';
 
 const DistrictTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView }) => {
   const columns = [
@@ -15,78 +16,97 @@ const DistrictTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-    },
-    {
-      title: 'English Name',
-      dataIndex: 'englishName',
-      key: 'englishName',
-      width: 150,
+      width: '40%',
     },
     {
       title: 'Code',
       dataIndex: 'code',
       key: 'code',
-      width: 100,
+      width: '20%',
     },
     {
       title: 'Province',
       dataIndex: 'provinceName',
       key: 'provinceName',
-      width: 150,
+      width: '25%',
       render: (provinceName) => provinceName ?? '-',
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 180,
+      width: 120,
+      fixed: 'right',
       render: (_, record) => (
-        <Space direction="vertical" size="small">
+        <Space size="middle" className={styles.actionSpace}>
           <Button
-            type="link"
+            type="text"
+            className={styles.actionIconView}
             icon={<EyeOutlined />}
             onClick={() => onView(record)}
-          >
-            View
-          </Button>
+          />
           <Button
-            type="link"
+            type="text"
+            className={styles.actionIconEdit}
             icon={<EditOutlined />}
             onClick={() => onEdit(record)}
-          >
-            Edit
-          </Button>
+          />
           <Popconfirm
             title="Delete District"
             description="Are you sure you want to delete this district?"
             onConfirm={() => onDelete(record)}
             okText="Yes"
             cancelText="No"
+            okButtonProps={{ className: styles.popConfirmOk }}
+            cancelButtonProps={{ className: styles.popConfirmCancel }}
           >
-            <Button type="link" danger icon={<DeleteOutlined />}>
-              Delete
-            </Button>
+            <Button type="text" className={styles.actionIconDelete} icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
     },
   ];
 
+  const handleTableChange = (tablePagination, filters, sorter) => {
+    if (onTableChange) {
+      onTableChange(
+        { current: pagination?.current, pageSize: pagination?.pageSize },
+        filters,
+        sorter
+      );
+    }
+  };
+
+  const handlePaginationChange = (page, pageSize) => {
+    if (onTableChange) {
+      onTableChange({ current: page, pageSize }, {}, {});
+    }
+  };
+
   return (
-    <Table
-      columns={columns}
-      dataSource={data}
-      loading={loading}
-      rowKey="id"
-      pagination={{
-        current: pagination?.current || PAGINATION.DEFAULT_PAGE,
-        pageSize: pagination?.pageSize || PAGINATION.DEFAULT_PAGE_SIZE,
-        total: pagination?.total || 0,
-        showSizeChanger: true,
-        pageSizeOptions: PAGINATION.PAGE_SIZE_OPTIONS,
-        showTotal: (totalItems) => `Total ${totalItems} items`,
-      }}
-      onChange={onTableChange}
-    />
+    <div className={styles.tableWrapper}>
+      <Table
+        className={styles.tropicalTable}
+        columns={columns}
+        dataSource={data}
+        loading={{
+          spinning: loading,
+          indicator: <div className={styles.skeletonLoader}></div>
+        }}
+        rowKey="id"
+        scroll={{ x: 'max-content' }}
+        pagination={false}
+        onChange={handleTableChange}
+      />
+      
+      <div className={styles.paginationWrapper}>
+        <AppPagination
+          current={pagination?.current}
+          pageSize={pagination?.pageSize}
+          total={pagination?.total}
+          onChange={handlePaginationChange}
+        />
+      </div>
+    </div>
   );
 };
 

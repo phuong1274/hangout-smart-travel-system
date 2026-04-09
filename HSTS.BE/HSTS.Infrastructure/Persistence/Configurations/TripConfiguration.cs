@@ -1,6 +1,6 @@
-using HSTS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using HSTS.Domain.Entities;
 
 namespace HSTS.Infrastructure.Persistence.Configurations
 {
@@ -10,23 +10,35 @@ namespace HSTS.Infrastructure.Persistence.Configurations
         {
             builder.ToTable("Trips");
             builder.HasKey(x => x.Id);
-            builder.Property(x => x.TripName).HasMaxLength(200).IsRequired();
-            builder.Property(x => x.Description).HasMaxLength(2000);
-            builder.Property(x => x.StartingLocation).HasMaxLength(50);
-            builder.Property(x => x.Currency).HasMaxLength(10).IsRequired().HasDefaultValue("VND");
 
-            builder.HasOne(x => x.Profile)
+            builder.Property(x => x.TripName)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            builder.Property(x => x.Description)
+                .HasMaxLength(2000);
+
+            builder.Property(x => x.Currency)
+                .HasMaxLength(3)
+                .IsRequired();
+
+            builder.Property(x => x.Status)
+                .HasConversion<int>();
+
+            builder.HasOne(t => t.User)
                 .WithMany()
-                .HasForeignKey(x => x.ProfileId)
+                .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne(x => x.TripSummary)
-                .WithOne()
-                .HasForeignKey<TripSummary>(x => x.TripId)
+            builder.HasMany(t => t.TripDays)
+                .WithOne(td => td.Trip)
+                .HasForeignKey(td => td.TripId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasIndex(x => x.ProfileId);
-            builder.HasIndex(x => x.Status);
+            builder.HasOne(t => t.TripSummary)
+                .WithOne(ts => ts.Trip)
+                .HasForeignKey<TripSummary>(ts => ts.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

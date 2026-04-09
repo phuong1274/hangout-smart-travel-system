@@ -1,0 +1,60 @@
+.tableWrapper :global(.ant-table) {
+    background: transparent !important;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  
+  .tableWrapper :global(.ant-table-thead > tr > th) {
+    background: #F7F9F9 !important;
+    color: #1A535C !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    letter-spacing: 1px !important;
+    border-bottom: none !important;
+  }
+  
+  .tableWrapper :global(.ant-table-tbody > tr > td) {
+    border-bottom: 1px solid #F0F4F4 !important;
+    padding: 20px 16px !important;
+  }
+  
+  .tableWrapper :global(.ant-table-tbody > tr:hover > td) {
+    background: rgba(78, 205, 196, 0.05) !important;
+  }
+  
+  .idText {
+    color: #4ECDC4;
+    font-weight: 600;
+  }
+  
+  .nameText {
+    color: #1A535C;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  
+  .viewBtn, .editBtn, .deleteBtn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px !important;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  
+  .viewBtn { color: #4ECDC4 !important; background: rgba(78, 205, 196, 0.1) !important; }
+  .editBtn { color: #1A535C !important; background: rgba(26, 83, 92, 0.05) !important; }
+  .deleteBtn { color: #FF6B6B !important; background: rgba(255, 107, 107, 0.1) !important; }
+  
+  .viewBtn:hover, .editBtn:hover, .deleteBtn:hover {
+    transform: scale(1.2);
+  }
+  
+  .tableWrapper :global(.ant-pagination-item-active) {
+    border-color: #FF6B6B !important;
+    background: #FF6B6B !important;
+  }
+  
+  .tableWrapper :global(.ant-pagination-item-active a) {
+    color: #FFFFFF !important;
+  }

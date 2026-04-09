@@ -1,6 +1,6 @@
-using HSTS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using HSTS.Domain.Entities;
 
 namespace HSTS.Infrastructure.Persistence.Configurations
 {
@@ -11,18 +11,32 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.ToTable("TripActivities");
             builder.HasKey(x => x.Id);
 
-            builder.HasOne(x => x.TripDay)
+            builder.Property(x => x.Title)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            builder.Property(x => x.Type)
+                .HasConversion<int>();
+
+            builder.HasOne(ta => ta.TripDay)
                 .WithMany(td => td.Activities)
-                .HasForeignKey(x => x.TripDayId)
+                .HasForeignKey(ta => ta.TripDayId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne(x => x.Location)
+            builder.HasOne(ta => ta.Location)
                 .WithMany()
-                .HasForeignKey(x => x.LocationId)
+                .HasForeignKey(ta => ta.LocationId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            builder.HasIndex(x => x.TripDayId);
-            builder.HasIndex(x => x.LocationId);
+            builder.HasOne(ta => ta.Transport)
+                .WithOne(tt => tt.TripActivity)
+                .HasForeignKey<TripTransport>(tt => tt.TripActivityId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(ta => ta.Budget)
+                .WithOne(b => b.TripActivity)
+                .HasForeignKey<TripActivityBudget>(b => b.TripActivityId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

@@ -7,53 +7,35 @@ namespace HSTS.Domain.Entities
     public class TripActivity : BaseEntity
     {
         [Key]
+        [Column("Id")]
         public int Id { get; set; }
 
         [Required]
+        [Column("TripDayId")]
         public int TripDayId { get; set; }
 
         [Required]
+        [Column("Type")]
         public ActivityType Type { get; set; }
 
         [Required]
-        [MaxLength(50)]
-        public string Time { get; set; } = null!;
+        [MaxLength(500)]
+        [Column("Title")]
+        public string Title { get; set; } = null!;
 
-        [Required]
-        [MaxLength(50)]
-        public string TimeBlock { get; set; } = null!;
+        [Column("StartTime")]
+        public TimeOnly? StartTime { get; set; }
 
-        [Required]
-        [MaxLength(1000)]
-        public string Description { get; set; } = null!;
+        [Column("EndTime")]
+        public TimeOnly? EndTime { get; set; }
 
-        [MaxLength(100)]
-        public string? LocationReference { get; set; }
-
+        [Column("LocationId")]
         public int? LocationId { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? AccommodationCost { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? TicketCost { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? ExtraSpendingCost { get; set; }
-
-        public bool? GroupDiscountApplied { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? LuggageStorageCost { get; set; }
-
-        public TimeSpan? CheckInTime { get; set; }
-
-        public TimeSpan? CheckOutTime { get; set; }
 
         // Navigation properties
         public TripDay TripDay { get; set; } = null!;
         public Location? Location { get; set; }
         public TripTransport? Transport { get; set; }
-        public TripAccommodation? Accommodation { get; set; }
+        public TripActivityBudget? Budget { get; set; }
     }
 }

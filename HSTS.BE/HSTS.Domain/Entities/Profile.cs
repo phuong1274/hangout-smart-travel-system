@@ -10,6 +10,6 @@ namespace HSTS.Domain.Entities
 
         // Navigation properties
         public User User { get; set; } = null!;
-        public ICollection<Trip> Trips { get; set; } = new List<Trip>();
+        
     }
 }

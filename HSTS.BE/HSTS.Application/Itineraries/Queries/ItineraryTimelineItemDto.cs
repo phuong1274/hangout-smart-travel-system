@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,15 +12,20 @@ namespace HSTS.Application.Itineraries.Queries
        TimeOnly StartTime,
        TimeOnly EndTime,
        int LocationId,
-       int LocationTypeId,
-       IList<int> TagIds,
+       IList<string> TagNames,
        MoneyDto? TicketCost,
        MoneyDto? ExtraCostPerPerson,
        MoneyDto? CostForGroup,
        string Note,
+       double Score,
+       string? Address = null,
+       string? Telephone = null,
+       IList<string>? MediaUrls = null,
        LocationToLocationTravelLegDto? LocationToLocationTravel = null,
        TransitHubToLocationTravelLegDto? TransitHubToLocationTravel = null,
        LocationToTransitHubTravelLegDto? LocationToTransitHubTravel = null,
-       IList<AlternativeLocationDto>? Alternatives = null);
+       ProvinceToProvinceTravelLegDto? ProvinceToProvinceTravel = null,
+       IList<AlternativeLocationDto>? Alternatives = null,
+       IList<AccommodationRecommendationDto>? AccommodationRecommendations = null);
 
 }

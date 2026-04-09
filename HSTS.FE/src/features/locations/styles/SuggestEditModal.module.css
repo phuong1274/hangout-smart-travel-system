@@ -1,0 +1,71 @@
+.modalWrapper {
+    --bouncy-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  :global(.ant-form-item-label > label) {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600;
+    color: #1A535C !important;
+  }
+  
+  :global(.ant-input),
+  :global(.ant-input-number),
+  :global(.ant-select-selector) {
+    border-radius: 8px !important;
+    border: 1px solid rgba(26, 83, 92, 0.1) !important;
+    min-height: 44px !important;
+    align-items: center;
+    transition: all 0.3s var(--bouncy-ease) !important;
+  }
+  
+  :global(.ant-input:focus),
+  :global(.ant-input-number-focused),
+  :global(.ant-select-focused .ant-select-selector) {
+    border-color: #4ECDC4 !important;
+    box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.2) !important;
+  }
+  
+  :global(.ant-input:hover),
+  :global(.ant-input-number:hover),
+  :global(.ant-select:hover .ant-select-selector) {
+    border-color: #4ECDC4 !important;
+  }
+  
+  :global(.ant-alert) {
+    border-radius: 12px;
+    border: none;
+  }
+  
+  :global(.ant-alert-info) {
+    background-color: rgba(78, 205, 196, 0.1);
+    color: #1A535C;
+  }
+  
+  :global(.ant-alert-success) {
+    background-color: rgba(255, 230, 109, 0.2);
+    color: #1A535C;
+  }
+  
+  :global(.ant-card-inner) {
+    border-radius: 16px;
+    border: none;
+    background-color: #F7F9F9;
+  }
+  
+  :global(.ant-divider-inner-text) {
+    font-family: 'Caveat', cursive;
+    font-size: 24px;
+    color: #FF6B6B;
+  }
+  
+  @media (max-width: 768px) {
+    :global(.ant-row) {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    :global(.ant-col) {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+  }

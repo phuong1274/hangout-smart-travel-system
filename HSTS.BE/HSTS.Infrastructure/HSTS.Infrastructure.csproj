@@ -5,6 +5,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Persistence\Migrations\**" />
+    <EmbeddedResource Remove="Persistence\Migrations\**" />
+    <None Remove="Persistence\Migrations\**" />
+  </ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\HSTS.Application\HSTS.Application.csproj" />
 		<ProjectReference Include="..\HSTS.Domain\HSTS.Domain.csproj" />
@@ -32,6 +38,5 @@
 
 	<ItemGroup>
 	  <Folder Include="Migrations\" />
-	  <Folder Include="Persistence\Migrations\" />
 	</ItemGroup>
 </Project>
