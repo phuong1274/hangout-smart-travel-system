@@ -1,23 +1,51 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Card, Typography, Button, Tag, Empty, Space } from 'antd';
+import { Card, Typography, Button, Tag, Empty, Space, ConfigProvider, Collapse, Radio } from 'antd';
+import { 
+  Car, 
+  Van, 
+  Motorcycle, 
+  PersonSimpleWalk, 
+  AirplaneTilt, 
+  Bus, 
+  Train, 
+  NavigationArrow, 
+  MapPinLine, 
+  ForkKnife, 
+  SignIn, 
+  SignOut, 
+  SuitcaseRolling 
+} from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { useTripPlanner } from '../hooks/useTripPlanner';
 import { getLocationByIdApi, getProvincesApi } from '../api';
 import LocationDetailModal from '../components/LocationDetailModal';
 import TransportDetailModal from '../components/TransportDetailModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
-import styles from './ItineraryResultPage.module.css';
+import styles from '../styles/ItineraryResultPage.module.css';
 
 const { Title, Text } = Typography;
 
-// EventType → badge + color mapping
 const EVENT_BADGES = {
-  travel: { badge: 'TR', bg: '#e6f4ff' },
-  visit: { badge: 'VS', bg: '#f6ffed' },
-  meal: { badge: 'ML', bg: '#fff7e6' },
-  'check-in': { badge: 'IN', bg: '#f9f0ff' },
-  'check-out': { badge: 'OUT', bg: '#f5f5f5' },
-  'luggage-refresh': { badge: 'LG', bg: '#fff0f6' },
+  travel: { badge: <NavigationArrow weight="duotone" />, bg: '#CCF2F0' },
+  visit: { badge: <MapPinLine weight="duotone" />, bg: '#FFD8D8' },
+  meal: { badge: <ForkKnife weight="duotone" />, bg: '#FFF4CC' },
+  'check-in': { badge: <SignIn weight="duotone" />, bg: '#E8F8F5' },
+  'check-out': { badge: <SignOut weight="duotone" />, bg: '#F2F4F4' },
+  'luggage-refresh': { badge: <SuitcaseRolling weight="duotone" />, bg: '#FDEBD0' },
+};
+
+const getTransportIcon = (methodName) => {
+  const name = String(methodName || '').toLowerCase();
+  
+  if (name.includes('plane')) return <AirplaneTilt weight="duotone" />;
+  if (name.includes('train')) return <Train weight="duotone" />;
+  if (name.includes('bus')) return <Bus weight="duotone" />;
+  if (name.includes('4-seater')) return <Car weight="duotone" />;
+  if (name.includes('7-seater')) return <Van weight="duotone" />;
+  if (name.includes('grab')) return <Motorcycle weight="duotone" />;
+  if (name.includes('walk')) return <PersonSimpleWalk weight="duotone" />;
+  
+  return <NavigationArrow weight="duotone" />;
 };
 
 const EVENT_DEFAULT_TITLES = {
@@ -135,7 +163,7 @@ const getTravelRouteText = (travelDetail) => {
     travelDetail.toTransitHubId != null ? `Hub #${travelDetail.toTransitHubId}` : '',
     travelDetail.ToTransitHubId != null ? `Hub #${travelDetail.ToTransitHubId}` : '',
     travelDetail.toProvinceId != null ? `Province #${travelDetail.toProvinceId}` : '',
-    travelDetail.ToProvinceId != null ? `Province #${travelDetail.ToProvinceId}` : '',
+    travelDetail.FromProvinceId != null ? `Province #${travelDetail.FromProvinceId}` : '',
   );
 
   if (fromName && toName) return `From ${fromName} to ${toName}`;
@@ -192,12 +220,12 @@ const formatMoney = (moneyDto) => {
   if (!moneyDto) return null;
   const amount = moneyDto.amount ?? moneyDto.Amount ?? 0;
   const currency = moneyDto.currency || moneyDto.Currency || 'VND';
-  return `${amount.toLocaleString()} ${currency}`;
+  const roundedAmount = Math.round(amount);
+  return `${roundedAmount.toLocaleString()} ${currency}`;
 };
 
 const formatTime = (timeStr) => {
   if (!timeStr) return '';
-  // Handle TimeOnly format "HH:mm:ss" or "HH:mm"
   const parts = timeStr.split(':');
   return `${parts[0]}:${parts[1]}`;
 };
@@ -226,19 +254,10 @@ const getTransportOptions = (travelDetail) => {
   return Array.isArray(options) ? options : [];
 };
 
-const getRecommendedTransportOption = (travelDetail) => {
-  const options = getTransportOptions(travelDetail);
-  if (!options.length) return null;
-  return options.find((option) => Boolean(option?.recommended ?? option?.Recommended)) || options[0];
-};
-
 const getTravelMethod = (travelDetail) => {
-  const recommended = getRecommendedTransportOption(travelDetail);
   return pickFirstText(
     travelDetail?.selectedMethod,
     travelDetail?.SelectedMethod,
-    recommended?.method,
-    recommended?.Method,
     travelDetail?.mode,
     travelDetail?.Mode,
     travelDetail?.transportMode,
@@ -258,22 +277,7 @@ const getTravelDurationMinutes = (travelDetail) => {
   );
   if (direct != null && direct > 0) return direct;
 
-  const recommended = getRecommendedTransportOption(travelDetail);
-  const optionMinutes = toFiniteNumber(recommended?.estimatedTravelMinutes ?? recommended?.EstimatedTravelMinutes);
-  return optionMinutes != null && optionMinutes > 0 ? optionMinutes : null;
-};
-
-const getTravelGroupCost = (itemCostForGroup, travelDetail) => {
-  const recommended = getRecommendedTransportOption(travelDetail);
-  return pickBestMoney(
-    itemCostForGroup,
-    travelDetail?.selectedTotalCost,
-    travelDetail?.SelectedTotalCost,
-    recommended?.costForGroup,
-    recommended?.CostForGroup,
-    recommended?.estimatedTotalCost,
-    recommended?.EstimatedTotalCost,
-  );
+  return null;
 };
 
 const formatMinutesAsHourMinute = (minutes) => {
@@ -349,6 +353,14 @@ const formatScoreLabel = (value) => {
   return `${score.toFixed(decimalPlaces)}/5`;
 };
 
+const getCardStyle = (type, stylesObj) => {
+  if (type === 'visit') return stylesObj.cardVisit;
+  if (type === 'meal') return stylesObj.cardMeal;
+  if (type === 'travel') return stylesObj.cardTravel;
+  if (['check-in', 'check-out', 'luggage-refresh'].includes(type)) return stylesObj.cardLogistics;
+  return stylesObj.cardVisit;
+};
+
 const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { itinerary, clearItinerary } = useTripPlanner();
@@ -358,6 +370,8 @@ const ItineraryResultPage = () => {
   const [locationTelephoneById, setLocationTelephoneById] = useState(new Map());
   const [locationAmenitiesById, setLocationAmenitiesById] = useState(new Map());
   const [showBudgetDetails, setShowBudgetDetails] = useState(false);
+  const [selectedTransports, setSelectedTransports] = useState({});
+  const [expandedAlts, setExpandedAlts] = useState({});
 
   const [locationModal, setLocationModal] = useState({ open: false, locationId: null });
   const [transportModal, setTransportModal] = useState({ open: false, data: null });
@@ -384,7 +398,6 @@ const ItineraryResultPage = () => {
           setProvinceNameById(map);
         }
       } catch {
-        // Ignore and keep backend-provided day titles as fallback.
       }
     };
 
@@ -424,7 +437,8 @@ const ItineraryResultPage = () => {
           try {
             const data = await getLocationByIdApi(id);
             const mediaUrls = extractMediaUrls(
-              data?.mediaUrls
+              data?.mediaLinks 
+              || data?.mediaUrls
               || data?.MediaUrls
               || data?.images
               || data?.Images
@@ -498,23 +512,63 @@ const ItineraryResultPage = () => {
     setAccommodationModal({ open: true, data });
   }, []);
 
+  const handleTransportChange = useCallback((itemKey, optionIdx) => {
+    setSelectedTransports((prev) => ({ ...prev, [itemKey]: optionIdx }));
+  }, []);
+
+  const handleToggleAlts = useCallback((itemKey) => {
+    setExpandedAlts((prev) => ({ ...prev, [itemKey]: !prev[itemKey] }));
+  }, []);
+
   const handleRegenerate = () => {
     clearItinerary();
     navigate('/create-trip');
   };
 
+  const themeConfig = {
+    token: {
+      colorPrimary: '#FF6B6B',
+      colorTextBase: '#1A535C',
+      colorBgBase: '#FFFFFF',
+      fontFamily: "'Plus Jakarta Sans', 'Poppins', sans-serif",
+      borderRadius: 16,
+    },
+    components: {
+      Button: {
+        colorPrimary: '#FFE66D',
+        colorTextLightSolid: '#1A535C',
+        borderRadius: 8,
+        controlHeight: 44,
+        fontWeight: 600,
+      },
+      Card: {
+        colorBgContainer: '#FFFFFF',
+        borderRadiusOuter: 20,
+        boxShadow: '0 8px 24px rgba(26, 83, 92, 0.08)',
+      },
+      Tag: {
+        borderRadiusSM: 8,
+      },
+      Radio: {
+        colorPrimary: '#FF6B6B',
+      }
+    }
+  };
+
   if (!itinerary) {
     return (
-      <div className={styles.itineraryPage}>
-        <div className={styles.container}>
-          <div className={styles.emptyState}>
-            <Empty description="No itinerary has been generated yet" />
-            <Button type="primary" onClick={() => navigate('/create-trip')} style={{ marginTop: 16 }}>
-              Create New Itinerary
-            </Button>
+      <ConfigProvider theme={themeConfig}>
+        <div className={styles.itineraryPage}>
+          <div className={styles.container}>
+            <div className={styles.emptyState}>
+              <Empty description={<span className={styles.emptyText}>No itinerary has been generated yet</span>} />
+              <Button type="primary" onClick={() => navigate('/create-trip')} className={styles.ctaButton}>
+                Create New Itinerary
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      </ConfigProvider>
     );
   }
 
@@ -580,552 +634,604 @@ const ItineraryResultPage = () => {
     : [];
 
   return (
-    <div className={styles.itineraryPage}>
-      <div className={styles.container}>
+    <ConfigProvider theme={themeConfig}>
+      <div className={styles.itineraryPage}>
+        <div className={styles.container}>
 
-        {/* Header */}
-        <Card className={styles.headerCard} bordered={false}>
-          <Title level={3} className={styles.headerTitle}>
-            Travel Itinerary Results
-          </Title>
-          <div className={styles.headerMeta}>
-            <span className={styles.headerMetaItem}>
-              {startDate} to {endDate}
-            </span>
-            <span className={styles.headerMetaItem}>
-              {groupSize} people
-            </span>
-            <span className={styles.headerMetaItem}>
-              {budgetLevel}
-            </span>
-          </div>
-        </Card>
-
-        {/* Budget Summary */}
-        {budgetSummary && (
-          <Card
-            className={styles.budgetCard}
-            title={(
-              <div className={styles.budgetCardHeader}>
-                <span>Budget Summary</span>
-                <Button
-                  type="link"
-                  size="small"
-                  className={styles.budgetToggleBtn}
-                  onClick={() => setShowBudgetDetails((prev) => !prev)}
-                >
-                  {showBudgetDetails ? 'Hide details' : 'Show details'}
-                </Button>
-              </div>
-            )}
-            size="small"
-          >
-            <div className={styles.budgetGrid}>
-              {budgetMainItems.map((item) => (
-                <div key={item.key} className={styles.budgetItem}>
-                  <span className={styles.budgetLabel}>{item.label}</span>
-                  <span className={item.className}>{item.value}</span>
-                </div>
-              ))}
-
-              {showBudgetDetails && budgetDetailItems.map((item) => (
-                <div key={item.key} className={styles.budgetItem}>
-                  <span className={styles.budgetLabel}>{item.label}</span>
-                  <span className={`${styles.budgetValue} ${styles.budgetNegative}`}>{item.value}</span>
-                </div>
-              ))}
+          <Card className={styles.headerCard} bordered={false}>
+            <Title level={3} className={styles.headerTitle}>
+              Travel Itinerary Results
+            </Title>
+            <div className={styles.headerMeta}>
+              <span className={styles.headerMetaItem}>
+                {startDate} to {endDate}
+              </span>
+              <span className={styles.headerMetaItem}>
+                {groupSize} people
+              </span>
+              <span className={styles.headerMetaItem}>
+                {budgetLevel}
+              </span>
             </div>
           </Card>
-        )}
 
-        {/* Day-by-Day Itinerary */}
-        {days.map((day, idx) => {
-          const dayNum = day.dayNumber || day.DayNumber;
-          const rawDayTitle = day.dayTitle || day.DayTitle || `Day ${dayNum}`;
-          const date = day.date || day.Date;
-          const weather = day.weatherSummary || day.WeatherSummary;
-          const timeline = day.timeline || day.Timeline || [];
-          const dailyBudget = day.dailyBudget || day.DailyBudget;
-          const estimatedCost = day.estimatedDayCost || day.EstimatedDayCost;
-          const accommodations = day.accommodationRecommendations || day.AccommodationRecommendations || [];
-
-          const currentProvinceId = Number(day.provinceId || day.ProvinceId);
-          const currentProvinceName = provinceNameById.get(currentProvinceId);
-          const prevDay = idx > 0 ? days[idx - 1] : null;
-          const prevProvinceId = Number(prevDay?.provinceId || prevDay?.ProvinceId);
-          const prevProvinceName = provinceNameById.get(prevProvinceId);
-          const hasRouteTitle = String(rawDayTitle).includes(' - ');
-
-          let dayTitle = rawDayTitle;
-          if (currentProvinceName) {
-            if (hasRouteTitle && prevProvinceName && prevProvinceName !== currentProvinceName) {
-              dayTitle = `Day ${dayNum}: ${prevProvinceName} - ${currentProvinceName}`;
-            } else {
-              dayTitle = `Day ${dayNum} - ${currentProvinceName}`;
-            }
-          }
-
-          return (
-            <Card key={dayNum} className={styles.dayCard} bordered={false} bodyStyle={{ padding: 0 }}>
-              {/* Day Header */}
-              <div className={styles.dayHeader}>
-                <div className={styles.dayTitle}>{dayTitle}</div>
-                <div className={styles.dayMeta}>
-                  {date && <span className={styles.dayDate}>{date}</span>}
-                  {weather && (
-                    <span className={styles.dayWeather} title={weather}>
-                      <span className={styles.dayWeatherLabel}>Weather</span>
-                      <span className={styles.dayWeatherValue}>{weather}</span>
-                    </span>
-                  )}
+          {budgetSummary && (
+            <Card
+              className={styles.budgetCard}
+              title={(
+                <div className={styles.budgetCardHeader}>
+                  <span>Budget Summary</span>
+                  <Button
+                    type="link"
+                    size="small"
+                    className={styles.budgetToggleBtn}
+                    onClick={() => setShowBudgetDetails((prev) => !prev)}
+                  >
+                    {showBudgetDetails ? 'Hide details' : 'Show details'}
+                  </Button>
                 </div>
+              )}
+              size="small"
+            >
+              <div className={styles.budgetGrid}>
+                {budgetMainItems.map((item) => (
+                  <div key={item.key} className={styles.budgetItem}>
+                    <span className={styles.budgetLabel}>{item.label}</span>
+                    <span className={item.className}>{item.value}</span>
+                  </div>
+                ))}
+
+                {showBudgetDetails && budgetDetailItems.map((item) => (
+                  <div key={item.key} className={styles.budgetItem}>
+                    <span className={styles.budgetLabel}>{item.label}</span>
+                    <span className={`${styles.budgetValue} ${styles.budgetNegative}`}>{item.value}</span>
+                  </div>
+                ))}
               </div>
+            </Card>
+          )}
 
-              {/* Timeline */}
-              <div className={styles.timeline}>
-                {timeline.map((item, idx) => {
-                  const eventType = item.eventType || item.EventType || 'visit';
-                  const eventConfig = EVENT_BADGES[eventType] || EVENT_BADGES.visit;
-                  const startTime = item.startTime || item.StartTime;
-                  const endTime = item.endTime || item.EndTime;
-                  const startTimeLabel = formatTime(startTime);
-                  const endTimeLabel = formatTime(endTime);
-                  const locationId = item.locationId || item.LocationId;
-                  const locationIdNum = Number(locationId);
-                  const rawTitle = item.title || item.Title || '';
-                  const isTravel = eventType === 'travel';
-                  const travelDetail = item.locationToLocationTravel || item.LocationToLocationTravel
-                    || item.transitHubToLocationTravel || item.TransitHubToLocationTravel
-                    || item.locationToTransitHubTravel || item.LocationToTransitHubTravel
-                    || item.provinceToProvinceTravel || item.ProvinceToProvinceTravel;
-                  const transportOptions = isTravel ? getTransportOptions(travelDetail) : [];
-                  const itemLocationName = pickFirstText(item.locationName, item.LocationName);
-                  const locationName = locationNameById.get(Number(locationId));
-                  const travelRouteText = isTravel ? getTravelRouteText(travelDetail) : '';
-                  const fallbackEventTitle = EVENT_DEFAULT_TITLES[eventType] || 'Activity';
-                  const translatedTitle = translateTitleToEnglish(rawTitle);
-                  const forceEnglishTitle = eventType === 'travel'
-                    || eventType === 'check-in'
-                    || eventType === 'luggage-refresh';
-                  const travelPreferredTitle = travelRouteText || translatedTitle || fallbackEventTitle;
-                  const title = itemLocationName
-                    || locationName
-                    || (forceEnglishTitle
-                      ? (isTravel ? travelPreferredTitle : fallbackEventTitle)
-                      : (translatedTitle || fallbackEventTitle));
-                  const tagIds = item.tagIds || item.TagIds || [];
-                  const tagNames = item.tagNames || item.TagNames || [];
-                  const normalizedTagNames = Array.isArray(tagNames)
-                    ? tagNames
-                      .map((tag) => String(tag || '').trim())
-                      .filter(Boolean)
-                    : [];
-                  const displayTags = normalizedTagNames.length > 0
-                    ? normalizedTagNames.slice(0, 3)
-                    : (Array.isArray(tagIds)
-                      ? tagIds.slice(0, 3).map((tagId) => `Tag #${tagId}`)
-                      : []);
-                  const costForGroup = item.costForGroup || item.CostForGroup;
-                  const ticketCost = item.ticketCost || item.TicketCost;
-                  const rawNote = item.note || item.Note || '';
-                  const alternatives = item.alternatives || item.Alternatives || [];
-                  const travelMethod = isTravel ? getTravelMethod(travelDetail) : '';
-                  const travelMinutes = isTravel ? getTravelDurationMinutes(travelDetail) : null;
-                  const travelDistanceKm = isTravel
-                    ? toFiniteNumber(travelDetail?.distanceKm ?? travelDetail?.DistanceKm)
-                    : null;
-                  const travelCostForGroup = isTravel
-                    ? getTravelGroupCost(costForGroup, travelDetail)
-                    : costForGroup;
-                  const travelMetaParts = [];
-                  if (travelMethod) travelMetaParts.push(travelMethod);
-                  if (travelDistanceKm != null && travelDistanceKm > 0) {
-                    travelMetaParts.push(`${travelDistanceKm.toFixed(travelDistanceKm >= 10 ? 0 : 1)} km`);
-                  }
-                  if (travelMinutes != null && travelMinutes > 0) {
-                    travelMetaParts.push(formatMinutesAsHourMinute(travelMinutes));
-                  }
-                  const travelMetaText = travelMetaParts.join(' • ');
-                  const address = pickFirstText(item.address, item.Address);
-                  const telephone = pickFirstText(
-                    item.telephone,
-                    item.Telephone,
-                    Number.isFinite(locationIdNum) ? locationTelephoneById.get(locationIdNum) : '',
-                  );
-                  const itemAmenities = extractAmenityNames(
-                    item.amenityNames
-                    || item.AmenityNames
-                    || item.amenities
-                    || item.Amenities
-                    || []
-                  );
-                  const fallbackAmenities = Number.isFinite(locationIdNum)
-                    ? (locationAmenitiesById.get(locationIdNum) || [])
-                    : [];
-                  const displayAmenities = (itemAmenities.length > 0 ? itemAmenities : fallbackAmenities).slice(0, 5);
-                  const mediaUrls = extractMediaUrls(item.mediaUrls || item.MediaUrls || []);
+          {days.map((day, idx) => {
+            const dayNum = day.dayNumber || day.DayNumber;
+            const rawDayTitle = day.dayTitle || day.DayTitle || `Day ${dayNum}`;
+            const date = day.date || day.Date;
+            const weather = day.weatherSummary || day.WeatherSummary;
+            const timeline = day.timeline || day.Timeline || [];
+            const estimatedCost = day.estimatedDayCost || day.EstimatedDayCost;
+            const accommodations = day.accommodationRecommendations || day.AccommodationRecommendations || [];
 
-                  const scoreValue = item.score ?? item.Score ?? item.rating ?? item.Rating;
-                  const displayScore = formatScoreLabel(scoreValue);
-                  const cleanedNote = String(rawNote)
-                    .replace(/score\s*:\s*[0-9]+(?:[.,][0-9]+)?/gi, '')
-                    .replace(/\s{2,}/g, ' ')
-                    .trim();
-                  const note = translateNoteToEnglish(cleanedNote, eventType);
+            const currentProvinceId = Number(day.provinceId || day.ProvinceId);
+            const currentProvinceName = provinceNameById.get(currentProvinceId);
+            const prevDay = idx > 0 ? days[idx - 1] : null;
+            const prevProvinceId = Number(prevDay?.provinceId || prevDay?.ProvinceId);
+            const prevProvinceName = provinceNameById.get(prevProvinceId);
+            const hasRouteTitle = String(rawDayTitle).includes(' - ');
 
-                  return (
-                    <div key={idx} className={styles.timelineItem}>
-                      <div className={styles.timelineTime}>
-                        <span className={styles.timelineTimeStart}>{startTimeLabel}</span>
-                        {endTimeLabel && <span className={styles.timelineTimeEnd}>{endTimeLabel}</span>}
-                      </div>
-                      <div
-                        className={styles.timelineIcon}
-                        style={{ background: eventConfig.bg }}
-                      >
-                        {eventConfig.badge}
-                      </div>
-                      <div className={styles.timelineContent}>
-                        <div className={styles.timelineTitle}>{title}</div>
-                        {isTravel && travelRouteText && title !== travelRouteText && (
-                          <div className={styles.timelineRoute}>{travelRouteText}</div>
-                        )}
-                        {isTravel && travelMetaText && (
-                          <div className={styles.timelineTransportMeta}>{travelMetaText}</div>
-                        )}
-                        {!isTravel && displayScore && (
-                          <div className={styles.timelineScore}>
-                            <span className={styles.timelineScoreBadge}>Score</span>
-                            <span className={styles.timelineScoreValue}>{displayScore}</span>
-                          </div>
-                        )}
-                        {note && <div className={styles.timelineNote}>{note}</div>}
-                        {!isTravel && address && (
-                          <div className={styles.timelineAddress} title={address}>{address}</div>
-                        )}
-                        {!isTravel && telephone && (
-                          <div className={styles.timelineTelephone}>Phone: {telephone}</div>
-                        )}
-                        {!isTravel && displayAmenities.length > 0 && (
-                          <div className={styles.timelineAmenities}>
-                            {displayAmenities.map((amenity, amenityIdx) => (
-                              <Tag key={`${idx}-amenity-${amenityIdx}`} color="green" style={{ fontSize: 11 }}>
-                                {amenity}
-                              </Tag>
-                            ))}
-                          </div>
-                        )}
-                        {!isTravel && mediaUrls.length > 0 && (
-                          <div className={styles.timelineMedia}>
-                            {mediaUrls.slice(0, 3).map((url, imgIdx) => (
-                              <a
-                                key={`${idx}-media-${imgIdx}`}
-                                href={url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={styles.timelineMediaLink}
-                              >
-                                <img
-                                  src={url}
-                                  alt={`${title} ${imgIdx + 1}`}
-                                  className={styles.timelineMediaImage}
-                                  loading="lazy"
-                                />
-                              </a>
-                            ))}
-                            {mediaUrls.length > 3 && (
-                              <span className={styles.timelineMediaMore}>+{mediaUrls.length - 3} more</span>
-                            )}
-                          </div>
-                        )}
+            let dayTitle = rawDayTitle;
+            if (currentProvinceName) {
+              if (hasRouteTitle && prevProvinceName && prevProvinceName !== currentProvinceName) {
+                dayTitle = `Day ${dayNum}: ${prevProvinceName} - ${currentProvinceName}`;
+              } else {
+                dayTitle = `Day ${dayNum} - ${currentProvinceName}`;
+              }
+            }
 
-                        {isTravel && transportOptions.length > 0 && (
-                          <div className={styles.transportOptionList}>
-                            {transportOptions.map((option, optionIdx) => {
-                              const optionMethod = pickFirstText(
-                                option?.method,
-                                option?.Method,
-                                `Option ${optionIdx + 1}`,
-                              );
-                              const optionMinutes = toFiniteNumber(
-                                option?.estimatedTravelMinutes ?? option?.EstimatedTravelMinutes,
-                              );
-                              const optionCost = pickBestMoney(
-                                option?.costForGroup,
-                                option?.CostForGroup,
-                                option?.estimatedTotalCost,
-                                option?.EstimatedTotalCost,
-                              );
-                              const optionRecommended = Boolean(option?.recommended ?? option?.Recommended);
-                              const optionRouteText = getTransportOptionRouteText(option);
+            return (
+              <Card 
+                key={dayNum} 
+                className={styles.dayCard} 
+                bordered={false} 
+                bodyStyle={{ padding: 0 }}
+                style={{ animationDelay: `${idx * 0.1}s` }}
+              >
+                <div className={styles.dayHeader}>
+                  <div className={styles.dayTitle}>{dayTitle}</div>
+                  <div className={styles.dayMeta}>
+                    {date && <span className={styles.dayDate}>{date}</span>}
+                    {weather && (
+                      <span className={styles.dayWeather} title={weather}>
+                        <span className={styles.dayWeatherLabel}>Weather</span>
+                        <span className={styles.dayWeatherValue}>{weather}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-                              return (
-                                <div
-                                  key={`${idx}-transport-option-${optionIdx}`}
-                                  className={styles.transportOptionItem}
-                                >
-                                  <div className={styles.transportOptionMain}>
-                                    <span className={styles.transportOptionName}>{optionMethod}</span>
-                                    {optionRecommended && (
-                                      <span className={styles.transportOptionRecommended}>Recommended</span>
+                <div className={styles.timeline}>
+                  {timeline.map((item, idx) => {
+                    const eventType = item.eventType || item.EventType || 'visit';
+                    const eventConfig = EVENT_BADGES[eventType] || EVENT_BADGES.visit;
+                    const startTime = item.startTime || item.StartTime;
+                    const endTime = item.endTime || item.EndTime;
+                    const startTimeLabel = formatTime(startTime);
+                    const endTimeLabel = formatTime(endTime);
+                    const locationId = item.locationId || item.LocationId;
+                    const locationIdNum = Number(locationId);
+                    const rawTitle = item.title || item.Title || '';
+                    const isTravel = eventType === 'travel';
+                    const travelDetail = item.locationToLocationTravel || item.LocationToLocationTravel
+                      || item.transitHubToLocationTravel || item.TransitHubToLocationTravel
+                      || item.locationToTransitHubTravel || item.LocationToTransitHubTravel
+                      || item.provinceToProvinceTravel || item.ProvinceToProvinceTravel;
+                    
+                    const itemLocationName = pickFirstText(item.locationName, item.LocationName);
+                    const locationName = locationNameById.get(Number(locationId));
+                    const travelRouteText = isTravel ? getTravelRouteText(travelDetail) : '';
+                    const fallbackEventTitle = EVENT_DEFAULT_TITLES[eventType] || 'Activity';
+                    const translatedTitle = translateTitleToEnglish(rawTitle);
+                    const forceEnglishTitle = eventType === 'travel'
+                      || eventType === 'check-in'
+                      || eventType === 'luggage-refresh';
+                    const travelPreferredTitle = travelRouteText || translatedTitle || fallbackEventTitle;
+                    const title = itemLocationName
+                      || locationName
+                      || (forceEnglishTitle
+                        ? (isTravel ? travelPreferredTitle : fallbackEventTitle)
+                        : (translatedTitle || fallbackEventTitle));
+
+                    const transportOptions = isTravel ? getTransportOptions(travelDetail) : [];
+                    const itemKey = `day-${dayNum}-idx-${idx}`;
+                    let defaultOptIdx = 0;
+                    if (transportOptions.length > 0) {
+                      const recIdx = transportOptions.findIndex((o) => Boolean(o?.recommended ?? o?.Recommended));
+                      if (recIdx !== -1) defaultOptIdx = recIdx;
+                    }
+                    const activeTransportIdx = selectedTransports[itemKey] ?? defaultOptIdx;
+                    const activeTransport = transportOptions[activeTransportIdx] || null;
+
+                    let displayTravelMethod = isTravel ? getTravelMethod(travelDetail) : '';
+                    let displayTravelMinutes = isTravel ? getTravelDurationMinutes(travelDetail) : null;
+                    let displayTravelDistanceKm = isTravel ? toFiniteNumber(travelDetail?.distanceKm ?? travelDetail?.DistanceKm) : null;
+                    const defaultCostForGroup = isTravel ? pickBestMoney(item.costForGroup, item.CostForGroup, travelDetail?.selectedTotalCost, travelDetail?.SelectedTotalCost) : (item.costForGroup || item.CostForGroup);
+                    let displayTravelCost = defaultCostForGroup;
+
+                    if (isTravel && activeTransport) {
+                      displayTravelMethod = pickFirstText(activeTransport.method, activeTransport.Method) || displayTravelMethod;
+                      displayTravelMinutes = toFiniteNumber(activeTransport.estimatedTravelMinutes ?? activeTransport.EstimatedTravelMinutes) || displayTravelMinutes;
+                      displayTravelCost = pickBestMoney(activeTransport.costForGroup, activeTransport.CostForGroup, activeTransport.estimatedTotalCost, activeTransport.EstimatedTotalCost) || displayTravelCost;
+                      displayTravelDistanceKm = toFiniteNumber(activeTransport.distanceKm ?? activeTransport.DistanceKm) || displayTravelDistanceKm;
+                    }
+
+                    const travelMetaParts = [];
+                    if (displayTravelMethod) travelMetaParts.push(displayTravelMethod);
+                    if (displayTravelDistanceKm != null && displayTravelDistanceKm > 0) {
+                      travelMetaParts.push(`${displayTravelDistanceKm.toFixed(displayTravelDistanceKm >= 10 ? 0 : 1)} km`);
+                    }
+                    if (displayTravelMinutes != null && displayTravelMinutes > 0) {
+                      travelMetaParts.push(formatMinutesAsHourMinute(displayTravelMinutes));
+                    }
+                    const travelMetaText = travelMetaParts.join(' • ');
+
+                    const tagIds = item.tagIds || item.TagIds || [];
+                    const tagNames = item.tagNames || item.TagNames || [];
+                    const normalizedTagNames = Array.isArray(tagNames)
+                      ? tagNames
+                        .map((tag) => String(tag || '').trim())
+                        .filter(Boolean)
+                      : [];
+                    const displayTags = normalizedTagNames.length > 0
+                      ? normalizedTagNames.slice(0, 3)
+                      : (Array.isArray(tagIds)
+                        ? tagIds.slice(0, 3).map((tagId) => `Tag #${tagId}`)
+                        : []);
+                    
+                    const ticketCost = item.ticketCost || item.TicketCost;
+                    const rawNote = item.note || item.Note || '';
+                    const alternatives = item.alternatives || item.Alternatives || [];
+                    const hasManyAlts = alternatives.length > 10;
+                    const isAltExpanded = expandedAlts[itemKey] || false;
+                    const displayAlts = (hasManyAlts && !isAltExpanded) ? alternatives.slice(0, 10) : alternatives;
+                    
+                    const address = pickFirstText(item.address, item.Address);
+                    const telephone = pickFirstText(
+                      item.telephone,
+                      item.Telephone,
+                      Number.isFinite(locationIdNum) ? locationTelephoneById.get(locationIdNum) : '',
+                    );
+                    const itemAmenities = extractAmenityNames(
+                      item.amenityNames
+                      || item.AmenityNames
+                      || item.amenities
+                      || item.Amenities
+                      || []
+                    );
+                    const fallbackAmenities = Number.isFinite(locationIdNum)
+                      ? (locationAmenitiesById.get(locationIdNum) || [])
+                      : [];
+                    const displayAmenities = (itemAmenities.length > 0 ? itemAmenities : fallbackAmenities).slice(0, 5);
+                    
+                    // --- ĐÃ SỬA: ƯU TIÊN LẤY ẢNH TỪ DATA FETCH BẰNG FALLBACK LOGIC ---
+                    const mediaUrls = extractMediaUrls(item.mediaUrls || item.MediaUrls || []);
+                    const firstMediaUrl = mediaUrls.length > 0 
+                      ? mediaUrls[0] 
+                      : (Number.isFinite(locationIdNum) ? (locationMediaById.get(locationIdNum)?.[0] || null) : null);
+
+                    const scoreValue = item.score ?? item.Score ?? item.rating ?? item.Rating;
+                    const displayScore = formatScoreLabel(scoreValue);
+                    const cleanedNote = String(rawNote)
+                      .replace(/score\s*:\s*[0-9]+(?:[.,][0-9]+)?/gi, '')
+                      .replace(/\s{2,}/g, ' ')
+                      .trim();
+                    const note = translateNoteToEnglish(cleanedNote, eventType);
+
+                    return (
+                      <div key={idx} className={styles.timelineItem}>
+                        <div className={styles.timelineTime}>
+                          <span className={styles.timelineTimeStart}>{startTimeLabel}</span>
+                          {endTimeLabel && <span className={styles.timelineTimeEnd}>{endTimeLabel}</span>}
+                        </div>
+                        <div
+                          className={styles.timelineIcon}
+                          style={{ background: eventConfig.bg, color: '#1A535C' }}
+                        >
+                          {eventConfig.badge}
+                        </div>
+                        <div className={`${styles.timelineContent} ${styles.timelineCardBase} ${getCardStyle(eventType, styles)}`}>
+                          
+                          {isTravel && transportOptions.length > 0 ? (
+                            <Collapse 
+                              ghost 
+                              expandIconPosition="end"
+                              className={styles.travelCollapseWrap}
+                              items={[{
+                                key: '1',
+                                label: (
+                                  <div className={styles.travelHeaderWrap}>
+                                    <div className={styles.timelineCardHeader}>
+                                      <div className={styles.timelineTitle}>
+                                        <span>{title}</span>
+                                        {displayTags.length > 0 && (
+                                          <div className={styles.titleTags}>
+                                            {displayTags.map((tagLabel, tagIdx) => (
+                                              <Tag key={`${idx}-tag-${tagIdx}`} className={styles.tropicalTagPrimary}>
+                                                {tagLabel}
+                                              </Tag>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className={styles.timelineCost}>
+                                        {displayTravelCost ? (
+                                          <div className={styles.costAmount}>{formatMoney(displayTravelCost)}</div>
+                                        ) : (
+                                          <div className={styles.costUnknown}>N/A</div>
+                                        )}
+                                        <div className={styles.timelineDuration}>
+                                          {displayTravelMinutes ? formatMinutesAsHourMinute(displayTravelMinutes) : getDurationStr(startTime, endTime)}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    {travelMetaText && (
+                                      <div className={styles.timelineTransportMeta}>{travelMetaText}</div>
                                     )}
                                   </div>
-                                  {optionRouteText && (
-                                    <div className={styles.transportOptionRoute}>{optionRouteText}</div>
-                                  )}
-                                  <div className={styles.transportOptionMeta}>
-                                    {optionMinutes != null && optionMinutes > 0 ? formatMinutesAsHourMinute(optionMinutes) : 'N/A'}
-                                    {optionCost ? ` • ${formatMoney(optionCost)}` : ''}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                                ),
+                                children: (
+                                  <Radio.Group 
+                                    value={activeTransportIdx}
+                                    onChange={(e) => handleTransportChange(itemKey, e.target.value)}
+                                    className={styles.transportRadioGroup}
+                                  >
+                                    {transportOptions.map((option, optionIdx) => {
+                                      const optionMethod = pickFirstText(option?.method, option?.Method, `Option ${optionIdx + 1}`);
+                                      const optionMinutes = toFiniteNumber(option?.estimatedTravelMinutes ?? option?.EstimatedTravelMinutes);
+                                      const optionCost = pickBestMoney(option?.costForGroup, option?.CostForGroup, option?.estimatedTotalCost, option?.EstimatedTotalCost);
+                                      const optionRecommended = Boolean(option?.recommended ?? option?.Recommended);
+                                      const optionRouteText = getTransportOptionRouteText(option);
 
-                        {/* Tags */}
-                        {displayTags.length > 0 && (
-                          <div className={styles.timelineTags}>
-                            {displayTags.map((tagLabel, tagIdx) => (
-                              <Tag key={`${idx}-tag-${tagIdx}`} color="blue" style={{ fontSize: 11 }}>
-                                {tagLabel}
-                              </Tag>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className={styles.timelineActions}>
-                          {locationId && !isTravel && (
-                            <Button
-                              type="link"
-                              size="small"
-                              style={{ padding: 0, height: 'auto', fontSize: 12 }}
-                              onClick={() => handleViewLocation(locationId)}
-                            >
-                              View Details
-                            </Button>
-                          )}
-                        </div>
-
-                        {alternatives.length > 0 && (
-                          <div className={styles.alternativeList}>
-                            {alternatives.map((alternative, altIdx) => {
-                              const altLocationId = alternative.locationId || alternative.LocationId;
-                              const altLocationIdNum = Number(altLocationId);
-                              const fallbackAltName = Number.isFinite(altLocationIdNum)
-                                ? locationNameById.get(altLocationIdNum)
-                                : '';
-                              const altName = alternative.locationName || alternative.LocationName || fallbackAltName || `Location ${altIdx + 1}`;
-                              const altScore = alternative.score ?? alternative.Score;
-                              const altScoreLabel = formatScoreLabel(altScore);
-                              const altTelephone = pickFirstText(
-                                alternative.telephone,
-                                alternative.Telephone,
-                                Number.isFinite(altLocationIdNum) ? locationTelephoneById.get(altLocationIdNum) : '',
-                              );
-                              const altAmenitiesFromAlternative = extractAmenityNames(
-                                alternative.amenityNames
-                                || alternative.AmenityNames
-                                || alternative.amenities
-                                || alternative.Amenities
-                                || []
-                              );
-                              const altAmenitiesFallback = Number.isFinite(altLocationIdNum)
-                                ? (locationAmenitiesById.get(altLocationIdNum) || [])
-                                : [];
-                              const altAmenities = (altAmenitiesFromAlternative.length > 0
-                                ? altAmenitiesFromAlternative
-                                : altAmenitiesFallback).slice(0, 5);
-                              const altMediaUrls = (() => {
-                                const fromAlternative = extractMediaUrls(
-                                  alternative.mediaUrls
-                                  || alternative.MediaUrls
-                                  || alternative.images
-                                  || alternative.Images
-                                  || alternative.medias
-                                  || alternative.Medias
-                                  || []
-                                );
-                                if (fromAlternative.length > 0) return fromAlternative;
-                                if (Number.isFinite(altLocationIdNum)) {
-                                  return locationMediaById.get(altLocationIdNum) || [];
-                                }
-                                return [];
-                              })();
-
-                              return (
-                                <div
-                                  key={`${idx}-alt-${altLocationId || altIdx}`}
-                                  className={styles.alternativeItem}
-                                >
-                                  <div className={styles.alternativeMain}>
-                                    <span className={styles.alternativeName}>{altName}</span>
-                                  </div>
-                                  {altTelephone && (
-                                    <div className={styles.timelineTelephone}>Phone: {altTelephone}</div>
-                                  )}
-                                  {altAmenities.length > 0 && (
-                                    <div className={styles.timelineAmenities}>
-                                      {altAmenities.map((amenity, amenityIdx) => (
-                                        <Tag
-                                          key={`${idx}-alt-${altLocationId || altIdx}-amenity-${amenityIdx}`}
-                                          color="green"
-                                          style={{ fontSize: 11 }}
-                                        >
-                                          {amenity}
-                                        </Tag>
-                                      ))}
+                                      return (
+                                        <Radio key={optionIdx} value={optionIdx} className={styles.transportOptionItemRadio}>
+                                          <div className={styles.transportOptionItemContent}>
+                                            <div className={styles.transportOptionMain}>
+                                              <span className={styles.transportOptionName}>
+                                                <Space size={6}>
+                                                  {getTransportIcon(optionMethod)}
+                                                  <span>{optionMethod}</span>
+                                                </Space>
+                                              </span>
+                                              {optionRecommended && (
+                                                <span className={styles.transportOptionRecommended}>Recommended</span>
+                                              )}
+                                            </div>
+                                            {optionRouteText && (
+                                              <div className={styles.transportOptionRoute}>{optionRouteText}</div>
+                                            )}
+                                            <div className={styles.transportOptionMeta}>
+                                              {optionMinutes != null && optionMinutes > 0 ? formatMinutesAsHourMinute(optionMinutes) : 'N/A'}
+                                              {optionCost ? ` • ${formatMoney(optionCost)}` : ''}
+                                            </div>
+                                          </div>
+                                        </Radio>
+                                      );
+                                    })}
+                                  </Radio.Group>
+                                )
+                              }]}
+                            />
+                          ) : (
+                            <div className={styles.cardTwoColumnLayout}>
+                                <div className={styles.cardLeftPanel}>
+                                    <div className={styles.timelineCardHeader}>
+                                        <div className={styles.timelineTitle}>
+                                            <span>{title}</span>
+                                            {displayTags.length > 0 && (
+                                                <div className={styles.titleTags}>
+                                                    {displayTags.map((tagLabel, tagIdx) => (
+                                                        <Tag key={`${idx}-tag-${tagIdx}`} className={styles.tropicalTagPrimary}>
+                                                            {tagLabel}
+                                                        </Tag>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className={styles.timelineCost}>
+                                            {displayTravelCost ? (
+                                                <div className={styles.costAmount}>{formatMoney(displayTravelCost)}</div>
+                                            ) : ticketCost && (ticketCost.amount || ticketCost.Amount) > 0 ? (
+                                                <div className={styles.costAmount}>{formatMoney(ticketCost)}</div>
+                                            ) : isTravel ? (
+                                                <div className={styles.costUnknown}>N/A</div>
+                                            ) : (
+                                                <div className={styles.costFree}>Free</div>
+                                            )}
+                                            <div className={styles.timelineDuration}>
+                                                {getDurationStr(startTime, endTime)}
+                                            </div>
+                                        </div>
                                     </div>
-                                  )}
-                                  {altMediaUrls.length > 0 && (
-                                    <div className={styles.timelineMedia}>
-                                      {altMediaUrls.slice(0, 3).map((url, mediaIdx) => (
-                                        <a
-                                          key={`${idx}-alt-${altLocationId || altIdx}-media-${mediaIdx}`}
-                                          href={url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className={styles.timelineMediaLink}
-                                        >
+
+                                    {!isTravel && displayScore && (
+                                        <div className={styles.timelineScore}>
+                                            <span className={styles.timelineScoreBadge}>Score</span>
+                                            <span className={styles.timelineScoreValue}>{displayScore}</span>
+                                        </div>
+                                    )}
+                                    {note && <div className={styles.timelineNote}>{note}</div>}
+                                    {!isTravel && address && (
+                                        <div className={styles.timelineAddress} title={address}>{address}</div>
+                                    )}
+                                    {!isTravel && telephone && (
+                                        <div className={styles.timelineTelephone}>Phone: {telephone}</div>
+                                    )}
+                                    {!isTravel && displayAmenities.length > 0 && (
+                                        <div className={styles.timelineAmenities}>
+                                            {displayAmenities.map((amenity, amenityIdx) => (
+                                                <Tag key={`${idx}-amenity-${amenityIdx}`} className={styles.tropicalTag}>
+                                                    {amenity}
+                                                </Tag>
+                                            ))}
+                                        </div>
+                                    )}
+                                    
+                                    <div className={styles.timelineActions}>
+                                        {locationId && !isTravel && (
+                                            <Button
+                                                type="button"
+                                                className={styles.viewDetailsBtn}
+                                                onClick={() => handleViewLocation(locationId)}
+                                            >
+                                                View Details
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                {firstMediaUrl && (
+                                    <div className={styles.cardRightMedia}>
+                                        <img
+                                            src={firstMediaUrl}
+                                            alt={`${title} main`}
+                                            className={styles.mainMediaImage}
+                                            loading="lazy"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                          )}
+
+                          {alternatives.length > 0 && (
+                            <div className={styles.alternativeSection}>
+                              <div className={styles.alternativeHeader}>Alternative Options</div>
+                              <div className={styles.alternativeScrollContainer}>
+                                {displayAlts.map((alternative, altIdx) => {
+                                  const altLocationId = alternative.locationId || alternative.LocationId;
+                                  const altLocationIdNum = Number(altLocationId);
+                                  const fallbackAltName = Number.isFinite(altLocationIdNum)
+                                    ? locationNameById.get(altLocationIdNum)
+                                    : '';
+                                  const altName = alternative.locationName || alternative.LocationName || fallbackAltName || `Location ${altIdx + 1}`;
+                                  const altScore = alternative.score ?? alternative.Score;
+                                  const altScoreLabel = formatScoreLabel(altScore);
+                                  const altTelephone = pickFirstText(
+                                    alternative.telephone,
+                                    alternative.Telephone,
+                                    Number.isFinite(altLocationIdNum) ? locationTelephoneById.get(altLocationIdNum) : '',
+                                  );
+                                  const altAmenitiesFromAlternative = extractAmenityNames(
+                                    alternative.amenityNames
+                                    || alternative.AmenityNames
+                                    || alternative.amenities
+                                    || alternative.Amenities
+                                    || []
+                                  );
+                                  const altAmenitiesFallback = Number.isFinite(altLocationIdNum)
+                                    ? (locationAmenitiesById.get(altLocationIdNum) || [])
+                                    : [];
+                                  const altAmenities = (altAmenitiesFromAlternative.length > 0
+                                    ? altAmenitiesFromAlternative
+                                    : altAmenitiesFallback).slice(0, 5);
+                                  const altMediaUrls = (() => {
+                                    const fromAlternative = extractMediaUrls(
+                                      alternative.mediaUrls
+                                      || alternative.MediaUrls
+                                      || alternative.images
+                                      || alternative.Images
+                                      || alternative.medias
+                                      || alternative.Medias
+                                      || []
+                                    );
+                                    if (fromAlternative.length > 0) return fromAlternative;
+                                    if (Number.isFinite(altLocationIdNum)) {
+                                      return locationMediaById.get(altLocationIdNum) || [];
+                                    }
+                                    return [];
+                                  })();
+
+                                  return (
+                                    <div
+                                      key={`${idx}-alt-${altLocationId || altIdx}`}
+                                      className={styles.alternativeItem}
+                                    >
+                                      <div className={styles.altLeftPanel}>
+                                        <div className={styles.alternativeMain}>
+                                          <span className={styles.alternativeName}>{altName}</span>
+                                        </div>
+                                        {altTelephone && (
+                                          <div className={styles.timelineTelephone}>Phone: {altTelephone}</div>
+                                        )}
+                                        {altAmenities.length > 0 && (
+                                          <div className={styles.timelineAmenities}>
+                                            {altAmenities.map((amenity, amenityIdx) => (
+                                              <Tag
+                                                key={`${idx}-alt-${altLocationId || altIdx}-amenity-${amenityIdx}`}
+                                                className={styles.tropicalTag}
+                                              >
+                                                {amenity}
+                                              </Tag>
+                                            ))}
+                                          </div>
+                                        )}
+                                        <div className={styles.alternativeActions}>
+                                          {altScoreLabel && (
+                                            <div className={styles.timelineScore}>
+                                              <span className={styles.timelineScoreBadge}>Score</span>
+                                              <span className={styles.timelineScoreValue}>{altScoreLabel}</span>
+                                            </div>
+                                          )}
+                                          {altLocationId && (
+                                            <Button
+                                              type="button"
+                                              className={styles.viewDetailsBtnAlt}
+                                              onClick={() => handleViewLocation(altLocationId)}
+                                            >
+                                              View
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {altMediaUrls.length > 0 && (
+                                        <div className={styles.altRightMedia}>
                                           <img
-                                            src={url}
-                                            alt={`${altName} ${mediaIdx + 1}`}
-                                            className={styles.timelineMediaImage}
+                                            src={altMediaUrls[0]}
+                                            alt={altName}
+                                            className={styles.altMediaImage}
                                             loading="lazy"
                                           />
-                                        </a>
-                                      ))}
-                                      {altMediaUrls.length > 3 && (
-                                        <span className={styles.timelineMediaMore}>+{altMediaUrls.length - 3} more</span>
+                                        </div>
                                       )}
                                     </div>
-                                  )}
-                                  <div className={styles.alternativeActions}>
-                                    {altScoreLabel && (
-                                      <Text type="secondary" style={{ fontSize: 11 }}>
-                                        Score: {altScoreLabel}
-                                      </Text>
-                                    )}
-                                    {altLocationId && (
-                                      <Button
-                                        type="link"
-                                        size="small"
-                                        style={{ padding: 0, height: 'auto', fontSize: 11 }}
-                                        onClick={() => handleViewLocation(altLocationId)}
-                                      >
-                                        View
-                                      </Button>
-                                    )}
-                                  </div>
+                                  );
+                                })}
+                              </div>
+                              {hasManyAlts && (
+                                <div className={styles.expandAltsWrap}>
+                                  <Button 
+                                    type="text" 
+                                    className={styles.expandAltsBtn} 
+                                    onClick={() => handleToggleAlts(itemKey)}
+                                  >
+                                    {isAltExpanded ? 'Show Less Options' : `View ${alternatives.length - 10} More Options`}
+                                  </Button>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      <div className={styles.timelineCost}>
-                        {travelCostForGroup ? (
-                          <div className={styles.costAmount}>{formatMoney(travelCostForGroup)}</div>
-                        ) : ticketCost && (ticketCost.amount || ticketCost.Amount) > 0 ? (
-                          <div className={styles.costAmount}>{formatMoney(ticketCost)}</div>
-                        ) : isTravel ? (
-                          <div className={styles.costUnknown}>N/A</div>
-                        ) : (
-                          <div className={styles.costFree}>Free</div>
-                        )}
-                        <div className={styles.timelineDuration}>
-                          {getDurationStr(startTime, endTime)}
+                              )}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Accommodation Recommendations */}
-              {accommodations.length > 0 && (
-                <div className={styles.accommodationSection}>
-                  <div className={styles.accommodationTitle}>Accommodation Suggestions</div>
-                  {accommodations.map((acc, i) => {
-                    const name = acc.englishName || acc.EnglishName || acc.name || acc.Name || acc.hotelName || acc.HotelName || 'Hotel';
-                    const price = acc.pricePerNight || acc.PricePerNight || acc.estimatedCost || acc.EstimatedCost;
-                    const accommodationAmenities = extractAmenityNames(
-                      acc.amenities
-                      || acc.Amenities
-                      || acc.amenityNames
-                      || acc.AmenityNames
-                      || []
-                    ).slice(0, 5);
-                    return (
-                      <div key={i} className={styles.accommodationItemWrap}>
-                        <div className={styles.accommodationItem}>
-                          <span>{name}</span>
-                          <Space>
-                            {price && <Text strong>{formatMoney(price)}/night</Text>}
-                            <Button
-                              type="link"
-                              size="small"
-                              onClick={() => handleViewAccommodation(acc)}
-                            >
-                              Details
-                            </Button>
-                          </Space>
-                        </div>
-                        {accommodationAmenities.length > 0 && (
-                          <div className={styles.accommodationAmenities}>
-                            {accommodationAmenities.map((amenity, amenityIdx) => (
-                              <Tag key={`${i}-acc-amenity-${amenityIdx}`} color="green" style={{ fontSize: 11 }}>
-                                {amenity}
-                              </Tag>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     );
                   })}
                 </div>
-              )}
 
-              {/* Day Summary */}
-              <div className={styles.daySummary}>
-                <div className={styles.daySummaryItem}>
-                  <Text type="secondary">Estimated Cost:</Text>
-                  <Text strong>{formatMoney(estimatedCost)}</Text>
+                {accommodations.length > 0 && (
+                  <div className={styles.accommodationSection}>
+                    <div className={styles.accommodationTitle}>Accommodation Suggestions</div>
+                    {accommodations.map((acc, i) => {
+                      const name = acc.englishName || acc.EnglishName || acc.name || acc.Name || acc.hotelName || acc.HotelName || 'Hotel';
+                      const price = acc.pricePerNight || acc.PricePerNight || acc.estimatedCost || acc.EstimatedCost;
+                      const accommodationAmenities = extractAmenityNames(
+                        acc.amenities
+                        || acc.Amenities
+                        || acc.amenityNames
+                        || acc.AmenityNames
+                        || []
+                      ).slice(0, 5);
+                      return (
+                        <div key={i} className={styles.accommodationItemWrap}>
+                          <div className={styles.accommodationItem}>
+                            <span>{name}</span>
+                            <Space>
+                              {price && <Text strong className={styles.accPrice}>{formatMoney(price)}/night</Text>}
+                              <Button
+                                type="button"
+                                className={styles.viewDetailsBtn}
+                                onClick={() => handleViewAccommodation(acc)}
+                              >
+                                Details
+                              </Button>
+                            </Space>
+                          </div>
+                          {accommodationAmenities.length > 0 && (
+                            <div className={styles.timelineAmenities}>
+                              {accommodationAmenities.map((amenity, amenityIdx) => (
+                                <Tag key={`${i}-acc-amenity-${amenityIdx}`} className={styles.tropicalTag}>
+                                  {amenity}
+                                </Tag>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className={styles.daySummary}>
+                  <div className={styles.daySummaryItem}>
+                    <Text className={styles.summaryLabel}>Estimated Cost:</Text>
+                    <Text className={styles.summaryValue}>{formatMoney(estimatedCost)}</Text>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          );
-        })}
+              </Card>
+            );
+          })}
 
-        {/* Action Bar */}
-        <div className={styles.actionBar}>
-          <Button onClick={handleRegenerate}>
-            Regenerate
-          </Button>
-          <Button onClick={() => navigate('/create-trip')}>
-            Edit
-          </Button>
+          <div className={styles.actionBar}>
+            <Button type="primary" onClick={handleRegenerate} className={styles.ctaButton}>
+              Regenerate
+            </Button>
+            <Button onClick={() => navigate('/create-trip')} className={styles.secondaryButton}>
+              Edit
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Modals */}
-      <LocationDetailModal
-        open={locationModal.open}
-        locationId={locationModal.locationId}
-        onClose={() => setLocationModal({ open: false, locationId: null })}
-      />
-      <TransportDetailModal
-        open={transportModal.open}
-        data={transportModal.data}
-        onClose={() => setTransportModal({ open: false, data: null })}
-      />
-      <AccommodationDetailModal
-        open={accommodationModal.open}
-        data={accommodationModal.data}
-        onClose={() => setAccommodationModal({ open: false, data: null })}
-      />
-    </div>
+        <LocationDetailModal
+          open={locationModal.open}
+          locationId={locationModal.locationId}
+          onClose={() => setLocationModal({ open: false, locationId: null })}
+        />
+        <TransportDetailModal
+          open={transportModal.open}
+          data={transportModal.data}
+          onClose={() => setTransportModal({ open: false, data: null })}
+        />
+        <AccommodationDetailModal
+          open={accommodationModal.open}
+          data={accommodationModal.data}
+          onClose={() => setAccommodationModal({ open: false, data: null })}
+        />
+      </div>
+    </ConfigProvider>
   );
 };
 

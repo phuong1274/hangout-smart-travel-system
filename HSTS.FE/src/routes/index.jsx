@@ -85,7 +85,7 @@ export const router = createBrowserRouter([
             element: <CreateTripPage />
           },
           {
-            path: '/itinerary-result',
+            path: PATHS.ITINERARY,
             element: <ItineraryResultPage />
           },
           {
