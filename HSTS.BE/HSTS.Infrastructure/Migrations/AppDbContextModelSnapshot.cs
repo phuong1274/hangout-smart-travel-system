@@ -1474,6 +1474,444 @@ namespace HSTS.Infrastructure.Migrations
                     b.ToTable("TransportModes", (string)null);
                 });
 
+            modelBuilder.Entity("HSTS.Domain.Entities.Trip", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("GroupSize")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TripName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UserId1")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId1");
+
+                    b.ToTable("Trips", (string)null);
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripActivity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<TimeOnly?>("EndTime")
+                        .HasColumnType("time(6)")
+                        .HasColumnName("EndTime");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<int?>("LocationId")
+                        .HasColumnType("int")
+                        .HasColumnName("LocationId");
+
+                    b.Property<TimeOnly?>("StartTime")
+                        .HasColumnType("time(6)")
+                        .HasColumnName("StartTime");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Title");
+
+                    b.Property<int>("TripDayId")
+                        .HasColumnType("int")
+                        .HasColumnName("TripDayId");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int")
+                        .HasColumnName("Type");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("TripDayId");
+
+                    b.ToTable("TripActivities", (string)null);
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripActivityBudget", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("ActualExpense")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("ActualExpense");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Description");
+
+                    b.Property<decimal>("EstimateCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("EstimateCost");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Title");
+
+                    b.Property<int>("TripActivityId")
+                        .HasColumnType("int")
+                        .HasColumnName("TripActivityId");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TripActivityId")
+                        .IsUnique();
+
+                    b.ToTable("TripActivityBudgets", (string)null);
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripDay", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("Date");
+
+                    b.Property<int>("DayNumber")
+                        .HasColumnType("int")
+                        .HasColumnName("DayNumber");
+
+                    b.Property<string>("DayTitle")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("DayTitle");
+
+                    b.Property<decimal>("EstimateCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("EstimateCost");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("TripId")
+                        .HasColumnType("int")
+                        .HasColumnName("TripId");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("WeatherSummary")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("WeatherSummary");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TripId");
+
+                    b.ToTable("TripDays", (string)null);
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripSummary", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("ContingencyFund")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("ContingencyFund");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<decimal>("EstimatedAccommodationCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("EstimatedAccommodationCost");
+
+                    b.Property<decimal>("EstimatedActivityCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("EstimatedActivityCost");
+
+                    b.Property<decimal>("EstimatedTotalCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("EstimatedTotalCost");
+
+                    b.Property<decimal>("EstimatedTransportCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("EstimatedTransportCost");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<decimal>("RemainingBudget")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("RemainingBudget");
+
+                    b.Property<decimal>("TotalBudget")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("TotalBudget");
+
+                    b.Property<int>("TripId")
+                        .HasColumnType("int")
+                        .HasColumnName("TripId");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<decimal>("UsableBudget")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("UsableBudget");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TripId")
+                        .IsUnique();
+
+                    b.ToTable("TripSummaries", (string)null);
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripTransport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Cost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("Cost");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<decimal>("DistanceKm")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("DistanceKm");
+
+                    b.Property<int?>("FromLocationId")
+                        .HasColumnType("int")
+                        .HasColumnName("FromLocationId");
+
+                    b.Property<int?>("FromTransitHubId")
+                        .HasColumnType("int")
+                        .HasColumnName("FromTransitHubId");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<int?>("ToLocationId")
+                        .HasColumnType("int")
+                        .HasColumnName("ToLocationId");
+
+                    b.Property<int?>("ToTransitHubId")
+                        .HasColumnType("int")
+                        .HasColumnName("ToTransitHubId");
+
+                    b.Property<decimal>("TotalCost")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("TotalCost");
+
+                    b.Property<int?>("TransportModeId")
+                        .HasColumnType("int")
+                        .HasColumnName("TransportModeId");
+
+                    b.Property<int>("TravelTimeMinutes")
+                        .HasColumnType("int")
+                        .HasColumnName("TravelTimeMinutes");
+
+                    b.Property<int>("TripActivityId")
+                        .HasColumnType("int")
+                        .HasColumnName("TripActivityId");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("YourLocationName")
+                        .HasColumnType("longtext")
+                        .HasColumnName("FromYourLocation");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromLocationId");
+
+                    b.HasIndex("FromTransitHubId");
+
+                    b.HasIndex("ToLocationId");
+
+                    b.HasIndex("ToTransitHubId");
+
+                    b.HasIndex("TransportModeId");
+
+                    b.HasIndex("TripActivityId")
+                        .IsUnique();
+
+                    b.ToTable("TripTransports", (string)null);
+                });
+
             modelBuilder.Entity("HSTS.Domain.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -1932,6 +2370,118 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("TransportMode");
                 });
 
+            modelBuilder.Entity("HSTS.Domain.Entities.Trip", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HSTS.Domain.Entities.User", null)
+                        .WithMany("Trips")
+                        .HasForeignKey("UserId1");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripActivity", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.Location", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HSTS.Domain.Entities.TripDay", "TripDay")
+                        .WithMany("Activities")
+                        .HasForeignKey("TripDayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+
+                    b.Navigation("TripDay");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripActivityBudget", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.TripActivity", "TripActivity")
+                        .WithOne("Budget")
+                        .HasForeignKey("HSTS.Domain.Entities.TripActivityBudget", "TripActivityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TripActivity");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripDay", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.Trip", "Trip")
+                        .WithMany("TripDays")
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Trip");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripSummary", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.Trip", "Trip")
+                        .WithOne("TripSummary")
+                        .HasForeignKey("HSTS.Domain.Entities.TripSummary", "TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Trip");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripTransport", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.Location", "FromLocation")
+                        .WithMany()
+                        .HasForeignKey("FromLocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HSTS.Domain.Entities.TransitHubs", "FromTransitHub")
+                        .WithMany()
+                        .HasForeignKey("FromTransitHubId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HSTS.Domain.Entities.Location", "ToLocation")
+                        .WithMany()
+                        .HasForeignKey("ToLocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HSTS.Domain.Entities.TransitHubs", "ToTransitHub")
+                        .WithMany()
+                        .HasForeignKey("ToTransitHubId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HSTS.Domain.Entities.TransportMode", "TransportMode")
+                        .WithMany()
+                        .HasForeignKey("TransportModeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HSTS.Domain.Entities.TripActivity", "TripActivity")
+                        .WithOne("Transport")
+                        .HasForeignKey("HSTS.Domain.Entities.TripTransport", "TripActivityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FromLocation");
+
+                    b.Navigation("FromTransitHub");
+
+                    b.Navigation("ToLocation");
+
+                    b.Navigation("ToTransitHub");
+
+                    b.Navigation("TransportMode");
+
+                    b.Navigation("TripActivity");
+                });
+
             modelBuilder.Entity("HSTS.Domain.Entities.User", b =>
                 {
                     b.HasOne("HSTS.Domain.Entities.Account", "Account")
@@ -2041,9 +2591,30 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("TransitHubs");
                 });
 
+            modelBuilder.Entity("HSTS.Domain.Entities.Trip", b =>
+                {
+                    b.Navigation("TripDays");
+
+                    b.Navigation("TripSummary");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripActivity", b =>
+                {
+                    b.Navigation("Budget");
+
+                    b.Navigation("Transport");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripDay", b =>
+                {
+                    b.Navigation("Activities");
+                });
+
             modelBuilder.Entity("HSTS.Domain.Entities.User", b =>
                 {
                     b.Navigation("Profiles");
+
+                    b.Navigation("Trips");
 
                     b.Navigation("UserRoles");
                 });
