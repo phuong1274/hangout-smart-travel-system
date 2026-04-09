@@ -1,5 +1,7 @@
+using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
 using HSTS.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
 namespace HSTS.Application.LocationSubmissions
@@ -11,8 +13,13 @@ namespace HSTS.Application.LocationSubmissions
             PropertyNameCaseInsensitive = true
         };
 
-        public static LocationSubmissionDto ToDto(this LocationSubmission submission)
+        public static LocationSubmissionDto ToDto(
+            this LocationSubmission submission, 
+            List<LocationSubmissionTagDto>? tags = null,
+            HSTS.Application.Locations.LocationDto? existingLocation = null)
         {
+            var tagIds = DeserializeJson<List<int>>(submission.TagIdsJson);
+
             return new LocationSubmissionDto(
                 submission.Id,
                 submission.UserId,
@@ -20,12 +27,16 @@ namespace HSTS.Application.LocationSubmissions
                 submission.Description,
                 submission.Latitude,
                 submission.Longitude,
+                submission.TicketPrice,
+                submission.MinimumAge,
                 submission.Address,
                 submission.Telephone,
                 submission.Email,
                 submission.PriceMinUsd,
                 submission.PriceMaxUsd,
                 submission.Score,
+                submission.RecommendedDurationMinutes,
+                submission.SourceUrl,
                 submission.DistrictId,
                 submission.District?.Name,
                 submission.LocationTypeId,
@@ -33,19 +44,40 @@ namespace HSTS.Application.LocationSubmissions
                 DeserializeJson<List<string>>(submission.MediaLinksJson),
                 DeserializeSocialLinks(submission.SocialLinksJson),
                 DeserializeJson<List<int>>(submission.AmenityIdsJson),
-                DeserializeJson<List<int>>(submission.TagIdsJson),
                 DeserializeOpeningHours(submission.OpeningHoursJson),
                 DeserializeSeasons(submission.SeasonsJson),
                 submission.Status,
                 submission.SubmissionType,
                 submission.ExistingLocationId,
+                existingLocation,
                 submission.RejectionReason,
                 submission.ReviewedAt,
                 submission.ReviewedBy,
                 submission.CreatedLocationId,
                 submission.CreatedAt,
-                submission.UpdatedAt
+                submission.UpdatedAt,
+                tags,
+                tagIds
             );
+        }
+
+        /// <summary>
+        /// Helper method to resolve tag IDs to Tag DTOs by querying the database
+        /// </summary>
+        public static async Task<List<LocationSubmissionTagDto>?> ResolveTagsAsync(
+            List<int>? tagIds, 
+            IRepository.IRepository<Tag> tagRepository, 
+            CancellationToken ct)
+        {
+            if (tagIds == null || tagIds.Count == 0)
+                return null;
+
+            var tags = await tagRepository.Query()
+                .Where(t => tagIds.Contains(t.Id) && !t.IsDeleted)
+                .Select(t => new LocationSubmissionTagDto(t.Id, t.Name))
+                .ToListAsync(ct);
+
+            return tags;
         }
 
         private static List<LocationSubmissionSocialLinkDto> DeserializeSocialLinks(string? json)
@@ -106,11 +138,27 @@ namespace HSTS.Application.LocationSubmissions
             return openingHours.Select(oh => new LocationSubmissionOpeningHourDto(
                 oh.Id,
                 oh.DayOfWeek,
-                ((DayOfWeek)oh.DayOfWeek).ToString(),
+                GetDayName(oh.DayOfWeek),
                 ParseTimeSpan(oh.OpenTime, TimeSpan.FromHours(8)),
                 ParseTimeSpan(oh.CloseTime, TimeSpan.FromHours(17)),
                 oh.Note
             )).ToList();
+        }
+
+        private static string GetDayName(int dayOfWeek)
+        {
+            // ISO 8601 format: 1=Monday, 2=Tuesday, ..., 7=Sunday
+            return dayOfWeek switch
+            {
+                1 => "Monday",
+                2 => "Tuesday",
+                3 => "Wednesday",
+                4 => "Thursday",
+                5 => "Friday",
+                6 => "Saturday",
+                7 => "Sunday",
+                _ => dayOfWeek.ToString()
+            };
         }
 
         private static TimeSpan ParseTimeSpan(string? timeString, TimeSpan defaultValue)

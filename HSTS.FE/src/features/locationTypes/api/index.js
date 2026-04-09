@@ -1,7 +1,7 @@
 import apiClient from '@/lib/axios';
 
 export const getLocationTypesApi = (params) => {
-  return apiClient.get('/api/LocationTypes', { params }).then(res => res.data);
+  return apiClient.get('/api/LocationTypes/paged', { params }).then(res => res.data);
 };
 
 export const getLocationTypeByIdApi = (id) => {

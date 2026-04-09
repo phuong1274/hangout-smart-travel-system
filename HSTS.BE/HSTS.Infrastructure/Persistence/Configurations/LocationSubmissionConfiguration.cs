@@ -45,6 +45,20 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasColumnType("decimal(18,2)")
                 .IsRequired(false);
 
+            builder.Property(x => x.TicketPrice)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
+
+            builder.Property(x => x.MinimumAge)
+                .IsRequired();
+
+            builder.Property(x => x.RecommendedDurationMinutes)
+                .IsRequired(false);
+
+            builder.Property(x => x.SourceUrl)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
             builder.Property(x => x.UserId)
                 .IsRequired();
 

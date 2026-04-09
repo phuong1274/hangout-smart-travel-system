@@ -85,9 +85,13 @@ namespace HSTS.API.Controllers
                 request.Address,
                 request.Telephone,
                 request.Email,
+                request.TicketPrice ?? 0,
+                request.MinimumAge ?? 0,
                 request.PriceMinUsd,
                 request.PriceMaxUsd,
                 request.Score,
+                request.RecommendedDurationMinutes,
+                request.SourceUrl,
                 request.DistrictId,
                 request.LocationTypeId,
                 request.MediaLinks,
@@ -138,15 +142,32 @@ namespace HSTS.API.Controllers
                 request.Address,
                 request.Telephone,
                 request.Email,
+                request.TicketPrice ?? 0,
+                request.MinimumAge ?? 0,
                 request.PriceMinUsd,
                 request.PriceMaxUsd,
                 request.Score,
+                request.RecommendedDurationMinutes,
+                request.SourceUrl,
                 request.DistrictId,
                 request.LocationTypeId,
                 request.MediaLinks,
                 request.SocialLinks?.Select(sl => new Application.LocationSubmissions.LocationSubmissionSocialLinkDto(sl.Platform, sl.Url)).ToList(),
                 request.AmenityIds,
-                request.TagIds
+                request.TagIds,
+                request.OpeningHours?.Select(oh => new LocationSubmissionOpeningHourDto(
+                    oh.Id,
+                    oh.DayOfWeek,
+                    ((DayOfWeek)oh.DayOfWeek).ToString(),
+                    !string.IsNullOrEmpty(oh.OpenTime) ? TimeSpan.Parse(oh.OpenTime) : null,
+                    !string.IsNullOrEmpty(oh.CloseTime) ? TimeSpan.Parse(oh.CloseTime) : null,
+                    oh.Note
+                )).ToList(),
+                request.Seasons?.Select(s => new LocationSubmissionSeasonDto(
+                    s.Id,
+                    s.Description,
+                    s.Months
+                )).ToList()
             );
 
             var result = await _mediator.Send(command, ct);

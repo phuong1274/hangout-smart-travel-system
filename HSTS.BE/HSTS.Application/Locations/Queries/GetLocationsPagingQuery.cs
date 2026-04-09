@@ -12,6 +12,7 @@ namespace HSTS.Application.Locations.Queries
         List<int>? TagIds,
         List<int>? LocationTypeIds,
         List<int>? DistrictIds,
+        int? ProvinceId,
         DateTime? FromDate,
         DateTime? ToDate,
         int PageIndex,
@@ -86,6 +87,12 @@ namespace HSTS.Application.Locations.Queries
             if (request.DistrictIds != null && request.DistrictIds.Count > 0)
             {
                 query = query.Where(l => request.DistrictIds.Contains(l.DistrictId));
+            }
+
+            // Filter by Province ID (through District relationship)
+            if (request.ProvinceId.HasValue)
+            {
+                query = query.Where(l => l.District != null && l.District.ProvinceId == request.ProvinceId.Value);
             }
 
             // Filter by date range (CreatedAt)

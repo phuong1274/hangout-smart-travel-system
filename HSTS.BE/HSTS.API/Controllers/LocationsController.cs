@@ -32,6 +32,7 @@ namespace HSTS.API.Controllers
             [FromQuery] List<int>? tagIds,
             [FromQuery] List<int>? locationTypeIds,
             [FromQuery] List<int>? districtIds,
+            [FromQuery] int? provinceId,
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate,
             [FromQuery] int pageIndex = 1,
@@ -39,7 +40,7 @@ namespace HSTS.API.Controllers
             [FromQuery] DateTime? referenceDate = null,
             CancellationToken ct = default)
         {
-            var query = new GetLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, districtIds, fromDate, toDate, pageIndex, pageSize, referenceDate);
+            var query = new GetLocationsPagingQuery(searchTerm, tagIds, locationTypeIds, districtIds, provinceId, fromDate, toDate, pageIndex, pageSize, referenceDate);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(

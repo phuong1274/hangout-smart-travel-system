@@ -27,6 +27,9 @@ const LocationFilter = ({
   const [locationTypes, setLocationTypes] = useState([]);
   const [districts, setDistricts] = useState([]);
 
+  // Track applied filters to determine if reset button should be enabled
+  const [appliedFilters, setAppliedFilters] = useState({});
+
   useEffect(() => {
     fetchDropdownData();
   }, []);
@@ -90,6 +93,7 @@ const LocationFilter = ({
       FromDate: dateRange[0] ? dateRange[0].startOf('day').toISOString() : undefined,
       ToDate: dateRange[1] ? dateRange[1].endOf('day').toISOString() : undefined
     };
+    setAppliedFilters(filters);
     onSearch(filters);
   };
 
@@ -101,13 +105,24 @@ const LocationFilter = ({
     setSelectedLocationTypeIds([]);
     setSelectedDistrictIds([]);
     setDateRange([]);
+    setAppliedFilters({});
     onSearch({});
   };
 
-  const hasActiveFilters = searchTerm || selectedParentTagIds.length > 0 ||
-    selectedChildTagIds.length > 0 ||
-    selectedLocationTypeIds.length > 0 || selectedDistrictIds.length > 0 ||
-    (dateRange && dateRange.length > 0 && (dateRange[0] || dateRange[1]));
+  // Handle search input clear - auto-trigger search with empty term
+  const handleSearchClear = () => {
+    setSearchTerm('');
+    // Re-apply filters with empty search term
+    handleApplyFilter();
+  };
+
+  const hasActiveFilters = Object.keys(appliedFilters).length > 0 && 
+    (appliedFilters.searchTerm || 
+     appliedFilters.TagIds || 
+     appliedFilters.LocationTypeIds || 
+     appliedFilters.DistrictIds || 
+     appliedFilters.FromDate || 
+     appliedFilters.ToDate);
 
   return (
     <div style={{ marginBottom: 16 }}>
@@ -122,6 +137,7 @@ const LocationFilter = ({
               onSearch={handleApplyFilter}
               loading={loading}
               allowClear
+              onClear={handleSearchClear}
               enterButton
               onPressEnter={handleApplyFilter}
             />
@@ -156,6 +172,8 @@ const LocationFilter = ({
               value={selectedParentTagIds}
               onChange={handleParentTagChange}
               allowClear
+              showSearch
+              optionFilterProp="children"
               maxTagCount="responsive"
             >
               {rootTags.map(tag => (
@@ -173,6 +191,8 @@ const LocationFilter = ({
               value={selectedChildTagIds}
               onChange={setSelectedChildTagIds}
               allowClear
+              showSearch
+              optionFilterProp="children"
               maxTagCount="responsive"
               disabled={selectedParentTagIds.length === 0}
             >
@@ -191,6 +211,8 @@ const LocationFilter = ({
               value={selectedLocationTypeIds}
               onChange={setSelectedLocationTypeIds}
               allowClear
+              showSearch
+              optionFilterProp="children"
               maxTagCount="responsive"
             >
               {locationTypes.map(type => (
@@ -208,6 +230,8 @@ const LocationFilter = ({
               value={selectedDistrictIds}
               onChange={setSelectedDistrictIds}
               allowClear
+              showSearch
+              optionFilterProp="children"
               maxTagCount="responsive"
             >
               {districts.map(district => (
