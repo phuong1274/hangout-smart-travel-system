@@ -1,51 +1,55 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics;
 
 namespace HSTS.Domain.Entities
 {
     public class TripTransport : BaseEntity
     {
         [Key]
+        [Column("Id")]
         public int Id { get; set; }
 
         [Required]
+        [Column("TripActivityId")]
         public int TripActivityId { get; set; }
 
-        [Required]
-        [MaxLength(100)]
-        public string TransportMethod { get; set; } = null!;
+        [Column("TransportModeId")]
+        public int? TransportModeId { get; set; }
 
-        [Required]
-        [MaxLength(500)]
-        public string Description { get; set; } = null!;
+        [Column("DistanceKm")]
+        public decimal DistanceKm { get; set; }
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal TotalCost { get; set; }
-
+        [Column("TravelTimeMinutes")]
         public int TravelTimeMinutes { get; set; }
 
-        public int VehiclesNeeded { get; set; }
+        [Column("TotalCost")]
+        public decimal TotalCost { get; set; }
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal CostPerPerson { get; set; }
+        [Column("Cost")]
+        public decimal Cost { get; set; }
 
-        public int GroupSize { get; set; }
+        [Column("FromYourLocation")]
+        public String? YourLocationName { get; set; }
 
-        public int? DepartureHubId { get; set; }
+        [Column("FromTransitHubId")]
+        public int? FromTransitHubId { get; set; }
 
-        public int? ArrivalHubId { get; set; }
+        [Column("ToTransitHubId")]
+        public int? ToTransitHubId { get; set; }
 
-        [MaxLength(1000)]
-        public string? Pros { get; set; }
+        [Column("FromLocationId")]
+        public int? FromLocationId { get; set; }
 
-        [MaxLength(1000)]
-        public string? Cons { get; set; }
-
-        public bool Recommended { get; set; }
+        [Column("ToLocationId")]
+        public int? ToLocationId { get; set; }
 
         // Navigation properties
         public TripActivity TripActivity { get; set; } = null!;
-        public Hub? DepartureHub { get; set; }
-        public Hub? ArrivalHub { get; set; }
+        public TransportMode? TransportMode { get; set; }
+        public TransitHubs? FromTransitHub { get; set; }
+        public TransitHubs? ToTransitHub { get; set; }
+        public Location? FromLocation { get; set; }
+        public Location? ToLocation { get; set; }
     }
 }

@@ -63,7 +63,6 @@ const PartnerLocationsPage = () => {
         setReferenceData(cached);
         return;
       }
-
       try {
         const refData = await fetchReferenceData();
         setReferenceData(refData);

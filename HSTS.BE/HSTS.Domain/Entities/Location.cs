@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System;
 using System.Collections.Generic;
@@ -78,7 +78,6 @@ namespace HSTS.Domain.Entities
         public Domain.Enums.LocationStatus Status { get; set; } = Domain.Enums.LocationStatus.Active;
 
         // Navigation properties
-        public ICollection<Hub> Hubs { get; set; } = new List<Hub>();
         public ICollection<LocationSocialLink> SocialLinks { get; set; } = new List<LocationSocialLink>();
         public ICollection<LocationTag> LocationTags { get; set; } = new List<LocationTag>();
         public ICollection<Tag> Tags { get; set; } = new List<Tag>();

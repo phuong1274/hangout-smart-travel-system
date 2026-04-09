@@ -30,6 +30,14 @@ namespace HSTS.Application.Interfaces
         DbSet<LocationClosure> LocationClosures { get; }
         DbSet<LocationSubmission> LocationSubmissions { get; }
         DbSet<LocationSeason> LocationSeasons { get; }
+
+        DbSet<Trip> Trips { get; }
+        DbSet<TripDay> TripDays { get; }
+        DbSet<TripActivity> TripActivities { get; }
+        DbSet<TripTransport> TripTransports { get; }
+        DbSet<TripSummary> TripSummaries { get; }
+        DbSet<TripActivityBudget> TripActivityBudgets { get; }
+
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

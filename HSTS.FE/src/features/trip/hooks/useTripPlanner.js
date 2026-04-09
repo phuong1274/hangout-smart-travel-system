@@ -65,5 +65,14 @@ export const useTripPlanner = () => {
     sessionStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  return { itinerary, loading, generateItinerary, clearItinerary };
+  const updateItinerary = useCallback((nextItinerary) => {
+    setItinerary(nextItinerary);
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(nextItinerary));
+    } catch {
+      // sessionStorage full – ignore
+    }
+  }, []);
+
+  return { itinerary, loading, generateItinerary, clearItinerary, updateItinerary };
 };
