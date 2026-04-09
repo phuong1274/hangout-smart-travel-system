@@ -39,44 +39,29 @@ export const getLocationsByDistrictIdsApi = ({ districtIds, pageIndex = 1, pageS
   }).then(res => res.data);
 };
 
-// Lookup all locations of a province (uses /api/Locations/provinces as validation source)
-export const getLocationsByProvinceApi = async ({ provinceId, countryId, searchTerm, pageSize = 200 }) => {
+// Lookup all locations of a province via new endpoint: GET /api/locations?provinceId=...
+export const getLocationsByProvinceApi = async ({ provinceId, searchTerm, pageSize = 200, pageIndex = 1 }) => {
   const targetProvinceId = Number(provinceId);
   if (!Number.isFinite(targetProvinceId) || targetProvinceId <= 0) {
     return { items: [], totalCount: 0 };
   }
 
-  const provincesRaw = await getLocationProvincesApi(countryId);
-  const provinces = Array.isArray(provincesRaw)
-    ? provincesRaw
-    : (provincesRaw?.items || provincesRaw?.Items || []);
-  const provinceExists = provinces.some((province) => Number(province?.id ?? province?.Id) === targetProvinceId);
-  if (!provinceExists) {
-    return { items: [], totalCount: 0 };
-  }
+  const response = await apiClient.get('/api/locations', {
+    params: {
+      provinceId: targetProvinceId,
+      searchTerm,
+      pageIndex,
+      pageSize,
+    },
+  }).then((res) => res.data);
 
-  const districtsRaw = await getDistrictsByProvinceApi(targetProvinceId);
-  const districts = Array.isArray(districtsRaw)
-    ? districtsRaw
-    : (districtsRaw?.items || districtsRaw?.Items || []);
-  const districtIds = districts
-    .map((district) => Number(district?.id ?? district?.Id))
-    .filter((id) => Number.isFinite(id) && id > 0);
-
-  if (!districtIds.length) {
-    return { items: [], totalCount: 0 };
-  }
-
-  const response = await getLocationsByDistrictIdsApi({
-    districtIds,
-    pageIndex: 1,
-    pageSize,
-    searchTerm,
-  });
+  const items = response?.items || response?.Items || response?.data || response?.Data || [];
 
   return {
-    items: response?.items || response?.Items || [],
-    totalCount: response?.totalCount || response?.TotalCount || 0,
+    items: Array.isArray(items) ? items : [],
+    totalCount: response?.totalCount
+      || response?.TotalCount
+      || (Array.isArray(items) ? items.length : 0),
   };
 };
 
