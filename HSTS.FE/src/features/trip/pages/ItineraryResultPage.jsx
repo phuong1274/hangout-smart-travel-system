@@ -1,8 +1,25 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Card, Typography, Button, Tag, Empty, Space } from 'antd';
+import {
+  Card,
+  Typography,
+  Button,
+  Tag,
+  Empty,
+  Space,
+  Popconfirm,
+  message,
+  Modal,
+  Select,
+  Spin,
+} from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useTripPlanner } from '../hooks/useTripPlanner';
-import { getLocationByIdApi, getProvincesApi } from '../api';
+import {
+  getLocationByIdApi,
+  getProvincesApi,
+  estimateLocalTravelApi,
+  getLocationsByProvinceApi,
+} from '../api';
 import LocationDetailModal from '../components/LocationDetailModal';
 import TransportDetailModal from '../components/TransportDetailModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
@@ -182,12 +199,6 @@ const getTransportOptionRouteText = (option) => {
   return '';
 };
 
-const isIntercityTravel = (travelDetail) => {
-  if (!travelDetail) return false;
-  const distance = Number(travelDetail.distanceKm ?? travelDetail.DistanceKm);
-  return Number.isFinite(distance) && distance >= 100;
-};
-
 const formatMoney = (moneyDto) => {
   if (!moneyDto) return null;
   const amount = moneyDto.amount ?? moneyDto.Amount ?? 0;
@@ -211,6 +222,23 @@ const getMoneyAmount = (moneyDto) => {
   if (!moneyDto) return null;
   const amount = Number(moneyDto.amount ?? moneyDto.Amount);
   return Number.isFinite(amount) ? amount : null;
+};
+
+const normalizeMoney = (value, fallbackCurrency = 'VND') => {
+  if (value == null) return null;
+
+  if (typeof value === 'number' || typeof value === 'string') {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return null;
+    return { amount, currency: fallbackCurrency };
+  }
+
+  const amount = getMoneyAmount(value);
+  if (amount == null) return null;
+  return {
+    amount,
+    currency: value.currency || value.Currency || fallbackCurrency,
+  };
 };
 
 const pickBestMoney = (...candidates) => {
@@ -349,15 +377,169 @@ const formatScoreLabel = (value) => {
   return `${score.toFixed(decimalPlaces)}/5`;
 };
 
+const toMinutesOfDay = (timeStr) => {
+  if (!timeStr) return null;
+  const parts = String(timeStr).split(':').map((part) => Number(part));
+  if (parts.length < 2) return null;
+  const [hour, minute] = parts;
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return ((hour * 60) + minute + 1440) % 1440;
+};
+
+const toTimeOnlyString = (minutesOfDay) => {
+  const normalized = ((Math.round(minutesOfDay) % 1440) + 1440) % 1440;
+  const hours = String(Math.floor(normalized / 60)).padStart(2, '0');
+  const minutes = String(normalized % 60).padStart(2, '0');
+  return `${hours}:${minutes}:00`;
+};
+
+const addMinutesToTime = (timeStr, minutesToAdd) => {
+  const base = toMinutesOfDay(timeStr);
+  const safeBase = base == null ? 8 * 60 : base;
+  return toTimeOnlyString(safeBase + Math.max(0, Math.round(minutesToAdd || 0)));
+};
+
+const shiftTimeByMinutes = (timeStr, deltaMinutes) => {
+  const base = toMinutesOfDay(timeStr);
+  if (base == null) return String(timeStr || '');
+  return toTimeOnlyString(base + Math.round(deltaMinutes || 0));
+};
+
+const getTimelineDurationMinutes = (item) => {
+  const eventType = item?.eventType || item?.EventType;
+  const start = toMinutesOfDay(item?.startTime || item?.StartTime);
+  const end = toMinutesOfDay(item?.endTime || item?.EndTime);
+
+  if (start != null && end != null) {
+    const diff = end >= start ? end - start : (end + 1440) - start;
+    if (diff > 0) return diff;
+  }
+
+  if (eventType === 'check-in' || eventType === 'check-out' || eventType === 'luggage-refresh') return 30;
+  if (eventType === 'meal') return 60;
+  return 90;
+};
+
+const getItemLocationId = (item) => Number(item?.locationId ?? item?.LocationId);
+
+const isTravelEvent = (item) => (item?.eventType || item?.EventType) === 'travel';
+
+const isEditableLocationEvent = (item) => {
+  const locationId = getItemLocationId(item);
+  return !isTravelEvent(item) && Number.isFinite(locationId) && locationId > 0;
+};
+
+const getTravelDetailEntry = (item) => {
+  const candidates = [
+    ['locationToLocationTravel', item?.locationToLocationTravel],
+    ['LocationToLocationTravel', item?.LocationToLocationTravel],
+    ['transitHubToLocationTravel', item?.transitHubToLocationTravel],
+    ['TransitHubToLocationTravel', item?.TransitHubToLocationTravel],
+    ['locationToTransitHubTravel', item?.locationToTransitHubTravel],
+    ['LocationToTransitHubTravel', item?.LocationToTransitHubTravel],
+    ['provinceToProvinceTravel', item?.provinceToProvinceTravel],
+    ['ProvinceToProvinceTravel', item?.ProvinceToProvinceTravel],
+  ];
+
+  return candidates.find(([, value]) => Boolean(value)) || [null, null];
+};
+
+const clonePlainObject = (value) => JSON.parse(JSON.stringify(value));
+
+const getTimelineItemCostAmount = (item) => {
+  if (!item) return 0;
+
+  const travelDetail = item.locationToLocationTravel || item.LocationToLocationTravel;
+  const travelCost = getTravelGroupCost(item.costForGroup || item.CostForGroup, travelDetail);
+  const amount = getMoneyAmount(
+    travelCost
+    || item.costForGroup
+    || item.CostForGroup
+    || item.ticketCost
+    || item.TicketCost
+  );
+
+  return amount ?? 0;
+};
+
+const updateDayEstimatedCost = (day, timelineKey, currencyCode) => {
+  if (!day || !timelineKey) return;
+  const timeline = Array.isArray(day[timelineKey]) ? day[timelineKey] : [];
+  const estimatedAmount = timeline.reduce((sum, item) => sum + getTimelineItemCostAmount(item), 0);
+  const money = { amount: Math.round(estimatedAmount), currency: currencyCode || 'VND' };
+
+  if ('estimatedCost' in day || 'EstimatedCost' in day) {
+    if ('estimatedCost' in day) day.estimatedCost = money;
+    if ('EstimatedCost' in day) day.EstimatedCost = money;
+  }
+  if ('estimatedDayCost' in day || 'EstimatedDayCost' in day) {
+    if ('estimatedDayCost' in day) day.estimatedDayCost = money;
+    if ('EstimatedDayCost' in day) day.EstimatedDayCost = money;
+  }
+};
+
+const updateBudgetSummaryFromDays = (draftItinerary) => {
+  if (!draftItinerary) return;
+
+  const daysKey = Array.isArray(draftItinerary?.days) ? 'days' : 'Days';
+  const summaryKey = draftItinerary?.budgetSummary ? 'budgetSummary' : 'BudgetSummary';
+  const days = Array.isArray(draftItinerary?.[daysKey]) ? draftItinerary[daysKey] : [];
+  const summary = draftItinerary?.[summaryKey];
+  if (!summary) return;
+
+  const currencyCode = pickFirstText(draftItinerary?.currencyCode, draftItinerary?.CurrencyCode) || 'VND';
+  const estimatedTotal = days.reduce((sum, day) => {
+    const money = normalizeMoney(
+      day?.estimatedCost
+      || day?.EstimatedCost
+      || day?.estimatedDayCost
+      || day?.EstimatedDayCost,
+      currencyCode,
+    );
+    return sum + (money?.amount || 0);
+  }, 0);
+
+  const estimatedMoney = { amount: Math.round(estimatedTotal), currency: currencyCode };
+  const usable = normalizeMoney(summary?.usableBudget || summary?.UsableBudget, currencyCode);
+  const remainingMoney = usable
+    ? { amount: Math.round(usable.amount - estimatedMoney.amount), currency: usable.currency || currencyCode }
+    : null;
+
+  if ('estimatedTotalCost' in summary) summary.estimatedTotalCost = estimatedMoney;
+  if ('EstimatedTotalCost' in summary) summary.EstimatedTotalCost = estimatedMoney;
+  if (remainingMoney) {
+    if ('remainingBudget' in summary) summary.remainingBudget = remainingMoney;
+    if ('RemainingBudget' in summary) summary.RemainingBudget = remainingMoney;
+  }
+};
+
+const findNextPrimaryLocationIndex = (timeline, fromIndex) => {
+  for (let index = fromIndex + 1; index < timeline.length; index += 1) {
+    if (isEditableLocationEvent(timeline[index])) return index;
+  }
+  return -1;
+};
+
 const ItineraryResultPage = () => {
   const navigate = useNavigate();
-  const { itinerary, clearItinerary } = useTripPlanner();
+  const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
   const [provinceNameById, setProvinceNameById] = useState(new Map());
   const [locationNameById, setLocationNameById] = useState(new Map());
   const [locationMediaById, setLocationMediaById] = useState(new Map());
   const [locationTelephoneById, setLocationTelephoneById] = useState(new Map());
   const [locationAmenitiesById, setLocationAmenitiesById] = useState(new Map());
   const [showBudgetDetails, setShowBudgetDetails] = useState(false);
+  const [recalculatingDayNumber, setRecalculatingDayNumber] = useState(null);
+  const [addBetweenModal, setAddBetweenModal] = useState({
+    open: false,
+    dayIndex: null,
+    insertAfterIndex: null,
+    provinceId: null,
+  });
+  const [provinceLocationOptions, setProvinceLocationOptions] = useState([]);
+  const [provinceLocationLoading, setProvinceLocationLoading] = useState(false);
+  const [selectedProvinceLocationId, setSelectedProvinceLocationId] = useState(null);
+  const [provinceLocationSearch, setProvinceLocationSearch] = useState('');
 
   const [locationModal, setLocationModal] = useState({ open: false, locationId: null });
   const [transportModal, setTransportModal] = useState({ open: false, data: null });
@@ -426,6 +608,8 @@ const ItineraryResultPage = () => {
             const mediaUrls = extractMediaUrls(
               data?.mediaUrls
               || data?.MediaUrls
+              || data?.mediaLinks
+              || data?.MediaLinks
               || data?.images
               || data?.Images
               || data?.medias
@@ -486,17 +670,559 @@ const ItineraryResultPage = () => {
     setLocationModal({ open: true, locationId });
   }, []);
 
-  const handleViewTransport = useCallback((item) => {
-    const travelData = item.locationToLocationTravel || item.LocationToLocationTravel
-      || item.transitHubToLocationTravel || item.TransitHubToLocationTravel
-      || item.locationToTransitHubTravel || item.LocationToTransitHubTravel
-      || item.provinceToProvinceTravel || item.ProvinceToProvinceTravel;
-    setTransportModal({ open: true, data: { ...item, travelDetail: travelData } });
-  }, []);
-
   const handleViewAccommodation = useCallback((data) => {
     setAccommodationModal({ open: true, data });
   }, []);
+
+  const recalculateDayTimeline = useCallback(async (draftItinerary, dayIndex) => {
+    const daysKey = Array.isArray(draftItinerary?.days) ? 'days' : 'Days';
+    const days = Array.isArray(draftItinerary?.[daysKey]) ? draftItinerary[daysKey] : [];
+    const day = days[dayIndex];
+    if (!day) return draftItinerary;
+
+    const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+    const sourceTimeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+    const locationIndexes = sourceTimeline
+      .map((item, index) => (isEditableLocationEvent(item) ? index : -1))
+      .filter((index) => index >= 0);
+
+    if (locationIndexes.length === 0) {
+      day[timelineKey] = sourceTimeline.filter((item) => !isTravelEvent(item));
+      return draftItinerary;
+    }
+
+    if (locationIndexes.length === 1) {
+      day[timelineKey] = sourceTimeline.filter((item) => !isTravelEvent(item));
+      return draftItinerary;
+    }
+
+    const currencyCode = pickFirstText(draftItinerary?.currencyCode, draftItinerary?.CurrencyCode) || 'VND';
+    const groupSizeValue = Number(draftItinerary?.groupSize ?? draftItinerary?.GroupSize);
+    const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0
+      ? Math.round(groupSizeValue)
+      : 1;
+
+    const locationStops = locationIndexes.map((index) => ({ ...sourceTimeline[index] }));
+    const stopDurations = locationStops.map(getTimelineDurationMinutes);
+    const rebuiltSegment = [];
+
+    const firstStart = pickFirstText(locationStops[0]?.startTime, locationStops[0]?.StartTime) || '08:00:00';
+    const firstEnd = addMinutesToTime(firstStart, stopDurations[0]);
+    const firstStop = {
+      ...locationStops[0],
+      startTime: firstStart,
+      endTime: firstEnd,
+    };
+    rebuiltSegment.push(firstStop);
+
+    let prevStop = firstStop;
+
+    for (let index = 1; index < locationStops.length; index += 1) {
+      const currentStop = locationStops[index];
+      const departureTime = pickFirstText(prevStop.endTime, prevStop.EndTime) || firstEnd;
+      const fromLocationId = getItemLocationId(prevStop);
+      const toLocationId = getItemLocationId(currentStop);
+
+      let travelLeg = null;
+      if (Number.isFinite(fromLocationId) && fromLocationId > 0
+        && Number.isFinite(toLocationId) && toLocationId > 0) {
+        travelLeg = await estimateLocalTravelApi({
+          fromLocationId,
+          toLocationId,
+          groupSize,
+          departureTime,
+          currencyCode,
+        });
+      }
+
+      const estimatedTravelMinutes = Number(
+        travelLeg?.selectedTravelTimeMinutes
+        ?? travelLeg?.SelectedTravelTimeMinutes
+        ?? 20,
+      );
+      const safeTravelMinutes = Number.isFinite(estimatedTravelMinutes) && estimatedTravelMinutes > 0
+        ? estimatedTravelMinutes
+        : 20;
+      const arrivalTime = pickFirstText(
+        travelLeg?.arrivalTime,
+        travelLeg?.ArrivalTime,
+      ) || addMinutesToTime(departureTime, safeTravelMinutes);
+
+      const fromName = pickFirstText(
+        travelLeg?.fromLocationName,
+        travelLeg?.FromLocationName,
+        prevStop?.locationName,
+        prevStop?.LocationName,
+        prevStop?.title,
+        prevStop?.Title,
+      ) || `Location #${fromLocationId}`;
+      const toName = pickFirstText(
+        travelLeg?.toLocationName,
+        travelLeg?.ToLocationName,
+        currentStop?.locationName,
+        currentStop?.LocationName,
+        currentStop?.title,
+        currentStop?.Title,
+      ) || `Location #${toLocationId}`;
+
+      rebuiltSegment.push({
+        eventType: 'travel',
+        title: `Move from ${fromName} to ${toName}`,
+        startTime: departureTime,
+        endTime: arrivalTime,
+        locationId: 0,
+        tagNames: [],
+        note: 'Updated by local-travel-estimate',
+        score: 0,
+        locationToLocationTravel: travelLeg,
+        costForGroup: travelLeg?.selectedTotalCost || travelLeg?.SelectedTotalCost || null,
+      });
+
+      const currentDuration = stopDurations[index];
+      const currentEnd = addMinutesToTime(arrivalTime, currentDuration);
+      const normalizedCurrentStop = {
+        ...currentStop,
+        startTime: arrivalTime,
+        endTime: currentEnd,
+      };
+
+      rebuiltSegment.push(normalizedCurrentStop);
+      prevStop = normalizedCurrentStop;
+    }
+
+    const firstLocationIndex = locationIndexes[0];
+    const lastLocationIndex = locationIndexes[locationIndexes.length - 1];
+    const beforeSegment = sourceTimeline.slice(0, firstLocationIndex).filter((item) => !isTravelEvent(item));
+    const afterSegment = sourceTimeline.slice(lastLocationIndex + 1).filter((item) => !isTravelEvent(item));
+
+    day[timelineKey] = [...beforeSegment, ...rebuiltSegment, ...afterSegment];
+    updateDayEstimatedCost(day, timelineKey, currencyCode);
+    updateBudgetSummaryFromDays(draftItinerary);
+    return draftItinerary;
+  }, []);
+
+  const loadProvinceLocations = useCallback(async (provinceId, dayIndex, searchTerm = '') => {
+    if (!itinerary) return;
+
+    setProvinceLocationLoading(true);
+    try {
+      const draftDays = itinerary.days || itinerary.Days || [];
+      const day = draftDays[dayIndex];
+      const dayTimeline = day ? (day.timeline || day.Timeline || []) : [];
+      const usedLocationIds = new Set(
+        dayTimeline
+          .filter((item) => isEditableLocationEvent(item))
+          .map((item) => getItemLocationId(item))
+      );
+
+      const response = await getLocationsByProvinceApi({
+        provinceId,
+        countryId: 'VN',
+        searchTerm: searchTerm || undefined,
+        pageSize: 300,
+      });
+
+      const items = Array.isArray(response?.items) ? response.items : [];
+      const options = items
+        .map((location) => {
+          const id = Number(location?.id ?? location?.Id);
+          if (!Number.isFinite(id) || id <= 0 || usedLocationIds.has(id)) return null;
+          const name = pickFirstText(location?.englishName, location?.EnglishName, location?.name, location?.Name) || `Location #${id}`;
+          return {
+            id,
+            name,
+            address: pickFirstText(location?.address, location?.Address),
+            score: location?.score ?? location?.Score ?? null,
+            tagNames: location?.tagNames || location?.TagNames || [],
+            telephone: pickFirstText(location?.telephone, location?.Telephone),
+            mediaUrls: location?.mediaLinks || location?.MediaLinks || [],
+          };
+        })
+        .filter(Boolean);
+
+      setProvinceLocationOptions(options);
+    } catch {
+      setProvinceLocationOptions([]);
+      message.error('Unable to load locations in this province.');
+    } finally {
+      setProvinceLocationLoading(false);
+    }
+  }, [itinerary]);
+
+  const handleReplaceAlternative = useCallback(async (dayIndex, timelineIndex, alternative, sourceEventType) => {
+    if (!itinerary) return;
+
+    const days = itinerary.days || itinerary.Days || [];
+    const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    setRecalculatingDayNumber(dayNumber);
+
+    try {
+      const draft = clonePlainObject(itinerary);
+      const daysKey = Array.isArray(draft?.days) ? 'days' : 'Days';
+      const draftDays = Array.isArray(draft?.[daysKey]) ? draft[daysKey] : [];
+      const day = draftDays[dayIndex];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const anchorItem = timeline[timelineIndex] || {};
+      const altLocationId = Number(alternative?.locationId ?? alternative?.LocationId);
+
+      if (!Number.isFinite(altLocationId) || altLocationId <= 0) {
+        message.warning('Alternative location is not valid for replacement.');
+        return;
+      }
+
+      const altName = pickFirstText(
+        alternative?.locationName,
+        alternative?.LocationName,
+        alternative?.name,
+        alternative?.Name,
+      ) || `Location #${altLocationId}`;
+
+      const replacedItem = {
+        ...anchorItem,
+        eventType: sourceEventType || anchorItem?.eventType || anchorItem?.EventType || 'visit',
+        title: sourceEventType === 'meal' ? `Meal at ${altName}` : `Visit ${altName}`,
+        locationName: altName,
+        locationId: altLocationId,
+        tagNames: alternative?.tagNames || alternative?.TagNames || [],
+        ticketCost: alternative?.ticketCost || alternative?.TicketCost || null,
+        extraCostPerPerson: alternative?.extraCostPerPerson || alternative?.ExtraCostPerPerson || null,
+        costForGroup: anchorItem?.costForGroup || anchorItem?.CostForGroup || null,
+        note: 'Replaced by selected alternative',
+        score: alternative?.score ?? alternative?.Score ?? 0,
+        address: alternative?.address || alternative?.Address || null,
+        telephone: alternative?.telephone || alternative?.Telephone || null,
+        mediaUrls: alternative?.mediaUrls || alternative?.MediaUrls || [],
+        alternatives: (anchorItem?.alternatives || anchorItem?.Alternatives || [])
+          .filter((item) => Number(item?.locationId ?? item?.LocationId) !== altLocationId),
+      };
+
+      timeline[timelineIndex] = replacedItem;
+      day[timelineKey] = timeline;
+
+      await recalculateDayTimeline(draft, dayIndex);
+      updateItinerary(draft);
+      message.success('Main location replaced and timeline recalculated.');
+    } catch {
+      message.error('Unable to replace location and recalculate timeline.');
+    } finally {
+      setRecalculatingDayNumber(null);
+    }
+  }, [itinerary, recalculateDayTimeline, updateItinerary]);
+
+  const handleOpenAddBetweenPicker = useCallback(async (dayIndex, insertAfterIndex, provinceId) => {
+    const normalizedProvinceId = Number(provinceId);
+    if (!Number.isFinite(normalizedProvinceId) || normalizedProvinceId <= 0) {
+      message.warning('Province is missing, cannot load locations for this day.');
+      return;
+    }
+
+    const dayNum = (itinerary?.days || itinerary?.Days || [])[dayIndex]?.dayNumber
+      || (itinerary?.days || itinerary?.Days || [])[dayIndex]?.DayNumber
+      || dayIndex + 1;
+
+    setSelectedProvinceLocationId(null);
+    setProvinceLocationSearch('');
+    setAddBetweenModal({ open: true, dayIndex, insertAfterIndex, provinceId: normalizedProvinceId });
+    setRecalculatingDayNumber(dayNum);
+    await loadProvinceLocations(normalizedProvinceId, dayIndex, '');
+    setRecalculatingDayNumber(null);
+  }, [itinerary, loadProvinceLocations]);
+
+  const handleSearchProvinceLocations = useCallback(async (searchTerm) => {
+    if (!addBetweenModal?.open || !Number.isFinite(Number(addBetweenModal?.provinceId))) return;
+    setProvinceLocationSearch(searchTerm);
+    await loadProvinceLocations(addBetweenModal.provinceId, addBetweenModal.dayIndex, searchTerm);
+  }, [addBetweenModal, loadProvinceLocations]);
+
+  const handleConfirmAddBetween = useCallback(async () => {
+    if (!itinerary) return;
+
+    const dayIndex = addBetweenModal?.dayIndex;
+    const insertAfterIndex = addBetweenModal?.insertAfterIndex;
+    const locationId = Number(selectedProvinceLocationId);
+
+    if (!Number.isFinite(dayIndex) || !Number.isFinite(insertAfterIndex)) return;
+    if (!Number.isFinite(locationId) || locationId <= 0) {
+      message.warning('Please select a location to add between two main points.');
+      return;
+    }
+
+    const picked = provinceLocationOptions.find((item) => item.id === locationId);
+    if (!picked) {
+      message.warning('Selected location is not available anymore.');
+      return;
+    }
+
+    const days = itinerary.days || itinerary.Days || [];
+    const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    setRecalculatingDayNumber(dayNumber);
+
+    try {
+      const draft = clonePlainObject(itinerary);
+      const daysKey = Array.isArray(draft?.days) ? 'days' : 'Days';
+      const draftDays = Array.isArray(draft?.[daysKey]) ? draft[daysKey] : [];
+      const day = draftDays[dayIndex];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const anchorItem = timeline[insertAfterIndex] || {};
+      const startTime = pickFirstText(anchorItem?.endTime, anchorItem?.EndTime, '08:00:00');
+
+      const insertedItem = {
+        eventType: 'visit',
+        title: `Visit ${picked.name}`,
+        locationName: picked.name,
+        startTime,
+        endTime: addMinutesToTime(startTime, getTimelineDurationMinutes(anchorItem)),
+        locationId: picked.id,
+        tagNames: picked.tagNames || [],
+        ticketCost: null,
+        extraCostPerPerson: null,
+        costForGroup: null,
+        note: 'Inserted between two main locations',
+        score: picked.score ?? 0,
+        address: picked.address || null,
+        telephone: picked.telephone || null,
+        mediaUrls: picked.mediaUrls || [],
+        alternatives: [],
+      };
+
+      timeline.splice(Math.min(timeline.length, insertAfterIndex + 1), 0, insertedItem);
+      day[timelineKey] = timeline;
+
+      await recalculateDayTimeline(draft, dayIndex);
+      updateItinerary(draft);
+      message.success('Location inserted between two main points and timeline recalculated.');
+
+      setAddBetweenModal({ open: false, dayIndex: null, insertAfterIndex: null, provinceId: null });
+      setProvinceLocationOptions([]);
+      setSelectedProvinceLocationId(null);
+      setProvinceLocationSearch('');
+    } catch {
+      message.error('Unable to add location between two points.');
+    } finally {
+      setRecalculatingDayNumber(null);
+    }
+  }, [
+    itinerary,
+    addBetweenModal,
+    selectedProvinceLocationId,
+    provinceLocationOptions,
+    recalculateDayTimeline,
+    updateItinerary,
+  ]);
+
+  const handleCloseAddBetweenModal = useCallback(() => {
+    setAddBetweenModal({ open: false, dayIndex: null, insertAfterIndex: null, provinceId: null });
+    setProvinceLocationOptions([]);
+    setSelectedProvinceLocationId(null);
+    setProvinceLocationSearch('');
+  }, []);
+
+  const handleSelectTransportOption = useCallback((dayIndex, timelineIndex, optionIndex) => {
+    if (!itinerary) return;
+
+    const days = itinerary.days || itinerary.Days || [];
+    const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    setRecalculatingDayNumber(dayNumber);
+
+    try {
+      const draft = clonePlainObject(itinerary);
+      const daysKey = Array.isArray(draft?.days) ? 'days' : 'Days';
+      const draftDays = Array.isArray(draft?.[daysKey]) ? draft[daysKey] : [];
+      const day = draftDays[dayIndex];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const travelItem = timeline[timelineIndex];
+      if (!travelItem || !isTravelEvent(travelItem)) {
+        message.warning('Only travel segments can change transport option.');
+        return;
+      }
+
+      const [travelDetailKey, travelDetail] = getTravelDetailEntry(travelItem);
+      if (!travelDetailKey || !travelDetail) {
+        message.warning('Travel detail is missing on this segment.');
+        return;
+      }
+
+      const options = getTransportOptions(travelDetail);
+      const selectedOption = options[optionIndex];
+      if (!selectedOption) {
+        message.warning('Selected transport option is not available.');
+        return;
+      }
+
+      const startTime = pickFirstText(travelItem?.startTime, travelItem?.StartTime);
+      const currentEndTime = pickFirstText(travelItem?.endTime, travelItem?.EndTime);
+      const currentMinutesFromClock = (() => {
+        const start = toMinutesOfDay(startTime);
+        const end = toMinutesOfDay(currentEndTime);
+        if (start == null || end == null) return null;
+        return end >= start ? end - start : (end + 1440) - start;
+      })();
+
+      const selectedMinutesRaw = toFiniteNumber(
+        selectedOption?.estimatedTravelMinutes ?? selectedOption?.EstimatedTravelMinutes,
+      );
+      const selectedMinutes = selectedMinutesRaw != null && selectedMinutesRaw > 0
+        ? Math.round(selectedMinutesRaw)
+        : (getTravelDurationMinutes(travelDetail) || getTimelineDurationMinutes(travelItem));
+      const currentMinutes = currentMinutesFromClock != null
+        ? currentMinutesFromClock
+        : (getTravelDurationMinutes(travelDetail) || selectedMinutes);
+
+      const newEndTime = addMinutesToTime(startTime, selectedMinutes);
+      const deltaMinutes = selectedMinutes - currentMinutes;
+
+      const selectedMethod = pickFirstText(
+        selectedOption?.method,
+        selectedOption?.Method,
+        travelDetail?.selectedMethod,
+        travelDetail?.SelectedMethod,
+      ) || 'Transport';
+      const selectedCost = pickBestMoney(
+        selectedOption?.costForGroup,
+        selectedOption?.CostForGroup,
+        selectedOption?.estimatedTotalCost,
+        selectedOption?.EstimatedTotalCost,
+        travelDetail?.selectedTotalCost,
+        travelDetail?.SelectedTotalCost,
+      );
+
+      const normalizedOptions = options.map((option, idx) => ({
+        ...option,
+        recommended: idx === optionIndex,
+        Recommended: idx === optionIndex,
+      }));
+
+      const updatedTravelDetail = {
+        ...travelDetail,
+        selectedMethod: selectedMethod,
+        SelectedMethod: selectedMethod,
+        selectedTravelTimeMinutes: selectedMinutes,
+        SelectedTravelTimeMinutes: selectedMinutes,
+        selectedTotalCost: selectedCost,
+        SelectedTotalCost: selectedCost,
+        departureTime: pickFirstText(travelDetail?.departureTime, travelDetail?.DepartureTime, startTime),
+        DepartureTime: pickFirstText(travelDetail?.departureTime, travelDetail?.DepartureTime, startTime),
+        arrivalTime: newEndTime,
+        ArrivalTime: newEndTime,
+      };
+
+      if ('transportOptions' in travelDetail) {
+        updatedTravelDetail.transportOptions = normalizedOptions;
+      }
+      if ('TransportOptions' in travelDetail) {
+        updatedTravelDetail.TransportOptions = normalizedOptions;
+      }
+      if (!('transportOptions' in travelDetail) && !('TransportOptions' in travelDetail)) {
+        updatedTravelDetail.transportOptions = normalizedOptions;
+      }
+
+      const updatedTravelItem = {
+        ...travelItem,
+        endTime: newEndTime,
+        EndTime: newEndTime,
+        costForGroup: selectedCost,
+        CostForGroup: selectedCost,
+      };
+      updatedTravelItem[travelDetailKey] = updatedTravelDetail;
+      timeline[timelineIndex] = updatedTravelItem;
+
+      if (deltaMinutes !== 0) {
+        for (let index = timelineIndex + 1; index < timeline.length; index += 1) {
+          const next = { ...timeline[index] };
+          const itemStart = pickFirstText(next?.startTime, next?.StartTime);
+          const itemEnd = pickFirstText(next?.endTime, next?.EndTime);
+
+          if (itemStart) {
+            const shiftedStart = shiftTimeByMinutes(itemStart, deltaMinutes);
+            next.startTime = shiftedStart;
+            next.StartTime = shiftedStart;
+          }
+          if (itemEnd) {
+            const shiftedEnd = shiftTimeByMinutes(itemEnd, deltaMinutes);
+            next.endTime = shiftedEnd;
+            next.EndTime = shiftedEnd;
+          }
+
+          const [nextTravelKey, nextTravelDetail] = getTravelDetailEntry(next);
+          if (nextTravelKey && nextTravelDetail) {
+            const td = { ...nextTravelDetail };
+            const tdDeparture = pickFirstText(td?.departureTime, td?.DepartureTime);
+            const tdArrival = pickFirstText(td?.arrivalTime, td?.ArrivalTime);
+            if (tdDeparture) {
+              const shiftedDeparture = shiftTimeByMinutes(tdDeparture, deltaMinutes);
+              td.departureTime = shiftedDeparture;
+              td.DepartureTime = shiftedDeparture;
+            }
+            if (tdArrival) {
+              const shiftedArrival = shiftTimeByMinutes(tdArrival, deltaMinutes);
+              td.arrivalTime = shiftedArrival;
+              td.ArrivalTime = shiftedArrival;
+            }
+            next[nextTravelKey] = td;
+          }
+
+          timeline[index] = next;
+        }
+      }
+
+      day[timelineKey] = timeline;
+
+      const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+      updateDayEstimatedCost(day, timelineKey, currencyCode);
+      updateBudgetSummaryFromDays(draft);
+      updateItinerary(draft);
+      message.success('Main transport option updated.');
+    } catch {
+      message.error('Unable to update transport option.');
+    } finally {
+      setRecalculatingDayNumber(null);
+    }
+  }, [itinerary, updateItinerary]);
+
+  const handleRemoveLocation = useCallback(async (dayIndex, timelineIndex) => {
+    if (!itinerary) return;
+
+    const days = itinerary.days || itinerary.Days || [];
+    const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    setRecalculatingDayNumber(dayNumber);
+
+    try {
+      const draft = clonePlainObject(itinerary);
+      const daysKey = Array.isArray(draft?.days) ? 'days' : 'Days';
+      const draftDays = Array.isArray(draft?.[daysKey]) ? draft[daysKey] : [];
+      const day = draftDays[dayIndex];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const item = timeline[timelineIndex];
+
+      if (!item || !isEditableLocationEvent(item)) {
+        message.warning('Only location events can be removed.');
+        return;
+      }
+
+      timeline.splice(timelineIndex, 1);
+      day[timelineKey] = timeline;
+
+      await recalculateDayTimeline(draft, dayIndex);
+      updateItinerary(draft);
+      message.success('Location removed and timeline recalculated.');
+    } catch {
+      message.error('Unable to remove location and recalculate timeline.');
+    } finally {
+      setRecalculatingDayNumber(null);
+    }
+  }, [itinerary, recalculateDayTimeline, updateItinerary]);
 
   const handleRegenerate = () => {
     clearItinerary();
@@ -639,19 +1365,24 @@ const ItineraryResultPage = () => {
         )}
 
         {/* Day-by-Day Itinerary */}
-        {days.map((day, idx) => {
+        {days.map((day, dayIdx) => {
           const dayNum = day.dayNumber || day.DayNumber;
+          const isDayUpdating = recalculatingDayNumber === dayNum;
           const rawDayTitle = day.dayTitle || day.DayTitle || `Day ${dayNum}`;
           const date = day.date || day.Date;
           const weather = day.weatherSummary || day.WeatherSummary;
           const timeline = day.timeline || day.Timeline || [];
-          const dailyBudget = day.dailyBudget || day.DailyBudget;
-          const estimatedCost = day.estimatedDayCost || day.EstimatedDayCost;
+          const itineraryCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
+          const estimatedCostRaw = day.estimatedCost
+            || day.EstimatedCost
+            || day.estimatedDayCost
+            || day.EstimatedDayCost;
+          const estimatedCost = normalizeMoney(estimatedCostRaw, itineraryCurrencyCode);
           const accommodations = day.accommodationRecommendations || day.AccommodationRecommendations || [];
 
           const currentProvinceId = Number(day.provinceId || day.ProvinceId);
           const currentProvinceName = provinceNameById.get(currentProvinceId);
-          const prevDay = idx > 0 ? days[idx - 1] : null;
+          const prevDay = dayIdx > 0 ? days[dayIdx - 1] : null;
           const prevProvinceId = Number(prevDay?.provinceId || prevDay?.ProvinceId);
           const prevProvinceName = provinceNameById.get(prevProvinceId);
           const hasRouteTitle = String(rawDayTitle).includes(' - ');
@@ -672,6 +1403,7 @@ const ItineraryResultPage = () => {
                 <div className={styles.dayTitle}>{dayTitle}</div>
                 <div className={styles.dayMeta}>
                   {date && <span className={styles.dayDate}>{date}</span>}
+                  {isDayUpdating && <span className={styles.dayRecalculate}>Recalculating timeline...</span>}
                   {weather && (
                     <span className={styles.dayWeather} title={weather}>
                       <span className={styles.dayWeatherLabel}>Weather</span>
@@ -763,7 +1495,24 @@ const ItineraryResultPage = () => {
                     ? (locationAmenitiesById.get(locationIdNum) || [])
                     : [];
                   const displayAmenities = (itemAmenities.length > 0 ? itemAmenities : fallbackAmenities).slice(0, 5);
-                  const mediaUrls = extractMediaUrls(item.mediaUrls || item.MediaUrls || []);
+                  const mediaUrls = (() => {
+                    const fromItem = extractMediaUrls(
+                      item.mediaUrls
+                      || item.MediaUrls
+                      || item.mediaLinks
+                      || item.MediaLinks
+                      || item.images
+                      || item.Images
+                      || item.medias
+                      || item.Medias
+                      || []
+                    );
+                    if (fromItem.length > 0) return fromItem;
+                    if (Number.isFinite(locationIdNum)) {
+                      return locationMediaById.get(locationIdNum) || [];
+                    }
+                    return [];
+                  })();
 
                   const scoreValue = item.score ?? item.Score ?? item.rating ?? item.Rating;
                   const displayScore = formatScoreLabel(scoreValue);
@@ -772,6 +1521,8 @@ const ItineraryResultPage = () => {
                     .replace(/\s{2,}/g, ' ')
                     .trim();
                   const note = translateNoteToEnglish(cleanedNote, eventType);
+                  const canRemoveLocation = isEditableLocationEvent(item);
+                  const canAddBetweenMain = canRemoveLocation && findNextPrimaryLocationIndex(timeline, idx) >= 0;
 
                   return (
                     <div key={idx} className={styles.timelineItem}>
@@ -862,7 +1613,21 @@ const ItineraryResultPage = () => {
                               return (
                                 <div
                                   key={`${idx}-transport-option-${optionIdx}`}
-                                  className={styles.transportOptionItem}
+                                  className={`${styles.transportOptionItem} ${styles.transportOptionItemClickable} ${optionRecommended ? styles.transportOptionItemSelected : ''}`}
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => {
+                                    if (!isDayUpdating) {
+                                      handleSelectTransportOption(dayIdx, idx, optionIdx);
+                                    }
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (isDayUpdating) return;
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault();
+                                      handleSelectTransportOption(dayIdx, idx, optionIdx);
+                                    }
+                                  }}
                                 >
                                   <div className={styles.transportOptionMain}>
                                     <span className={styles.transportOptionName}>{optionMethod}</span>
@@ -900,11 +1665,42 @@ const ItineraryResultPage = () => {
                             <Button
                               type="link"
                               size="small"
+                              disabled={isDayUpdating}
                               style={{ padding: 0, height: 'auto', fontSize: 12 }}
                               onClick={() => handleViewLocation(locationId)}
                             >
                               View Details
                             </Button>
+                          )}
+                          {canAddBetweenMain && (
+                            <Button
+                              type="link"
+                              size="small"
+                              disabled={isDayUpdating}
+                              style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                              onClick={() => handleOpenAddBetweenPicker(dayIdx, idx, currentProvinceId)}
+                            >
+                              Add Between Main Points
+                            </Button>
+                          )}
+                          {canRemoveLocation && (
+                            <Popconfirm
+                              title="Remove this location?"
+                              description="Timeline and travel estimate will be recalculated."
+                              okText="Remove"
+                              cancelText="Cancel"
+                              onConfirm={() => handleRemoveLocation(dayIdx, idx)}
+                            >
+                              <Button
+                                type="link"
+                                size="small"
+                                danger
+                                disabled={isDayUpdating}
+                                style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                              >
+                                Remove
+                              </Button>
+                            </Popconfirm>
                           )}
                         </div>
 
@@ -1011,6 +1807,18 @@ const ItineraryResultPage = () => {
                                       <Button
                                         type="link"
                                         size="small"
+                                        disabled={isDayUpdating}
+                                        style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                                        onClick={() => handleReplaceAlternative(dayIdx, idx, alternative, eventType)}
+                                      >
+                                        Replace Main
+                                      </Button>
+                                    )}
+                                    {altLocationId && (
+                                      <Button
+                                        type="link"
+                                        size="small"
+                                        disabled={isDayUpdating}
                                         style={{ padding: 0, height: 'auto', fontSize: 11 }}
                                         onClick={() => handleViewLocation(altLocationId)}
                                       >
@@ -1091,7 +1899,7 @@ const ItineraryResultPage = () => {
               <div className={styles.daySummary}>
                 <div className={styles.daySummaryItem}>
                   <Text type="secondary">Estimated Cost:</Text>
-                  <Text strong>{formatMoney(estimatedCost)}</Text>
+                  <Text strong>{formatMoney(estimatedCost) || `0 ${itineraryCurrencyCode}`}</Text>
                 </div>
               </div>
             </Card>
@@ -1108,6 +1916,40 @@ const ItineraryResultPage = () => {
           </Button>
         </div>
       </div>
+
+      <Modal
+        title="Add Location Between Two Main Points"
+        open={addBetweenModal.open}
+        onCancel={handleCloseAddBetweenModal}
+        onOk={handleConfirmAddBetween}
+        okText="Add To Timeline"
+        cancelText="Cancel"
+        okButtonProps={{ disabled: !selectedProvinceLocationId, loading: provinceLocationLoading }}
+      >
+        <div className={styles.addBetweenModalBody}>
+          <Text type="secondary" className={styles.addBetweenHint}>
+            Select a location in the same province. The system will recalculate route distance, duration, and costs.
+          </Text>
+
+          <Select
+            showSearch
+            allowClear
+            className={styles.addBetweenSelect}
+            placeholder="Search location in this province"
+            searchValue={provinceLocationSearch}
+            value={selectedProvinceLocationId}
+            onChange={(value) => setSelectedProvinceLocationId(value ?? null)}
+            onSearch={handleSearchProvinceLocations}
+            filterOption={false}
+            loading={provinceLocationLoading}
+            options={provinceLocationOptions.map((location) => ({
+              label: location.address ? `${location.name} - ${location.address}` : location.name,
+              value: location.id,
+            }))}
+            notFoundContent={provinceLocationLoading ? <Spin size="small" /> : 'No available locations'}
+          />
+        </div>
+      </Modal>
 
       {/* Modals */}
       <LocationDetailModal
