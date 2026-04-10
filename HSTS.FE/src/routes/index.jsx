@@ -89,6 +89,10 @@ export const router = createBrowserRouter([
             element: <ItineraryResultPage />
           },
           {
+            path: PATHS.TRIP_DETAIL,
+            element: <ItineraryResultPage />
+          },
+          {
             path: '/my-locations',
             element: <SubmissionsPage />
           },
