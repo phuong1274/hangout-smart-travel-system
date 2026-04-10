@@ -28,6 +28,9 @@ namespace HSTS.Domain.Entities
         [Column("EstimatedActivityCost")]
         public decimal EstimatedActivityCost { get; set; }
 
+        [Column("EstimatedMealCost")]
+        public decimal EstimatedMealCost { get; set; }
+
         [Column("EstimatedTotalCost")]
         public decimal EstimatedTotalCost { get; set; }
 

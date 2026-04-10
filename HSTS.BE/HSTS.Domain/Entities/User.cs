@@ -18,5 +18,6 @@ namespace HSTS.Domain.Entities
         public ICollection<Profile> Profiles { get; set; } = new List<Profile>();
         public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
         public ICollection<Trip> Trips { get; set; } = new List<Trip>();
+        public ICollection<TripMember> TripMembers { get; set; } = new List<TripMember>();
     }
 }

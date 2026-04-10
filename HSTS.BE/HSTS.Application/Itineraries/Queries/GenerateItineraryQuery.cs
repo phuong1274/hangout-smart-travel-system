@@ -151,7 +151,7 @@ namespace HSTS.Application.Itineraries.Queries
                 {
                     var nonTerminalStatus = new[] { TripStatus.Planned, TripStatus.Active, TripStatus.Completed };
                     recentlyVisitedLocationIds = await _context.Trips
-                        .Where(t => t.UserId == userId && nonTerminalStatus.Contains(t.Status))
+                        .Where(t => t.TripMembers.Any(tm => tm.UserId == userId) && nonTerminalStatus.Contains(t.Status))
                         .OrderByDescending(t => t.StartDate)
                         .Take(3)
                         .SelectMany(t => t.TripDays)

@@ -42,6 +42,10 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<TripTransport> TripTransports => Set<TripTransport>();
         public DbSet<TripSummary> TripSummaries => Set<TripSummary>();
         public DbSet<TripActivityBudget> TripActivityBudgets => Set<TripActivityBudget>();
+        
+        public DbSet<CustomLocation> CustomLocations => Set<CustomLocation>();
+        public DbSet<CustomTransitHub> CustomTransitHubs => Set<CustomTransitHub>();
+        public DbSet<TripMember> TripMembers => Set<TripMember>();
 
         #region Logging
         /// <summary>
