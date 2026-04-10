@@ -2780,52 +2780,7 @@ namespace HSTS.Application.Itineraries.Queries
                         }
                     }
 
-                    // For accommodation events, dedup alternatives and recommendations across check-in/check-out events
-                    if (item.EventType is "check-in" or "check-out")
-                    {
-                        if (item.Alternatives is { Count: > 0 })
-                        {
-                            var newAccomAlts = item.Alternatives
-                                .Where(a => !seenAccomAltIds.Contains(a.LocationId))
-                                .ToList();
-                            foreach (var alt in newAccomAlts)
-                                seenAccomAltIds.Add(alt.LocationId);
-                            if (newAccomAlts.Count != item.Alternatives.Count)
-                            {
-                                _anyChanged2 = true;
-                                dedupedAlternatives = newAccomAlts.Count > 0 ? newAccomAlts : null;
-                            }
-                        }
-
-                        if (item.AccommodationRecommendations is { Count: > 0 })
-                        {
-                            var newAccomRecs = item.AccommodationRecommendations
-                                .Where(r => !seenAccomAltIds.Contains(r.LocationId))
-                                .ToList();
-                            foreach (var rec in newAccomRecs)
-                                seenAccomAltIds.Add(rec.LocationId);
-                            if (newAccomRecs.Count != item.AccommodationRecommendations.Count)
-                            {
-                                _anyChanged2 = true;
-                                dedupedAccomRecs = newAccomRecs.Count > 0 ? newAccomRecs : null;
-                            }
-                        }
-                    }
-
-                    // For visit/shopping events, dedup alternatives across all activities
-                    if (item.EventType is "visit" or "shopping" && item.Alternatives is { Count: > 0 })
-                    {
-                        var newVisitAlts = item.Alternatives
-                            .Where(a => !seenRestaurantAltIds.Contains(a.LocationId) && !seenAccomAltIds.Contains(a.LocationId))
-                            .ToList();
-                        if (newVisitAlts.Count != item.Alternatives.Count)
-                        {
-                            _anyChanged2 = true;
-                            dedupedAlternatives = newVisitAlts.Count > 0 ? newVisitAlts : null;
-                        }
-                    }
-
-                    if (dedupedAlternatives != item.Alternatives || dedupedAccomRecs != item.AccommodationRecommendations)
+                    if (dedupedAlternatives != item.Alternatives)
                     {
                         _anyChanged2 = true;
                         dedupedTimeline.Add(new ItineraryTimelineItemDto(
