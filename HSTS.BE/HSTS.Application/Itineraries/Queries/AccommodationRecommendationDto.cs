@@ -13,6 +13,7 @@ namespace HSTS.Application.Itineraries.Queries
          decimal LocationScore,
          MoneyDto PricePerPersonPerNight,
          MoneyDto TotalCostPerNight,
+         MoneyDto CostForGroup,
          double DistanceToCenter,
          IList<string> Amenities,
          string? Telephone,

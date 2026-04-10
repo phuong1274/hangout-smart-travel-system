@@ -2763,6 +2763,8 @@ namespace HSTS.Infrastructure.Migrations
                 {
                     b.Navigation("Profiles");
 
+                    b.Navigation("Trips");
+
                     b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618

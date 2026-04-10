@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Card,
   Typography,
@@ -20,7 +20,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useTripPlanner } from '../hooks/useTripPlanner';
 import {
-  getLocationByIdApi,
   getProvincesApi,
   estimateLocalTravelApi,
   getLocationsByProvinceApi,
@@ -461,6 +460,64 @@ const getTravelDetailEntry = (item) => {
 
 const clonePlainObject = (value) => JSON.parse(JSON.stringify(value));
 
+const buildLocationMetadataFromItinerary = (itinerary) => {
+  const nameMap = new Map();
+  const mediaMap = new Map();
+  const telephoneMap = new Map();
+  const amenitiesMap = new Map();
+
+  const upsertLocationMetadata = (source) => {
+    const id = Number(source?.locationId ?? source?.LocationId);
+    if (!Number.isFinite(id) || id <= 0) return;
+
+    if (!nameMap.has(id)) {
+      const name = pickFirstText(
+        source?.locationName,
+        source?.LocationName,
+        source?.englishName,
+        source?.EnglishName,
+        source?.name,
+        source?.Name,
+      );
+      if (name) nameMap.set(id, name);
+    }
+
+    if (!telephoneMap.has(id)) {
+      const telephone = pickFirstText(source?.telephone, source?.Telephone);
+      if (telephone) telephoneMap.set(id, telephone);
+    }
+
+    const amenities = extractAmenityNames(
+      source?.amenityNames
+      || source?.AmenityNames
+      || source?.amenities
+      || source?.Amenities
+      || []
+    );
+    if (amenities.length > 0 && !amenitiesMap.has(id)) {
+      amenitiesMap.set(id, amenities);
+    }
+
+    const mediaUrls = extractMediaUrls(source);
+    if (mediaUrls.length > 0) {
+      const previous = mediaMap.get(id) || [];
+      mediaMap.set(id, [...new Set([...previous, ...mediaUrls])]);
+    }
+  };
+
+  const days = itinerary?.days || itinerary?.Days || [];
+  days.forEach((day) => {
+    const timeline = day?.timeline || day?.Timeline || [];
+    timeline.forEach((item) => {
+      upsertLocationMetadata(item);
+      const alternatives = item?.alternatives || item?.Alternatives || [];
+      alternatives.forEach((alternative) => upsertLocationMetadata(alternative));
+    });
+  });
+
+  return { nameMap, mediaMap, telephoneMap, amenitiesMap };
+};
+
 const getTimelineItemCostAmount = (item) => {
   if (!item) return 0;
 
@@ -539,10 +596,6 @@ const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
   const [provinceNameById, setProvinceNameById] = useState(new Map());
-  const [locationNameById, setLocationNameById] = useState(new Map());
-  const [locationMediaById, setLocationMediaById] = useState(new Map());
-  const [locationTelephoneById, setLocationTelephoneById] = useState(new Map());
-  const [locationAmenitiesById, setLocationAmenitiesById] = useState(new Map());
   const [showBudgetDetails, setShowBudgetDetails] = useState(false);
   const [showAlternativeItems, setShowAlternativeItems] = useState(true);
   const [showTransportOptionItems, setShowTransportOptionItems] = useState(true);
@@ -561,6 +614,12 @@ const ItineraryResultPage = () => {
   const [locationModal, setLocationModal] = useState({ open: false, locationId: null });
   const [transportModal, setTransportModal] = useState({ open: false, data: null });
   const [accommodationModal, setAccommodationModal] = useState({ open: false, data: null });
+  const {
+    nameMap: locationNameById,
+    mediaMap: locationMediaById,
+    telephoneMap: locationTelephoneById,
+    amenitiesMap: locationAmenitiesById,
+  } = useMemo(() => buildLocationMetadataFromItinerary(itinerary), [itinerary]);
 
   useEffect(() => {
     let mounted = true;
@@ -591,86 +650,6 @@ const ItineraryResultPage = () => {
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadLocationMetadata = async () => {
-      const days = itinerary?.days || itinerary?.Days || [];
-      const timelineItems = days.flatMap((day) => (day.timeline || day.Timeline || []));
-      const directLocationIds = timelineItems
-        .map((item) => Number(item.locationId || item.LocationId))
-        .filter((id) => Number.isFinite(id) && id > 0);
-      const alternativeLocationIds = timelineItems
-        .flatMap((item) => (item.alternatives || item.Alternatives || []))
-        .map((alternative) => Number(alternative?.locationId || alternative?.LocationId))
-        .filter((id) => Number.isFinite(id) && id > 0);
-      const locationIds = [...new Set([...directLocationIds, ...alternativeLocationIds])];
-
-      if (locationIds.length === 0) {
-        if (mounted) {
-          setLocationNameById(new Map());
-          setLocationMediaById(new Map());
-          setLocationTelephoneById(new Map());
-          setLocationAmenitiesById(new Map());
-        }
-        return;
-      }
-
-      try {
-        const entries = await Promise.all(locationIds.map(async (id) => {
-          try {
-            const data = await getLocationByIdApi(id);
-            const mediaUrls = extractMediaUrls(data);
-            const telephone = pickFirstText(data?.telephone, data?.Telephone);
-            const amenities = extractAmenityNames(
-              data?.amenityNames
-              || data?.AmenityNames
-              || data?.amenities
-              || data?.Amenities
-              || []
-            );
-            return [id, { name: getEnglishPreferredName(data), mediaUrls, telephone, amenities }];
-          } catch {
-            return [id, { name: null, mediaUrls: [], telephone: '', amenities: [] }];
-          }
-        }));
-
-        if (!mounted) return;
-
-        const nameMap = new Map();
-        const mediaMap = new Map();
-        const telephoneMap = new Map();
-        const amenitiesMap = new Map();
-        entries.forEach(([id, payload]) => {
-          if (payload?.name) nameMap.set(id, payload.name);
-          if (Array.isArray(payload?.mediaUrls) && payload.mediaUrls.length > 0) {
-            mediaMap.set(id, payload.mediaUrls);
-          }
-          if (payload?.telephone) telephoneMap.set(id, payload.telephone);
-          if (Array.isArray(payload?.amenities) && payload.amenities.length > 0) {
-            amenitiesMap.set(id, payload.amenities);
-          }
-        });
-        setLocationNameById(nameMap);
-        setLocationMediaById(mediaMap);
-        setLocationTelephoneById(telephoneMap);
-        setLocationAmenitiesById(amenitiesMap);
-      } catch {
-        if (mounted) {
-          setLocationNameById(new Map());
-          setLocationMediaById(new Map());
-          setLocationTelephoneById(new Map());
-          setLocationAmenitiesById(new Map());
-        }
-      }
-    };
-
-    loadLocationMetadata();
-    return () => {
-      mounted = false;
-    };
-  }, [itinerary]);
 
   const handleViewLocation = useCallback((locationId) => {
     setLocationModal({ open: true, locationId });
