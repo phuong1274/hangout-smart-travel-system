@@ -14,9 +14,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.DistanceKm)
                 .HasColumnType("decimal(18,2)");
 
-            builder.Property(x => x.TotalCost)
-                .HasColumnType("decimal(18,2)");
-
             builder.HasOne(tt => tt.TripActivity)
                 .WithOne(a => a.Transport)
                 .HasForeignKey<TripTransport>(tt => tt.TripActivityId)

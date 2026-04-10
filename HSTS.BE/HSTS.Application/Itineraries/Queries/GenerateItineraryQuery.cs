@@ -157,11 +157,11 @@ namespace HSTS.Application.Itineraries.Queries
                         .SelectMany(t => t.TripDays)
                         .SelectMany(td => td.Activities)
                         .Where(ta => ta.LocationId.HasValue)
-                        .Select(ta => ta.LocationId.Value)
+                        .Select(ta => ta.LocationId!.Value)
                         .Distinct()
                         .ToHashSetAsync(cancellationToken);
                 }
-                catch { /* If query fails, proceed without penalty */ }
+                catch { }
             }
 
             // Pre-fetch exchange rate for sync currency conversion
@@ -379,7 +379,7 @@ namespace HSTS.Application.Itineraries.Queries
 
             // STAGE 5: First-Mile and Inter-City Transport
             var firstDest = orderedDestinations.First();
-            var firstDestGeo = new GeoPoint(firstDest.EnglishName, firstDest.Latitude ?? 0, firstDest.Longitude ?? 0);
+            var firstDestGeo = new GeoPoint(firstDest.EnglishName!, firstDest.Latitude ?? 0, firstDest.Longitude ?? 0);
 
             var firstMileDistance = HaversineKm(
                 request.UserLocation.Latitude, request.UserLocation.Longitude,
@@ -402,7 +402,7 @@ namespace HSTS.Application.Itineraries.Queries
                 var localDto = await BuildLocalTransportAsync(
                     userGeo, firstDestGeo, groupSize, transportModes, toMoney, cancellationToken);
                 intercityTransport = new IntercityTransportDto(
-                    userProvinceId, userProvinceName, firstDest.Id, firstDest.EnglishName, 
+                    userProvinceId, userProvinceName, firstDest.Id, firstDest.EnglishName!,
                     Math.Round(localDto.DistanceKm, 2),
                     null, 0, toMoney(0),
                     localDto.TransportOptions);
@@ -417,7 +417,7 @@ namespace HSTS.Application.Itineraries.Queries
 
                 intercityTransport = await BuildIntercityTransportAsync(
                     userGeo, firstDestGeo, groupSize, transportModes, outboundReq,
-                    transitHubs, userProvinceId, userProvinceName, firstDest.Id, firstDest.EnglishName, request.StartDate, toMoney, isLuxuryTrip, maxTransportPerLeg, cancellationToken);
+                    transitHubs, userProvinceId, userProvinceName, firstDest.Id, firstDest.EnglishName!, request.StartDate, toMoney, isLuxuryTrip, maxTransportPerLeg, cancellationToken);
                 notes.Add($"First-mile: {firstMileDistance:F1}km >= {FirstMileIntercityThresholdKm}km -> intercity transport.");
             }
 
@@ -441,20 +441,20 @@ namespace HSTS.Application.Itineraries.Queries
                         null, fromDest.Latitude ?? 0, fromDest.Longitude ?? 0,
                         null, toDest.Latitude ?? 0, toDest.Longitude ?? 0, segDate, null, 1, 5);
                     var seg = await BuildIntercityTransportAsync(
-                        new GeoPoint(fromDest.EnglishName, fromDest.Latitude ?? 0, fromDest.Longitude ?? 0),
-                        new GeoPoint(toDest.EnglishName, toDest.Latitude ?? 0, toDest.Longitude ?? 0),
-                        groupSize, transportModes, segReq, transitHubs, fromDest.Id, fromDest.EnglishName, toDest.Id, toDest.EnglishName, segDate, toMoney, isLuxuryTrip, maxTransportPerLeg, cancellationToken);
+                        new GeoPoint(fromDest.EnglishName!, fromDest.Latitude ?? 0, fromDest.Longitude ?? 0),
+                        new GeoPoint(toDest.EnglishName!, toDest.Latitude ?? 0, toDest.Longitude ?? 0),
+                        groupSize, transportModes, segReq, transitHubs, fromDest.Id, fromDest.EnglishName!, toDest.Id, toDest.EnglishName!, segDate, toMoney, isLuxuryTrip, maxTransportPerLeg, cancellationToken);
                     interDestTransports.Add(seg);
                     totalTransportBudget += GetRecommendedOption(seg).EstimatedTotalCost.BaseAmount;
                 }
                 else
                 {
                     var localDto = await BuildLocalTransportAsync(
-                        new GeoPoint(fromDest.EnglishName, fromDest.Latitude ?? 0, fromDest.Longitude ?? 0),
-                        new GeoPoint(toDest.EnglishName, toDest.Latitude ?? 0, toDest.Longitude ?? 0),
+                        new GeoPoint(fromDest.EnglishName!, fromDest.Latitude ?? 0, fromDest.Longitude ?? 0),
+                        new GeoPoint(toDest.EnglishName!, toDest.Latitude ?? 0, toDest.Longitude ?? 0),
                         groupSize, transportModes, toMoney, cancellationToken);
                     interDestTransports.Add(new IntercityTransportDto(
-                        fromDest.Id, fromDest.EnglishName, toDest.Id, toDest.EnglishName,
+                        fromDest.Id, fromDest.EnglishName!, toDest.Id, toDest.EnglishName!,
                         Math.Round(localDto.DistanceKm, 2),
                         null, 0, toMoney(0),
                         localDto.TransportOptions));
@@ -475,16 +475,16 @@ namespace HSTS.Application.Itineraries.Queries
                     null, request.UserLocation.Latitude, request.UserLocation.Longitude,
                     request.EndDate, null, 1, 5);
                 returnTransport = await BuildIntercityTransportAsync(
-                    new GeoPoint(lastDest.EnglishName, lastDest.Latitude ?? 0, lastDest.Longitude ?? 0), userGeo,
-                    groupSize, transportModes, returnReq, transitHubs, lastDest.Id, lastDest.EnglishName, userProvinceId, userProvinceName, request.EndDate, toMoney, isLuxuryTrip, maxTransportPerLeg, cancellationToken);
+                    new GeoPoint(lastDest.EnglishName!, lastDest.Latitude ?? 0, lastDest.Longitude ?? 0), userGeo,
+                    groupSize, transportModes, returnReq, transitHubs, lastDest.Id, lastDest.EnglishName!, userProvinceId, userProvinceName, request.EndDate, toMoney, isLuxuryTrip, maxTransportPerLeg, cancellationToken);
             }
             else
             {
                 var localDto = await BuildLocalTransportAsync(
-                    new GeoPoint(lastDest.EnglishName, lastDest.Latitude ?? 0, lastDest.Longitude ?? 0), userGeo,
+                    new GeoPoint(lastDest.EnglishName!, lastDest.Latitude ?? 0, lastDest.Longitude ?? 0), userGeo,
                     groupSize, transportModes, toMoney, cancellationToken);
                 returnTransport = new IntercityTransportDto(
-                    lastDest.Id, lastDest.EnglishName, userProvinceId, userProvinceName,
+                    lastDest.Id, lastDest.EnglishName!, userProvinceId, userProvinceName,
                     Math.Round(localDto.DistanceKm, 2),
                     null, 0, toMoney(0),
                     localDto.TransportOptions);
@@ -499,7 +499,7 @@ namespace HSTS.Application.Itineraries.Queries
             var selectedAccommodations = new Dictionary<int, Location>();
             var accommodationRecommendations = new List<AccommodationRecommendationDto>();
             var accommodationAlternativesByProvince = new Dictionary<int, List<AlternativeLocationDto>>();
-            var hotelSkippedDueToBudget = false;
+            // hotelSkippedDueToBudget reserved for future use
 
             if (hasHotelPreference)
             {
@@ -542,7 +542,7 @@ namespace HSTS.Application.Itineraries.Queries
                                     toMoney(0),
                                     toMoney(altPricePerPerson),
                                     toMoney(altCostForGroup),
-                                    (double)altHotel.Score,
+                                    (double)altHotel.Score!,
                                     Math.Round(altDist, 2), altTravelMin,
                                     altHotel.Address, altHotel.Telephone, GetMediaUrls(altHotel));
                             }).ToList();
@@ -620,7 +620,7 @@ namespace HSTS.Application.Itineraries.Queries
                         // The intercity transport options may have departure info from the hub
                         // For now, calculate backwards from departure time - buffer - local transfer
                         var localTransferToHub = await BuildLocalTransportAsync(
-                            userGeo, new GeoPoint("Hub", userProvince.Latitude ?? 0, userProvince.Longitude ?? 0),
+                            userGeo, new GeoPoint("Hub", userProvince!.Latitude ?? 0, userProvince.Longitude ?? 0),
                             groupSize, transportModes, toMoney, cancellationToken);
 
                         int bufferBeforeDeparture = recOpt.Method switch
@@ -682,7 +682,7 @@ namespace HSTS.Application.Itineraries.Queries
                             // User is in the same province - go directly to hotel or first attraction
                             GeoPoint targetPoint;
                             int targetId;
-                            string targetName;
+                            string targetName = null!;
                             
                             if (destAccommodation is not null)
                             {
@@ -703,7 +703,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 {
                                     targetPoint = firstDestGeo;
                                     targetId = 0;
-                                    targetName = currentProvince.EnglishName;
+                                    targetName = currentProvince.EnglishName!;
                                 }
                             }
 
@@ -733,7 +733,7 @@ namespace HSTS.Application.Itineraries.Queries
                         {
                             // User is in a different province - use intercity transfer
                             // 1. Travel from user location to departure transit hub
-                            var startHubPoint = new GeoPoint("Hub", userProvince.Latitude ?? 0, userProvince.Longitude ?? 0);
+                            var startHubPoint = new GeoPoint("Hub", userProvince!.Latitude ?? 0, userProvince.Longitude ?? 0);
                             var toStartHubTransport = await BuildLocalTransportAsync(
                                 userGeo, startHubPoint, groupSize, transportModes, toMoney, cancellationToken);
                             var toStartHubArrival = AddMinutes(currentTime, toStartHubTransport.SelectedTravelTimeMinutes);
@@ -778,7 +778,7 @@ namespace HSTS.Application.Itineraries.Queries
                             {
                                 GeoPoint hubToTarget;
                                 int hubToTargetId;
-                                string hubToTargetName;
+                                string hubToTargetName = null!;
                                 if (destAccommodation is not null)
                                 {
                                     hubToTarget = GeoPoint.FromLocation(destAccommodation);
@@ -798,7 +798,7 @@ namespace HSTS.Application.Itineraries.Queries
                                     {
                                         hubToTarget = firstDestGeo;
                                         hubToTargetId = 0;
-                                        hubToTargetName = currentProvince.EnglishName;
+                                        hubToTargetName = currentProvince.EnglishName!;
                                     }
                                 }
 
@@ -833,7 +833,9 @@ namespace HSTS.Application.Itineraries.Queries
                         // Case 1: Normal lunch window (11:00-13:30) → full lunch
                         // Case 2: Late arrival (13:30-14:30) → shortened lunch (45 min)
                         // Case 3: Very late (14:30-16:00) → "brunch" (merged late lunch + early dinner, skip regular dinner later)
-                        bool lateLunchInjected = false;
+#pragma warning disable CS0219 // Variable is assigned but never used
+                        bool _lateLunchInjected = false; // tracked for debugging
+#pragma warning restore CS0219
                         if (!lunchInserted && currentTimeOnly >= new TimeOnly(11, 0) && currentTimeOnly < new TimeOnly(14, 30))
                         {
                             // Determine lunch duration based on arrival time
@@ -894,7 +896,7 @@ namespace HSTS.Application.Itineraries.Queries
                             remainingMealBudget -= mealGroupCost;
                             currentTime = AddMinutes(mealEnd, BufferAfterMeal);
                             lunchInserted = true;
-                            lateLunchInjected = true;
+                            _lateLunchInjected = true;
 
                             // If brunch, also mark dinner as injected (skip regular dinner)
                             if (isBrunch)
@@ -1008,7 +1010,7 @@ namespace HSTS.Application.Itineraries.Queries
                         {
                             var departureHubPoint = new GeoPoint("Hub", prevProvince.Latitude ?? 0, prevProvince.Longitude ?? 0);
                             var toHubTransport = await BuildLocalTransportAsync(
-                                prevAccom is not null ? GeoPoint.FromLocation(prevAccom) : new GeoPoint(prevProvince.EnglishName, prevProvince.Latitude ?? 0, prevProvince.Longitude ?? 0),
+                                prevAccom is not null ? GeoPoint.FromLocation(prevAccom) : new GeoPoint(prevProvince.EnglishName!, prevProvince.Latitude ?? 0, prevProvince.Longitude ?? 0),
                                 departureHubPoint, groupSize, transportModes, toMoney, cancellationToken);
                             var toHubArrival = AddMinutes(currentTime, toHubTransport.SelectedTravelTimeMinutes);
 
@@ -1068,9 +1070,9 @@ namespace HSTS.Application.Itineraries.Queries
                                 }
                                 else
                                 {
-                                    segHubToTarget = new GeoPoint(currentProvince.EnglishName, currentProvince.Latitude ?? 0, currentProvince.Longitude ?? 0);
+                                    segHubToTarget = new GeoPoint(currentProvince.EnglishName!, currentProvince.Latitude ?? 0, currentProvince.Longitude ?? 0);
                                     segHubToTargetId = 0;
-                                    segHubToTargetName = currentProvince.EnglishName;
+                                    segHubToTargetName = currentProvince.EnglishName!;
                                 }
                             }
 
@@ -1132,7 +1134,7 @@ namespace HSTS.Application.Itineraries.Queries
                     {
                         currentPoint = destAccommodation is not null
                             ? GeoPoint.FromLocation(destAccommodation)
-                            : new GeoPoint(currentProvince.EnglishName, currentProvince.Latitude ?? 0, currentProvince.Longitude ?? 0);
+                            : new GeoPoint(currentProvince.EnglishName!, currentProvince.Latitude ?? 0, currentProvince.Longitude ?? 0);
                         currentLocationName = destAccommodation?.Name;
                         currentLocationId = destAccommodation?.Id ?? 0;
                         bool isAccomLastDayOfTrip = (globalDayIndex == totalDays - 1);
@@ -1930,10 +1932,8 @@ namespace HSTS.Application.Itineraries.Queries
             }
 
             // If still no affordable restaurants, pick cheapest available (don't skip meals entirely)
-            bool exceededBudget = false;
             if (restaurants.Count == 0)
             {
-                exceededBudget = true;
                 restaurants = attractions
                     .Where(x => !visitedIds.Contains(x.Location.Id) && !visitedRestaurantIds.Contains(x.Location.Id))
                     .Where(x => x.Location.LocationTypeId == 2 ||
@@ -2012,7 +2012,7 @@ namespace HSTS.Application.Itineraries.Queries
                         r.Scored.Location.Id, r.Scored.Location.Name, tagNames,
                         toMoney(0), toMoney(pricePerPerson),
                         toMoney(costForGroup),
-                        (double)r.Scored.Location.Score,
+                        (double)r.Scored.Location.Score!,
                         Math.Round(r.Distance, 2), r.TravelMin,
                         r.Scored.Location.Address, r.Scored.Location.Telephone, GetMediaUrls(r.Scored.Location));
                 }).ToList();
@@ -2154,7 +2154,10 @@ namespace HSTS.Application.Itineraries.Queries
             foreach (var day in days)
             {
                 var filteredTimeline = new List<ItineraryTimelineItemDto>(day.Timeline.Count);
-                bool anyChanged = false;
+
+#pragma warning disable CS0219 // Variable is assigned but never used
+                bool _anyChanged = false;
+#pragma warning restore CS0219
 
                 foreach (var item in day.Timeline)
                 {
@@ -2190,7 +2193,7 @@ namespace HSTS.Application.Itineraries.Queries
 
                     if (filteredAlternatives != item.Alternatives || filteredAccomRecs != item.AccommodationRecommendations)
                     {
-                        anyChanged = true;
+                        _anyChanged = true;
                         filteredTimeline.Add(new ItineraryTimelineItemDto(
                             item.EventType, item.Title, item.StartTime, item.EndTime,
                             item.LocationId, item.TagNames,
@@ -2222,7 +2225,10 @@ namespace HSTS.Application.Itineraries.Queries
             foreach (var timeline in phase1Timeline)
             {
                 var dedupedTimeline = new List<ItineraryTimelineItemDto>(timeline.Count);
-                bool anyChanged = false;
+
+#pragma warning disable CS0219 // Variable is assigned but never used
+                bool _anyChanged2 = false;
+#pragma warning restore CS0219
 
                 foreach (var item in timeline)
                 {
@@ -2243,14 +2249,14 @@ namespace HSTS.Application.Itineraries.Queries
 
                         if (newAlts.Count != item.Alternatives.Count)
                         {
-                            anyChanged = true;
+                            _anyChanged2 = true;
                             dedupedAlternatives = newAlts.Count > 0 ? newAlts : null;
                         }
                     }
 
                     if (dedupedAlternatives != item.Alternatives)
                     {
-                        anyChanged = true;
+                        _anyChanged2 = true;
                         dedupedTimeline.Add(new ItineraryTimelineItemDto(
                             item.EventType, item.Title, item.StartTime, item.EndTime,
                             item.LocationId, item.TagNames,
@@ -2428,7 +2434,7 @@ namespace HSTS.Application.Itineraries.Queries
                 var perPerson = GetPerPersonPrice(item.v.Hotel);
                 var totalPerNight = perPerson * groupSize;
                 var costForGroup = totalPerNight; // Per night cost * group size (accommodation is already per-night based)
-                var amenities = item.v.Hotel.LocationAmenities.Select(a => a.Amenity.Name).Take(5).ToList();
+                var amenities = item.v.Hotel.LocationAmenities.Select(a => a.Amenity!.Name).Take(5).ToList();
                 recommendations.Add(new AccommodationRecommendationDto(
                     item.v.Hotel.Id, item.v.Hotel.Name, item.v.Hotel.Address,
                     item.v.Hotel.Score ?? 0m,

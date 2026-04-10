@@ -26,7 +26,7 @@ namespace HSTS.Domain.Entities
 
         [Required]
         [MaxLength(3)]
-        public String Currency { get; set; }
+        public String Currency { get; set; } = null!;
         public TripStatus Status { get; set; } = TripStatus.Planned;
 
         // Navigation properties

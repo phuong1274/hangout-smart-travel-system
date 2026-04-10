@@ -1,5 +1,6 @@
 using HSTS.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace HSTS.Infrastructure.Persistence
 {
@@ -42,7 +43,7 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<TripTransport> TripTransports => Set<TripTransport>();
         public DbSet<TripSummary> TripSummaries => Set<TripSummary>();
         public DbSet<TripActivityBudget> TripActivityBudgets => Set<TripActivityBudget>();
-        
+
         public DbSet<CustomLocation> CustomLocations => Set<CustomLocation>();
         public DbSet<CustomTransitHub> CustomTransitHubs => Set<CustomTransitHub>();
         public DbSet<TripMember> TripMembers => Set<TripMember>();
@@ -58,6 +59,12 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<LogHistory> LogHistories => Set<LogHistory>();
         public DbSet<LogLogin> LogLogins => Set<LogLogin>();
         #endregion
+
+        // Explicit implementation of ITransactionDbContext
+        public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            return await Database.BeginTransactionAsync(cancellationToken);
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -1656,12 +1656,7 @@ namespace HSTS.Infrastructure.Migrations
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("longtext");
 
-                    b.Property<int?>("UserId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Trips", (string)null);
                 });
@@ -2055,10 +2050,6 @@ namespace HSTS.Infrastructure.Migrations
                     b.Property<int?>("ToTransitHubId")
                         .HasColumnType("int")
                         .HasColumnName("ToTransitHubId");
-
-                    b.Property<decimal>("TotalCost")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("TotalCost");
 
                     b.Property<int?>("TransportModeId")
                         .HasColumnType("int")
@@ -2566,13 +2557,6 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("TransportMode");
                 });
 
-            modelBuilder.Entity("HSTS.Domain.Entities.Trip", b =>
-                {
-                    b.HasOne("HSTS.Domain.Entities.User", null)
-                        .WithMany("Trips")
-                        .HasForeignKey("UserId");
-                });
-
             modelBuilder.Entity("HSTS.Domain.Entities.TripActivity", b =>
                 {
                     b.HasOne("HSTS.Domain.Entities.CustomLocation", "CustomLocation")
@@ -2857,8 +2841,6 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("Profiles");
 
                     b.Navigation("TripMembers");
-
-                    b.Navigation("Trips");
 
                     b.Navigation("UserRoles");
                 });
