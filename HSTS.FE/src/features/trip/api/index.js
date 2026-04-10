@@ -107,3 +107,8 @@ export const getLocationTypesApi = () => {
 export const getAmenitiesApi = () => {
   return apiClient.get('/api/Amenities').then(res => res.data);
 };
+
+// Get trip detail by id (full detail with days, activities, members, summary)
+export const getTripDetailApi = (id) => {
+  return apiClient.get(`/api/trips/${id}/detail`).then(res => res.data);
+};

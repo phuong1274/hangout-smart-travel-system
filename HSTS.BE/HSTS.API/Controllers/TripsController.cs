@@ -36,6 +36,24 @@ namespace HSTS.API.Controllers
             return Ok(result.Value);
         }
 
+        [HttpGet("{id}/detail")]
+        public async Task<IActionResult> GetTripDetail(int id, CancellationToken ct)
+        {
+            var query = new GetTripDetailQuery(id);
+            var result = await _mediator.Send(query, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(result.Value);
+        }
+
         [HttpGet("profile/{profileId}")]
         public async Task<IActionResult> GetTripsByProfile(int profileId, CancellationToken ct)
         {

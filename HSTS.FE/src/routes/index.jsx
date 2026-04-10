@@ -29,6 +29,7 @@ const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
 const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
+const TripDetailPage = lazy(() => import('@/features/trip/pages/TripDetailPage'));
 
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 
@@ -79,6 +80,10 @@ export const router = createBrowserRouter([
   {
     path: PATHS.ITINERARY.replace('/', ''),
     element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
+  },
+  {
+    path: 'trips/:id',
+    element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
   },
 
   // Protected Routes (Admin/Authenticated users)
