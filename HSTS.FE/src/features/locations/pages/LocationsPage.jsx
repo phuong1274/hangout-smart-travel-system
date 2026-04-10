@@ -5,8 +5,11 @@ import LocationFilter from '@/components/UI/LocationFilter';
 import { useLocations } from '../hooks/useLocations';
 import LocationTable from '../components/LocationTable';
 import LocationForm from '../components/LocationForm';
-import DetailModal from '@/components/UI/DetailModal/DetailModal';
+import DetailModal from '@/components/DetailModal';
+import ClosureModal from '../components/ClosureModal';
+import ClosureHistoryModal from '../components/ClosureHistoryModal';
 import { deleteLocationApi, getLocationByIdApi } from '../api';
+import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
 import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
 import { transformLocationForDisplay } from '@/utils/locationMappers';
 import { LocationReviewSection } from '@/features/reviews/components/LocationReviewSection';
@@ -28,6 +31,12 @@ const LocationsPage = () => {
   const [editingLocation, setEditingLocation] = useState(null);
   const [viewingLocation, setViewingLocation] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  const [closureModalOpen, setClosureModalOpen] = useState(false);
+  const [closureHistoryModalOpen, setClosureHistoryModalOpen] = useState(false);
+  const [selectedLocationForClosure, setSelectedLocationForClosure] = useState(null);
+  const [closingLocation, setClosingLocation] = useState(null);
+  
   const [referenceData, setReferenceData] = useState({ allTags: [], locationTypes: [], amenities: [] });
   const [referenceDataLoading, setReferenceDataLoading] = useState(false);
 
@@ -38,16 +47,14 @@ const LocationsPage = () => {
         setReferenceData(cached);
         return;
       }
+
       setReferenceDataLoading(true);
       try {
         const refData = await fetchReferenceData();
         setReferenceData(refData);
-      } catch (error) {
-        message.error('Failed to load reference data');
-      } finally {
-        setReferenceDataLoading(false);
-      }
+      } catch (error) {}
     };
+
     loadReferenceData();
   }, []);
 
@@ -91,36 +98,72 @@ const LocationsPage = () => {
       await deleteLocationApi(location.id);
       message.success('Location deleted successfully');
       fetchLocations();
+    } catch (error) {}
+  };
+
+  const handleCloseLocation = (location) => {
+    setClosingLocation(location);
+    setClosureModalOpen(true);
+  };
+
+  const handleOpenLocation = async (location) => {
+    try {
+      const closures = await getClosuresByLocationApi(location.id);
+      const activeClosure = closures?.find(c => c.isActive);
+      if (activeClosure) {
+        await endClosureApi(activeClosure.id);
+        message.success(`"${location.name}" is now open.`);
+        fetchLocations();
+      } else {
+        message.warning('No active closure found. The location may already be open.');
+        fetchLocations();
+      }
     } catch (error) {
+      message.error('Failed to open location.');
     }
   };
 
-  return (
-    <div className={styles.appWrapper}>
-      <div className={styles.content}>
-        <div className={styles.floatingCircle1}></div>
-        <div className={styles.floatingCircle2}></div>
+  const handleViewClosureHistory = (location) => {
+    setSelectedLocationForClosure(location);
+    setClosureHistoryModalOpen(true);
+  };
 
+  const handleClosureSuccess = () => {
+    setClosureModalOpen(false);
+    setClosingLocation(null);
+    fetchLocations();
+  };
+
+  const handleClosureModalClose = () => {
+    setClosureModalOpen(false);
+    setClosingLocation(null);
+  };
+
+  const handleClosureHistoryModalClose = () => {
+    setClosureHistoryModalOpen(false);
+    setSelectedLocationForClosure(null);
+  };
+
+  return (
+    <div className={styles.layout}>
+      <div className={styles.floatingCircle1}></div>
+      <div className={styles.floatingCircle2}></div>
+      
+      <div className={styles.content}>
         <Space direction="vertical" size="large" className={styles.mainContainer}>
           <div className={styles.pageHeader}>
-            <Title level={2} className={styles.mainHeading}>Location Management</Title>
+            <Title level={2} className={styles.pageTitle}>Location Management</Title>
           </div>
-
-          <Card className={styles.dataCard} bordered={false}>
-            <div className={styles.cardHeader}>
-              <Title level={4} className={styles.cardTitle}>Filter Locations</Title>
-              <Button className={styles.ctaBtn} icon={<PlusOutlined />} onClick={handleCreate}>
-                Add Location
-              </Button>
-            </div>
-
-            <div className={styles.filterSection}>
-              <LocationFilter
-                onSearch={handleSearch}
-                loading={loading}
-              />
-            </div>
-            
+          <Card className={styles.mainCard} bordered={false}>
+            <LocationFilter
+              onSearch={handleSearch}
+              loading={loading}
+              actionButton={
+                <Button className={styles.btnCreate} icon={<PlusOutlined />} onClick={handleCreate}>
+                  ADD LOCATION
+                </Button>
+              }
+            />
             <LocationTable
               data={data}
               loading={loading}
@@ -129,6 +172,9 @@ const LocationsPage = () => {
               onEdit={handleEdit}
               onView={handleView}
               onDelete={handleDelete}
+              onCloseLocation={handleCloseLocation}
+              onOpenLocation={handleOpenLocation}
+              onViewClosureHistory={handleViewClosureHistory}
             />
           </Card>
         </Space>
@@ -140,7 +186,7 @@ const LocationsPage = () => {
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
       />
-
+      
       <DetailModal
         open={detailModalOpen}
         onClose={() => {
@@ -152,6 +198,22 @@ const LocationsPage = () => {
       >
         {viewingLocation?.id && <LocationReviewSection locationId={viewingLocation.id} />}
       </DetailModal>
+
+      <ClosureModal
+        open={closureModalOpen}
+        onClose={handleClosureModalClose}
+        onSuccess={handleClosureSuccess}
+        locationId={closingLocation?.id}
+        locationName={closingLocation?.name}
+      />
+
+      <ClosureHistoryModal
+        open={closureHistoryModalOpen}
+        onClose={handleClosureHistoryModalClose}
+        locationId={selectedLocationForClosure?.id}
+        locationName={selectedLocationForClosure?.name}
+        onClosureChange={fetchLocations}
+      />
     </div>
   );
 };

@@ -22,6 +22,8 @@ export const PATHS = {
   LOCATION_SUBMISSIONS_REVIEW: '/admin/location-submissions',
   PROFILE: '/profile',
   PARTNER_LOCATIONS: '/partner/locations',
+  CREATE_TRIP: '/create-trip',
+  ITINERARY: '/itinerary',
   UNAUTHORIZED: '/403',
   NOT_FOUND: '*',
 };

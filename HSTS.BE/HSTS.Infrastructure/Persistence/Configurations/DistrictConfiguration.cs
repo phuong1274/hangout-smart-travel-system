@@ -23,11 +23,19 @@ namespace HSTS.Infrastructure.Persistence.Configurations
 
             builder.Property(x => x.Longitude)
                 .HasPrecision(11, 8);
+            builder.HasMany(x => x.Locations)
+                .WithOne(x => x.District)
+                .HasForeignKey(x => x.DistrictId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(d => d.Province)
                 .WithMany(p => p.Districts)
                 .HasForeignKey(d => d.ProvinceId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasMany(x => x.TransitHubs)
+                .WithOne(x => x.District)
+                .HasForeignKey(x => x.DistrictId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

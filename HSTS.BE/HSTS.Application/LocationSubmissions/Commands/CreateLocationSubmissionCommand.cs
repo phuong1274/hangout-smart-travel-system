@@ -2,6 +2,7 @@ using ErrorOr;
 using MediatR;
 using FluentValidation;
 using HSTS.Application.Interfaces;
+using HSTS.Application.Common;
 using HSTS.Domain.Entities;
 using HSTS.Application.LocationSubmissions;
 using Microsoft.EntityFrameworkCore;
@@ -18,9 +19,13 @@ namespace HSTS.Application.LocationSubmissions.Commands
         string Address,
         string? Telephone,
         string? Email,
+        decimal TicketPrice,
+        int MinimumAge,
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
         decimal? Score,
+        int? RecommendedDurationMinutes,
+        string? SourceUrl,
         int? DistrictId,
         int? LocationTypeId,
         List<string>? MediaLinks,
@@ -41,30 +46,90 @@ namespace HSTS.Application.LocationSubmissions.Commands
 
     public class CreateLocationSubmissionCommandHandler : IRequestHandler<CreateLocationSubmissionCommand, ErrorOr<LocationSubmissionDto>>
     {
-        private readonly IRepository<LocationSubmission> _repository;
-        private readonly IRepository<Location> _locationRepository;
+        private readonly IRepository.IRepository<LocationSubmission> _repository;
+        private readonly IRepository.IRepository<Location> _locationRepository;
+        private readonly IRepository.IRepository<Tag> _tagRepository;
         private readonly ICurrentUserService _currentUser;
 
         public CreateLocationSubmissionCommandHandler(
-            IRepository<LocationSubmission> repository,
-            IRepository<Location> locationRepository,
+            IRepository.IRepository<LocationSubmission> repository,
+            IRepository.IRepository<Location> locationRepository,
+            IRepository.IRepository<Tag> tagRepository,
             ICurrentUserService currentUser)
         {
             _repository = repository;
             _locationRepository = locationRepository;
+            _tagRepository = tagRepository;
             _currentUser = currentUser;
         }
 
         public async Task<ErrorOr<LocationSubmissionDto>> Handle(CreateLocationSubmissionCommand request, CancellationToken cancellationToken)
         {
-            var existingSubmission = await _repository.Query()
-                .Where(x => x.Name == request.Name && x.UserId == _currentUser.UserId && !x.IsDeleted)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (existingSubmission != null)
+            // For EditExisting submissions, check if name actually changed
+            bool shouldCheckDuplicate = true;
+            if (request.SubmissionType == SubmissionType.EditExisting && request.ExistingLocationId.HasValue)
             {
-                return Error.Conflict("LocationSubmission.DuplicateName",
-                    $"A submission with the name '{request.Name}' already exists for this user.");
+                var existingLocation = await _locationRepository.GetAsync(request.ExistingLocationId.Value, cancellationToken);
+                if (existingLocation != null)
+                {
+                    // Check if name or location changed
+                    const double epsilon = 0.00001;
+                    bool nameChanged = !string.Equals(request.Name.Trim(), existingLocation.Name.Trim(), StringComparison.OrdinalIgnoreCase);
+                    bool locationChanged = Math.Abs(request.Latitude - existingLocation.Latitude) > epsilon ||
+                                           Math.Abs(request.Longitude - existingLocation.Longitude) > epsilon;
+                    
+                    // Only check duplicate if name or location actually changed
+                    shouldCheckDuplicate = nameChanged || locationChanged;
+                }
+            }
+
+            // Perform duplicate check only if needed
+            if (shouldCheckDuplicate)
+            {
+                // Duplicate check: same name (case-insensitive, trimmed) AND within 100 meters
+                const double proximityThresholdMeters = 100.0;
+                var normalizedName = request.Name.Trim().ToLowerInvariant();
+
+                // Step 1: Find ACTIVE locations with matching name (case-insensitive), excluding self if edit
+                var candidateLocations = await _locationRepository.Query()
+                    .Where(x => !x.IsDeleted
+                        && x.Status == Domain.Enums.LocationStatus.Active
+                        && x.Name.Trim().ToLower() == normalizedName
+                        && (request.SubmissionType != SubmissionType.EditExisting || x.Id != request.ExistingLocationId))
+                    .ToListAsync(cancellationToken);
+
+                // Step 2: Filter by proximity using Haversine distance
+                var duplicateLocation = candidateLocations.FirstOrDefault(loc =>
+                    GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                        loc.Latitude, loc.Longitude) <= proximityThresholdMeters);
+
+                if (duplicateLocation != null)
+                {
+                    var distance = GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                        duplicateLocation.Latitude, duplicateLocation.Longitude);
+                    return Error.Conflict("LocationSubmission.Duplicate",
+                        $"A location with the same name already exists within {distance:F0} meters. " +
+                        $"Please verify this is not a duplicate.");
+                }
+
+                // Step 3: Check PENDING submissions with same name AND proximity
+                var candidateSubmissions = await _repository.Query()
+                    .Where(x => !x.IsDeleted
+                        && x.Status == Domain.Entities.SubmissionStatus.Pending
+                        && x.Name.Trim().ToLower() == normalizedName)
+                    .ToListAsync(cancellationToken);
+
+                var duplicateSubmission = candidateSubmissions.FirstOrDefault(sub =>
+                    GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                        sub.Latitude, sub.Longitude) <= proximityThresholdMeters);
+
+                if (duplicateSubmission != null)
+                {
+                    var distance = GeoUtils.HaversineMeters(request.Latitude, request.Longitude,
+                        duplicateSubmission.Latitude, duplicateSubmission.Longitude);
+                    return Error.Conflict("LocationSubmission.Duplicate",
+                        $"A pending submission with the same name already exists within {distance:F0} meters.");
+                }
             }
 
             // Validate ownership for EditExisting submissions
@@ -100,9 +165,13 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 Address = request.Address,
                 Telephone = request.Telephone,
                 Email = request.Email,
+                TicketPrice = request.TicketPrice,
+                MinimumAge = request.MinimumAge,
                 PriceMinUsd = request.PriceMinUsd,
                 PriceMaxUsd = request.PriceMaxUsd,
                 Score = request.Score,
+                RecommendedDurationMinutes = request.RecommendedDurationMinutes,
+                SourceUrl = request.SourceUrl,
                 DistrictId = request.DistrictId,
                 LocationTypeId = request.LocationTypeId,
                 UserId = _currentUser.UserId,
@@ -143,7 +212,13 @@ namespace HSTS.Application.LocationSubmissions.Commands
             await _repository.AddAsync(submission, cancellationToken);
             await _repository.UpdateAsync(submission, cancellationToken);
 
-            return submission.ToDto();
+            // Resolve tags for the response
+            var tags = await LocationSubmissionMappingExtensions.ResolveTagsAsync(
+                request.TagIds, 
+                _tagRepository, 
+                cancellationToken);
+
+            return submission.ToDto(tags);
         }
     }
 
@@ -158,8 +233,12 @@ namespace HSTS.Application.LocationSubmissions.Commands
             RuleFor(x => x.Address).NotEmpty().MaximumLength(300);
             RuleFor(x => x.Telephone).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.Telephone));
             RuleFor(x => x.Email).EmailAddress().MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Email));
+            RuleFor(x => x.TicketPrice).GreaterThanOrEqualTo(0);
+            RuleFor(x => x.MinimumAge).InclusiveBetween(0, 120);
             RuleFor(x => x.PriceMinUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMinUsd.HasValue);
             RuleFor(x => x.PriceMaxUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMaxUsd.HasValue);
+            RuleFor(x => x.Score).InclusiveBetween(0, 5).When(x => x.Score.HasValue);
+            RuleFor(x => x.RecommendedDurationMinutes).GreaterThanOrEqualTo(0).When(x => x.RecommendedDurationMinutes.HasValue);
 
             RuleFor(x => x.DistrictId).NotEmpty().When(x => x.DistrictId.HasValue)
                 .WithMessage("District ID must be provided if specified.");

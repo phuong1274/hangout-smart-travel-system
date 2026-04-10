@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HSTS.Domain.Entities
@@ -11,6 +11,8 @@ namespace HSTS.Domain.Entities
         [Required]
         [MaxLength(200)]
         public string Name { get; set; } = null!;
+
+        [Required]
 
         [MaxLength(200)]
         public string? EnglishName { get; set; }
@@ -31,5 +33,6 @@ namespace HSTS.Domain.Entities
         public Country? Country { get; set; }
 
         public ICollection<District> Districts { get; set; } = new List<District>();
+        public ICollection<TransitHubs> TransitHubs { get; set; } = new List<TransitHubs>();
     }
 }

@@ -5,6 +5,7 @@ import PublicRoute from './PublicRoute';
 import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
+import ItineraryResultPage from '@/features/trip/pages/ItineraryResultPage';
 
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
@@ -17,7 +18,6 @@ const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
 const UserDetailPage = lazy(() => import('@/features/users/pages/UserDetailPage'));
 const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const HomePage = lazy(() => import('@/features/home/pages/Home'));
-const ItineraryPage = lazy(() => import('@/features/schedules/pages/ItineraryPage'));
 
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
@@ -28,9 +28,23 @@ const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPag
 const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPage'));
 const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
-
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/ReportedReviewsPage'));
+
+const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
+
+const DashboardOverview = () => (
+  <div>
+    <h2>Overview</h2>
+    <p>Algorithm-based destination scheduling system.</p>
+  </div>
+);
+
+const ScheduleManagement = () => (
+  <div>
+    <h2>Algorithm Scheduling Management</h2>
+  </div>
+);
 
 export const router = createBrowserRouter([
   {
@@ -62,18 +76,19 @@ export const router = createBrowserRouter([
         children: [
           {
             path: PATHS.DASHBOARD,
-            element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div>
-          },
-          {
-            path: PATHS.DESTINATIONS,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
-            children: [
-              { index: true, element: <DestinationsPage /> }
-            ]
+            element: <DashboardOverview />
           },
           {
             path: PATHS.SCHEDULES,
-            element: <div><h2>Algorithm Scheduling Management</h2></div>
+            element: <ScheduleManagement />
+          },
+          {
+            path: PATHS.CREATE_TRIP,
+            element: <CreateTripPage />
+          },
+          {
+            path: PATHS.ITINERARY,
+            element: <ItineraryResultPage />
           },
           {
             path: PATHS.MY_LOCATIONS,
@@ -84,20 +99,39 @@ export const router = createBrowserRouter([
             element: <PartnerLocationsPage />
           },
           {
-            path: PATHS.TAGS,
-            element: <TagsPage />
+            path: PATHS.DESTINATIONS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <DestinationsPage /> }
+            ]
           },
           {
             path: PATHS.LOCATION_TYPES,
-            element: <LocationTypesPage />
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <LocationTypesPage /> }
+            ]
           },
           {
             path: PATHS.AMENITIES,
-            element: <AmenitiesPage />
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <AmenitiesPage /> }
+            ]
+          },
+          {
+            path: PATHS.TAGS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <TagsPage /> }
+            ]
           },
           {
             path: PATHS.LOCATIONS,
-            element: <LocationsPage />
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <LocationsPage /> }
+            ]
           },
           {
             path: PATHS.LOCATION_SUBMISSIONS_REVIEW,
@@ -105,10 +139,6 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <LocationSubmissionsReviewPage /> }
             ]
-          },
-          {
-            path: PATHS.ITINERARY,
-            element: <ItineraryPage />,
           },
           {
             path: PATHS.USERS,

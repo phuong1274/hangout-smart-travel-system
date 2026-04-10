@@ -4,7 +4,7 @@
  * Prevents duplicate API calls across components
  */
 
-import { getRootTagsApi, getChildTagsApi } from '@/features/tags/api';
+import { getAllTagsApi } from '@/features/tags/api';
 import { getAllLocationTypesApi, getAllAmenitiesApi } from '@/features/locations/api';
 
 // Cache storage
@@ -29,8 +29,8 @@ const isCacheValid = () => {
 };
 
 /**
- * Fetch all reference data (root tags + child tags + location types + amenities)
- * Called once and cached for reuse
+ * Fetch all reference data (all tags + location types + amenities)
+ * Called once and cached for reuse. Uses single API call for all tags.
  */
 export const fetchReferenceData = async (forceRefresh = false) => {
   // Return cached data if valid and not forcing refresh
@@ -58,35 +58,17 @@ export const fetchReferenceData = async (forceRefresh = false) => {
   cache.isLoading = true;
 
   try {
-    // Fetch all data in parallel
-    const [rootTagsRes, locationTypesRes, amenitiesRes] = await Promise.all([
-      getRootTagsApi(),
+    // Fetch all data in parallel - single call for all tags
+    const [allTagsRes, locationTypesRes, amenitiesRes] = await Promise.all([
+      getAllTagsApi(),
       getAllLocationTypesApi(),
       getAllAmenitiesApi()
     ]);
 
     // Extract items from paginated responses
-    const rootTags = Array.isArray(rootTagsRes) ? rootTagsRes : (rootTagsRes?.items || []);
+    const allTags = Array.isArray(allTagsRes) ? allTagsRes : (allTagsRes?.items || []);
     const locationTypes = Array.isArray(locationTypesRes) ? locationTypesRes : (locationTypesRes?.items || []);
     const amenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
-
-    // Fetch child tags for each root tag
-    const childTagsPromises = rootTags.map(rootTag => getChildTagsApi(rootTag.id));
-    const childTagsResults = await Promise.all(childTagsPromises);
-
-    // Flatten and deduplicate child tags
-    const childTags = childTagsResults.flatMap(res => {
-      const tags = Array.isArray(res) ? res : (res?.items || []);
-      return tags;
-    });
-
-    // Remove duplicate child tags (same ID might appear under multiple roots)
-    const uniqueChildTags = childTags.filter(
-      (tag, index, self) => index === self.findIndex(t => t.id === tag.id)
-    );
-
-    // Combine root and child tags
-    const allTags = [...rootTags, ...uniqueChildTags];
 
     // Update cache
     cache.allTags = allTags;
@@ -134,9 +116,33 @@ export const getCacheStatus = () => ({
   isValid: isCacheValid()
 });
 
+/**
+ * Build tag hierarchy from flat tag list
+ * @param {Array} allTags - Flat array of all tags
+ * @returns {Object} { rootTags, childTagsByParent }
+ *   - rootTags: tags with no parentTagId
+ *   - childTagsByParent: map of parentTagId -> [child tags]
+ */
+export const buildTagHierarchy = (allTags) => {
+  const rootTags = allTags.filter(tag => !tag.parentTagId);
+  const childTagsByParent = {};
+
+  allTags.forEach(tag => {
+    if (tag.parentTagId) {
+      if (!childTagsByParent[tag.parentTagId]) {
+        childTagsByParent[tag.parentTagId] = [];
+      }
+      childTagsByParent[tag.parentTagId].push(tag);
+    }
+  });
+
+  return { rootTags, childTagsByParent };
+};
+
 export default {
   fetchReferenceData,
   getCachedReferenceData,
   invalidateReferenceDataCache,
-  getCacheStatus
+  getCacheStatus,
+  buildTagHierarchy
 };

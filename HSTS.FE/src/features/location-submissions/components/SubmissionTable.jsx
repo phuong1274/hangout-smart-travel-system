@@ -1,13 +1,15 @@
 import React from 'react';
-import { Table, Tag, Space, Button, Popconfirm, message } from 'antd';
+import { Table, Tag, Space, Button, Popconfirm } from 'antd';
 import { EditOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import { SubmissionStatus } from '../types';
+import styles from '../styles/SubmissionTable.module.css';
 
 const statusColors = {
-  [SubmissionStatus.Pending]: 'warning',
-  [SubmissionStatus.Approved]: 'success',
-  [SubmissionStatus.Rejected]: 'error',
-  [SubmissionStatus.Published]: 'blue'
+  [SubmissionStatus.Pending]: '#FFE66D',
+  [SubmissionStatus.Approved]: '#4ECDC4',
+  [SubmissionStatus.Rejected]: '#FF6B6B',
+  [SubmissionStatus.Published]: '#1A535C'
 };
 
 const statusLabels = {
@@ -23,30 +25,41 @@ const SubmissionTable = ({ data, loading, pagination, onTableChange, onEdit, onV
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      sorter: (a, b) => a.name.localeCompare(b.name)
+      sorter: (a, b) => a.name.localeCompare(b.name),
+      className: styles.tableCell
     },
     {
       title: 'Address',
       dataIndex: 'address',
       key: 'address',
-      ellipsis: true
+      ellipsis: true,
+      className: styles.tableCell
     },
     {
       title: 'Location Type',
       dataIndex: 'locationTypeName',
-      key: 'locationTypeName'
+      key: 'locationTypeName',
+      className: styles.tableCell
     },
     {
       title: 'Destination',
       dataIndex: 'destinationName',
-      key: 'destinationName'
+      key: 'destinationName',
+      className: styles.tableCell
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status) => (
-        <Tag color={statusColors[status]}>
+        <Tag 
+          color={statusColors[status]} 
+          style={{ 
+            color: status === SubmissionStatus.Pending ? '#1A535C' : '#FFFFFF',
+            fontWeight: 700 
+          }}
+          className={styles.bouncyTag}
+        >
           {statusLabels[status]}
         </Tag>
       )
@@ -56,17 +69,20 @@ const SubmissionTable = ({ data, loading, pagination, onTableChange, onEdit, onV
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date) => new Date(date).toLocaleDateString(),
-      sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+      sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+      className: styles.tableCell
     },
     {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
-        <Space>
+        <Space direction="vertical" size="small" style={{ alignItems: 'flex-start' }}>
           <Button
             type="link"
             icon={<EyeOutlined />}
             onClick={() => onView(record)}
+            className={styles.actionBtn}
+            style={{ padding: 0 }}
           >
             View
           </Button>
@@ -74,7 +90,13 @@ const SubmissionTable = ({ data, loading, pagination, onTableChange, onEdit, onV
             type="link"
             icon={<EditOutlined />}
             onClick={() => onEdit(record)}
-            disabled={record.status === SubmissionStatus.Approved || record.status === SubmissionStatus.Published}
+            disabled={
+              record.status === SubmissionStatus.Pending ||
+              record.status === SubmissionStatus.Approved ||
+              record.status === SubmissionStatus.Published
+            }
+            className={styles.actionBtn}
+            style={{ padding: 0 }}
           >
             Edit
           </Button>
@@ -86,7 +108,12 @@ const SubmissionTable = ({ data, loading, pagination, onTableChange, onEdit, onV
               okText="Yes"
               cancelText="No"
             >
-              <Button type="link" danger icon={<DeleteOutlined />}>
+              <Button 
+                type="link" 
+                className={styles.dangerActionBtn} 
+                icon={<DeleteOutlined />}
+                style={{ padding: 0 }}
+              >
                 Delete
               </Button>
             </Popconfirm>
@@ -97,14 +124,31 @@ const SubmissionTable = ({ data, loading, pagination, onTableChange, onEdit, onV
   ];
 
   return (
-    <Table
-      columns={columns}
-      dataSource={data}
-      loading={loading}
-      pagination={pagination}
-      onChange={onTableChange}
-      rowKey="id"
-    />
+    <div>
+      <Table
+        columns={columns}
+        dataSource={data}
+        loading={loading}
+        pagination={false}
+        onChange={onTableChange}
+        rowKey="id"
+        className={styles.tropicalTableGlobal}
+      />
+      {pagination && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '24px' }}>
+          <AppPagination
+            current={pagination.current}
+            pageSize={pagination.pageSize}
+            total={pagination.total}
+            onChange={(page, pageSize) => {
+              if (onTableChange) {
+                onTableChange({ ...pagination, current: page, pageSize });
+              }
+            }}
+          />
+        </div>
+      )}
+    </div>
   );
 };
 

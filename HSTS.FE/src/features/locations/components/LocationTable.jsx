@@ -1,10 +1,16 @@
 import React from 'react';
 import { Table, Button, Space, Popconfirm, Tag, Tooltip } from 'antd';
-import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined, PhoneOutlined, MailOutlined, LinkOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined, PhoneOutlined, MailOutlined, LinkOutlined, LockOutlined, UnlockOutlined, HistoryOutlined } from '@ant-design/icons';
 import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import styles from '../styles/LocationTable.module.css';
 
-const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView }) => {
+const LocationStatus = {
+  Active: 1,
+  TemporarilyClosed: 2,
+  Inactive: 3,
+};
+
+const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, onView, onCloseLocation, onOpenLocation, onViewClosureHistory }) => {
   const columns = [
     {
       title: 'ID',
@@ -16,19 +22,19 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      width: 220,
+      width: 180,
       render: (text, record) => (
         <div className={styles.nameCell}>
-          <strong className={styles.mainText}>{text}</strong>
+          <strong className={styles.cellTitle}>{text}</strong>
           {record.destinationName && (
             <div className={styles.subText}>
-              <EnvironmentOutlined className={styles.iconBlue} />
+              <EnvironmentOutlined className={styles.iconSub} />
               {record.destinationName}
             </div>
           )}
           {record.socialLinks && record.socialLinks.length > 0 && (
             <div className={styles.linkText}>
-              <LinkOutlined className={styles.iconBlue} />
+              <LinkOutlined className={styles.iconSub} />
               {record.socialLinks.length} link(s)
             </div>
           )}
@@ -39,27 +45,28 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       title: 'Type',
       dataIndex: 'locationTypeName',
       key: 'locationTypeName',
-      width: 120,
-      render: (text) => text ? <Tag className={styles.customTag} color="blue">{text}</Tag> : '-',
+      width: 100,
+      render: (text) => <span className={styles.bodyText}>{text || 'N/A'}</span>,
     },
     {
       title: 'Address',
       dataIndex: 'address',
       key: 'address',
-      width: 180,
+      width: 120,
       ellipsis: true,
+      render: (text) => <span className={styles.bodyText}>{text}</span>,
     },
     {
       title: 'Contact',
       key: 'contact',
-      width: 150,
+      width: 120,
       render: (_, record) => (
-        <div className={styles.contactCell}>
+        <div className={styles.bodyText}>
           {record.telephone && (
-            <div className={styles.mainText}><PhoneOutlined className={styles.iconTeal} /> {record.telephone}</div>
+            <div><PhoneOutlined className={styles.iconSub} />{record.telephone}</div>
           )}
           {record.email && (
-            <div className={styles.subText}><MailOutlined className={styles.iconCoral} /> {record.email}</div>
+            <div className={styles.subText}><MailOutlined className={styles.iconSub} />{record.email}</div>
           )}
         </div>
       ),
@@ -67,11 +74,11 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
     {
       title: 'Price',
       key: 'price',
-      width: 130,
+      width: 120,
       render: (_, record) => (
-        <div className={styles.priceCell}>
-          {record.ticketPrice > 0 && <div className={styles.priceMain}>${record.ticketPrice.toFixed(2)}</div>}
-          {record.priceRange && <Tag className={styles.customTag} color="green">{record.priceRange}</Tag>}
+        <div className={styles.bodyText}>
+          {record.ticketPrice > 0 && <div className={styles.priceHighlight}>${record.ticketPrice.toFixed(2)}</div>}
+          {record.priceRange && <Tag className={styles.customTagInfo}>{record.priceRange}</Tag>}
           {(record.priceMinUsd || record.priceMaxUsd) && (
             <div className={styles.subText}>
               ${record.priceMinUsd?.toFixed(2) || '0'} - ${record.priceMaxUsd?.toFixed(2) || '0'}
@@ -81,62 +88,110 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       ),
     },
     {
-      title: 'Coordinates',
-      key: 'coordinates',
-      width: 130,
-      render: (_, record) => (
-        <div className={styles.subText}>
-          <div>Lat: {record.latitude?.toFixed(4)}</div>
-          <div>Lng: {record.longitude?.toFixed(4)}</div>
-        </div>
-      ),
+      title: 'Status',
+      key: 'effectiveStatus',
+      width: 120,
+      render: (_, record) => {
+        const status = record.effectiveStatus || LocationStatus.Active;
+        if (status === LocationStatus.TemporarilyClosed) {
+          return <Tag className={styles.customTagDanger}>CLOSED</Tag>;
+        }
+        if (status === LocationStatus.Inactive) {
+          return <Tag className={styles.customTagDefault}>INACTIVE</Tag>;
+        }
+        return <Tag className={styles.customTagSuccess}>ACTIVE</Tag>;
+      },
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 120,
+      width: 200,
       fixed: 'right',
-      render: (_, record) => (
-        <Space size="middle" className={styles.actionSpace}>
-          <Tooltip title="View details & reviews">
-            <Button
-              type="text"
-              className={styles.actionIconView}
-              icon={<EyeOutlined />}
-              onClick={() => onView(record)}
-              aria-label="View details & reviews"
-            />
-          </Tooltip>
-          <Tooltip title="Edit location">
-            <Button
-              type="text"
-              className={styles.actionIconEdit}
-              icon={<EditOutlined />}
-              onClick={() => onEdit(record)}
-              aria-label="Edit location"
-            />
-          </Tooltip>
-          <Popconfirm
-            title="Delete Location"
-            description="Are you sure you want to delete this location?"
-            onConfirm={() => onDelete(record)}
-            okText="Yes"
-            cancelText="No"
-            okButtonProps={{ className: styles.popConfirmOk }}
-            cancelButtonProps={{ className: styles.popConfirmCancel }}
-          >
-            <Tooltip title="Delete location">
-              <Button type="text" className={styles.actionIconDelete} icon={<DeleteOutlined />} aria-label="Delete location" />
+      render: (_, record) => {
+        const status = record.effectiveStatus || LocationStatus.Active;
+        const isClosed = status === LocationStatus.TemporarilyClosed;
+        const isInactive = status === LocationStatus.Inactive;
+
+        return (
+          <Space direction="vertical" size="small">
+            <Tooltip title="View details & reviews">
+              <Button
+                type="text"
+                className={styles.actionBtnInfo}
+                icon={<EyeOutlined />}
+                onClick={() => onView(record)}
+                aria-label="View details & reviews"
+              >
+                VIEW
+              </Button>
             </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
+            {!isInactive && (
+              <Tooltip title="Edit location">
+                <Button
+                  type="text"
+                  className={styles.actionBtnPrimary}
+                  icon={<EditOutlined />}
+                  onClick={() => onEdit(record)}
+                  aria-label="Edit location"
+                >
+                  EDIT
+                </Button>
+              </Tooltip>
+            )}
+            {!isInactive && (
+              <Tooltip title="View closure history">
+                <Button
+                  type="text"
+                  className={styles.actionBtnInfo}
+                  icon={<HistoryOutlined />}
+                  onClick={() => onViewClosureHistory?.(record)}
+                  aria-label="View closure history"
+                >
+                  HISTORY
+                </Button>
+              </Tooltip>
+            )}
+            {isClosed ? (
+              <Popconfirm title="Open Location" onConfirm={() => onOpenLocation(record)} okText="Yes, Open" cancelText="Cancel">
+                <Button type="text" className={styles.actionBtnSuccess} icon={<UnlockOutlined />} aria-label="Open location">
+                  OPEN
+                </Button>
+              </Popconfirm>
+            ) : !isInactive ? (
+              <Tooltip title="Temporarily close location">
+                <Button
+                  type="text"
+                  className={styles.actionBtnWarning}
+                  icon={<LockOutlined />}
+                  onClick={() => onCloseLocation(record)}
+                  aria-label="Temporarily close location"
+                >
+                  CLOSE
+                </Button>
+              </Tooltip>
+            ) : null}
+            <Popconfirm
+              title="Delete Location"
+              description="Are you sure you want to delete this location?"
+              onConfirm={() => onDelete(record)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Tooltip title="Delete location">
+                <Button type="text" className={styles.actionBtnDanger} icon={<DeleteOutlined />} aria-label="Delete location">
+                  DELETE
+                </Button>
+              </Tooltip>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
   ];
 
   const handlePaginationChange = (page, pageSize) => {
     if (onTableChange) {
-      onTableChange({ current: page, pageSize }, {}, {});
+      onTableChange({ current: page, pageSize });
     }
   };
 
@@ -146,15 +201,13 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
         className={styles.tropicalTable}
         columns={columns}
         dataSource={data}
-        loading={{
-          spinning: loading,
-          indicator: <div className={styles.skeletonLoader}></div>
-        }}
+        loading={loading}
         rowKey="id"
-        scroll={{ x: 1200 }}
+        scroll={{ x: 'max-content' }}
         pagination={false}
+        onChange={onTableChange}
       />
-      <div className={styles.paginationWrapper}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
         <AppPagination
           current={pagination?.current}
           pageSize={pagination?.pageSize}

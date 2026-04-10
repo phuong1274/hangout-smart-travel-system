@@ -49,6 +49,9 @@ const AppHeader = () => {
       <Link to="/">
         <Text className={styles.navLink}>Home</Text>
       </Link>
+      <Link to={PATHS.CREATE_TRIP}>
+        <Text className={styles.navLink}>Plan a Trip</Text>
+      </Link>
       <Text className={styles.navLink}>Location</Text>
       
       {user ? (

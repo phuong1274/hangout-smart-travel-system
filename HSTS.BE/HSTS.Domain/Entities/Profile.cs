@@ -10,5 +10,6 @@ namespace HSTS.Domain.Entities
 
         // Navigation properties
         public User User { get; set; } = null!;
+        
     }
 }

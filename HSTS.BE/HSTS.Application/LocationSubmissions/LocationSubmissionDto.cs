@@ -7,12 +7,16 @@ namespace HSTS.Application.LocationSubmissions
         string? Description,
         double Latitude,
         double Longitude,
+        decimal TicketPrice,
+        int MinimumAge,
         string Address,
         string? Telephone,
         string? Email,
         decimal? PriceMinUsd,
         decimal? PriceMaxUsd,
         decimal? Score,
+        int? RecommendedDurationMinutes,
+        string? SourceUrl,
         int? DistrictId,
         string? DistrictName,
         int? LocationTypeId,
@@ -20,18 +24,26 @@ namespace HSTS.Application.LocationSubmissions
         List<string>? MediaLinks,
         List<LocationSubmissionSocialLinkDto>? SocialLinks,
         List<int>? AmenityIds,
-        List<int>? TagIds,
         List<LocationSubmissionOpeningHourDto>? OpeningHours,
         List<LocationSubmissionSeasonDto>? Seasons,
         Domain.Entities.SubmissionStatus Status,
         Domain.Entities.SubmissionType SubmissionType,
         int? ExistingLocationId,
-        string? RejectionReason,
-        DateTime? ReviewedAt,
-        string? ReviewedBy,
-        int? CreatedLocationId,
-        DateTime CreatedAt,
-        DateTime? UpdatedAt
+        Locations.LocationDto? ExistingLocation = null,
+        string? RejectionReason = null,
+        DateTime? ReviewedAt = null,
+        string? ReviewedBy = null,
+        int? CreatedLocationId = null,
+        DateTime CreatedAt = default,
+        DateTime? UpdatedAt = null,
+        // Optional fields with defaults must come last
+        List<LocationSubmissionTagDto>? Tags = null,
+        List<int>? TagIds = null
+    );
+
+    public record LocationSubmissionTagDto(
+        int Id,
+        string Name
     );
 
     public record LocationSubmissionSocialLinkDto(

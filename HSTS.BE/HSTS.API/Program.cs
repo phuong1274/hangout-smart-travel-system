@@ -85,9 +85,13 @@ namespace HSTS.API
                 {
                     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
                         ?? new[] { "http://localhost:3000",
-    "http://localhost:5173" };
+                                    "http://localhost:5173" };
 
-                    policy.WithOrigins(origins)
+                    policy.SetIsOriginAllowed(origin =>
+                        origins.Contains(origin, StringComparer.OrdinalIgnoreCase)
+                        || (Uri.TryCreate(origin, UriKind.Absolute, out var uri)
+                            && (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                                || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase))))
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials();

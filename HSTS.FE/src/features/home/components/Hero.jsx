@@ -23,7 +23,7 @@ const Hero = () => (
         Your personal trip planner and travel curator, creating custom itineraries <br/> 
         tailored to your interests and budget.
       </Paragraph>
-      <Link to={PATHS.AUTH.LOGIN}>
+      <Link to={PATHS.CREATE_TRIP}>
         <Button type="primary" size="large" className={styles.ctaBtn}>
           GET STARTED - IT'S FREE
         </Button>

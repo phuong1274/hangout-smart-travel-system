@@ -81,8 +81,13 @@ namespace HSTS.Infrastructure.Persistence.Configurations
 
             // Configure relationship with LocationAmenity
             builder.HasMany(l => l.LocationAmenities)
-                   .WithOne(la => la.Location)
-                   .HasForeignKey(la => la.LocationId)
+            .WithOne(la => la.Location)
+            .HasForeignKey(la => la.LocationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(x => x.OpeningHours)
+                .WithOne(x => x.Location)
+                .HasForeignKey(x => x.LocationId)
                    .OnDelete(DeleteBehavior.Cascade);
 
             // Configure relationship with LocationSocialLink

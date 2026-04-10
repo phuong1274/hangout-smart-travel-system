@@ -6,34 +6,34 @@
 import { SOCIAL_PLATFORMS } from './locationConstants';
 
 /**
- * Map tag IDs to tag names
+ * Map tag IDs to tag name objects
  * @param {number[]} tagIds - Array of tag IDs
- * @param {Array} allTags - Array of all tags (root + child) with {id, name}
- * @returns {string[]} Array of tag names (or ID as fallback)
+ * @param {Array} allTags - Array of all tags with {id, name}
+ * @returns {Array<{id: number, name: string}>} Array of tag objects
  */
-export const mapTagIdsToNames = (tagIds, allTags) => {
+export const mapTagIdsToObjects = (tagIds, allTags) => {
   if (!tagIds || !Array.isArray(tagIds)) return [];
-  if (!allTags || !Array.isArray(allTags)) return tagIds.map(String);
-  
+  if (!allTags || !Array.isArray(allTags)) return tagIds.map(id => ({ id, name: String(id) }));
+
   return tagIds.map(id => {
     const tag = allTags.find(t => t.id === id);
-    return tag ? tag.name : String(id);
+    return tag ? { id: tag.id, name: tag.name } : { id, name: String(id) };
   });
 };
 
 /**
- * Map amenity IDs to amenity names
+ * Map amenity IDs to amenity name objects
  * @param {number[]} amenityIds - Array of amenity IDs
  * @param {Array} amenities - Array of amenities with {id, name}
- * @returns {string[]} Array of amenity names (or ID as fallback)
+ * @returns {Array<{id: number, name: string}>} Array of amenity objects
  */
-export const mapAmenityIdsToNames = (amenityIds, amenities) => {
+export const mapAmenityIdsToObjects = (amenityIds, amenities) => {
   if (!amenityIds || !Array.isArray(amenityIds)) return [];
-  if (!amenities || !Array.isArray(amenities)) return amenityIds.map(String);
-  
+  if (!amenities || !Array.isArray(amenities)) return amenityIds.map(id => ({ id, name: String(id) }));
+
   return amenityIds.map(id => {
     const amenity = amenities.find(a => a.id === id);
-    return amenity ? amenity.name : String(id);
+    return amenity ? { id: amenity.id, name: amenity.name } : { id, name: String(id) };
   });
 };
 
@@ -72,21 +72,30 @@ export const mapPlatformEnumToName = (platform, socialPlatforms = SOCIAL_PLATFOR
  */
 export const transformLocationForDisplay = (data, referenceData) => {
   if (!data) return null;
-  
+
   const { allTags = [], amenities = [], locationTypes = [] } = referenceData;
-  
+
+  // Handle both camelCase and PascalCase from backend
+  const tagIds = data.tagIds || data.TagIds || [];
+  const amenityIds = data.amenityIds || data.AmenityIds || [];
+  const locationTypeId = data.locationTypeId ?? data.LocationTypeId;
+
+  // Check if backend already returns structured tags/amenities
+  const hasStructuredTags = data.tags && Array.isArray(data.tags) && data.tags.length > 0 && data.tags[0].id !== undefined;
+  const hasStructuredAmenities = data.amenities && Array.isArray(data.amenities) && data.amenities.length > 0 && data.amenities[0].id !== undefined;
+
   return {
     ...data,
-    // Map tag IDs to names
-    tagNames: mapTagIdsToNames(data.tagIds, allTags),
-    // Map amenity IDs to names
-    amenityNames: mapAmenityIdsToNames(data.amenityIds, amenities),
-    // Map location type ID to name
-    locationTypeName: mapLocationTypeIdToName(data.locationTypeId, locationTypes),
+    // Use structured tags if available, otherwise fall back to mapping IDs
+    tags: hasStructuredTags ? data.tags : mapTagIdsToObjects(tagIds, allTags),
+    // Use structured amenities if available, otherwise fall back to mapping IDs
+    amenities: hasStructuredAmenities ? data.amenities : mapAmenityIdsToObjects(amenityIds, amenities),
+    // Use backend's locationTypeName if available, otherwise map from ID
+    locationTypeName: data.locationTypeName || data.LocationTypeName || mapLocationTypeIdToName(locationTypeId, locationTypes),
     // Map social link platforms to names
-    socialLinks: (data.socialLinks || []).map(sl => ({
+    socialLinks: (data.socialLinks || data.SocialLinks || []).map(sl => ({
       ...sl,
-      platformName: mapPlatformEnumToName(sl.platform)
+      platformName: mapPlatformEnumToName(sl.platform ?? sl.Platform)
     }))
   };
 };
