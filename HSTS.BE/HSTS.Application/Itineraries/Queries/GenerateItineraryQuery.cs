@@ -1171,10 +1171,37 @@ namespace HSTS.Application.Itineraries.Queries
                             {
                                 // Use breakfast-specific budget (remainingMealBudget tracked across days)
                                 var breakfastPerPersonBudget = remainingMealBudget > 0
-                                    ? (breakfastBudgetPerPerson + (remainingMealBudget / Math.Max(1, totalDays - globalDayIndex))) 
+                                    ? (breakfastBudgetPerPerson + (remainingMealBudget / Math.Max(1, totalDays - globalDayIndex)))
                                     : breakfastBudgetPerPerson;
                                 var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, breakfastPerPersonBudget, groupSize, request.TripSegment, out var breakfastAlternatives, toMoney, recentlyVisitedLocationIds);
                                 var rLoc = restaurant?.Location;
+
+                                // Local transport to restaurant
+                                if (rLoc is not null)
+                                {
+                                    var restaurantPoint = GeoPoint.FromLocation(rLoc);
+                                    var mealTransport = await BuildLocalTransportAsync(
+                                        currentPoint, restaurantPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                    var mealArrival = AddMinutes(currentTime, mealTransport.SelectedTravelTimeMinutes);
+
+                                    // Add travel leg
+                                    var mealLeg = new LocationToLocationTravelLegDto(
+                                        currentLocationId, currentLocationName ?? "Unknown",
+                                        rLoc.Id, rLoc.Name,
+                                        TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(mealArrival),
+                                        mealTransport.DistanceKm, null,
+                                        0, toMoney(0),
+                                        mealTransport.TransportOptions);
+                                    timeline.Add(new ItineraryTimelineItemDto("travel",
+                                        "Local transfer",
+                                        TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(mealArrival),
+                                        0, new List<string>(),
+                                        null, null, null, "", 0,
+                                        LocationToLocationTravel: mealLeg));
+
+                                    currentTime = mealArrival;
+                                }
+
                                 var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
                                 var mealGroupCost = mealExtraCost * groupSize;
 
@@ -1187,9 +1214,10 @@ namespace HSTS.Application.Itineraries.Queries
                                 }
 
                                 var breakfastTagNames = rLoc is not null ? GetTags(rLoc) : new List<string>();
+                                var actualMealEnd = AddMinutes(currentTime, 45);
                                 timeline.Add(new ItineraryTimelineItemDto("meal",
                                     rLoc is not null ? $"Breakfast at {rLoc.Name}" : "Breakfast",
-                                    currentTimeOnly, BreakfastEnd,
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(actualMealEnd),
                                     rLoc?.Id ?? 0, breakfastTagNames,
                                     toMoney(0), toMoney(mealGroupCost > 0 ? mealExtraCost : 0m), toMoney(mealGroupCost), "Breakfast",
                                     rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
@@ -1198,7 +1226,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 dayActivityCost += mealGroupCost;
                                 remainingDayBudget -= mealGroupCost;
                                 remainingMealBudget -= mealGroupCost;
-                                currentTime = date.ToDateTime(BreakfastEnd).AddMinutes(BufferAfterMeal);
+                                currentTime = AddMinutes(actualMealEnd, BufferAfterMeal);
                                 breakfastInserted = true;
                                 if (rLoc is not null)
                                 {
@@ -1222,6 +1250,32 @@ namespace HSTS.Application.Itineraries.Queries
                                     : lunchBudgetPerPerson;
                                 var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, lunchPerPersonBudget, groupSize, request.TripSegment, out var lunchAlternatives, toMoney, recentlyVisitedLocationIds);
                                 var rLoc = restaurant?.Location;
+
+                                // Local transport to restaurant
+                                if (rLoc is not null)
+                                {
+                                    var restaurantPoint = GeoPoint.FromLocation(rLoc);
+                                    var mealTransport = await BuildLocalTransportAsync(
+                                        currentPoint, restaurantPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                    var mealArrival = AddMinutes(currentTime, mealTransport.SelectedTravelTimeMinutes);
+
+                                    var mealLeg = new LocationToLocationTravelLegDto(
+                                        currentLocationId, currentLocationName ?? "Unknown",
+                                        rLoc.Id, rLoc.Name,
+                                        TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(mealArrival),
+                                        mealTransport.DistanceKm, null,
+                                        0, toMoney(0),
+                                        mealTransport.TransportOptions);
+                                    timeline.Add(new ItineraryTimelineItemDto("travel",
+                                        "Local transfer",
+                                        TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(mealArrival),
+                                        0, new List<string>(),
+                                        null, null, null, "", 0,
+                                        LocationToLocationTravel: mealLeg));
+
+                                    currentTime = mealArrival;
+                                }
+
                                 var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
                                 var mealGroupCost = mealExtraCost * groupSize;
 
@@ -1234,9 +1288,10 @@ namespace HSTS.Application.Itineraries.Queries
                                 }
 
                                 var lunchTagNames = rLoc is not null ? GetTags(rLoc) : new List<string>();
+                                var actualMealEnd = AddMinutes(currentTime, 60);
                                 timeline.Add(new ItineraryTimelineItemDto("meal",
                                     rLoc is not null ? $"Lunch at {rLoc.Name}" : "Lunch",
-                                    currentTimeOnly, LunchEnd,
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(actualMealEnd),
                                     rLoc?.Id ?? 0, lunchTagNames,
                                     toMoney(0), toMoney(mealGroupCost > 0 ? mealExtraCost : 0m), toMoney(mealGroupCost), "Lunch",
                                     rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
@@ -1245,7 +1300,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 dayActivityCost += mealGroupCost;
                                 remainingDayBudget -= mealGroupCost;
                                 remainingMealBudget -= mealGroupCost;
-                                currentTime = date.ToDateTime(LunchEnd).AddMinutes(BufferAfterMeal);
+                                currentTime = AddMinutes(actualMealEnd, BufferAfterMeal);
                                 lunchInserted = true;
                                 if (rLoc is not null)
                                 {
@@ -1269,6 +1324,32 @@ namespace HSTS.Application.Itineraries.Queries
                                     : dinnerBudgetPerPerson;
                                 var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, dinnerPerPersonBudget, groupSize, request.TripSegment, out var dinnerAlternatives, toMoney, recentlyVisitedLocationIds);
                                 var rLoc = restaurant?.Location;
+
+                                // Local transport to restaurant
+                                if (rLoc is not null)
+                                {
+                                    var restaurantPoint = GeoPoint.FromLocation(rLoc);
+                                    var mealTransport = await BuildLocalTransportAsync(
+                                        currentPoint, restaurantPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                    var mealArrival = AddMinutes(currentTime, mealTransport.SelectedTravelTimeMinutes);
+
+                                    var mealLeg = new LocationToLocationTravelLegDto(
+                                        currentLocationId, currentLocationName ?? "Unknown",
+                                        rLoc.Id, rLoc.Name,
+                                        TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(mealArrival),
+                                        mealTransport.DistanceKm, null,
+                                        0, toMoney(0),
+                                        mealTransport.TransportOptions);
+                                    timeline.Add(new ItineraryTimelineItemDto("travel",
+                                        "Local transfer",
+                                        TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(mealArrival),
+                                        0, new List<string>(),
+                                        null, null, null, "", 0,
+                                        LocationToLocationTravel: mealLeg));
+
+                                    currentTime = mealArrival;
+                                }
+
                                 var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
                                 var mealGroupCost = mealExtraCost * groupSize;
 
@@ -1281,9 +1362,10 @@ namespace HSTS.Application.Itineraries.Queries
                                 }
 
                                 var dinnerTagNames = rLoc is not null ? GetTags(rLoc) : new List<string>();
+                                var actualMealEnd = AddMinutes(currentTime, 75);
                                 timeline.Add(new ItineraryTimelineItemDto("meal",
                                     rLoc is not null ? $"Dinner at {rLoc.Name}" : "Dinner",
-                                    currentTimeOnly, DinnerEnd,
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(actualMealEnd),
                                     rLoc?.Id ?? 0, dinnerTagNames,
                                     toMoney(0), toMoney(mealGroupCost > 0 ? mealExtraCost : 0m), toMoney(mealGroupCost), "Dinner",
                                     rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
@@ -1292,7 +1374,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 dayActivityCost += mealGroupCost;
                                 remainingDayBudget -= mealGroupCost;
                                 remainingMealBudget -= mealGroupCost;
-                                currentTime = date.ToDateTime(DinnerEnd).AddMinutes(BufferAfterMeal);
+                                currentTime = AddMinutes(actualMealEnd, BufferAfterMeal);
                                 dinnerInserted = true;
                                 if (rLoc is not null)
                                 {
@@ -2058,11 +2140,16 @@ namespace HSTS.Application.Itineraries.Queries
         }
 
         // === POST-PROCESSING: Re-filter alternatives against ALL main locations in the entire trip ===
+        // Also de-duplicates restaurant alternatives across all meals
 
         private static List<ItineraryDayDto> ReFilterAllDaysAlternatives(
             List<ItineraryDayDto> days, HashSet<int> allMainLocationIdsInTrip)
         {
             var result = new List<ItineraryDayDto>(days.Count);
+
+            // Phase 1: Filter alternatives against main locations, collect meal alt IDs
+            var usedRestaurantAltIds = new HashSet<int>();
+            var phase1Timeline = new List<List<ItineraryTimelineItemDto>>();
 
             foreach (var day in days)
             {
@@ -2081,6 +2168,15 @@ namespace HSTS.Application.Itineraries.Queries
                             .Where(a => !allMainLocationIdsInTrip.Contains(a.LocationId))
                             .ToList();
                         if (filteredAlternatives.Count == 0) filteredAlternatives = null;
+
+                        // For meal alternatives, track IDs for cross-meal deduplication
+                        if (item.EventType == "meal" && filteredAlternatives is { Count: > 0 })
+                        {
+                            foreach (var alt in filteredAlternatives)
+                            {
+                                usedRestaurantAltIds.Add(alt.LocationId);
+                            }
+                        }
                     }
 
                     // Filter AccommodationRecommendationDto: exclude any hotel that is a main location ANYWHERE in the trip
@@ -2114,13 +2210,86 @@ namespace HSTS.Application.Itineraries.Queries
                     }
                 }
 
+                phase1Timeline.Add(filteredTimeline);
+            }
+
+            // Phase 2: De-duplicate restaurant alternatives across all meals
+            // If a restaurant appears as alternative in multiple meals, keep it only in the first meal
+            // Also exclude restaurants that are main meals themselves
+            var seenRestaurantAltIds = new HashSet<int>(allMainLocationIdsInTrip); // Include main meal restaurants
+            var phase2Timeline = new List<List<ItineraryTimelineItemDto>>();
+
+            foreach (var timeline in phase1Timeline)
+            {
+                var dedupedTimeline = new List<ItineraryTimelineItemDto>(timeline.Count);
+                bool anyChanged = false;
+
+                foreach (var item in timeline)
+                {
+                    IList<AlternativeLocationDto>? dedupedAlternatives = item.Alternatives;
+
+                    // For meal alternatives, remove any restaurant already used in a previous meal
+                    if (item.EventType == "meal" && item.Alternatives is { Count: > 0 })
+                    {
+                        var newAlts = item.Alternatives
+                            .Where(a => !seenRestaurantAltIds.Contains(a.LocationId))
+                            .ToList();
+
+                        // Mark these IDs as seen for subsequent meals
+                        foreach (var alt in newAlts)
+                        {
+                            seenRestaurantAltIds.Add(alt.LocationId);
+                        }
+
+                        if (newAlts.Count != item.Alternatives.Count)
+                        {
+                            anyChanged = true;
+                            dedupedAlternatives = newAlts.Count > 0 ? newAlts : null;
+                        }
+                    }
+
+                    if (dedupedAlternatives != item.Alternatives)
+                    {
+                        anyChanged = true;
+                        dedupedTimeline.Add(new ItineraryTimelineItemDto(
+                            item.EventType, item.Title, item.StartTime, item.EndTime,
+                            item.LocationId, item.TagNames,
+                            item.TicketCost, item.ExtraCostPerPerson, item.CostForGroup,
+                            item.Note, item.Score,
+                            item.Address, item.Telephone, item.MediaUrls,
+                            item.LocationToLocationTravel,
+                            item.TransitHubToLocationTravel,
+                            item.LocationToTransitHubTravel,
+                            item.ProvinceToProvinceTravel,
+                            dedupedAlternatives,
+                            item.AccommodationRecommendations));
+                    }
+                    else
+                    {
+                        dedupedTimeline.Add(item);
+                    }
+                }
+
+                phase2Timeline.Add(dedupedTimeline);
+            }
+
+            // Build final result
+            for (int i = 0; i < days.Count; i++)
+            {
+                var day = days[i];
+                var finalTimeline = phase2Timeline[i];
+
+                // Check if anything changed from original
+                bool anyChanged = finalTimeline.Count != day.Timeline.Count ||
+                    finalTimeline.Where((t, idx) => !ReferenceEquals(t, day.Timeline[idx])).Any();
+
                 if (anyChanged)
                 {
                     result.Add(new ItineraryDayDto(
                         day.DayNumber, day.DayTitle, day.Date,
                         day.ProvinceId, day.WeatherSummary,
                         day.EstimatedCost,
-                        filteredTimeline));
+                        finalTimeline));
                 }
                 else
                 {
