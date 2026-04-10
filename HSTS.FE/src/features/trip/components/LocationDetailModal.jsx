@@ -9,12 +9,10 @@ import {
   Space,
   Divider,
 } from 'antd';
-import {
-  CheckCircleOutlined,
-} from '@ant-design/icons';
 import { getLocationByIdApi } from '../api';
+import { convertCurrencyAmount } from '../constants/currency';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -86,6 +84,20 @@ const toFiniteNumber = (value) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const formatAmountByCurrency = (value, currencyCode) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '0';
+
+  const normalizedCurrency = String(currencyCode || 'VND').toUpperCase();
+  const noDecimalCurrencies = new Set(['VND', 'JPY', 'KRW', 'IDR']);
+  const maximumFractionDigits = noDecimalCurrencies.has(normalizedCurrency) ? 0 : 2;
+
+  return amount.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  });
+};
+
 const extractMediaUrls = (location) => {
   const list = [
     ...(Array.isArray(location?.mediaLinks) ? location.mediaLinks : []),
@@ -126,6 +138,38 @@ const extractAmenityNames = (location) => {
   return [...new Set([...fromAmenities, ...fromNames])];
 };
 
+const normalizeSocialLink = (item) => {
+  if (item == null) return null;
+
+  if (typeof item === 'string') {
+    const text = item.trim();
+    if (!text) return null;
+    return { label: text, url: text };
+  }
+
+  const url = String(item?.url || item?.Url || item?.link || item?.Link || '').trim();
+  if (!url) return null;
+
+  const label = String(
+    item?.platformName
+    || item?.PlatformName
+    || item?.platform
+    || item?.Platform
+    || item?.name
+    || item?.Name
+    || url
+  ).trim();
+
+  return { label: label || url, url };
+};
+
+const toHref = (url) => {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+};
+
 const hasMojibake = (text) => /Ã|Â|áº|á»|á»¥|ðŸ|�/u.test(String(text || ''));
 
 const safePlaceName = (value) => {
@@ -142,7 +186,7 @@ const statusLabel = (status) => {
   return 'Unknown';
 };
 
-const LocationDetailModal = ({ open, locationId, onClose }) => {
+const LocationDetailModal = ({ open, locationId, currencyCode = 'VND', onClose }) => {
   const [loading, setLoading] = useState(false);
   const [location, setLocation] = useState(null);
 
@@ -216,13 +260,23 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
   const telephone = String(location?.telephone || location?.Telephone || '').trim();
   const email = String(location?.email || location?.Email || '').trim();
   const socialLinks = [...(Array.isArray(location?.socialLinks) ? location.socialLinks : []), ...(Array.isArray(location?.SocialLinks) ? location.SocialLinks : [])]
-    .map((item) => String(item || '').trim())
-    .filter(Boolean);
+    .map(normalizeSocialLink)
+    .filter(Boolean)
+    .filter((item, index, arr) => arr.findIndex((x) => x.url === item.url) === index);
   const seasons = [...(Array.isArray(location?.seasons) ? location.seasons : []), ...(Array.isArray(location?.Seasons) ? location.Seasons : [])]
     .map((item) => String(item || '').trim())
     .filter(Boolean);
-  const minPriceUsd = toFiniteNumber(location?.priceMinUsd ?? location?.PriceMinUsd);
-  const maxPriceUsd = toFiniteNumber(location?.priceMaxUsd ?? location?.PriceMaxUsd);
+  const minPriceVnd = toFiniteNumber(location?.priceMinUsd ?? location?.PriceMinUsd);
+  const maxPriceVnd = toFiniteNumber(location?.priceMaxUsd ?? location?.PriceMaxUsd);
+  const normalizedCurrencyCode = String(currencyCode || 'VND').toUpperCase();
+  const convertedTicketPrice = convertCurrencyAmount(ticketPrice, 'VND', normalizedCurrencyCode);
+  const minPriceInTripCurrency = minPriceVnd != null
+    ? convertCurrencyAmount(minPriceVnd, 'VND', normalizedCurrencyCode)
+    : null;
+  const maxPriceInTripCurrency = maxPriceVnd != null
+    ? convertCurrencyAmount(maxPriceVnd, 'VND', normalizedCurrencyCode)
+    : null;
+  const tripToVndRate = convertCurrencyAmount(1, normalizedCurrencyCode, 'VND');
   const status = toFiniteNumber(location?.status ?? location?.Status);
   const effectiveStatus = toFiniteNumber(location?.effectiveStatus ?? location?.EffectiveStatus);
   const createdAt = formatDateTime(location?.createdAt || location?.CreatedAt);
@@ -231,7 +285,7 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
 
   return (
     <Drawer
-      title={loading ? 'Loading...' : `🏛️ ${name}`}
+      title={loading ? 'Loading...' : name}
       open={open}
       onClose={onClose}
       placement="right"
@@ -257,19 +311,19 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
             </div>
           )}
 
-          {/* Basic Info */}
+          <Divider orientation="left" plain>Basic Information</Divider>
           <Descriptions size="small" column={2} bordered>
-            <Descriptions.Item label="📍 Address" span={2}>
+            <Descriptions.Item label="Address" span={2}>
               {address || 'N/A'}
             </Descriptions.Item>
             {districtName && (
-              <Descriptions.Item label="🏙️ District">{districtName}</Descriptions.Item>
+              <Descriptions.Item label="District">{districtName}</Descriptions.Item>
             )}
             {provinceName && (
-              <Descriptions.Item label="🗺️ Province">{provinceName}</Descriptions.Item>
+              <Descriptions.Item label="Province">{provinceName}</Descriptions.Item>
             )}
             {latitude != null && longitude != null && (
-              <Descriptions.Item label="🧭 Coordinates" span={2}>
+              <Descriptions.Item label="Coordinates" span={2}>
                 {`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`}
                 {mapUrl && (
                   <>
@@ -280,48 +334,59 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
               </Descriptions.Item>
             )}
             {locationTypeName && (
-              <Descriptions.Item label="🏷️ Category">{locationTypeName}</Descriptions.Item>
+              <Descriptions.Item label="Category">{locationTypeName}</Descriptions.Item>
             )}
             {displayRating && (
-              <Descriptions.Item label="⭐ Rating">{displayRating}</Descriptions.Item>
+              <Descriptions.Item label="Rating">{displayRating}</Descriptions.Item>
             )}
-            <Descriptions.Item label="🎫 Admission">
-              {ticketPrice > 0 ? `${ticketPrice.toLocaleString()} VND` : 'Free'}
+            <Descriptions.Item label="Admission">
+              {ticketPrice > 0
+                ? `${formatAmountByCurrency(convertedTicketPrice, normalizedCurrencyCode)} ${normalizedCurrencyCode}`
+                : 'Free'}
             </Descriptions.Item>
-            {(minPriceUsd != null || maxPriceUsd != null) && (
-              <Descriptions.Item label="💵 Price Range (USD)">
-                {`${(minPriceUsd || 0).toLocaleString()} - ${(maxPriceUsd || 0).toLocaleString()}`}
+            {(minPriceInTripCurrency != null || maxPriceInTripCurrency != null) && (
+              <Descriptions.Item label="Price Range">
+                <div>
+                  {`${formatAmountByCurrency(minPriceInTripCurrency || 0, normalizedCurrencyCode)} - ${formatAmountByCurrency(maxPriceInTripCurrency || 0, normalizedCurrencyCode)} ${normalizedCurrencyCode}`}
+                </div>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {`Rate: 1 ${normalizedCurrencyCode} = ${formatAmountByCurrency(tripToVndRate, 'VND')} VND`}
+                </Text>
               </Descriptions.Item>
             )}
             {recommendedDuration && (
-              <Descriptions.Item label="⏱️ Suggested Duration">
+              <Descriptions.Item label="Suggested Duration">
                 {formatMinutesAsHourMinute(recommendedDuration)}
               </Descriptions.Item>
             )}
-            <Descriptions.Item label="👤 Minimum Age">
+            <Descriptions.Item label="Minimum Age">
               {minimumAge > 0 ? `${minimumAge} years` : 'No requirement'}
             </Descriptions.Item>
+          </Descriptions>
+
+          <Divider orientation="left" plain>Contact and Status</Divider>
+          <Descriptions size="small" column={2} bordered>
             {telephone && (
-              <Descriptions.Item label="📞 Phone">{telephone}</Descriptions.Item>
+              <Descriptions.Item label="Phone">{telephone}</Descriptions.Item>
             )}
             {email && (
-              <Descriptions.Item label="✉️ Email">{email}</Descriptions.Item>
+              <Descriptions.Item label="Email">{email}</Descriptions.Item>
             )}
             {status != null && (
-              <Descriptions.Item label="📌 Status">
+              <Descriptions.Item label="Status">
                 <Tag color={status === 1 ? 'green' : 'default'}>{statusLabel(status)}</Tag>
               </Descriptions.Item>
             )}
             {effectiveStatus != null && (
-              <Descriptions.Item label="✅ Effective Status">
+              <Descriptions.Item label="Effective Status">
                 <Tag color={effectiveStatus === 1 ? 'green' : 'default'}>{statusLabel(effectiveStatus)}</Tag>
               </Descriptions.Item>
             )}
             {createdAt && (
-              <Descriptions.Item label="🕒 Created At">{createdAt}</Descriptions.Item>
+              <Descriptions.Item label="Created At">{createdAt}</Descriptions.Item>
             )}
             {updatedAt && (
-              <Descriptions.Item label="🛠️ Updated At">{updatedAt}</Descriptions.Item>
+              <Descriptions.Item label="Updated At">{updatedAt}</Descriptions.Item>
             )}
           </Descriptions>
 
@@ -356,7 +421,7 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
           {/* Closures */}
           {closures.length > 0 && (
             <>
-              <Divider orientation="left" plain>⚠️ Closures</Divider>
+              <Divider orientation="left" plain>Closures</Divider>
               {closures.map((c, i) => (
                 <div key={i} style={{ fontSize: 13, color: '#ff4d4f' }}>
                   {c.fromDate || c.FromDate} → {c.toDate || c.ToDate}: {c.reason || c.Reason || 'N/A'}
@@ -368,7 +433,7 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
           {/* Tags */}
           {tags.length > 0 && (
             <>
-              <Divider orientation="left" plain>🏷️ Tags</Divider>
+              <Divider orientation="left" plain>Tags</Divider>
               <Space wrap>
                 {tags.map((tagName) => (
                   <Tag key={tagName} color="blue">{tagName}</Tag>
@@ -383,7 +448,7 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
               <Divider orientation="left" plain>Amenities</Divider>
               <Space wrap>
                 {amenities.map((amenityName) => (
-                  <Tag key={amenityName} icon={<CheckCircleOutlined />} color="green">
+                  <Tag key={amenityName} color="green">
                     {amenityName}
                   </Tag>
                 ))}
@@ -393,11 +458,11 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
 
           {socialLinks.length > 0 && (
             <>
-              <Divider orientation="left" plain>🌐 Social Links</Divider>
+              <Divider orientation="left" plain>Social Links</Divider>
               <Space direction="vertical" size={4} style={{ width: '100%' }}>
                 {socialLinks.map((link) => (
-                  <a key={link} href={link} target="_blank" rel="noreferrer">
-                    {link}
+                  <a key={link.url} href={toHref(link.url)} target="_blank" rel="noreferrer">
+                    {link.label}
                   </a>
                 ))}
               </Space>
@@ -406,7 +471,7 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
 
           {seasons.length > 0 && (
             <>
-              <Divider orientation="left" plain>📅 Seasons</Divider>
+              <Divider orientation="left" plain>Seasons</Divider>
               <Space wrap>
                 {seasons.map((season) => (
                   <Tag key={season}>{season}</Tag>

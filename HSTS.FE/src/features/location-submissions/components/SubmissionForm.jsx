@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Button, Space, Card, Divider, Rate, Radio, Table, TimePicker } from 'antd';
+import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Button, Space, Card, Divider, Rate, Table, TimePicker, ConfigProvider } from 'antd';
 import { PlusOutlined, DeleteOutlined, EnvironmentOutlined, HomeOutlined, PhoneOutlined, MailOutlined, DollarOutlined, PictureOutlined, LinkOutlined, TagsOutlined, ClockCircleOutlined, CloudOutlined } from '@ant-design/icons';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
 import {
@@ -12,11 +12,11 @@ import {
 } from '../api';
 import { buildTagHierarchy } from '@/utils/locationCache';
 import dayjs from 'dayjs';
+import styles from '../styles/SubmissionForm.module.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
-// Platform options for social links (matching backend enum values)
 const SOCIAL_PLATFORMS = [
   { value: 'Facebook', label: 'Facebook', enumValue: 1 },
   { value: 'Instagram', label: 'Instagram', enumValue: 2 },
@@ -27,18 +27,43 @@ const SOCIAL_PLATFORMS = [
   { value: 'Other', label: 'Other', enumValue: 14 }
 ];
 
-// Helper to convert platform string to enum value
 const getPlatformEnumValue = (platformName) => {
   if (typeof platformName === 'number') return platformName;
   const platformObj = SOCIAL_PLATFORMS.find(p => p.value.toLowerCase() === platformName?.toLowerCase());
   return platformObj ? platformObj.enumValue : 14;
 };
 
-// Helper to convert platform enum value to name
 const getPlatformName = (platform) => {
   if (typeof platform === 'string') return platform;
   const platformObj = SOCIAL_PLATFORMS.find(p => p.enumValue === platform);
   return platformObj ? platformObj.value : 'Other';
+};
+
+const tropicalTheme = {
+  token: {
+    colorPrimary: '#FF6B6B',
+    colorInfo: '#4ECDC4',
+    colorTextBase: '#1A535C',
+    colorBgBase: '#F7F9F9',
+    fontFamily: "'Plus Jakarta Sans', 'Poppins', sans-serif",
+    borderRadius: 16,
+  },
+  components: {
+    Button: {
+      borderRadius: 8,
+      controlHeight: 44,
+      fontWeight: 600,
+    },
+    Card: {
+      borderRadiusLG: 20,
+    },
+    Input: {
+      controlHeight: 44,
+    },
+    Select: {
+      controlHeight: 44,
+    }
+  }
 };
 
 const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess }) => {
@@ -46,9 +71,7 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
   const [loading, setLoading] = useState(false);
   const [rootTags, setRootTags] = useState([]);
   const [availableChildTags, setAvailableChildTags] = useState([]);
-  // Selected parent tag IDs (for filtering child tags, not submitted)
   const [selectedParentTagIds, setSelectedParentTagIds] = useState([]);
-  // Selected child tag IDs (submitted as tagIds)
   const [selectedChildTagIds, setSelectedChildTagIds] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
@@ -58,28 +81,25 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
   const [openingHours, setOpeningHours] = useState([]);
   const [seasons, setSeasons] = useState([]);
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
-  const [submissionType, setSubmissionType] = useState(0); // 0 = NewLocation, 1 = EditExisting
+  const [submissionType, setSubmissionType] = useState(0);
   const [tagsLoading, setTagsLoading] = useState(false);
   const [childTagsByParent, setChildTagsByParent] = useState({});
 
   const isEdit = !!submission;
   const isEditExisting = submissionType === 1 || !!existingLocation;
 
-  // Set submission type based on existingLocation
   useEffect(() => {
     if (existingLocation) {
-      setSubmissionType(1); // EditExisting mode
+      setSubmissionType(1);
     } else if (!submission) {
-      setSubmissionType(0); // NewLocation mode
+      setSubmissionType(0);
     }
   }, [existingLocation, submission]);
 
-  // Fetch dropdown data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setTagsLoading(true);
-        // Single API call to get all tags - use large pageSize to get all
         const [allTagsRes, districtsRes, typesRes, amenitiesRes] = await Promise.all([
           getAllTagsApi({ pageSize: 9999 }),
           getAllDistrictsApi(),
@@ -87,13 +107,11 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
           getAllAmenitiesApi()
         ]);
 
-        // Handle paginated responses (extract items array)
         const allTags = Array.isArray(allTagsRes) ? allTagsRes : (allTagsRes?.items || []);
         const districts = Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []);
         const types = Array.isArray(typesRes) ? typesRes : (typesRes?.items || []);
         const amenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
 
-        // Build tag hierarchy client-side
         const { rootTags, childTagsByParent } = buildTagHierarchy(allTags);
 
         setRootTags(rootTags);
@@ -111,26 +129,21 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
     fetchData();
   }, []);
 
-  // Handle parent tag change - updates filter for child tag dropdown
-  // Parent tags are NOT submitted, only used to filter child tags
   const handleParentTagChange = (selectedParentIds) => {
     setSelectedParentTagIds(selectedParentIds);
 
-    // Get child tags for selected parent tags
     const filteredChildTags = [];
     selectedParentIds.forEach(parentId => {
       const children = childTagsByParent[parentId] || [];
       filteredChildTags.push(...children);
     });
 
-    // Remove duplicates
     const uniqueChildTags = filteredChildTags.filter(
       (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
     );
 
     setAvailableChildTags(uniqueChildTags);
 
-    // Remove selected child tags that are no longer in filtered list
     const availableChildIds = new Set(uniqueChildTags.map(t => t.id));
     const filteredChildTagIds = selectedChildTagIds.filter(id => availableChildIds.has(id));
 
@@ -140,18 +153,15 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
     }
   };
 
-  // Handle child tag selection - only child tags are saved
   const handleChildTagChange = (selectedChildIds) => {
     setSelectedChildTagIds(selectedChildIds);
     form.setFieldValue('tagIds', selectedChildIds);
   };
 
-  // Populate form when editing or suggesting edit - derive parent tags from child tags
   useEffect(() => {
     const dataToPopulate = existingLocation || submission;
 
     if (dataToPopulate && rootTags.length > 0 && childTagsByParent && locationTypes.length > 0 && districts.length > 0) {
-      // Derive parent tag IDs from child tags
       const childTagIds = dataToPopulate.tagIds || dataToPopulate.tags?.map(t => t.id) || [];
       const parentIds = new Set();
       childTagIds.forEach(childId => {
@@ -166,7 +176,6 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
       setSelectedParentTagIds([...parentIds]);
       setSelectedChildTagIds(childTagIds);
 
-      // Set available child tags based on derived parent tags
       const filteredChildTags = [];
       [...parentIds].forEach(parentId => {
         const children = childTagsByParent[parentId] || [];
@@ -202,7 +211,6 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
         setMediaLinks(dataToPopulate.mediaLinks);
       }
       if (dataToPopulate.socialLinks) {
-        // Transform social links to use platform names instead of enum values
         const transformedSocialLinks = dataToPopulate.socialLinks.map(sl => ({
           platform: getPlatformName(sl.platform),
           url: sl.url
@@ -210,7 +218,6 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
         setSocialLinks(transformedSocialLinks);
       }
       if (dataToPopulate.openingHours) {
-        // Normalize opening hours data - handle both camelCase and PascalCase
         const normalizedOpeningHours = dataToPopulate.openingHours.map(oh => ({
           id: oh.id || 0,
           dayOfWeek: oh.dayOfWeek ?? oh.DayOfWeek,
@@ -224,7 +231,6 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
         setOpeningHours([]);
       }
       if (dataToPopulate.seasons !== undefined) {
-        // Normalize seasons data - convert months string to array if needed
         const normalizedSeasons = Array.isArray(dataToPopulate.seasons) 
           ? dataToPopulate.seasons.map(season => ({
               id: season.id || 0,
@@ -250,7 +256,6 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      // Transform seasons to convert months array to comma-separated string
       const formattedSeasons = seasons.length > 0
         ? seasons.map(season => ({
             id: season.id,
@@ -259,7 +264,6 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
           }))
         : null;
 
-      // Transform opening hours to ensure dayOfWeek is a number
       const formattedOpeningHours = openingHours.length > 0
         ? openingHours.map(oh => ({
             ...oh,
@@ -270,7 +274,6 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
       const payload = {
         ...values,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : null,
-        // Convert platform string to enum number
         socialLinks: socialLinks.length > 0
           ? socialLinks.map(sl => ({
               platform: getPlatformEnumValue(sl.platform),
@@ -278,32 +281,26 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
             }))
           : null,
         amenityIds: values.amenityIds?.length > 0 ? values.amenityIds : null,
-        // Only child tags are submitted (not parent tags)
         tagIds: selectedChildTagIds,
         openingHours: formattedOpeningHours,
         seasons: formattedSeasons,
-        // Include submission type for edit-existing mode
         submissionType: isEditExisting ? 1 : 0,
         existingLocationId: isEditExisting ? (existingLocation?.id || submission?.existingLocationId) : undefined
       };
 
       if (isEdit && !isEditExisting) {
-        // Editing a pending submission
         await updateLocationSubmissionApi(submission.id, payload);
         message.success('Submission updated successfully. It will be reviewed by admin.');
       } else if (isEditExisting) {
-        // Suggesting edit to existing published location
         await createLocationSubmissionApi(payload);
         message.success('Edit suggestion submitted successfully. It will be reviewed by admin.');
       } else {
-        // Creating new submission
         await createLocationSubmissionApi(payload);
         message.success('Submission created successfully. Waiting for admin approval.');
       }
       onSuccess();
       onClose();
     } catch (error) {
-      // Error handled by global interceptor
     } finally {
       setLoading(false);
     }
@@ -346,7 +343,6 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
     setSocialLinks(socialLinks.filter((_, i) => i !== index));
   };
 
-  // Opening Hours handlers
   const DAYS_OF_WEEK = [
     { value: 0, label: 'Sunday' },
     { value: 1, label: 'Monday' },
@@ -392,7 +388,6 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
     setOpeningHours(openingHours.filter((_, i) => i !== index));
   };
 
-  // Seasons handlers
   const MONTHS = [
     { value: '1', label: 'January' },
     { value: '2', label: 'February' },
@@ -423,35 +418,36 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
   };
 
   return (
-    <>
+    <ConfigProvider theme={tropicalTheme}>
       <Modal
-        title={isEditExisting ? 'Suggest Edit to Location' : (isEdit ? 'Edit Submission' : 'Submit Your Location')}
+        title={<span className={styles.modalTitle}>{isEditExisting ? 'Suggest Edit to Location' : (isEdit ? 'Edit Submission' : 'Submit Your Location')}</span>}
         open={open}
         onCancel={onClose}
         onOk={() => form.submit()}
         confirmLoading={loading}
         destroyOnClose
         width={1000}
+        className={styles.tropicalFormModal}
+        okButtonProps={{ className: styles.ctaButtonSubmit }}
       >
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Form form={form} layout="vertical" onFinish={handleSubmit} className={styles.tropicalForm}>
           
-          {/* Section 1: Basic Information */}
-          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-              <HomeOutlined style={{ fontSize: 20, color: '#1890ff', marginRight: 8 }} />
-              <strong style={{ fontSize: 16 }}>Basic Information</strong>
+          <Card size="small" type="inner" className={styles.tropicalFormCard}>
+            <div className={styles.cardHeader}>
+              <HomeOutlined className={styles.cardIcon} style={{ color: '#4ECDC4' }} />
+              <strong className={styles.cardTitle}>Basic Information</strong>
             </div>
             <Row gutter={16}>
               <Col span={24}>
                 <Form.Item
                   name="name"
-                  label="Location Name"
+                  label={<span className={styles.formLabel}>Location Name</span>}
                   rules={[
                     { required: true, message: 'Please enter location name' },
                     { max: 200, message: 'Location name cannot exceed 200 characters' }
                   ]}
                 >
-                  <Input placeholder="e.g., Sunrise Hotel, Blue Ocean Resort" size="large" />
+                  <Input placeholder="e.g., Sunrise Hotel, Blue Ocean Resort" />
                 </Form.Item>
               </Col>
             </Row>
@@ -459,31 +455,19 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
               <Col span={24}>
                 <Form.Item
                   name="description"
-                  label="Description (Include your services here)"
+                  label={<span className={styles.formLabel}>Description</span>}
                   rules={[{ max: 2000, message: 'Description cannot exceed 2000 characters' }]}
-                  extra="Describe your location and list all services you offer (e.g., room types, food services, activities with prices)"
                 >
-                  <TextArea rows={6} placeholder={`Example:
-Accommodation:
-- Standard Room: $50/night (Double bed, city view)
-- Deluxe Room: $80/night (King bed, ocean view)
-
-Food & Beverage:
-- Breakfast Buffet: $10/person
-- Room Service: Available 24/7
-
-Transportation:
-- Airport Shuttle: $25/trip`} />
+                  <TextArea rows={6} placeholder="Describe your location..." className={styles.customTextArea} />
                 </Form.Item>
               </Col>
             </Row>
           </Card>
 
-          {/* Section 2: Location & Contact */}
-          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-              <EnvironmentOutlined style={{ fontSize: 20, color: '#52c41a', marginRight: 8 }} />
-              <strong style={{ fontSize: 16 }}>Location & Contact</strong>
+          <Card size="small" type="inner" className={styles.tropicalFormCard}>
+            <div className={styles.cardHeader}>
+              <EnvironmentOutlined className={styles.cardIcon} style={{ color: '#FF6B6B' }} />
+              <strong className={styles.cardTitle}>Location & Contact</strong>
             </div>
             <Row gutter={16}>
               <Col span={12}>
@@ -491,12 +475,13 @@ Transportation:
                   name="latitude"
                   label={
                     <Space>
-                      <span>Latitude</span>
+                      <span className={styles.formLabel}>Latitude</span>
                       <Button
                         type="link"
                         size="small"
                         icon={<EnvironmentOutlined />}
                         onClick={() => setMapPickerOpen(true)}
+                        className={styles.mapBtn}
                       >
                         Pick on Map
                       </Button>
@@ -513,7 +498,7 @@ Transportation:
               <Col span={12}>
                 <Form.Item
                   name="longitude"
-                  label="Longitude"
+                  label={<span className={styles.formLabel}>Longitude</span>}
                   rules={[
                     { required: true, message: 'Please enter longitude' },
                     { type: 'number', min: -180, max: 180, message: 'Longitude must be between -180 and 180' }
@@ -527,13 +512,13 @@ Transportation:
               <Col span={24}>
                 <Form.Item
                   name="address"
-                  label="Full Address"
+                  label={<span className={styles.formLabel}>Full Address</span>}
                   rules={[
                     { required: true, message: 'Please enter address' },
                     { max: 300, message: 'Address cannot exceed 300 characters' }
                   ]}
                 >
-                  <Input placeholder="Street number, ward, district, city" size="large" />
+                  <Input placeholder="Street number, ward, district, city" />
                 </Form.Item>
               </Col>
             </Row>
@@ -544,7 +529,7 @@ Transportation:
                   label={
                     <Space>
                       <PhoneOutlined />
-                      <span>Telephone</span>
+                      <span className={styles.formLabel}>Telephone</span>
                     </Space>
                   }
                   rules={[{ max: 50, message: 'Telephone cannot exceed 50 characters' }]}
@@ -558,7 +543,7 @@ Transportation:
                   label={
                     <Space>
                       <MailOutlined />
-                      <span>Email</span>
+                      <span className={styles.formLabel}>Email</span>
                     </Space>
                   }
                   rules={[
@@ -572,19 +557,17 @@ Transportation:
             </Row>
           </Card>
 
-          {/* Section 3: Pricing */}
-          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-              <DollarOutlined style={{ fontSize: 20, color: '#faad14', marginRight: 8 }} />
-              <strong style={{ fontSize: 16 }}>Pricing</strong>
+          <Card size="small" type="inner" className={styles.tropicalFormCard}>
+            <div className={styles.cardHeader}>
+              <DollarOutlined className={styles.cardIcon} style={{ color: '#FFE66D' }} />
+              <strong className={styles.cardTitle}>Pricing</strong>
             </div>
             
-            {/* Ticket Price */}
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
                   name="ticketPrice"
-                  label="Ticket Price"
+                  label={<span className={styles.formLabel}>Ticket Price</span>}
                   rules={[
                     { required: true, message: 'Please enter ticket price' },
                     { type: 'number', min: 0, message: 'Price must be 0 or positive' }
@@ -603,7 +586,7 @@ Transportation:
               <Col span={12}>
                 <Form.Item
                   name="minimumAge"
-                  label="Minimum Age"
+                  label={<span className={styles.formLabel}>Minimum Age</span>}
                   rules={[
                     { required: true, message: 'Please enter minimum age' },
                     { type: 'number', min: 0, max: 120, message: 'Age must be between 0 and 120' }
@@ -620,12 +603,11 @@ Transportation:
               </Col>
             </Row>
 
-            {/* Price Range */}
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
                   name="priceMinUsd"
-                  label="Min Price (USD)"
+                  label={<span className={styles.formLabel}>Min Price (USD)</span>}
                   rules={[
                     { type: 'number', min: 0, message: 'Price must be 0 or positive' }
                   ]}
@@ -643,7 +625,7 @@ Transportation:
               <Col span={12}>
                 <Form.Item
                   name="priceMaxUsd"
-                  label="Max Price (USD)"
+                  label={<span className={styles.formLabel}>Max Price (USD)</span>}
                   rules={[
                     { type: 'number', min: 0, message: 'Price must be 0 or positive' }
                   ]}
@@ -660,13 +642,11 @@ Transportation:
               </Col>
             </Row>
 
-            {/* Recommended Duration */}
             <Row gutter={16}>
               <Col span={24}>
                 <Form.Item
                   name="recommendedDurationMinutes"
-                  label="Recommended Visit Duration"
-                  tooltip="Suggested time visitors should spend at this location"
+                  label={<span className={styles.formLabel}>Recommended Visit Duration</span>}
                   rules={[
                     { type: 'number', min: 0, message: 'Duration must be 0 or positive' }
                   ]}
@@ -683,38 +663,34 @@ Transportation:
             </Row>
           </Card>
 
-          {/* Section 3.5: Score */}
-          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-              <strong style={{ fontSize: 16 }}>Location Score</strong>
+          <Card size="small" type="inner" className={styles.tropicalFormCard}>
+            <div className={styles.cardHeader}>
+              <strong className={styles.cardTitle}>Location Score</strong>
             </div>
             <Row gutter={16}>
               <Col span={24}>
                 <Form.Item
                   name="score"
-                  label="Score (0-5 stars)"
-                  tooltip="Rate this location from 0 to 5 stars"
+                  label={<span className={styles.formLabel}>Score (0-5 stars)</span>}
                 >
-                  <Rate allowHalf style={{ fontSize: 24 }} />
+                  <Rate allowHalf className={styles.tropicalRate} />
                 </Form.Item>
               </Col>
             </Row>
           </Card>
 
-          {/* Section 4: Categories */}
-          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-              <TagsOutlined style={{ fontSize: 20, color: '#722ed1', marginRight: 8 }} />
-              <strong style={{ fontSize: 16 }}>Categories</strong>
+          <Card size="small" type="inner" className={styles.tropicalFormCard}>
+            <div className={styles.cardHeader}>
+              <TagsOutlined className={styles.cardIcon} style={{ color: '#4ECDC4' }} />
+              <strong className={styles.cardTitle}>Categories</strong>
             </div>
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
                   name="districtId"
-                  label="District"
-                  tooltip="Select the district/area where your location is located"
+                  label={<span className={styles.formLabel}>District</span>}
                 >
-                  <Select placeholder="Select district" allowClear showSearch optionFilterProp="children" size="large">
+                  <Select placeholder="Select district" allowClear showSearch optionFilterProp="children">
                     {districts.map(district => (
                       <Option key={district.id} value={district.id}>
                         {district.name}
@@ -726,15 +702,13 @@ Transportation:
               <Col span={12}>
                 <Form.Item
                   name="locationTypeId"
-                  label="Location Type"
-                  tooltip="Select the type that best describes your location"
+                  label={<span className={styles.formLabel}>Location Type</span>}
                 >
                   <Select 
                     placeholder="Select type" 
                     allowClear 
                     showSearch 
                     optionFilterProp="children" 
-                    size="large"
                     loading={locationTypes.length === 0}
                   >
                     {locationTypes.map(type => (
@@ -750,8 +724,7 @@ Transportation:
               <Col span={12}>
                 <Form.Item
                   name="amenityIds"
-                  label="Amenities"
-                  tooltip="Select all amenities available at your location"
+                  label={<span className={styles.formLabel}>Amenities</span>}
                 >
                   <Select mode="multiple" placeholder="Select amenities" showSearch optionFilterProp="children">
                     {amenities.map(amenity => (
@@ -763,10 +736,8 @@ Transportation:
                 </Form.Item>
               </Col>
               <Col span={24}>
-                {/* Parent Tags Section (Filter Only) */}
                 <Form.Item
-                  label="Parent Tags"
-                  tooltip="Select parent categories to filter child tags"
+                  label={<span className={styles.formLabel}>Parent Tags</span>}
                   style={{ marginBottom: 8 }}
                 >
                   <Select
@@ -780,17 +751,15 @@ Transportation:
                   >
                     {rootTags.map(tag => (
                       <Option key={tag.id} value={tag.id}>
-                        {tag.name} <span style={{ color: '#52c41a' }}>(Parent)</span>
+                        {tag.name} <span style={{ color: '#4ECDC4' }}>(Parent)</span>
                       </Option>
                     ))}
                   </Select>
                 </Form.Item>
 
-                {/* Child Tags Section (Selected & Submitted) */}
                 <Form.Item
                   name="tagIds"
-                  label="Child Tags"
-                  tooltip="Select child tags to associate with this location"
+                  label={<span className={styles.formLabel}>Child Tags</span>}
                   rules={[
                     { required: true, message: 'Please select at least one child tag' },
                     { type: 'array', min: 1, message: 'At least one child tag is required' }
@@ -807,7 +776,7 @@ Transportation:
                   >
                     {availableChildTags.map(tag => (
                       <Option key={tag.id} value={tag.id}>
-                        {tag.name} <span style={{ color: '#1677ff' }}>(Child)</span>
+                        {tag.name} <span style={{ color: '#FF6B6B' }}>(Child)</span>
                       </Option>
                     ))}
                   </Select>
@@ -816,18 +785,16 @@ Transportation:
             </Row>
           </Card>
 
-          {/* Section 5: Media Links */}
-          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-              <PictureOutlined style={{ fontSize: 20, color: '#13c2c2', marginRight: 8 }} />
-              <strong style={{ fontSize: 16 }}>Media Links</strong>
+          <Card size="small" type="inner" className={styles.tropicalFormCard}>
+            <div className={styles.cardHeader}>
+              <PictureOutlined className={styles.cardIcon} style={{ color: '#1A535C' }} />
+              <strong className={styles.cardTitle}>Media Links</strong>
             </div>
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: 16 }}>
               <Space>
-                <Button type="dashed" onClick={addMediaLink} icon={<PlusOutlined />}>
+                <Button className={styles.dashedBtn} onClick={addMediaLink} icon={<PlusOutlined />}>
                   Add Image/Video Link
                 </Button>
-                <span style={{ color: '#999', fontSize: 12 }}>Add URLs to your photos or videos hosted online</span>
               </Space>
             </div>
             {mediaLinks.map((link, index) => (
@@ -838,31 +805,29 @@ Transportation:
                   placeholder="https://example.com/image.jpg"
                 />
                 <Button
-                  danger
+                  className={styles.dangerIconBtn}
                   icon={<DeleteOutlined />}
                   onClick={() => removeMediaLink(index)}
                 />
               </Space.Compact>
             ))}
             {mediaLinks.length === 0 && (
-              <div style={{ color: '#999', textAlign: 'center', padding: '20px' }}>
+              <div className={styles.emptyStateText}>
                 No media links added yet
               </div>
             )}
           </Card>
 
-          {/* Section 6: Social Media Links */}
-          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-              <LinkOutlined style={{ fontSize: 20, color: '#eb2f96', marginRight: 8 }} />
-              <strong style={{ fontSize: 16 }}>Social Media Links</strong>
+          <Card size="small" type="inner" className={styles.tropicalFormCard}>
+            <div className={styles.cardHeader}>
+              <LinkOutlined className={styles.cardIcon} style={{ color: '#FF6B6B' }} />
+              <strong className={styles.cardTitle}>Social Media Links</strong>
             </div>
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: 16 }}>
               <Space>
-                <Button type="dashed" onClick={addSocialLink} icon={<PlusOutlined />}>
+                <Button className={styles.dashedBtn} onClick={addSocialLink} icon={<PlusOutlined />}>
                   Add Social Link
                 </Button>
-                <span style={{ color: '#999', fontSize: 12 }}>Add your social media profiles</span>
               </Space>
             </div>
             {socialLinks.map((link, index) => (
@@ -870,12 +835,12 @@ Transportation:
                 key={index}
                 size="small"
                 type="inner"
-                style={{ marginBottom: 8 }}
+                className={styles.innerSocialCard}
                 title={`Social Link ${index + 1}`}
                 extra={
                   <Button
                     type="text"
-                    danger
+                    className={styles.dangerTextBtn}
                     size="small"
                     icon={<DeleteOutlined />}
                     onClick={() => removeSocialLink(index)}
@@ -884,7 +849,7 @@ Transportation:
               >
                 <Row gutter={16}>
                   <Col span={12}>
-                    <Form.Item label="Platform" required>
+                    <Form.Item label={<span className={styles.formLabel}>Platform</span>} required>
                       <Select
                         value={link.platform}
                         onChange={(value) => updateSocialLink(index, 'platform', value)}
@@ -902,7 +867,7 @@ Transportation:
                     </Form.Item>
                   </Col>
                   <Col span={12}>
-                    <Form.Item label="URL" required>
+                    <Form.Item label={<span className={styles.formLabel}>URL</span>} required>
                       <Input
                         value={link.url}
                         onChange={(e) => updateSocialLink(index, 'url', e.target.value)}
@@ -914,18 +879,17 @@ Transportation:
               </Card>
             ))}
             {socialLinks.length === 0 && (
-              <div style={{ color: '#999', textAlign: 'center', padding: '20px' }}>
+              <div className={styles.emptyStateText}>
                 No social links added yet
               </div>
             )}
           </Card>
 
-          {/* Section 7: Opening Hours */}
-          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
-            <Divider orientation="left"><ClockCircleOutlined /> Opening Hours</Divider>
+          <Card size="small" type="inner" className={styles.tropicalFormCard}>
+            <Divider orientation="left" className={styles.tropicalDivider}><ClockCircleOutlined /> Opening Hours</Divider>
             <Space direction="vertical" size="small" style={{ width: '100%' }}>
               <Space>
-                <Button type="dashed" onClick={addAllOpeningHours} icon={<PlusOutlined />}>
+                <Button className={styles.dashedBtn} onClick={addAllOpeningHours} icon={<PlusOutlined />}>
                   Add All Days
                 </Button>
                 <Select
@@ -948,6 +912,7 @@ Transportation:
                   pagination={false}
                   size="small"
                   rowKey={(record, index) => index}
+                  className={styles.tropicalTable}
                   columns={[
                     {
                       title: 'Day',
@@ -1000,7 +965,7 @@ Transportation:
                       render: (_, record, index) => (
                         <Button
                           type="text"
-                          danger
+                          className={styles.dangerTextBtn}
                           size="small"
                           icon={<DeleteOutlined />}
                           onClick={() => removeOpeningHour(index)}
@@ -1013,11 +978,10 @@ Transportation:
             </Space>
           </Card>
 
-          {/* Section 8: Best Seasons to Visit */}
-          <Card size="small" type="inner" style={{ marginBottom: 16 }}>
-            <Divider orientation="left"><CloudOutlined /> Best Seasons to Visit</Divider>
+          <Card size="small" type="inner" className={styles.tropicalFormCard}>
+            <Divider orientation="left" className={styles.tropicalDivider}><CloudOutlined /> Best Seasons to Visit</Divider>
             <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              <Button type="dashed" onClick={addSeason} icon={<PlusOutlined />}>
+              <Button className={styles.dashedBtn} onClick={addSeason} icon={<PlusOutlined />}>
                 Add Season
               </Button>
 
@@ -1028,11 +992,12 @@ Transportation:
                       key={index}
                       size="small"
                       type="inner"
+                      className={styles.innerSocialCard}
                       title={`Season ${index + 1}`}
                       extra={
                         <Button
                           type="text"
-                          danger
+                          className={styles.dangerTextBtn}
                           size="small"
                           icon={<DeleteOutlined />}
                           onClick={() => removeSeason(index)}
@@ -1041,14 +1006,14 @@ Transportation:
                       style={{ maxWidth: 800 }}
                     >
                       <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                        <Form.Item label="Description" required>
+                        <Form.Item label={<span className={styles.formLabel}>Description</span>} required>
                           <Input
                             value={season.description}
                             onChange={(e) => updateSeason(index, 'description', e.target.value)}
-                            placeholder="e.g., Dry Season, Best time for beach activities"
+                            placeholder="e.g., Dry Season"
                           />
                         </Form.Item>
-                        <Form.Item label="Months" required>
+                        <Form.Item label={<span className={styles.formLabel}>Months</span>} required>
                           <Select
                             mode="multiple"
                             value={season.months}
@@ -1072,7 +1037,6 @@ Transportation:
         </Form>
       </Modal>
 
-      {/* Google Map Picker Modal */}
       <GoogleMapPicker
         open={mapPickerOpen}
         onClose={() => setMapPickerOpen(false)}
@@ -1080,7 +1044,7 @@ Transportation:
         initialLat={form.getFieldValue('latitude')}
         initialLng={form.getFieldValue('longitude')}
       />
-    </>
+    </ConfigProvider>
   );
 };
 

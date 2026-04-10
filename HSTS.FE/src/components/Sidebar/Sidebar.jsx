@@ -11,7 +11,8 @@ import {
   GoldOutlined, 
   ShopOutlined, 
   UserOutlined, 
-  LogoutOutlined 
+  LogoutOutlined,
+  RocketOutlined 
 } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/features/auth/hooks/useAuth';
@@ -30,7 +31,6 @@ const Sidebar = () => {
 
   const role = user?.roles?.[0];
 
-  // Đã gộp đầy đủ menu từ cả 2 nhánh
   const sideMenuItems = [
     {
       key: PATHS.DASHBOARD,
@@ -45,10 +45,10 @@ const Sidebar = () => {
       onClick: () => navigate(PATHS.SCHEDULES),
     },
     {
-      key: PATHS.ITINERARY, 
-      icon: <EnvironmentOutlined />,
-      label: 'Itinerary',
-      onClick: () => navigate(PATHS.ITINERARY),
+      key: PATHS.CREATE_TRIP,
+      icon: <RocketOutlined />,
+      label: 'Plan Trip',
+      onClick: () => navigate(PATHS.CREATE_TRIP)
     },
     {
       key: PATHS.DESTINATIONS,
@@ -125,7 +125,7 @@ const Sidebar = () => {
       <Dropdown menu={{ items: userDropdownItems }} placement="bottomRight" trigger={['click']}>
         <div className={styles.profileContainer}>
           <Avatar
-            size={collapsed ? 48 : 72}
+            size={collapsed ? 40 : 72}
             src={user?.avatarUrl ?? null}
             style={{ 
               backgroundColor: '#FFE66D', 
@@ -134,7 +134,7 @@ const Sidebar = () => {
               transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
               fontFamily: "'Plus Jakarta Sans', sans-serif",
               fontWeight: 700,
-              fontSize: collapsed ? '20px' : '32px',
+              fontSize: collapsed ? '16px' : '32px',
               boxShadow: '0 8px 24px rgba(255, 107, 107, 0.2)'
             }}
           >

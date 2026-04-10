@@ -4,21 +4,20 @@ import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, Environm
 import { createLocationApi, updateLocationApi, getAllDistrictsApi, getAllLocationTypesApi, getAllAmenitiesApi, getAllTagsApi } from '../api';
 import { uploadImageToCloudinary } from '@/services/cloudinary';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
-import { SOCIAL_PLATFORMS, DAYS_OF_WEEK, MONTH_NAMES, MONTHS } from '@/utils/locationConstants';
+import { SOCIAL_PLATFORMS, DAYS_OF_WEEK, MONTHS } from '@/utils/locationConstants';
 import { buildTagHierarchy } from '@/utils/locationCache';
 import dayjs from 'dayjs';
+import styles from '../styles/LocationForm.module.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
-// Helper to convert platform enum value to string
 const getPlatformName = (platform) => {
   if (typeof platform === 'string') return platform;
   const platformObj = SOCIAL_PLATFORMS.find(p => p.enumValue === platform);
   return platformObj ? platformObj.value : 'Other';
 };
 
-// Helper to convert platform string back to enum value
 const getPlatformEnumValue = (platformName) => {
   if (typeof platformName === 'number') return platformName;
   const platformObj = SOCIAL_PLATFORMS.find(p => p.value === platformName);
@@ -30,9 +29,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [rootTags, setRootTags] = useState([]);
   const [availableChildTags, setAvailableChildTags] = useState([]);
-  // Selected child tags only (parent tags are for filtering only, not submitted)
   const [selectedChildTagIds, setSelectedChildTagIds] = useState([]);
-  // Selected parent tag IDs (for filtering child tags, not submitted)
   const [selectedParentTagIds, setSelectedParentTagIds] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
@@ -48,12 +45,10 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
   const isEdit = !!location;
 
-  // Fetch dropdown data
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
         setTagsLoading(true);
-        // Single API call to get all tags - use large pageSize to get all
         const [allTagsRes, districtsRes, typesRes, amenitiesRes] = await Promise.all([
           getAllTagsApi({ pageSize: 9999 }),
           getAllDistrictsApi(),
@@ -61,13 +56,11 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           getAllAmenitiesApi()
         ]);
 
-        // Handle paginated responses (extract items array)
         const allTags = Array.isArray(allTagsRes) ? allTagsRes : (allTagsRes?.items || []);
         const districts = Array.isArray(districtsRes) ? districtsRes : (districtsRes?.items || []);
         const locationTypes = Array.isArray(typesRes) ? typesRes : (typesRes?.items || []);
         const amenities = Array.isArray(amenitiesRes) ? amenitiesRes : (amenitiesRes?.items || []);
 
-        // Build tag hierarchy client-side
         const { rootTags, childTagsByParent } = buildTagHierarchy(allTags);
 
         setRootTags(rootTags);
@@ -76,7 +69,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         setAmenities(amenities);
         setChildTagsByParent(childTagsByParent);
       } catch (error) {
-        console.error('Failed to fetch dropdown data:', error);
         message.error('Failed to load dropdown data');
       } finally {
         setTagsLoading(false);
@@ -85,26 +77,21 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     fetchDropdownData();
   }, []);
 
-  // Handle parent tag change - updates filter for child tag dropdown
-  // Parent tags are NOT submitted, only used to filter child tags
   const handleParentTagChange = (selectedParentIds) => {
     setSelectedParentTagIds(selectedParentIds);
 
-    // Get child tags for selected parent tags
     const filteredChildTags = [];
     selectedParentIds.forEach(parentId => {
       const children = childTagsByParent[parentId] || [];
       filteredChildTags.push(...children);
     });
 
-    // Remove duplicates
     const uniqueChildTags = filteredChildTags.filter(
       (ct, index, self) => index === self.findIndex(t => t.id === ct.id)
     );
 
     setAvailableChildTags(uniqueChildTags);
 
-    // Remove selected child tags that are no longer in filtered list
     const availableChildIds = new Set(uniqueChildTags.map(t => t.id));
     const filteredChildTagIds = selectedChildTagIds.filter(id => availableChildIds.has(id));
     
@@ -114,19 +101,15 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     }
   };
 
-  // Handle child tag selection - only child tags are saved
   const handleChildTagChange = (selectedChildIds) => {
     setSelectedChildTagIds(selectedChildIds);
     form.setFieldValue('tagIds', selectedChildIds);
   };
 
-  // Set form values when editing - derive parent tags from child tags
   useEffect(() => {
     if (location && location.tagIds && location.tagIds.length > 0 && rootTags.length > 0) {
-      // Separate child tags from the tagIds
       const childTagIds = location.tagIds.filter(id => childTagsByParent);
       
-      // Derive parent tag IDs from child tags
       const parentIds = new Set();
       childTagIds.forEach(childId => {
         for (const parentId in childTagsByParent) {
@@ -140,7 +123,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       setSelectedParentTagIds([...parentIds]);
       setSelectedChildTagIds(childTagIds);
 
-      // Set available child tags based on derived parent tags
       const filteredChildTags = [];
       [...parentIds].forEach(parentId => {
         const children = childTagsByParent[parentId] || [];
@@ -152,12 +134,10 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       );
       setAvailableChildTags(uniqueChildTags);
 
-      // Set form field values
       form.setFieldValue('tagIds', childTagIds);
     }
   }, [location, rootTags, childTagsByParent]);
 
-  // Set form field values when editing - ONLY runs when location changes AND all reference data is loaded
   useEffect(() => {
     if (location && amenities.length > 0 && locationTypes.length > 0 && districts.length > 0) {
       form.setFieldsValue({
@@ -179,10 +159,9 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         tagIds: location.tagIds || [],
         amenityIds: location.amenityIds || []
       });
-      // CRITICAL: Sync React state with Form state for logic in handleParentTagChange
+      
       setSelectedChildTagIds(location.tagIds || []);
       setMediaLinks(location.mediaLinks || []);
-      // Map social links from BE format (with id) to form state - convert platform enum to string
       setSocialLinks(location.socialLinks?.map(sl => ({
         id: sl.id,
         platform: getPlatformName(sl.platform),
@@ -190,32 +169,25 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       })) || []);
     }
 
-    // Always set opening hours and seasons when location changes (independent of tags/amenities)
     if (location) {
       setOpeningHours(location.openingHours || []);
-      // Set seasons - convert comma-separated months string to array
       setSeasons(location.seasons?.map(season => ({
         id: season.id,
         description: season.description,
         months: typeof season.months === 'string' ? season.months.split(',').filter(m => m) : (season.months || [])
       })) || []);
     } else if (!location) {
-      // Only reset when location changes to null (Modal opened for create), not when availableTags changes
       form.resetFields();
       setMediaLinks([]);
       setSocialLinks([]);
       setOpeningHours([]);
       setSeasons([]);
     }
-  }, [location, amenities, locationTypes, districts, form]); // Removed availableChildTags to prevent resetting form state during user interaction
+  }, [location, amenities, locationTypes, districts, form]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      // Transform social links to match backend format (send platform as enum number)
-      // Filter out links with empty platform or URL
-      // BUG FIX: Previously used Number(sl.platform) which returned NaN for strings like "Facebook".
-      // Now uses getPlatformEnumValue() to properly map platform name to enum number.
       const formattedSocialLinks = socialLinks.length > 0
         ? socialLinks
             .filter(sl => sl.platform && sl.url && sl.url.trim() !== '')
@@ -225,7 +197,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
               }))
         : [];
 
-      // Transform seasons to convert months array to comma-separated string
       const formattedSeasons = seasons.length > 0
         ? seasons.map(season => ({
             id: season.id,
@@ -234,13 +205,10 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           }))
         : [];
 
-      // BUG FIX: Only send child tag IDs - parent tags are for filtering only
       const payload = {
         ...values,
-        // Only child tags are submitted (not parent tags)
         tagIds: selectedChildTagIds,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : [],
-        // Extract IDs from labelInValue format
         amenityIds: values.amenityIds?.length > 0 ? values.amenityIds.map(a => a.value) : [],
         socialLinks: formattedSocialLinks,
         openingHours: openingHours.length > 0 ? openingHours : [],
@@ -255,12 +223,10 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (error) {
-      // Handle duplicate name error specifically
       if (error?.response?.status === 409) {
         const errorMessage = error.response.data?.description || error.response.data?.message || 'Duplicate name detected';
         message.error(errorMessage);
       } else if (error?.response?.status === 400) {
-        // Handle validation errors
         const errors = error.response.data;
         if (Array.isArray(errors)) {
           errors.forEach(err => {
@@ -292,7 +258,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     } catch (error) {
       message.error(error.message || 'Upload failed');
     }
-    return Upload.LIST_IGNORE; // Prevent default upload behavior
+    return Upload.LIST_IGNORE;
   };
 
   const handleMapConfirm = (lat, lng) => {
@@ -303,7 +269,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     message.success('Location coordinates updated!');
   };
 
-  // Social Links handlers
   const handleAddSocialLink = (platform) => {
     if (!socialLinks.find(sl => sl.platform === platform)) {
       setSocialLinks([...socialLinks, { id: 0, platform, url: '' }]);
@@ -324,7 +289,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     return socialLinks.map(sl => sl.platform);
   };
 
-  // Opening Hours handlers
   const handleAddOpeningHour = (dayOfWeek) => {
     if (!openingHours.find(oh => oh.dayOfWeek === dayOfWeek)) {
       setOpeningHours([...openingHours, {
@@ -360,7 +324,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
     setOpeningHours(openingHours.filter((_, i) => i !== index));
   };
 
-  // Seasons handlers
   const handleAddSeason = () => {
     setSeasons([...seasons, { id: 0, description: '', months: [] }]);
   };
@@ -377,45 +340,49 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
   return (
     <Modal
-      title={isEdit ? 'Edit Location' : 'Create Location'}
+      title={<span className={styles.modalTitle}>{isEdit ? 'Edit Location' : 'Create Location'}</span>}
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
       confirmLoading={loading}
       destroyOnClose
       width={900}
+      rootClassName={styles.tropicalModal}
+      okButtonProps={{ className: styles.btnSubmit }}
+      cancelButtonProps={{ className: styles.btnCancel }}
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      <Form form={form} layout="vertical" onFinish={handleSubmit} className={styles.tropicalForm}>
         <Form.Item
           name="name"
-          label="Location Name"
+          label={<span className={styles.formLabel}>Location Name</span>}
           rules={[
             { required: true, message: 'Please enter location name' },
             { max: 200, message: 'Location name cannot exceed 200 characters' }
           ]}
         >
-          <Input placeholder="Enter location name" />
+          <Input placeholder="Enter location name" className={styles.customInput} />
         </Form.Item>
 
         <Form.Item
           name="description"
-          label="Description"
+          label={<span className={styles.formLabel}>Description</span>}
           rules={[{ max: 2000, message: 'Description cannot exceed 2000 characters' }]}
         >
-          <TextArea rows={3} placeholder="Enter description" />
+          <TextArea rows={3} placeholder="Enter description" className={styles.customInput} />
         </Form.Item>
 
-        <Space direction="horizontal" style={{ width: '100%' }} size="large">
+        <Space direction="horizontal" style={{ width: '100%' }} size="large" className={styles.spaceRow}>
           <Form.Item
             name="latitude"
             label={
               <Space>
-                <span>Latitude</span>
+                <span className={styles.formLabel}>Latitude</span>
                 <Button
                   type="link"
                   size="small"
                   icon={<EnvironmentOutlined />}
                   onClick={() => setMapPickerOpen(true)}
+                  className={styles.linkBtnInfo}
                 >
                   Pick on Map
                 </Button>
@@ -427,124 +394,121 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             ]}
             style={{ width: '48%' }}
           >
-            <InputNumber style={{ width: '100%' }} step={0.000001} placeholder="e.g., 10.823099" />
+            <InputNumber style={{ width: '100%' }} step={0.000001} placeholder="e.g., 10.823099" className={styles.customInput} />
           </Form.Item>
 
           <Form.Item
             name="longitude"
-            label="Longitude"
+            label={<span className={styles.formLabel}>Longitude</span>}
             rules={[
               { required: true, message: 'Please enter longitude' },
               { type: 'number', min: -180, max: 180, message: 'Longitude must be between -180 and 180' }
             ]}
             style={{ width: '48%' }}
           >
-            <InputNumber style={{ width: '100%' }} step={0.000001} placeholder="e.g., 106.629664" />
+            <InputNumber style={{ width: '100%' }} step={0.000001} placeholder="e.g., 106.629664" className={styles.customInput} />
           </Form.Item>
         </Space>
 
-        <Space direction="horizontal" style={{ width: '100%' }} size="large">
+        <Space direction="horizontal" style={{ width: '100%' }} size="large" className={styles.spaceRow}>
           <Form.Item
             name="ticketPrice"
-            label="Ticket Price"
+            label={<span className={styles.formLabel}>Ticket Price</span>}
             rules={[
               { required: true, message: 'Please enter ticket price' },
               { type: 'number', min: 0, message: 'Price must be >= 0' }
             ]}
             style={{ width: '48%' }}
           >
-            <InputNumber style={{ width: '100%' }} step={0.01} prefix="$" placeholder="0.00" />
+            <InputNumber style={{ width: '100%' }} step={0.01} prefix="$" placeholder="0.00" className={styles.customInput} />
           </Form.Item>
 
           <Form.Item
             name="minimumAge"
-            label="Minimum Age"
+            label={<span className={styles.formLabel}>Minimum Age</span>}
             rules={[
               { required: true, message: 'Please enter minimum age' },
               { type: 'number', min: 0, max: 120, message: 'Age must be between 0 and 120' }
             ]}
             style={{ width: '48%' }}
           >
-            <InputNumber style={{ width: '100%' }} placeholder="e.g., 5" />
+            <InputNumber style={{ width: '100%' }} placeholder="e.g., 5" className={styles.customInput} />
           </Form.Item>
         </Space>
 
-        {/* Price Range */}
-        <Space direction="horizontal" style={{ width: '100%' }} size="large">
+        <Space direction="horizontal" style={{ width: '100%' }} size="large" className={styles.spaceRow}>
           <Form.Item
             name="priceMinUsd"
-            label="Min Price (USD)"
+            label={<span className={styles.formLabel}>Min Price (USD)</span>}
             rules={[{ min: 0, type: 'number', message: 'Min price must be >= 0' }]}
             style={{ width: '48%' }}
           >
-            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" />
+            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" className={styles.customInput} />
           </Form.Item>
 
           <Form.Item
             name="priceMaxUsd"
-            label="Max Price (USD)"
+            label={<span className={styles.formLabel}>Max Price (USD)</span>}
             rules={[{ min: 0, type: 'number', message: 'Max price must be >= 0' }]}
             style={{ width: '48%' }}
           >
-            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" />
+            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" className={styles.customInput} />
           </Form.Item>
         </Space>
 
         <Form.Item
           name="address"
-          label="Address"
+          label={<span className={styles.formLabel}>Address</span>}
           rules={[
             { required: true, message: 'Please enter address' },
             { max: 300, message: 'Address cannot exceed 300 characters' }
           ]}
         >
-          <Input placeholder="Enter address" />
+          <Input placeholder="Enter address" className={styles.customInput} />
         </Form.Item>
 
-        {/* Contact Information */}
-        <Space direction="horizontal" style={{ width: '100%' }} size="large">
+        <Space direction="horizontal" style={{ width: '100%' }} size="large" className={styles.spaceRow}>
           <Form.Item
             name="telephone"
-            label="Telephone"
+            label={<span className={styles.formLabel}>Telephone</span>}
             rules={[{ max: 50, message: 'Telephone cannot exceed 50 characters' }]}
             style={{ width: '48%' }}
           >
-            <Input placeholder="Enter telephone" />
+            <Input placeholder="Enter telephone" className={styles.customInput} />
           </Form.Item>
 
           <Form.Item
             name="email"
-            label="Email"
+            label={<span className={styles.formLabel}>Email</span>}
             rules={[
               { type: 'email', message: 'Please enter a valid email' },
               { max: 200, message: 'Email cannot exceed 200 characters' }
             ]}
             style={{ width: '48%' }}
           >
-            <Input placeholder="Enter email" />
+            <Input placeholder="Enter email" className={styles.customInput} />
           </Form.Item>
         </Space>
 
         <Form.Item
           name="recommendedDurationMinutes"
-          label="Recommended Duration (minutes)"
+          label={<span className={styles.formLabel}>Recommended Duration (minutes)</span>}
           rules={[{ min: 0, type: 'integer', message: 'Duration must be >= 0' }]}
         >
-          <InputNumber style={{ width: '100%' }} step={15} min={0} placeholder="e.g., 60" />
+          <InputNumber style={{ width: '100%' }} step={15} min={0} placeholder="e.g., 60" className={styles.customInput} />
         </Form.Item>
 
         <Form.Item
           name="score"
-          label="Score (0-5 stars)"
-          tooltip="Rate this location from 0 to 5 stars"
+          label={<span className={styles.formLabel}>Score (0-5 stars)</span>}
         >
-          <Rate allowHalf style={{ fontSize: 24 }} />
+          <Rate allowHalf style={{ fontSize: 24 }} className={styles.starRate} />
         </Form.Item>
 
-        <Space direction="horizontal" style={{ width: '100%' }} size="large">
+        <Space direction="horizontal" style={{ width: '100%' }} size="large" className={styles.spaceRow}>
           <Form.Item
             name="locationTypeId"
-            label="Location Type"
+            label={<span className={styles.formLabel}>Location Type</span>}
             rules={[{ required: true, message: 'Please select location type' }]}
             style={{ width: '50%', minWidth: '200px' }}
           >
@@ -553,6 +517,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
               showSearch 
               optionFilterProp="children"
               loading={locationTypes.length === 0}
+              className={styles.customInput}
             >
               {Array.isArray(locationTypes) && locationTypes.map(type => (
                 <Option key={type.id} value={type.id}>{type.name}</Option>
@@ -562,11 +527,11 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
           <Form.Item
             name="districtId"
-            label="District"
+            label={<span className={styles.formLabel}>District</span>}
             rules={[{ required: true, message: 'Please select district' }]}
             style={{ width: '50%', minWidth: '200px' }}
           >
-            <Select placeholder="Select district" showSearch optionFilterProp="children">
+            <Select placeholder="Select district" showSearch optionFilterProp="children" className={styles.customInput}>
               {Array.isArray(districts) && districts.map(district => (
                 <Option key={district.id} value={district.id}>{district.name}</Option>
               ))}
@@ -574,10 +539,8 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           </Form.Item>
         </Space>
 
-        {/* Tags Selector - Parent Tags (Filter Only) */}
         <Form.Item
-          label="Parent Tags"
-          tooltip="Select parent categories to filter child tags"
+          label={<span className={styles.formLabel}>Parent Tags</span>}
         >
           <Select
             mode="multiple"
@@ -587,20 +550,19 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             onChange={handleParentTagChange}
             optionFilterProp="children"
             showSearch
+            className={styles.customInput}
           >
             {rootTags.map(tag => (
               <Option key={tag.id} value={tag.id}>
-                {tag.name} <span style={{ color: '#52c41a' }}>(Parent)</span>
+                {tag.name} <span style={{ color: '#4ECDC4' }}>(Parent)</span>
               </Option>
             ))}
           </Select>
         </Form.Item>
 
-        {/* Tags Selector - Child Tags (Selected & Submitted) */}
         <Form.Item
           name="tagIds"
-          label="Child Tags"
-          tooltip="Select child tags to associate with this location"
+          label={<span className={styles.formLabel}>Child Tags</span>}
           initialValue={[]}
           rules={[
             { required: true, message: 'Please select at least one child tag' },
@@ -617,19 +579,19 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             optionFilterProp="children"
             showSearch
             disabled={selectedParentTagIds.length === 0}
+            className={styles.customInput}
           >
             {availableChildTags.map(tag => (
               <Option key={tag.id} value={tag.id}>
-                {tag.name} <span style={{ color: '#1677ff' }}>(Child)</span>
+                {tag.name} <span style={{ color: '#FF6B6B' }}>(Child)</span>
               </Option>
             ))}
           </Select>
         </Form.Item>
 
-        {/* Amenities Selector */}
         <Form.Item
           name="amenityIds"
-          label="Amenities"
+          label={<span className={styles.formLabel}>Amenities</span>}
           initialValue={[]}
         >
           <Select
@@ -638,6 +600,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             placeholder="Select amenities"
             style={{ width: '100%' }}
             maxTagCount="responsive"
+            className={styles.customInput}
           >
             {amenities.map(amenity => (
               <Option key={amenity.id} value={amenity.id}>{amenity.name}</Option>
@@ -645,18 +608,16 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           </Select>
         </Form.Item>
 
-        <Form.Item label="Media (Images)">
-          {/* File Upload */}
+        <Form.Item label={<span className={styles.formLabel}>Media (Images)</span>}>
           <Upload
             accept="image/*"
             beforeUpload={handleImageUpload}
             showUploadList={false}
             multiple={false}
           >
-            <Button icon={<UploadOutlined />}>Upload Image to Cloudinary</Button>
+            <Button className={styles.btnActionSecondary} icon={<UploadOutlined />}>Upload Image to Cloudinary</Button>
           </Upload>
 
-          {/* Or paste URL */}
           <div style={{ marginTop: 12 }}>
             <Space.Compact style={{ width: '100%' }}>
               <Input
@@ -664,25 +625,25 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                 value={newMediaLink}
                 onChange={(e) => setNewMediaLink(e.target.value)}
                 onPressEnter={handleAddMediaLink}
+                className={styles.customInputCompact}
               />
-              <Button type="primary" onClick={handleAddMediaLink} icon={<PlusOutlined />}>
+              <Button className={styles.btnPrimary} onClick={handleAddMediaLink} icon={<PlusOutlined />}>
                 Add URL
               </Button>
             </Space.Compact>
           </div>
           
-          {/* Display uploaded links */}
           {mediaLinks.length > 0 && (
-            <div style={{ marginTop: 12, maxHeight: 200, overflowY: 'auto' }}>
+            <div className={styles.mediaList}>
               {mediaLinks.map((link, index) => (
-                <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', background: '#f5f5f5', marginBottom: 8, borderRadius: 4 }}>
+                <div key={index} className={styles.mediaItem}>
                   <div style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
-                    <PictureOutlined style={{ marginRight: 8, color: '#1677ff' }} />
-                    <span style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{link}</span>
+                    <PictureOutlined style={{ marginRight: 8, color: '#4ECDC4' }} />
+                    <span className={styles.mediaLinkText}>{link}</span>
                   </div>
                   <Space>
-                    <a href={link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>View</a>
-                    <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleRemoveMediaLink(index)} />
+                    <a href={link} target="_blank" rel="noopener noreferrer" className={styles.mediaViewLink}>View</a>
+                    <Button type="text" className={styles.btnDangerIcon} size="small" icon={<DeleteOutlined />} onClick={() => handleRemoveMediaLink(index)} />
                   </Space>
                 </div>
               ))}
@@ -690,15 +651,14 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           )}
         </Form.Item>
 
-        {/* Social Links */}
-        <Form.Item label="Social Links">
+        <Form.Item label={<span className={styles.formLabel}>Social Links</span>}>
           <Space direction="vertical" size="small" style={{ width: '100%' }}>
-            {/* Add platform selector */}
             <Select
               placeholder="Add social platform"
               onChange={handleAddSocialLink}
               value={null}
               style={{ width: '100%' }}
+              className={styles.customInput}
             >
               {SOCIAL_PLATFORMS
                 .filter(platform => !getUsedPlatforms().includes(platform.value))
@@ -707,19 +667,11 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                 ))}
             </Select>
 
-            {/* Display added social links */}
             {socialLinks.length > 0 && (
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
                 {socialLinks.map((socialLink, index) => (
-                  <div key={index} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '8px',
-                    background: '#f5f5f5',
-                    borderRadius: '6px'
-                  }}>
-                    <Tag color="blue" style={{ minWidth: '100px' }}>
+                  <div key={index} className={styles.socialItem}>
+                    <Tag className={styles.tagPrimary} style={{ minWidth: '100px', textAlign: 'center' }}>
                       {SOCIAL_PLATFORMS.find(p => p.value === socialLink.platform)?.label || socialLink.platform}
                     </Tag>
                     <Input
@@ -727,10 +679,11 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                       value={socialLink.url}
                       onChange={(e) => handleUpdateSocialLink(index, e.target.value)}
                       style={{ flex: 1 }}
+                      className={styles.customInput}
                     />
                     <Button
                       type="text"
-                      danger
+                      className={styles.btnDangerIcon}
                       size="small"
                       icon={<MinusCircleOutlined />}
                       onClick={() => handleRemoveSocialLink(index)}
@@ -742,12 +695,11 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           </Space>
         </Form.Item>
 
-        {/* Opening Hours Section */}
-        <Divider orientation="left"><ClockCircleOutlined /> Opening Hours</Divider>
+        <Divider className={styles.customDivider} orientation="left"><ClockCircleOutlined /> Opening Hours</Divider>
         <Form.Item label=" ">
           <Space direction="vertical" size="small" style={{ width: '100%' }}>
             <Space>
-              <Button type="dashed" onClick={handleAddAllOpeningHours} icon={<PlusOutlined />}>
+              <Button className={styles.btnDashed} onClick={handleAddAllOpeningHours} icon={<PlusOutlined />}>
                 Add All Days
               </Button>
               <Select
@@ -755,6 +707,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                 onChange={handleAddOpeningHour}
                 value={null}
                 style={{ width: 200 }}
+                className={styles.customInput}
               >
                 {DAYS_OF_WEEK
                   .filter(day => !openingHours.find(oh => oh.dayOfWeek === day.value))
@@ -766,6 +719,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
 
             {openingHours.length > 0 && (
               <Table
+                className={styles.tropicalTable}
                 dataSource={openingHours}
                 pagination={false}
                 size="small"
@@ -787,6 +741,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                         value={value ? dayjs(String(value).substring(0, 5), 'HH:mm') : null}
                         onChange={(time, timeString) => handleUpdateOpeningHour(index, 'openTime', timeString)}
                         format="HH:mm"
+                        className={styles.customInput}
                       />
                     )
                   },
@@ -800,6 +755,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                         value={value ? dayjs(String(value).substring(0, 5), 'HH:mm') : null}
                         onChange={(time, timeString) => handleUpdateOpeningHour(index, 'closeTime', timeString)}
                         format="HH:mm"
+                        className={styles.customInput}
                       />
                     )
                   },
@@ -812,6 +768,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                         value={value}
                         onChange={(e) => handleUpdateOpeningHour(index, 'note', e.target.value)}
                         placeholder="e.g., Lunch break"
+                        className={styles.customInput}
                       />
                     )
                   },
@@ -822,7 +779,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                     render: (_, record, index) => (
                       <Button
                         type="text"
-                        danger
+                        className={styles.btnDangerIcon}
                         size="small"
                         icon={<MinusCircleOutlined />}
                         onClick={() => handleRemoveOpeningHour(index)}
@@ -835,11 +792,10 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           </Space>
         </Form.Item>
 
-        {/* Seasonal Weather Section */}
-        <Divider orientation="left"><CloudOutlined /> Best Seasons to Visit</Divider>
+        <Divider className={styles.customDivider} orientation="left"><CloudOutlined /> Best Seasons to Visit</Divider>
         <Form.Item label=" ">
           <Space direction="vertical" size="small" style={{ width: '100%' }}>
-            <Button type="dashed" onClick={handleAddSeason} icon={<PlusOutlined />}>
+            <Button className={styles.btnDashed} onClick={handleAddSeason} icon={<PlusOutlined />}>
               Add Season
             </Button>
 
@@ -850,11 +806,12 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                     key={index}
                     size="small"
                     type="inner"
-                    title={`Season ${index + 1}`}
+                    title={<span className={styles.cardTitle}>Season {index + 1}</span>}
+                    className={styles.tropicalCard}
                     extra={
                       <Button
                         type="text"
-                        danger
+                        className={styles.btnDangerIcon}
                         size="small"
                         icon={<MinusCircleOutlined />}
                         onClick={() => handleRemoveSeason(index)}
@@ -863,20 +820,22 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
                     style={{ maxWidth: 800 }}
                   >
                     <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                      <Form.Item label="Description" required>
+                      <Form.Item label={<span className={styles.formLabel}>Description</span>} required>
                         <Input
                           value={season.description}
                           onChange={(e) => handleUpdateSeason(index, 'description', e.target.value)}
                           placeholder="e.g., Dry Season, Best time for beach activities"
+                          className={styles.customInput}
                         />
                       </Form.Item>
-                      <Form.Item label="Months" required>
+                      <Form.Item label={<span className={styles.formLabel}>Months</span>} required>
                         <Select
                           mode="multiple"
                           value={season.months}
                           onChange={(value) => handleUpdateSeason(index, 'months', value)}
                           placeholder="Select months"
                           style={{ width: '100%' }}
+                          className={styles.customInput}
                         >
                           {MONTHS.map(month => (
                             <Option key={month.value} value={month.value}>{month.label}</Option>
@@ -892,7 +851,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         </Form.Item>
       </Form>
 
-      {/* Google Map Picker Modal */}
       <GoogleMapPicker
         open={mapPickerOpen}
         onClose={() => setMapPickerOpen(false)}

@@ -1,0 +1,113 @@
+.comparisonContainer {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: #1A535C;
+  }
+  
+  .comparisonTitle {
+    font-family: 'Caveat', cursive;
+    font-size: 2rem;
+    color: #FF6B6B;
+  }
+  
+  .tropicalDescriptions :global(.ant-descriptions-item-label) {
+    background-color: rgba(78, 205, 196, 0.05);
+    color: #1A535C;
+    font-weight: 700;
+  }
+  
+  .compareWrapper {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  
+  .oldValueBox {
+    flex: 1;
+    min-width: 200px;
+    padding: 12px;
+    background: rgba(255, 107, 107, 0.05);
+    border: 1px solid rgba(255, 107, 107, 0.3);
+    border-radius: 12px;
+  }
+  
+  .compareLabelOld {
+    color: #FF6B6B;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  
+  .oldValueText {
+    color: #FF6B6B;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  
+  .newValueBox {
+    flex: 1;
+    min-width: 200px;
+    padding: 12px;
+    background: rgba(78, 205, 196, 0.05);
+    border: 1px solid rgba(78, 205, 196, 0.3);
+    border-radius: 12px;
+  }
+  
+  .compareLabelNew {
+    color: #4ECDC4;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  
+  .newValueText {
+    color: #4ECDC4;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  
+  .unchangedText {
+    color: #1A535C;
+    font-weight: 500;
+  }
+  
+  .bouncyTagSmall {
+    border-radius: 8px;
+    border: none;
+    background: #FFE66D;
+    color: #1A535C;
+    font-weight: 600;
+    margin-bottom: 4px;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  .bouncyTagSmall:hover {
+    transform: scale(1.1);
+  }
+  
+  .tropicalDivider :global(.ant-divider-inner-text) {
+    font-family: 'Poppins', sans-serif;
+    color: #4ECDC4;
+    font-size: 1.2rem;
+  }
+  
+  .rejectionBoxMain {
+    padding: 16px;
+    background: rgba(255, 107, 107, 0.05);
+    border: 2px solid rgba(255, 107, 107, 0.2);
+    color: #FF6B6B;
+    border-radius: 16px;
+    font-weight: 500;
+  }
+  
+  .approvalBox {
+    padding: 16px;
+    background: rgba(78, 205, 196, 0.05);
+    border: 2px solid rgba(78, 205, 196, 0.2);
+    color: #4ECDC4;
+    border-radius: 16px;
+  }
+  
+  .approvalId {
+    margin-top: 8px;
+    font-weight: 600;
+  }
