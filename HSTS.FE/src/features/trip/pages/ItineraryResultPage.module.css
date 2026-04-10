@@ -11,6 +11,36 @@
   padding: clamp(24px, 5vw, 64px) 24px;
   font-family: 'Plus Jakarta Sans', sans-serif;
   color: #1A535C;
+  overflow-x: hidden;
+}
+
+.planColumn {
+  width: 100%;
+  transition: width 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (min-width: 1024px) {
+  .planColumnWithLocation {
+    width: calc(100% - 700px);
+  }
+  .planColumnWithAccommodation {
+    width: calc(100% - 600px);
+  }
+  .planColumnWithTransport {
+    width: calc(100% - 700px);
+  }
+}
+@media (min-width: 1024px) {
+  .planColumnWithLocation .container,
+  .planColumnWithAccommodation .container,
+  .planColumnWithTransport .container {
+    margin-right: none; 
+  }
+}
+
+:global(.ant-typography),
+:global(h1), :global(h2), :global(h3), :global(h4), :global(h5), :global(span), :global(div) {
+  color: #1A535C;
 }
 
 :global(.ant-typography),
@@ -272,11 +302,10 @@
   padding: 0 !important;
 }
 
-/* MODIFIED THIS SECTION FOR VERTICAL ALIGNMENT */
 .dayHeaderInner {
   display: flex;
   justify-content: space-between;
-  align-items: center; /* This automatically centers items vertically */
+  align-items: center;
   width: 100%;
   gap: 16px;
   flex-wrap: wrap;
@@ -286,7 +315,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1; /* Allow left side to take remaining space */
+  flex: 1;
 }
 
 .headerEstimatedCost {
@@ -297,9 +326,8 @@
   padding: 6px 16px;
   border-radius: 999px;
   box-shadow: 0 2px 8px rgba(26, 83, 92, 0.05);
-  flex-shrink: 0; /* Prevent cost badge from squishing */
+  flex-shrink: 0;
 }
-/* END MODIFIED SECTION */
 
 .headerSummaryLabel {
   font-size: 13px;
@@ -1083,4 +1111,3 @@
     padding: 16px;
   }
 }
-
