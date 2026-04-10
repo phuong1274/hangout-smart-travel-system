@@ -126,7 +126,7 @@ const extractAmenityNames = (location) => {
   return [...new Set([...fromAmenities, ...fromNames])];
 };
 
-const hasMojibake = (text) => /Ã|Â|áº|á»|á»¥|ðŸ|�/u.test(String(text || ''));
+const hasMojibake = (text) => /Ã|Â|áº|á»|á»¥|ðŸ|/u.test(String(text || ''));
 
 const safePlaceName = (value) => {
   const text = String(value || '').trim();
@@ -156,7 +156,6 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
         const data = await getLocationByIdApi(locationId);
         if (!cancelled) setLocation(data);
       } catch {
-        // handled by interceptor
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -236,13 +235,14 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
       onClose={onClose}
       placement="right"
       width={700}
+      mask={false}
       destroyOnClose
+      style={{ boxShadow: '-8px 0 24px rgba(26, 83, 92, 0.08)' }}
     >
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40 }}><Spin size="large" /></div>
       ) : location ? (
         <div>
-          {/* Image Gallery */}
           {mediaUrls.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <Image.PreviewGroup>
@@ -257,7 +257,6 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
             </div>
           )}
 
-          {/* Basic Info */}
           <Descriptions size="small" column={2} bordered>
             <Descriptions.Item label="📍 Address" span={2}>
               {address || 'N/A'}
@@ -325,7 +324,6 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
             )}
           </Descriptions>
 
-          {/* Opening Hours */}
           {openingHours.length > 0 && (
             <>
               <Divider orientation="left" plain>Opening Hours</Divider>
@@ -353,7 +351,6 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
             </>
           )}
 
-          {/* Closures */}
           {closures.length > 0 && (
             <>
               <Divider orientation="left" plain>⚠️ Closures</Divider>
@@ -365,7 +362,6 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
             </>
           )}
 
-          {/* Tags */}
           {tags.length > 0 && (
             <>
               <Divider orientation="left" plain>🏷️ Tags</Divider>
@@ -377,7 +373,6 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
             </>
           )}
 
-          {/* Amenities */}
           {amenities.length > 0 && (
             <>
               <Divider orientation="left" plain>Amenities</Divider>
@@ -415,7 +410,6 @@ const LocationDetailModal = ({ open, locationId, onClose }) => {
             </>
           )}
 
-          {/* Description */}
           {description && (
             <>
               <Divider orientation="left" plain>Description</Divider>

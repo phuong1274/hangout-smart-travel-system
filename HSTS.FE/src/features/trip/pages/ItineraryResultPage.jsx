@@ -14,8 +14,7 @@ import {
   ConfigProvider,
   Carousel,
   Collapse,
-  Progress,
-  Divider
+  Progress
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useTripPlanner } from '../hooks/useTripPlanner';
@@ -592,11 +591,17 @@ const findNextPrimaryLocationIndex = (timeline, fromIndex) => {
   return -1;
 };
 
+const findPreviousPrimaryLocationIndex = (timeline, fromIndex) => {
+  for (let index = fromIndex - 1; index >= 0; index -= 1) {
+    if (isEditableLocationEvent(timeline[index])) return index;
+  }
+  return -1;
+};
+
 const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
   const [provinceNameById, setProvinceNameById] = useState(new Map());
-  const [showBudgetDetails, setShowBudgetDetails] = useState(false);
   const [showAlternativeItems, setShowAlternativeItems] = useState(true);
   const [showTransportOptionItems, setShowTransportOptionItems] = useState(true);
   const [recalculatingDayNumber, setRecalculatingDayNumber] = useState(null);
@@ -659,7 +664,8 @@ const ItineraryResultPage = () => {
     setAccommodationModal({ open: true, data });
   }, []);
 
-  const recalculateDayTimeline = useCallback(async (draftItinerary, dayIndex) => {
+  const recalculateDayTimeline = useCallback(async (draftItinerary, dayIndex, options = {}) => {
+    const preserveExternalSegments = Boolean(options?.preserveExternalSegments);
     const daysKey = Array.isArray(draftItinerary?.days) ? 'days' : 'Days';
     const days = Array.isArray(draftItinerary?.[daysKey]) ? draftItinerary[daysKey] : [];
     const day = days[dayIndex];
@@ -672,12 +678,16 @@ const ItineraryResultPage = () => {
       .filter((index) => index >= 0);
 
     if (locationIndexes.length === 0) {
-      day[timelineKey] = sourceTimeline.filter((item) => !isTravelEvent(item));
+      day[timelineKey] = preserveExternalSegments
+        ? sourceTimeline
+        : sourceTimeline.filter((item) => !isTravelEvent(item));
       return draftItinerary;
     }
 
     if (locationIndexes.length === 1) {
-      day[timelineKey] = sourceTimeline.filter((item) => !isTravelEvent(item));
+      day[timelineKey] = preserveExternalSegments
+        ? sourceTimeline
+        : sourceTimeline.filter((item) => !isTravelEvent(item));
       return draftItinerary;
     }
 
@@ -777,8 +787,12 @@ const ItineraryResultPage = () => {
 
     const firstLocationIndex = locationIndexes[0];
     const lastLocationIndex = locationIndexes[locationIndexes.length - 1];
-    const beforeSegment = sourceTimeline.slice(0, firstLocationIndex).filter((item) => !isTravelEvent(item));
-    const afterSegment = sourceTimeline.slice(lastLocationIndex + 1).filter((item) => !isTravelEvent(item));
+    const beforeSegment = preserveExternalSegments
+      ? sourceTimeline.slice(0, firstLocationIndex)
+      : sourceTimeline.slice(0, firstLocationIndex).filter((item) => !isTravelEvent(item));
+    const afterSegment = preserveExternalSegments
+      ? sourceTimeline.slice(lastLocationIndex + 1)
+      : sourceTimeline.slice(lastLocationIndex + 1).filter((item) => !isTravelEvent(item));
 
     day[timelineKey] = [...beforeSegment, ...rebuiltSegment, ...afterSegment];
     updateDayEstimatedCost(day, timelineKey, currencyCode);
@@ -851,6 +865,7 @@ const ItineraryResultPage = () => {
       const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
       const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
       const anchorItem = timeline[timelineIndex] || {};
+      const anchorLocationId = Number(anchorItem?.locationId ?? anchorItem?.LocationId);
       const altLocationId = Number(alternative?.locationId ?? alternative?.LocationId);
 
       if (!Number.isFinite(altLocationId) || altLocationId <= 0) {
@@ -863,13 +878,63 @@ const ItineraryResultPage = () => {
         alternative?.LocationName,
         alternative?.name,
         alternative?.Name,
+        locationNameById.get(altLocationId),
       ) || `Location #${altLocationId}`;
+
+      const anchorTitle = pickFirstText(anchorItem?.title, anchorItem?.Title)
+        .replace(/^(visit|meal at)\s+/i, '')
+        .trim();
+
+      const anchorName = pickFirstText(
+        anchorItem?.locationName,
+        anchorItem?.LocationName,
+        anchorItem?.name,
+        anchorItem?.Name,
+        anchorTitle,
+        Number.isFinite(anchorLocationId) ? locationNameById.get(anchorLocationId) : '',
+      ) || (Number.isFinite(anchorLocationId) ? `Location #${anchorLocationId}` : 'Current location');
+
+      const anchorMediaUrls = extractMediaUrls(anchorItem);
+      const currentAlternatives = anchorItem?.alternatives || anchorItem?.Alternatives || [];
+      const swappedAlternatives = currentAlternatives.filter((item) => {
+        const id = Number(item?.locationId ?? item?.LocationId);
+        if (!Number.isFinite(id)) return true;
+        if (id === altLocationId) return false;
+        if (Number.isFinite(anchorLocationId) && id === anchorLocationId) return false;
+        return true;
+      });
+
+      if (Number.isFinite(anchorLocationId) && anchorLocationId > 0 && anchorLocationId !== altLocationId) {
+        swappedAlternatives.unshift({
+          locationId: anchorLocationId,
+          locationName: anchorName,
+          LocationName: anchorName,
+          name: anchorName,
+          Name: anchorName,
+          tagNames: anchorItem?.tagNames || anchorItem?.TagNames || [],
+          ticketCost: anchorItem?.ticketCost || anchorItem?.TicketCost || null,
+          extraCostPerPerson: anchorItem?.extraCostPerPerson || anchorItem?.ExtraCostPerPerson || null,
+          score: anchorItem?.score ?? anchorItem?.Score ?? 0,
+          address: anchorItem?.address || anchorItem?.Address || null,
+          telephone: pickFirstText(
+            anchorItem?.telephone,
+            anchorItem?.Telephone,
+            locationTelephoneById.get(anchorLocationId),
+          ) || null,
+          mediaUrls: anchorMediaUrls.length > 0
+            ? anchorMediaUrls
+            : (locationMediaById.get(anchorLocationId) || []),
+        });
+      }
 
       const replacedItem = {
         ...anchorItem,
         eventType: sourceEventType || anchorItem?.eventType || anchorItem?.EventType || 'visit',
         title: sourceEventType === 'meal' ? `Meal at ${altName}` : `Visit ${altName}`,
         locationName: altName,
+        LocationName: altName,
+        name: altName,
+        Name: altName,
         locationId: altLocationId,
         tagNames: alternative?.tagNames || alternative?.TagNames || [],
         ticketCost: alternative?.ticketCost || alternative?.TicketCost || null,
@@ -880,8 +945,7 @@ const ItineraryResultPage = () => {
         address: alternative?.address || alternative?.Address || null,
         telephone: alternative?.telephone || alternative?.Telephone || null,
         mediaUrls: alternative?.mediaUrls || alternative?.MediaUrls || [],
-        alternatives: (anchorItem?.alternatives || anchorItem?.Alternatives || [])
-          .filter((item) => Number(item?.locationId ?? item?.LocationId) !== altLocationId),
+        alternatives: swappedAlternatives,
       };
 
       timeline[timelineIndex] = replacedItem;
@@ -889,13 +953,13 @@ const ItineraryResultPage = () => {
 
       await recalculateDayTimeline(draft, dayIndex);
       updateItinerary(draft);
-      message.success('Main location replaced and timeline recalculated.');
+      message.success('Swapped main location with selected alternative.');
     } catch {
       message.error('Unable to replace location and recalculate timeline.');
     } finally {
       setRecalculatingDayNumber(null);
     }
-  }, [itinerary, recalculateDayTimeline, updateItinerary]);
+  }, [itinerary, locationMediaById, locationNameById, locationTelephoneById, recalculateDayTimeline, updateItinerary]);
 
   const handleOpenAddBetweenPicker = useCallback(async (dayIndex, insertAfterIndex, provinceId) => {
     const normalizedProvinceId = Number(provinceId);
@@ -931,7 +995,7 @@ const ItineraryResultPage = () => {
 
     if (!Number.isFinite(dayIndex) || !Number.isFinite(insertAfterIndex)) return;
     if (!Number.isFinite(locationId) || locationId <= 0) {
-      message.warning('Please select a location to add between two main points.');
+      message.warning('Please select a location to add.');
       return;
     }
 
@@ -968,7 +1032,7 @@ const ItineraryResultPage = () => {
         ticketCost: null,
         extraCostPerPerson: null,
         costForGroup: null,
-        note: 'Inserted between two main locations',
+        note: 'Inserted after selected location',
         score: picked.score ?? 0,
         address: picked.address || null,
         telephone: picked.telephone || null,
@@ -981,14 +1045,14 @@ const ItineraryResultPage = () => {
 
       await recalculateDayTimeline(draft, dayIndex);
       updateItinerary(draft);
-      message.success('Location inserted between two main points and timeline recalculated.');
+      message.success('Location added and timeline recalculated.');
 
       setAddBetweenModal({ open: false, dayIndex: null, insertAfterIndex: null, provinceId: null });
       setProvinceLocationOptions([]);
       setSelectedProvinceLocationId(null);
       setProvinceLocationSearch('');
     } catch {
-      message.error('Unable to add location between two points.');
+      message.error('Unable to add location.');
     } finally {
       setRecalculatingDayNumber(null);
     }
@@ -1196,34 +1260,167 @@ const ItineraryResultPage = () => {
         return;
       }
 
-      timeline.splice(timelineIndex, 1);
-      day[timelineKey] = timeline;
+      const prevLocationIndex = findPreviousPrimaryLocationIndex(timeline, timelineIndex);
+      const nextLocationIndex = findNextPrimaryLocationIndex(timeline, timelineIndex);
+      const prevLocation = prevLocationIndex >= 0 ? timeline[prevLocationIndex] : null;
+      const nextLocation = nextLocationIndex >= 0 ? timeline[nextLocationIndex] : null;
 
-      await recalculateDayTimeline(draft, dayIndex);
+      let leftTravelIndex = -1;
+      if (prevLocationIndex >= 0) {
+        for (let index = timelineIndex - 1; index > prevLocationIndex; index -= 1) {
+          if (isTravelEvent(timeline[index])) {
+            leftTravelIndex = index;
+            break;
+          }
+        }
+      }
+
+      let rightTravelIndex = -1;
+      if (nextLocationIndex >= 0) {
+        for (let index = timelineIndex + 1; index < nextLocationIndex; index += 1) {
+          if (isTravelEvent(timeline[index])) {
+            rightTravelIndex = index;
+            break;
+          }
+        }
+      }
+
+      let mergedTravelItem = null;
+      const prevLocationId = getItemLocationId(prevLocation);
+      const nextLocationId = getItemLocationId(nextLocation);
+      const canConnectPreviousAndNext = Number.isFinite(prevLocationId) && prevLocationId > 0
+        && Number.isFinite(nextLocationId) && nextLocationId > 0;
+
+      if (canConnectPreviousAndNext) {
+        const leftTravel = leftTravelIndex >= 0 ? timeline[leftTravelIndex] : null;
+        const rightTravel = rightTravelIndex >= 0 ? timeline[rightTravelIndex] : null;
+        const departureTime = pickFirstText(
+          leftTravel?.startTime,
+          leftTravel?.StartTime,
+          prevLocation?.endTime,
+          prevLocation?.EndTime,
+          '08:00:00',
+        );
+        const arrivalTime = pickFirstText(
+          rightTravel?.endTime,
+          rightTravel?.EndTime,
+          nextLocation?.startTime,
+          nextLocation?.StartTime,
+          addMinutesToTime(departureTime, 20),
+        );
+
+        const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+        const groupSizeValue = Number(draft?.groupSize ?? draft?.GroupSize);
+        const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0
+          ? Math.round(groupSizeValue)
+          : 1;
+
+        let travelLeg = null;
+        try {
+          travelLeg = await estimateLocalTravelApi({
+            fromLocationId: prevLocationId,
+            toLocationId: nextLocationId,
+            groupSize,
+            departureTime,
+            currencyCode,
+          });
+        } catch {
+          travelLeg = null;
+        }
+
+        const fromName = pickFirstText(
+          travelLeg?.fromLocationName,
+          travelLeg?.FromLocationName,
+          prevLocation?.locationName,
+          prevLocation?.LocationName,
+          prevLocation?.title,
+          prevLocation?.Title,
+        ) || `Location #${prevLocationId}`;
+        const toName = pickFirstText(
+          travelLeg?.toLocationName,
+          travelLeg?.ToLocationName,
+          nextLocation?.locationName,
+          nextLocation?.LocationName,
+          nextLocation?.title,
+          nextLocation?.Title,
+        ) || `Location #${nextLocationId}`;
+
+        mergedTravelItem = {
+          eventType: 'travel',
+          title: `Move from ${fromName} to ${toName}`,
+          startTime: departureTime,
+          endTime: arrivalTime,
+          locationId: 0,
+          tagNames: [],
+          note: 'Updated after removing location',
+          score: 0,
+          locationToLocationTravel: travelLeg
+            ? {
+              ...travelLeg,
+              departureTime,
+              DepartureTime: departureTime,
+              arrivalTime,
+              ArrivalTime: arrivalTime,
+            }
+            : null,
+          costForGroup: travelLeg?.selectedTotalCost || travelLeg?.SelectedTotalCost || null,
+        };
+      }
+
+      const indexesToRemove = new Set([timelineIndex]);
+      if (leftTravelIndex >= 0) indexesToRemove.add(leftTravelIndex);
+      if (rightTravelIndex >= 0) indexesToRemove.add(rightTravelIndex);
+
+      const rawInsertAt = leftTravelIndex >= 0 ? leftTravelIndex : timelineIndex;
+      const insertAt = timeline
+        .slice(0, rawInsertAt)
+        .filter((_, index) => !indexesToRemove.has(index))
+        .length;
+
+      const nextTimeline = timeline.filter((_, index) => !indexesToRemove.has(index));
+      if (mergedTravelItem) {
+        nextTimeline.splice(Math.max(0, Math.min(insertAt, nextTimeline.length)), 0, mergedTravelItem);
+      }
+
+      day[timelineKey] = nextTimeline;
+
+      const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+      updateDayEstimatedCost(day, timelineKey, currencyCode);
+      updateBudgetSummaryFromDays(draft);
       updateItinerary(draft);
-      message.success('Location removed and timeline recalculated.');
+      message.success('Location removed and adjacent locations were reconnected.');
     } catch {
-      message.error('Unable to remove location and recalculate timeline.');
+      message.error('Unable to remove location and reconnect adjacent points.');
     } finally {
       setRecalculatingDayNumber(null);
     }
-  }, [itinerary, recalculateDayTimeline, updateItinerary]);
+  }, [itinerary, updateItinerary]);
 
   const handleRegenerate = () => {
     clearItinerary();
     navigate('/create-trip');
   };
 
+  const planColumnClass = locationModal.open
+    ? `${styles.planColumn} ${styles.planColumnWithLocation}`
+    : accommodationModal.open
+    ? `${styles.planColumn} ${styles.planColumnWithAccommodation}`
+    : transportModal.open
+    ? `${styles.planColumn} ${styles.planColumnWithTransport}`
+    : styles.planColumn;
+
   if (!itinerary) {
     return (
       <ConfigProvider theme={{ token: { colorPrimary: '#FF6B6B', colorTextBase: '#1A535C', colorInfo: '#4ECDC4', colorSuccess: '#4ECDC4', colorWarning: '#FFE66D', colorError: '#FF6B6B', borderRadius: 16, fontFamily: "'Plus Jakarta Sans', sans-serif" } }}>
         <div className={styles.itineraryPage}>
-          <div className={styles.container}>
-            <div className={styles.emptyState}>
-              <Empty description="No itinerary has been generated yet" />
-              <Button type="primary" onClick={() => navigate('/create-trip')} style={{ marginTop: 16 }}>
-                Create New Itinerary
-              </Button>
+          <div className={planColumnClass}>
+            <div className={styles.container}>
+              <div className={styles.emptyState}>
+                <Empty description="No itinerary has been generated yet" />
+                <Button type="primary" onClick={() => navigate('/create-trip')} style={{ marginTop: 16 }}>
+                  Create New Itinerary
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -1237,6 +1434,7 @@ const ItineraryResultPage = () => {
   const endDate = itinerary.endDate || itinerary.EndDate;
   const groupSize = itinerary.groupSize || itinerary.GroupSize;
   const budgetLevel = itinerary.budgetLevel || itinerary.BudgetLevel;
+  const tripCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
 
   const totalBudgetValue = getMoneyAmount(budgetSummary?.totalBudget || budgetSummary?.TotalBudget) || 0;
   const estimatedTotalValue = getMoneyAmount(budgetSummary?.estimatedTotalCost || budgetSummary?.EstimatedTotalCost) || 0;
@@ -1271,653 +1469,607 @@ const ItineraryResultPage = () => {
     ]
     : [];
 
-  const budgetDetailItems = budgetSummary
-    ? [
-      {
-        key: 'contingency',
-        label: 'Contingency',
-        value: formatMoney(budgetSummary.contingencyFund || budgetSummary.ContingencyFund),
-      },
-      {
-        key: 'transport',
-        label: 'Transport',
-        value: formatMoney(budgetSummary.estimatedTransportCost || budgetSummary.EstimatedTransportCost),
-      },
-      {
-        key: 'accommodation',
-        label: 'Accommodation',
-        value: formatMoney(budgetSummary.estimatedAccommodationCost || budgetSummary.EstimatedAccommodationCost),
-      },
-      {
-        key: 'activities',
-        label: 'Activities',
-        value: formatMoney(budgetSummary.estimatedActivityCost || budgetSummary.EstimatedActivityCost),
-      },
-    ]
-    : [];
-
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#FF6B6B', colorTextBase: '#1A535C', colorInfo: '#4ECDC4', colorSuccess: '#4ECDC4', colorWarning: '#FFE66D', colorError: '#FF6B6B', borderRadius: 16, fontFamily: "'Plus Jakarta Sans', sans-serif" } }}>
       <div className={styles.itineraryPage}>
-        <div className={styles.container}>
+        <div className={planColumnClass}>
+          <div className={styles.container}>
 
-          <Card className={styles.headerCard} bordered={false}>
-            <Title level={3} className={styles.headerTitle}>
-              Travel Itinerary Results
-            </Title>
-            <div className={styles.headerMeta}>
-              <span className={styles.headerMetaItem}>
-                {startDate} to {endDate}
-              </span>
-              <span className={styles.headerMetaItem}>
-                {groupSize} people
-              </span>
-              <span className={styles.headerMetaItem}>
-                {budgetLevel}
-              </span>
-            </div>
-            <div className={styles.sectionToggleRow}>
-              <Button
-                size="small"
-                className={styles.sectionToggleBtn}
-                onClick={() => setShowAlternativeItems((prev) => !prev)}
-              >
-                {showAlternativeItems ? 'Hide alternatives' : 'Show alternatives'}
-              </Button>
-              <Button
-                size="small"
-                className={styles.sectionToggleBtn}
-                onClick={() => setShowTransportOptionItems((prev) => !prev)}
-              >
-                {showTransportOptionItems ? 'Hide transport options' : 'Show transport options'}
-              </Button>
-            </div>
-          </Card>
-
-          {budgetSummary && (
-            <Card
-              className={styles.budgetCard}
-              title={(
-                <div className={styles.budgetCardHeader}>
-                  <span>Budget Summary</span>
-                  <Button
-                    type="link"
-                    size="small"
-                    className={styles.budgetToggleBtn}
-                    onClick={() => setShowBudgetDetails((prev) => !prev)}
-                  >
-                    {showBudgetDetails ? 'Hide details' : 'Show details'}
-                  </Button>
-                </div>
-              )}
-              size="small"
-            >
-              <div className={styles.budgetVisualContainer}>
-                <div className={styles.budgetVisualHeader}>
-                  <Text type="secondary" className={styles.budgetVisualLabel}>Budget Usage</Text>
-                  <Text strong className={styles.budgetVisualPercent}>{budgetUsedPercent}%</Text>
-                </div>
-                <Progress
-                  percent={budgetUsedPercent}
-                  showInfo={false}
-                  strokeColor={budgetUsedPercent > 90 ? '#FF6B6B' : '#4ECDC4'}
-                  trailColor="rgba(78, 205, 196, 0.15)"
-                  size={["100%", 10]}
-                />
+            <Card className={styles.headerCard} bordered={false}>
+              <Title level={3} className={styles.headerTitle}>
+                Travel Itinerary Results
+              </Title>
+              <div className={styles.headerMeta}>
+                <span className={styles.headerMetaItem}>
+                  {startDate} to {endDate}
+                </span>
+                <span className={styles.headerMetaItem}>
+                  {groupSize} people
+                </span>
+                <span className={styles.headerMetaItem}>
+                  {budgetLevel}
+                </span>
               </div>
-
-              <div className={styles.budgetMainGrid}>
-                {budgetMainItems.map((item) => (
-                  <div key={item.key} className={styles.budgetStatBox}>
-                    <span className={styles.budgetStatLabel}>{item.label}</span>
-                    <span className={item.className}>{item.value}</span>
-                  </div>
-                ))}
+              <div className={styles.sectionToggleRow}>
+                <Button
+                  size="small"
+                  className={styles.sectionToggleBtn}
+                  onClick={() => setShowAlternativeItems((prev) => !prev)}
+                >
+                  {showAlternativeItems ? 'Hide alternatives' : 'Show alternatives'}
+                </Button>
+                <Button
+                  size="small"
+                  className={styles.sectionToggleBtn}
+                  onClick={() => setShowTransportOptionItems((prev) => !prev)}
+                >
+                  {showTransportOptionItems ? 'Hide transport options' : 'Show transport options'}
+                </Button>
               </div>
-
-              {showBudgetDetails && (
-                <div className={styles.budgetDetailsSection}>
-                  <Divider style={{ margin: '20px 0 16px', borderColor: 'rgba(26, 83, 92, 0.1)' }} />
-                  <div className={styles.budgetBreakdownTitle}>Expense Breakdown</div>
-                  <div className={styles.budgetDetailsGrid}>
-                    {budgetDetailItems.map((item) => (
-                      <div key={item.key} className={styles.budgetDetailBox}>
-                        <span className={styles.budgetDetailLabel}>{item.label}</span>
-                        <span className={styles.budgetDetailValue}>{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </Card>
-          )}
 
-          {days.map((day, dayIdx) => {
-            const dayNum = day.dayNumber || day.DayNumber;
-            const isDayUpdating = recalculatingDayNumber === dayNum;
-            const rawDayTitle = day.dayTitle || day.DayTitle || `Day ${dayNum}`;
-            const date = day.date || day.Date;
-            const weather = day.weatherSummary || day.WeatherSummary;
-            const timeline = day.timeline || day.Timeline || [];
-            const itineraryCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
-            const estimatedCostRaw = day.estimatedCost
-              || day.EstimatedCost
-              || day.estimatedDayCost
-              || day.EstimatedDayCost;
-            const estimatedCost = normalizeMoney(estimatedCostRaw, itineraryCurrencyCode);
-            const accommodations = day.accommodationRecommendations || day.AccommodationRecommendations || [];
+            {budgetSummary && (
+              <Card
+                className={styles.budgetCard}
+                title={(
+                  <div className={styles.budgetCardHeader}>
+                    <span>Budget Summary</span>
+                  </div>
+                )}
+                size="small"
+              >
+                <div className={styles.budgetVisualContainer}>
+                  <div className={styles.budgetVisualHeader}>
+                    <Text type="secondary" className={styles.budgetVisualLabel}>Budget Usage</Text>
+                    <Text strong className={styles.budgetVisualPercent}>{budgetUsedPercent}%</Text>
+                  </div>
+                  <Progress
+                    percent={budgetUsedPercent}
+                    showInfo={false}
+                    strokeColor={budgetUsedPercent > 90 ? '#FF6B6B' : '#4ECDC4'}
+                    trailColor="rgba(78, 205, 196, 0.15)"
+                    size={["100%", 10]}
+                  />
+                </div>
 
-            const currentProvinceId = Number(day.provinceId || day.ProvinceId);
-            const currentProvinceName = provinceNameById.get(currentProvinceId);
-            const prevDay = dayIdx > 0 ? days[dayIdx - 1] : null;
-            const prevProvinceId = Number(prevDay?.provinceId || prevDay?.ProvinceId);
-            const prevProvinceName = provinceNameById.get(prevProvinceId);
-            const hasRouteTitle = String(rawDayTitle).includes(' - ');
+                <div className={styles.budgetMainGrid}>
+                  {budgetMainItems.map((item) => (
+                    <div key={item.key} className={styles.budgetStatBox}>
+                      <span className={styles.budgetStatLabel}>{item.label}</span>
+                      <span className={item.className}>{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
 
-            let dayTitle = rawDayTitle;
-            if (currentProvinceName) {
-              if (hasRouteTitle && prevProvinceName && prevProvinceName !== currentProvinceName) {
-                dayTitle = `Day ${dayNum}: ${prevProvinceName} - ${currentProvinceName}`;
-              } else {
-                dayTitle = `Day ${dayNum} - ${currentProvinceName}`;
+            {days.map((day, dayIdx) => {
+              const dayNum = day.dayNumber || day.DayNumber;
+              const isDayUpdating = recalculatingDayNumber === dayNum;
+              const rawDayTitle = day.dayTitle || day.DayTitle || `Day ${dayNum}`;
+              const date = day.date || day.Date;
+              const weather = day.weatherSummary || day.WeatherSummary;
+              const timeline = day.timeline || day.Timeline || [];
+              const itineraryCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
+              const estimatedCostRaw = day.estimatedCost
+                || day.EstimatedCost
+                || day.estimatedDayCost
+                || day.EstimatedDayCost;
+              const estimatedCost = normalizeMoney(estimatedCostRaw, itineraryCurrencyCode);
+              const accommodations = day.accommodationRecommendations || day.AccommodationRecommendations || [];
+
+              const currentProvinceId = Number(day.provinceId || day.ProvinceId);
+              const currentProvinceName = provinceNameById.get(currentProvinceId);
+              const prevDay = dayIdx > 0 ? days[dayIdx - 1] : null;
+              const prevProvinceId = Number(prevDay?.provinceId || prevDay?.ProvinceId);
+              const prevProvinceName = provinceNameById.get(prevProvinceId);
+              const hasRouteTitle = String(rawDayTitle).includes(' - ');
+
+              let dayTitle = rawDayTitle;
+              if (currentProvinceName) {
+                if (hasRouteTitle && prevProvinceName && prevProvinceName !== currentProvinceName) {
+                  dayTitle = `Day ${dayNum}: ${prevProvinceName} - ${currentProvinceName}`;
+                } else {
+                  dayTitle = `Day ${dayNum} - ${currentProvinceName}`;
+                }
               }
-            }
 
-            const collapseItems = [
-              {
-                key: '1',
-                className: styles.dayCollapsePanel,
-                label: (
-                  <div className={styles.dayHeaderInner}>
-                    <div className={styles.dayHeaderLeft}>
-                      <div className={styles.dayTitle}>{dayTitle}</div>
-                      <div className={styles.dayMeta}>
-                        {date && <span className={styles.dayDate}>{date}</span>}
-                        {isDayUpdating && <span className={styles.dayRecalculate}>Recalculating timeline...</span>}
-                        {weather && (
-                          <span className={styles.dayWeather} title={weather}>
-                            <span className={styles.dayWeatherLabel}>Weather</span>
-                            <span className={styles.dayWeatherValue}>{weather}</span>
-                          </span>
-                        )}
+              const collapseItems = [
+                {
+                  key: '1',
+                  className: styles.dayCollapsePanel,
+                  label: (
+                    <div className={styles.dayHeaderInner}>
+                      <div className={styles.dayHeaderLeft}>
+                        <div className={styles.dayTitle}>{dayTitle}</div>
+                        <div className={styles.dayMeta}>
+                          {date && <span className={styles.dayDate}>{date}</span>}
+                          {isDayUpdating && <span className={styles.dayRecalculate}>Recalculating timeline...</span>}
+                          {weather && (
+                            <span className={styles.dayWeather} title={weather}>
+                              <span className={styles.dayWeatherLabel}>Weather</span>
+                              <span className={styles.dayWeatherValue}>{weather}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className={styles.headerEstimatedCost}>
+                        <span className={styles.headerSummaryLabel}>Estimated Cost:</span>
+                        <span className={styles.headerSummaryValue}>
+                          {formatMoney(estimatedCost) || `0 ${itineraryCurrencyCode}`}
+                        </span>
                       </div>
                     </div>
-                    <div className={styles.headerEstimatedCost}>
-                      <span className={styles.headerSummaryLabel}>Estimated Cost:</span>
-                      <span className={styles.headerSummaryValue}>
-                        {formatMoney(estimatedCost) || `0 ${itineraryCurrencyCode}`}
-                      </span>
-                    </div>
-                  </div>
-                ),
-                children: (
-                  <>
-                    <div className={styles.timeline}>
-                      {timeline.map((item, idx) => {
-                        const eventType = item.eventType || item.EventType || 'visit';
-                        const startTime = item.startTime || item.StartTime;
-                        const endTime = item.endTime || item.EndTime;
-                        const startTimeLabel = formatTime(startTime);
-                        const endTimeLabel = formatTime(endTime);
-                        const locationId = item.locationId || item.LocationId;
-                        const locationIdNum = Number(locationId);
-                        const rawTitle = item.title || item.Title || '';
-                        const isTravel = eventType === 'travel';
-                        const isMeal = eventType === 'meal';
-                        const isLogistics = ['check-in', 'check-out', 'luggage-refresh'].includes(eventType);
+                  ),
+                  children: (
+                    <>
+                      <div className={styles.timeline}>
+                        {timeline.map((item, idx) => {
+                          const eventType = item.eventType || item.EventType || 'visit';
+                          const startTime = item.startTime || item.StartTime;
+                          const endTime = item.endTime || item.EndTime;
+                          const startTimeLabel = formatTime(startTime);
+                          const endTimeLabel = formatTime(endTime);
+                          const locationId = item.locationId || item.LocationId;
+                          const locationIdNum = Number(locationId);
+                          const rawTitle = item.title || item.Title || '';
+                          const isTravel = eventType === 'travel';
+                          const isMeal = eventType === 'meal';
+                          const isLogistics = ['check-in', 'check-out', 'luggage-refresh'].includes(eventType);
 
-                        const travelDetail = item.locationToLocationTravel || item.LocationToLocationTravel
-                          || item.transitHubToLocationTravel || item.TransitHubToLocationTravel
-                          || item.locationToTransitHubTravel || item.LocationToTransitHubTravel
-                          || item.provinceToProvinceTravel || item.ProvinceToProvinceTravel;
-                        const transportOptions = isTravel ? getTransportOptions(travelDetail) : [];
-                        const itemLocationName = pickFirstText(item.locationName, item.LocationName);
-                        const locationName = locationNameById.get(Number(locationId));
-                        const fallbackEventTitle = EVENT_DEFAULT_TITLES[eventType] || 'Activity';
-                        const translatedTitle = translateTitleToEnglish(rawTitle);
-                        const title = itemLocationName || locationName || translatedTitle || fallbackEventTitle;
+                          const travelDetail = item.locationToLocationTravel || item.LocationToLocationTravel
+                            || item.transitHubToLocationTravel || item.TransitHubToLocationTravel
+                            || item.locationToTransitHubTravel || item.LocationToTransitHubTravel
+                            || item.provinceToProvinceTravel || item.ProvinceToProvinceTravel;
+                          const transportOptions = isTravel ? getTransportOptions(travelDetail) : [];
+                          const itemLocationName = pickFirstText(item.locationName, item.LocationName);
+                          const locationName = locationNameById.get(Number(locationId));
+                          const fallbackEventTitle = EVENT_DEFAULT_TITLES[eventType] || 'Activity';
+                          const translatedTitle = translateTitleToEnglish(rawTitle);
+                          const title = itemLocationName || locationName || translatedTitle || fallbackEventTitle;
 
-                        const tagIds = item.tagIds || item.TagIds || [];
-                        const tagNames = item.tagNames || item.TagNames || [];
-                        const normalizedTagNames = Array.isArray(tagNames)
-                          ? tagNames.map((tag) => String(tag || '').trim()).filter(Boolean)
-                          : [];
-                        const displayTags = normalizedTagNames.length > 0
-                          ? normalizedTagNames.slice(0, 3)
-                          : (Array.isArray(tagIds) ? tagIds.slice(0, 3).map((tagId) => `Tag #${tagId}`) : []);
+                          const tagIds = item.tagIds || item.TagIds || [];
+                          const tagNames = item.tagNames || item.TagNames || [];
+                          const normalizedTagNames = Array.isArray(tagNames)
+                            ? tagNames.map((tag) => String(tag || '').trim()).filter(Boolean)
+                            : [];
+                          const displayTags = normalizedTagNames.length > 0
+                            ? normalizedTagNames.slice(0, 3)
+                            : (Array.isArray(tagIds) ? tagIds.slice(0, 3).map((tagId) => `Tag #${tagId}`) : []);
 
-                        const costForGroup = item.costForGroup || item.CostForGroup;
-                        const ticketCost = item.ticketCost || item.TicketCost;
-                        const rawNote = item.note || item.Note || '';
-                        const alternatives = item.alternatives || item.Alternatives || [];
+                          const costForGroup = item.costForGroup || item.CostForGroup;
+                          const ticketCost = item.ticketCost || item.TicketCost;
+                          const rawNote = item.note || item.Note || '';
+                          const alternatives = item.alternatives || item.Alternatives || [];
 
-                        const address = pickFirstText(item.address, item.Address);
-                        const telephone = pickFirstText(
-                          item.telephone,
-                          item.Telephone,
-                          Number.isFinite(locationIdNum) ? locationTelephoneById.get(locationIdNum) : '',
-                        );
-                        const itemAmenities = extractAmenityNames(
-                          item.amenityNames || item.AmenityNames || item.amenities || item.Amenities || []
-                        );
-                        const fallbackAmenities = Number.isFinite(locationIdNum)
-                          ? (locationAmenitiesById.get(locationIdNum) || [])
-                          : [];
-                        const displayAmenities = (itemAmenities.length > 0 ? itemAmenities : fallbackAmenities).slice(0, 5);
+                          const address = pickFirstText(item.address, item.Address);
+                          const telephone = pickFirstText(
+                            item.telephone,
+                            item.Telephone,
+                            Number.isFinite(locationIdNum) ? locationTelephoneById.get(locationIdNum) : '',
+                          );
+                          const itemAmenities = extractAmenityNames(
+                            item.amenityNames || item.AmenityNames || item.amenities || item.Amenities || []
+                          );
+                          const fallbackAmenities = Number.isFinite(locationIdNum)
+                            ? (locationAmenitiesById.get(locationIdNum) || [])
+                            : [];
+                          const displayAmenities = (itemAmenities.length > 0 ? itemAmenities : fallbackAmenities).slice(0, 5);
 
-                        const mediaUrls = (() => {
-                          const fromItem = extractMediaUrls(item);
-                          if (fromItem.length > 0) return fromItem;
-                          if (Number.isFinite(locationIdNum)) {
-                            const fromMap = locationMediaById.get(locationIdNum) || [];
-                            if (fromMap.length > 0) return fromMap;
-                          }
-                          const fromAlternatives = extractMediaUrls(item.alternatives || item.Alternatives || []);
-                          if (fromAlternatives.length > 0) return fromAlternatives;
-                          return [];
-                        })();
+                          const mediaUrls = (() => {
+                            const fromItem = extractMediaUrls(item);
+                            if (fromItem.length > 0) return fromItem;
+                            if (Number.isFinite(locationIdNum)) {
+                              const fromMap = locationMediaById.get(locationIdNum) || [];
+                              if (fromMap.length > 0) return fromMap;
+                            }
+                            const fromAlternatives = extractMediaUrls(item.alternatives || item.Alternatives || []);
+                            if (fromAlternatives.length > 0) return fromAlternatives;
+                            return [];
+                          })();
 
-                        const scoreValue = item.score ?? item.Score ?? item.rating ?? item.Rating;
-                        const displayScore = formatScoreLabel(scoreValue);
-                        const cleanedNote = String(rawNote).replace(/score\s*:\s*[0-9]+(?:[.,][0-9]+)?/gi, '').replace(/\s{2,}/g, ' ').trim();
-                        const note = translateNoteToEnglish(cleanedNote, eventType);
+                          const scoreValue = item.score ?? item.Score ?? item.rating ?? item.Rating;
+                          const displayScore = formatScoreLabel(scoreValue);
+                          const cleanedNote = String(rawNote).replace(/score\s*:\s*[0-9]+(?:[.,][0-9]+)?/gi, '').replace(/\s{2,}/g, ' ').trim();
+                          const note = translateNoteToEnglish(cleanedNote, eventType);
 
-                        const canRemoveLocation = isEditableLocationEvent(item);
-                        const canAddBetweenMain = canRemoveLocation && findNextPrimaryLocationIndex(timeline, idx) >= 0;
+                          const canRemoveLocation = isEditableLocationEvent(item);
+                          const canAddPoint = canRemoveLocation;
 
-                        const displayCost = costForGroup || ticketCost;
+                          const displayCost = costForGroup || ticketCost;
 
-                        const renderActions = () => (
-                          <div className={styles.cardActions}>
-                            {locationId && !isTravel && (
-                              <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleViewLocation(locationId)}>
-                                View Details
-                              </Button>
-                            )}
-                            {canAddBetweenMain && (
-                              <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleOpenAddBetweenPicker(dayIdx, idx, currentProvinceId)}>
-                                Add Between Main Points
-                              </Button>
-                            )}
-                            {canRemoveLocation && (
-                              <Popconfirm title="Remove this location?" description="Timeline and travel estimate will be recalculated." okText="Remove" cancelText="Cancel" onConfirm={() => handleRemoveLocation(dayIdx, idx)}>
-                                <Button type="link" size="small" danger disabled={isDayUpdating} className={styles.linkButton}>
-                                  Remove
+                          const renderActions = () => (
+                            <div className={styles.cardActions}>
+                              {locationId && !isTravel && (
+                                <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleViewLocation(locationId)}>
+                                  View Details
                                 </Button>
-                              </Popconfirm>
-                            )}
-                          </div>
-                        );
-
-                        const renderAlternatives = () => {
-                          if (alternatives.length === 0) return null;
-                          return (
-                            <div className={styles.alternativesSection}>
-                              <Collapse
-                                activeKey={showAlternativeItems ? ['1'] : []}
-                                onChange={(keys) => setShowAlternativeItems(keys.length > 0)}
-                                className={styles.innerCollapse}
-                                bordered={false}
-                                expandIconPosition="end"
-                                items={[
-                                  {
-                                    key: '1',
-                                    className: styles.innerCollapsePanel,
-                                    label: <span className={styles.innerCollapseLabel}>Alternative options ({alternatives.length})</span>,
-                                    children: (
-                                      <div className={styles.alternativeList}>
-                                        {alternatives.map((alternative, altIdx) => {
-                                          const altLocationId = alternative.locationId || alternative.LocationId;
-                                          const altLocationIdNum = Number(altLocationId);
-                                          const fallbackAltName = Number.isFinite(altLocationIdNum) ? locationNameById.get(altLocationIdNum) : '';
-                                          const altName = alternative.locationName || alternative.LocationName || fallbackAltName || `Location ${altIdx + 1}`;
-                                          const altScoreLabel = formatScoreLabel(alternative.score ?? alternative.Score);
-                                          const altTelephone = pickFirstText(alternative.telephone, alternative.Telephone, Number.isFinite(altLocationIdNum) ? locationTelephoneById.get(altLocationIdNum) : '');
-
-                                          const altMediaUrls = (() => {
-                                            const fromAlternative = extractMediaUrls(
-                                              alternative.mediaUrls || alternative.MediaUrls || alternative.images || alternative.Images || alternative.medias || alternative.Medias || []
-                                            );
-                                            if (fromAlternative.length > 0) return fromAlternative;
-                                            if (Number.isFinite(altLocationIdNum)) {
-                                              return locationMediaById.get(altLocationIdNum) || [];
-                                            }
-                                            return [];
-                                          })();
-
-                                          return (
-                                            <div key={`${idx}-alt-${altLocationId || altIdx}`} className={styles.alternativeItem}>
-                                              <div className={styles.alternativeInfo}>
-                                                <div className={styles.alternativeMain}>
-                                                  <span className={styles.alternativeName}>{altName}</span>
-                                                </div>
-                                                {altTelephone && <div className={styles.timelineTelephone}>Phone: {altTelephone}</div>}
-                                                <div className={styles.alternativeActions}>
-                                                  {altScoreLabel && <Text type="secondary" className={styles.scoreText}>Score: {altScoreLabel}</Text>}
-                                                  {altLocationId && (
-                                                    <>
-                                                      <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleReplaceAlternative(dayIdx, idx, alternative, eventType)}>Replace Main</Button>
-                                                      <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleViewLocation(altLocationId)}>View</Button>
-                                                    </>
-                                                  )}
-                                                </div>
-                                              </div>
-                                              {altMediaUrls.length > 0 && (
-                                                <div className={styles.alternativeMedia}>
-                                                  {altMediaUrls.length > 1 ? (
-                                                    <Carousel autoplay effect="fade" dots={false} className={styles.imageCarousel}>
-                                                      {altMediaUrls.map((url, mediaIdx) => (
-                                                        <div key={mediaIdx}>
-                                                          <img src={url} alt={`${altName} ${mediaIdx + 1}`} loading="lazy" className={styles.carouselImage} />
-                                                        </div>
-                                                      ))}
-                                                    </Carousel>
-                                                  ) : (
-                                                    <img src={altMediaUrls[0]} alt={altName} loading="lazy" className={styles.carouselImage} />
-                                                  )}
-                                                </div>
-                                              )}
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    )
-                                  }
-                                ]}
-                              />
+                              )}
+                              {canAddPoint && (
+                                <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleOpenAddBetweenPicker(dayIdx, idx, currentProvinceId)}>
+                                  Add Point
+                                </Button>
+                              )}
+                              {canRemoveLocation && (
+                                <Popconfirm title="Remove this location?" description="Timeline and travel estimate will be recalculated." okText="Remove" cancelText="Cancel" onConfirm={() => handleRemoveLocation(dayIdx, idx)}>
+                                  <Button type="link" size="small" danger disabled={isDayUpdating} className={styles.linkButton}>
+                                    Remove
+                                  </Button>
+                                </Popconfirm>
+                              )}
                             </div>
                           );
-                        };
 
-                        const badgeConfig = EVENT_BADGES[eventType] || EVENT_BADGES.visit;
+                          const renderAlternatives = () => {
+                            if (alternatives.length === 0) return null;
+                            return (
+                              <div className={styles.alternativesSection}>
+                                <Collapse
+                                  activeKey={showAlternativeItems ? ['1'] : []}
+                                  onChange={(keys) => setShowAlternativeItems(keys.length > 0)}
+                                  className={styles.innerCollapse}
+                                  bordered={false}
+                                  expandIconPosition="end"
+                                  items={[
+                                    {
+                                      key: '1',
+                                      className: styles.innerCollapsePanel,
+                                      label: <span className={styles.innerCollapseLabel}>Alternative options ({alternatives.length})</span>,
+                                      children: (
+                                        <div className={styles.alternativeList}>
+                                          {alternatives.map((alternative, altIdx) => {
+                                            const altLocationId = alternative.locationId || alternative.LocationId;
+                                            const altLocationIdNum = Number(altLocationId);
+                                            const fallbackAltName = Number.isFinite(altLocationIdNum) ? locationNameById.get(altLocationIdNum) : '';
+                                            const altName = alternative.locationName || alternative.LocationName || fallbackAltName || `Location ${altIdx + 1}`;
+                                            const altScoreLabel = formatScoreLabel(alternative.score ?? alternative.Score);
+                                            const altTelephone = pickFirstText(alternative.telephone, alternative.Telephone, Number.isFinite(altLocationIdNum) ? locationTelephoneById.get(altLocationIdNum) : '');
 
-                        return (
-                          <div key={idx} className={styles.timelineItem}>
-                            <div className={styles.timelineTime}>
-                              <span className={styles.timelineTimeStart}>{startTimeLabel}</span>
-                              {endTimeLabel && <span className={styles.timelineTimeEnd}>{endTimeLabel}</span>}
-                              <span className={styles.timelineDuration}>{getDurationStr(startTime, endTime)}</span>
-                            </div>
+                                            const altMediaUrls = (() => {
+                                              const fromAlternative = extractMediaUrls(
+                                                alternative.mediaUrls || alternative.MediaUrls || alternative.images || alternative.Images || alternative.medias || alternative.Medias || []
+                                              );
+                                              if (fromAlternative.length > 0) return fromAlternative;
+                                              if (Number.isFinite(altLocationIdNum)) {
+                                                return locationMediaById.get(altLocationIdNum) || [];
+                                              }
+                                              return [];
+                                            })();
 
-                            <div className={styles.timelineIcon} style={{ background: badgeConfig.bg }}>
-                              {badgeConfig.badge}
-                            </div>
-
-                            <div className={styles.timelineContent}>
-                              {isTravel && (() => {
-                                const travelMethod = getTravelMethod(travelDetail);
-                                const travelMinutes = getTravelDurationMinutes(travelDetail);
-                                const travelDistanceKm = toFiniteNumber(travelDetail?.distanceKm ?? travelDetail?.DistanceKm);
-                                const travelCostForGroup = getTravelGroupCost(costForGroup, travelDetail);
-                                const fromText = getTravelPointName(travelDetail, true) || 'Previous Location';
-                                const toText = getTravelPointName(travelDetail, false) || 'Next Location';
-
-                                return (
-                                  <div className={`${styles.card} ${styles.travelCard}`}>
-                                    <div className={styles.travelRoute}>
-                                      <div className={styles.travelPoint}>
-                                        <div className={styles.dot}></div>
-                                        <span>{fromText}</span>
-                                      </div>
-                                      <div className={styles.travelLine}>
-                                        <div className={styles.travelIconWrapper}>
-                                          {EVENT_BADGES.travel.badge}
-                                        </div>
-                                      </div>
-                                      <div className={styles.travelPoint}>
-                                        <div className={styles.dot}></div>
-                                        <span>{toText}</span>
-                                      </div>
-                                    </div>
-                                    <div className={styles.travelMeta}>
-                                      <Clock size={16} weight="bold" />
-                                      <span>
-                                        {travelMinutes ? formatMinutesAsHourMinute(travelMinutes) : ''}
-                                        {travelDistanceKm ? ` (${travelDistanceKm.toFixed(travelDistanceKm >= 10 ? 0 : 1)} km)` : ''}
-                                        {travelMethod ? ` • ${travelMethod}` : ''}
-                                      </span>
-                                    </div>
-                                    {travelCostForGroup && (
-                                      <div className={styles.travelCost}>
-                                        <span className={styles.costAmount}>{formatMoney(travelCostForGroup)}</span>
-                                      </div>
-                                    )}
-
-                                    {transportOptions.length > 0 && (
-                                      <div className={styles.transportSection}>
-                                        <Collapse
-                                          activeKey={showTransportOptionItems ? ['1'] : []}
-                                          onChange={(keys) => setShowTransportOptionItems(keys.length > 0)}
-                                          className={styles.innerCollapse}
-                                          bordered={false}
-                                          expandIconPosition="end"
-                                          items={[
-                                            {
-                                              key: '1',
-                                              className: styles.innerCollapsePanel,
-                                              label: <span className={styles.innerCollapseLabel}>Transport options ({transportOptions.length})</span>,
-                                              children: (
-                                                <div className={styles.transportOptionList}>
-                                                  {transportOptions.map((option, optionIdx) => {
-                                                    const optionMethod = pickFirstText(option?.method, option?.Method, `Option ${optionIdx + 1}`);
-                                                    const optionMinutes = toFiniteNumber(option?.estimatedTravelMinutes ?? option?.EstimatedTravelMinutes);
-                                                    const optionCost = pickBestMoney(option?.costForGroup, option?.CostForGroup, option?.estimatedTotalCost, option?.EstimatedTotalCost);
-                                                    const optionRecommended = Boolean(option?.recommended ?? option?.Recommended);
-                                                    return (
-                                                      <div key={`${idx}-transport-option-${optionIdx}`} className={`${styles.transportOptionItem} ${styles.transportOptionItemClickable} ${optionRecommended ? styles.transportOptionItemSelected : ''}`} role="button" tabIndex={0} onClick={() => { if (!isDayUpdating) handleSelectTransportOption(dayIdx, idx, optionIdx); }}>
-                                                        <div className={styles.transportOptionMain}>
-                                                          <span className={styles.transportOptionName}>{optionMethod}</span>
-                                                          {optionRecommended && <span className={styles.transportOptionRecommended}>Recommended</span>}
-                                                        </div>
-                                                        <div className={styles.transportOptionMeta}>
-                                                          {optionMinutes != null && optionMinutes > 0 ? formatMinutesAsHourMinute(optionMinutes) : 'N/A'}
-                                                          {optionCost ? ` • ${formatMoney(optionCost)}` : ''}
-                                                        </div>
-                                                      </div>
-                                                    );
-                                                  })}
+                                            return (
+                                              <div key={`${idx}-alt-${altLocationId || altIdx}`} className={styles.alternativeItem}>
+                                                <div className={styles.alternativeInfo}>
+                                                  <div className={styles.alternativeMain}>
+                                                    <span className={styles.alternativeName}>{altName}</span>
+                                                  </div>
+                                                  {altTelephone && <div className={styles.timelineTelephone}>Phone: {altTelephone}</div>}
+                                                  <div className={styles.alternativeActions}>
+                                                    {altScoreLabel && <Text type="secondary" className={styles.scoreText}>Score: {altScoreLabel}</Text>}
+                                                    {altLocationId && (
+                                                      <>
+                                                        <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleReplaceAlternative(dayIdx, idx, alternative, eventType)}>Replace</Button>
+                                                        <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleViewLocation(altLocationId)}>View</Button>
+                                                      </>
+                                                    )}
+                                                  </div>
                                                 </div>
-                                              )
-                                            }
-                                          ]}
-                                        />
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-
-                              {isMeal && (
-                                <div className={`${styles.card} ${styles.mealCard}`}>
-                                  <div className={styles.mealTop}>
-                                    <div className={styles.mealDetails}>
-                                      <div className={styles.visitInfo}>
-                                        <h3 className={styles.title}>{title}</h3>
-                                        {displayTags.length > 0 && (
-                                          <div className={styles.inlineTags}>
-                                            {displayTags.map((tagLabel, tagIdx) => (
-                                              <span key={`${idx}-tag-${tagIdx}`} className={styles.tag}>{tagLabel}</span>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                      {note && <p className={styles.address}>{note}</p>}
-                                      {address && <p className={styles.address}>{address}</p>}
-                                      {telephone && <p className={styles.address}>Phone: {telephone}</p>}
-                                      {displayAmenities.length > 0 && (
-                                        <div className={styles.tags} style={{ marginTop: 8 }}>
-                                          {displayAmenities.map((amenity, amenityIdx) => (
-                                            <Tag key={`${idx}-amenity-${amenityIdx}`} className={styles.customTag}>{amenity}</Tag>
-                                          ))}
-                                        </div>
-                                      )}
-                                      {displayCost && (displayCost.amount || displayCost.Amount) > 0 ? (
-                                        <div className={styles.costAmount} style={{ marginTop: 8 }}>{formatMoney(displayCost)}</div>
-                                      ) : (
-                                        <div className={styles.costFree} style={{ marginTop: 8 }}>Free</div>
-                                      )}
-                                      {renderActions()}
-                                    </div>
-                                    {mediaUrls.length > 0 && (
-                                      <div className={styles.mealImage}>
-                                        {mediaUrls.length > 1 ? (
-                                          <Carousel autoplay effect="fade" dots={false} className={styles.imageCarousel}>
-                                            {mediaUrls.map((url, imgIdx) => (
-                                              <div key={imgIdx}>
-                                                <img src={url} alt={`${title} ${imgIdx + 1}`} loading="lazy" className={styles.carouselImage} />
+                                                {altMediaUrls.length > 0 && (
+                                                  <div className={styles.alternativeMedia}>
+                                                    {altMediaUrls.length > 1 ? (
+                                                      <Carousel autoplay effect="fade" dots={false} className={styles.imageCarousel}>
+                                                        {altMediaUrls.map((url, mediaIdx) => (
+                                                          <div key={mediaIdx}>
+                                                            <img src={url} alt={`${altName} ${mediaIdx + 1}`} loading="lazy" className={styles.carouselImage} />
+                                                          </div>
+                                                        ))}
+                                                      </Carousel>
+                                                    ) : (
+                                                      <img src={altMediaUrls[0]} alt={altName} loading="lazy" className={styles.carouselImage} />
+                                                    )}
+                                                  </div>
+                                                )}
                                               </div>
-                                            ))}
-                                          </Carousel>
-                                        ) : (
-                                          <img src={mediaUrls[0]} alt={title} loading="lazy" className={styles.carouselImage} />
-                                        )}
-                                        {displayScore && (
-                                          <div className={styles.mealRating}>
-                                            <Star size={14} weight="fill" color="#D89A00" />
-                                            <span>{displayScore}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                  {renderAlternatives()}
-                                </div>
-                              )}
-
-                              {isLogistics && (
-                                <div className={`${styles.card} ${styles.logisticsCard}`}>
-                                  <div className={styles.logisticsText}>
-                                    <h3 className={styles.title}>{title}</h3>
-                                    {address && <p className={styles.address}>{address}</p>}
-                                    {telephone && <p className={styles.address}>Phone: {telephone}</p>}
-                                    {note && <p className={styles.address}>{note}</p>}
-                                  </div>
-                                  {renderAlternatives()}
-                                  {renderActions()}
-                                </div>
-                              )}
-
-                              {!isTravel && !isMeal && !isLogistics && (
-                                <div className={`${styles.card} ${styles.visitCard}`}>
-                                  <div className={styles.visitTop}>
-                                    <div className={styles.visitDetails}>
-                                      <div className={styles.visitInfo}>
-                                        <h3 className={styles.title}>{title}</h3>
-                                        {displayTags.length > 0 && (
-                                          <div className={styles.inlineTags}>
-                                            {displayTags.map((tagLabel, tagIdx) => (
-                                              <span key={`${idx}-tag-${tagIdx}`} className={styles.tag}>{tagLabel}</span>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                      {note && <p className={styles.address}>{note}</p>}
-                                      {address && <p className={styles.address}>{address}</p>}
-                                      {telephone && <p className={styles.address}>Phone: {telephone}</p>}
-                                      {displayAmenities.length > 0 && (
-                                        <div className={styles.tags} style={{ marginTop: 8 }}>
-                                          {displayAmenities.map((amenity, amenityIdx) => (
-                                            <Tag key={`${idx}-amenity-${amenityIdx}`} className={styles.customTag}>{amenity}</Tag>
-                                          ))}
+                                            );
+                                          })}
                                         </div>
-                                      )}
-                                      {displayCost && (displayCost.amount || displayCost.Amount) > 0 ? (
-                                        <div className={styles.costAmount} style={{ marginTop: 8 }}>{formatMoney(displayCost)}</div>
-                                      ) : (
-                                        <div className={styles.costFree} style={{ marginTop: 8 }}>Free</div>
-                                      )}
-                                      {renderActions()}
-                                    </div>
-                                    {mediaUrls.length > 0 && (
-                                      <div className={styles.visitImage}>
-                                        {mediaUrls.length > 1 ? (
-                                          <Carousel autoplay effect="fade" dots={false} className={styles.imageCarousel}>
-                                            {mediaUrls.map((url, imgIdx) => (
-                                              <div key={imgIdx}>
-                                                <img src={url} alt={`${title} ${imgIdx + 1}`} loading="lazy" className={styles.carouselImage} />
-                                              </div>
-                                            ))}
-                                          </Carousel>
-                                        ) : (
-                                          <img src={mediaUrls[0]} alt={title} loading="lazy" className={styles.carouselImage} />
-                                        )}
-                                        {displayScore && (
-                                          <div className={styles.visitRating}>
-                                            <Star size={14} weight="fill" color="#D89A00" />
-                                            <span>{displayScore}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                  {renderAlternatives()}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {accommodations.length > 0 && (
-                      <div className={styles.accommodationSection}>
-                        <div className={styles.accommodationTitle}>Accommodation Suggestions</div>
-                        {accommodations.map((acc, i) => {
-                          const name = acc.englishName || acc.EnglishName || acc.name || acc.Name || acc.hotelName || acc.HotelName || 'Hotel';
-                          const price = acc.pricePerNight || acc.PricePerNight || acc.estimatedCost || acc.EstimatedCost;
-                          const accommodationAmenities = extractAmenityNames(
-                            acc.amenities || acc.Amenities || acc.amenityNames || acc.AmenityNames || []
-                          ).slice(0, 5);
-                          return (
-                            <div key={i} className={styles.accommodationItemWrap}>
-                              <div className={styles.accommodationItem}>
-                                <span>{name}</span>
-                                <Space>
-                                  {price && <Text strong className={styles.costAmount}>{formatMoney(price)}/night</Text>}
-                                  <Button type="link" size="small" className={styles.linkButton} onClick={() => handleViewAccommodation(acc)}>Details</Button>
-                                </Space>
+                                      )
+                                    }
+                                  ]}
+                                />
                               </div>
-                              {accommodationAmenities.length > 0 && (
-                                <div className={styles.accommodationAmenities}>
-                                  {accommodationAmenities.map((amenity, amenityIdx) => (
-                                    <Tag key={`${i}-acc-amenity-${amenityIdx}`} className={styles.customTag}>{amenity}</Tag>
-                                  ))}
-                                </div>
-                              )}
+                            );
+                          };
+
+                          const badgeConfig = EVENT_BADGES[eventType] || EVENT_BADGES.visit;
+
+                          return (
+                            <div key={idx} className={styles.timelineItem}>
+                              <div className={styles.timelineTime}>
+                                <span className={styles.timelineTimeStart}>{startTimeLabel}</span>
+                                {endTimeLabel && <span className={styles.timelineTimeEnd}>{endTimeLabel}</span>}
+                                <span className={styles.timelineDuration}>{getDurationStr(startTime, endTime)}</span>
+                              </div>
+
+                              <div className={styles.timelineIcon} style={{ background: badgeConfig.bg }}>
+                                {badgeConfig.badge}
+                              </div>
+
+                              <div className={styles.timelineContent}>
+                                {isTravel && (() => {
+                                  const travelMethod = getTravelMethod(travelDetail);
+                                  const travelMinutes = getTravelDurationMinutes(travelDetail);
+                                  const travelDistanceKm = toFiniteNumber(travelDetail?.distanceKm ?? travelDetail?.DistanceKm);
+                                  const travelCostForGroup = getTravelGroupCost(costForGroup, travelDetail);
+                                  const fromText = getTravelPointName(travelDetail, true) || 'Previous Location';
+                                  const toText = getTravelPointName(travelDetail, false) || 'Next Location';
+
+                                  return (
+                                    <div className={`${styles.card} ${styles.travelCard}`}>
+                                      <div className={styles.travelRoute}>
+                                        <div className={styles.travelPoint}>
+                                          <div className={styles.dot}></div>
+                                          <span>{fromText}</span>
+                                        </div>
+                                        <div className={styles.travelLine}>
+                                          <div className={styles.travelIconWrapper}>
+                                            {EVENT_BADGES.travel.badge}
+                                          </div>
+                                        </div>
+                                        <div className={styles.travelPoint}>
+                                          <div className={styles.dot}></div>
+                                          <span>{toText}</span>
+                                        </div>
+                                      </div>
+                                      <div className={styles.travelMeta}>
+                                        <Clock size={16} weight="bold" />
+                                        <span>
+                                          {travelMinutes ? formatMinutesAsHourMinute(travelMinutes) : ''}
+                                          {travelDistanceKm ? ` (${travelDistanceKm.toFixed(travelDistanceKm >= 10 ? 0 : 1)} km)` : ''}
+                                          {travelMethod ? ` • ${travelMethod}` : ''}
+                                        </span>
+                                      </div>
+                                      {travelCostForGroup && (
+                                        <div className={styles.travelCost}>
+                                          <span className={styles.costAmount}>{formatMoney(travelCostForGroup)}</span>
+                                        </div>
+                                      )}
+
+                                      {transportOptions.length > 0 && (
+                                        <div className={styles.transportSection}>
+                                          <Collapse
+                                            activeKey={showTransportOptionItems ? ['1'] : []}
+                                            onChange={(keys) => setShowTransportOptionItems(keys.length > 0)}
+                                            className={styles.innerCollapse}
+                                            bordered={false}
+                                            expandIconPosition="end"
+                                            items={[
+                                              {
+                                                key: '1',
+                                                className: styles.innerCollapsePanel,
+                                                label: <span className={styles.innerCollapseLabel}>Transport options ({transportOptions.length})</span>,
+                                                children: (
+                                                  <div className={styles.transportOptionList}>
+                                                    {transportOptions.map((option, optionIdx) => {
+                                                      const optionMethod = pickFirstText(option?.method, option?.Method, `Option ${optionIdx + 1}`);
+                                                      const optionMinutes = toFiniteNumber(option?.estimatedTravelMinutes ?? option?.EstimatedTravelMinutes);
+                                                      const optionCost = pickBestMoney(option?.costForGroup, option?.CostForGroup, option?.estimatedTotalCost, option?.EstimatedTotalCost);
+                                                      const optionRecommended = Boolean(option?.recommended ?? option?.Recommended);
+                                                      return (
+                                                        <div key={`${idx}-transport-option-${optionIdx}`} className={`${styles.transportOptionItem} ${styles.transportOptionItemClickable} ${optionRecommended ? styles.transportOptionItemSelected : ''}`} role="button" tabIndex={0} onClick={() => { if (!isDayUpdating) handleSelectTransportOption(dayIdx, idx, optionIdx); }}>
+                                                          <div className={styles.transportOptionMain}>
+                                                            <span className={styles.transportOptionName}>{optionMethod}</span>
+                                                            {optionRecommended && <span className={styles.transportOptionRecommended}>Recommended</span>}
+                                                          </div>
+                                                          <div className={styles.transportOptionMeta}>
+                                                            {optionMinutes != null && optionMinutes > 0 ? formatMinutesAsHourMinute(optionMinutes) : 'N/A'}
+                                                            {optionCost ? ` • ${formatMoney(optionCost)}` : ''}
+                                                          </div>
+                                                        </div>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                )
+                                              }
+                                            ]}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+
+                                {isMeal && (
+                                  <div className={`${styles.card} ${styles.mealCard}`}>
+                                    <div className={styles.mealTop}>
+                                      <div className={styles.mealDetails}>
+                                        <div className={styles.visitInfo}>
+                                          <h3 className={styles.title}>{title}</h3>
+                                          {displayTags.length > 0 && (
+                                            <div className={styles.inlineTags}>
+                                              {displayTags.map((tagLabel, tagIdx) => (
+                                                <span key={`${idx}-tag-${tagIdx}`} className={styles.tag}>{tagLabel}</span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                        {note && <p className={styles.address}>{note}</p>}
+                                        {address && <p className={styles.address}>{address}</p>}
+                                        {telephone && <p className={styles.address}>Phone: {telephone}</p>}
+                                        {displayAmenities.length > 0 && (
+                                          <div className={styles.tags} style={{ marginTop: 8 }}>
+                                            {displayAmenities.map((amenity, amenityIdx) => (
+                                              <Tag key={`${idx}-amenity-${amenityIdx}`} className={styles.customTag}>{amenity}</Tag>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {displayCost && (displayCost.amount || displayCost.Amount) > 0 ? (
+                                          <div className={styles.costAmount} style={{ marginTop: 8 }}>{formatMoney(displayCost)}</div>
+                                        ) : (
+                                          <div className={styles.costFree} style={{ marginTop: 8 }}>Free</div>
+                                        )}
+                                        {renderActions()}
+                                      </div>
+                                      {mediaUrls.length > 0 && (
+                                        <div className={styles.mealImage}>
+                                          {mediaUrls.length > 1 ? (
+                                            <Carousel autoplay effect="fade" dots={false} className={styles.imageCarousel}>
+                                              {mediaUrls.map((url, imgIdx) => (
+                                                <div key={imgIdx}>
+                                                  <img src={url} alt={`${title} ${imgIdx + 1}`} loading="lazy" className={styles.carouselImage} />
+                                                </div>
+                                              ))}
+                                            </Carousel>
+                                          ) : (
+                                            <img src={mediaUrls[0]} alt={title} loading="lazy" className={styles.carouselImage} />
+                                          )}
+                                          {displayScore && (
+                                            <div className={styles.mealRating}>
+                                              <Star size={14} weight="fill" color="#D89A00" />
+                                              <span>{displayScore}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                    {renderAlternatives()}
+                                  </div>
+                                )}
+
+                                {isLogistics && (
+                                  <div className={`${styles.card} ${styles.logisticsCard}`}>
+                                    <div className={styles.logisticsText}>
+                                      <h3 className={styles.title}>{title}</h3>
+                                      {address && <p className={styles.address}>{address}</p>}
+                                      {telephone && <p className={styles.address}>Phone: {telephone}</p>}
+                                      {note && <p className={styles.address}>{note}</p>}
+                                    </div>
+                                    {renderAlternatives()}
+                                    {renderActions()}
+                                  </div>
+                                )}
+
+                                {!isTravel && !isMeal && !isLogistics && (
+                                  <div className={`${styles.card} ${styles.visitCard}`}>
+                                    <div className={styles.visitTop}>
+                                      <div className={styles.visitDetails}>
+                                        <div className={styles.visitInfo}>
+                                          <h3 className={styles.title}>{title}</h3>
+                                          {displayTags.length > 0 && (
+                                            <div className={styles.inlineTags}>
+                                              {displayTags.map((tagLabel, tagIdx) => (
+                                                <span key={`${idx}-tag-${tagIdx}`} className={styles.tag}>{tagLabel}</span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                        {note && <p className={styles.address}>{note}</p>}
+                                        {address && <p className={styles.address}>{address}</p>}
+                                        {telephone && <p className={styles.address}>Phone: {telephone}</p>}
+                                        {displayAmenities.length > 0 && (
+                                          <div className={styles.tags} style={{ marginTop: 8 }}>
+                                            {displayAmenities.map((amenity, amenityIdx) => (
+                                              <Tag key={`${idx}-amenity-${amenityIdx}`} className={styles.customTag}>{amenity}</Tag>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {displayCost && (displayCost.amount || displayCost.Amount) > 0 ? (
+                                          <div className={styles.costAmount} style={{ marginTop: 8 }}>{formatMoney(displayCost)}</div>
+                                        ) : (
+                                          <div className={styles.costFree} style={{ marginTop: 8 }}>Free</div>
+                                        )}
+                                        {renderActions()}
+                                      </div>
+                                      {mediaUrls.length > 0 && (
+                                        <div className={styles.visitImage}>
+                                          {mediaUrls.length > 1 ? (
+                                            <Carousel autoplay effect="fade" dots={false} className={styles.imageCarousel}>
+                                              {mediaUrls.map((url, imgIdx) => (
+                                                <div key={imgIdx}>
+                                                  <img src={url} alt={`${title} ${imgIdx + 1}`} loading="lazy" className={styles.carouselImage} />
+                                                </div>
+                                              ))}
+                                            </Carousel>
+                                          ) : (
+                                            <img src={mediaUrls[0]} alt={title} loading="lazy" className={styles.carouselImage} />
+                                          )}
+                                          {displayScore && (
+                                            <div className={styles.visitRating}>
+                                              <Star size={14} weight="fill" color="#D89A00" />
+                                              <span>{displayScore}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                    {renderAlternatives()}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
                       </div>
-                    )}
-                  </>
-                ),
-              },
-            ];
 
-            return (
-              <Collapse
-                key={dayNum}
-                defaultActiveKey={['1']}
-                className={styles.dayCard}
-                bordered={false}
-                expandIconPosition="end"
-                items={collapseItems}
-              />
-            );
-          })}
+                      {accommodations.length > 0 && (
+                        <div className={styles.accommodationSection}>
+                          <div className={styles.accommodationTitle}>Accommodation Suggestions</div>
+                          {accommodations.map((acc, i) => {
+                            const name = acc.englishName || acc.EnglishName || acc.name || acc.Name || acc.hotelName || acc.HotelName || 'Hotel';
+                            const price = acc.pricePerNight || acc.PricePerNight || acc.estimatedCost || acc.EstimatedCost;
+                            const accommodationAmenities = extractAmenityNames(
+                              acc.amenities || acc.Amenities || acc.amenityNames || acc.AmenityNames || []
+                            ).slice(0, 5);
+                            return (
+                              <div key={i} className={styles.accommodationItemWrap}>
+                                <div className={styles.accommodationItem}>
+                                  <span>{name}</span>
+                                  <Space>
+                                    {price && <Text strong className={styles.costAmount}>{formatMoney(price)}/night</Text>}
+                                    <Button type="link" size="small" className={styles.linkButton} onClick={() => handleViewAccommodation(acc)}>Details</Button>
+                                  </Space>
+                                </div>
+                                {accommodationAmenities.length > 0 && (
+                                  <div className={styles.accommodationAmenities}>
+                                    {accommodationAmenities.map((amenity, amenityIdx) => (
+                                      <Tag key={`${i}-acc-amenity-${amenityIdx}`} className={styles.customTag}>{amenity}</Tag>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  ),
+                },
+              ];
 
-          <div className={styles.actionBar}>
-            <Button onClick={handleRegenerate} size="large" className={styles.actionBtnSecondary}>
-              Regenerate
-            </Button>
-            <Button type="primary" onClick={() => navigate('/create-trip')} size="large" className={styles.actionBtnPrimary}>
-              Edit
-            </Button>
+              return (
+                <Collapse
+                  key={dayNum}
+                  defaultActiveKey={['1']}
+                  className={styles.dayCard}
+                  bordered={false}
+                  expandIconPosition="end"
+                  items={collapseItems}
+                />
+              );
+            })}
+
+            <div className={styles.actionBar}>
+              <Button onClick={handleRegenerate} size="large" className={styles.actionBtnSecondary}>
+                Regenerate
+              </Button>
+              <Button type="primary" onClick={() => navigate('/create-trip')} size="large" className={styles.actionBtnPrimary}>
+                Edit
+              </Button>
+            </div>
           </div>
         </div>
 
         <Modal
-          title="Add Location Between Two Main Points"
+          title="Add Point"
           open={addBetweenModal.open}
           onCancel={handleCloseAddBetweenModal}
           onOk={handleConfirmAddBetween}
@@ -1953,6 +2105,7 @@ const ItineraryResultPage = () => {
         <LocationDetailModal
           open={locationModal.open}
           locationId={locationModal.locationId}
+          currencyCode={tripCurrencyCode}
           onClose={() => setLocationModal({ open: false, locationId: null })}
         />
         <TransportDetailModal

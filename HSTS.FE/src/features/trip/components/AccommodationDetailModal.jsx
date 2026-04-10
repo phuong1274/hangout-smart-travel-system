@@ -46,7 +46,6 @@ const AccommodationDetailModal = ({ open, data, onClose }) => {
   const rating = data.rating || data.Rating || data.starRating || data.StarRating;
   const pricePerNight = data.pricePerNight || data.PricePerNight || data.estimatedCost || data.EstimatedCost;
   const amenities = (data.amenities || data.Amenities || []).slice(0, 5);
-  const images = data.images || data.Images || [];
   const checkIn = data.checkInTime || data.CheckInTime;
   const checkOut = data.checkOutTime || data.CheckOutTime;
   const roomType = data.roomType || data.RoomType || '';
@@ -59,16 +58,16 @@ const AccommodationDetailModal = ({ open, data, onClose }) => {
       onClose={onClose}
       placement="right"
       width={600}
+      mask={false}
       destroyOnClose
+      style={{ boxShadow: '-8px 0 24px rgba(26, 83, 92, 0.08)' }}
     >
-      {/* Rating */}
       {displayRating && (
         <div style={{ marginBottom: 12 }}>
           {'⭐'.repeat(Number(displayRating.split('/')[0]))} {displayRating}
         </div>
       )}
 
-      {/* Basic Info */}
       <Descriptions size="small" column={1} bordered>
         {address && (
           <Descriptions.Item label="📍 Address">{address}</Descriptions.Item>
@@ -87,7 +86,6 @@ const AccommodationDetailModal = ({ open, data, onClose }) => {
         )}
       </Descriptions>
 
-      {/* Amenities */}
       {amenities.length > 0 && (
         <>
           <Divider orientation="left" plain>Amenities</Divider>
@@ -104,7 +102,6 @@ const AccommodationDetailModal = ({ open, data, onClose }) => {
         </>
       )}
 
-      {/* Description */}
       {description && (
         <>
           <Divider orientation="left" plain>Description</Divider>
