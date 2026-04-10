@@ -591,6 +591,13 @@ const findNextPrimaryLocationIndex = (timeline, fromIndex) => {
   return -1;
 };
 
+const findPreviousPrimaryLocationIndex = (timeline, fromIndex) => {
+  for (let index = fromIndex - 1; index >= 0; index -= 1) {
+    if (isEditableLocationEvent(timeline[index])) return index;
+  }
+  return -1;
+};
+
 const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
@@ -1025,7 +1032,7 @@ const ItineraryResultPage = () => {
         ticketCost: null,
         extraCostPerPerson: null,
         costForGroup: null,
-        note: 'Inserted between two main locations',
+        note: 'Inserted after selected location',
         score: picked.score ?? 0,
         address: picked.address || null,
         telephone: picked.telephone || null,
@@ -1038,14 +1045,14 @@ const ItineraryResultPage = () => {
 
       await recalculateDayTimeline(draft, dayIndex);
       updateItinerary(draft);
-      message.success('Location inserted between two main points and timeline recalculated.');
+      message.success('Location added and timeline recalculated.');
 
       setAddBetweenModal({ open: false, dayIndex: null, insertAfterIndex: null, provinceId: null });
       setProvinceLocationOptions([]);
       setSelectedProvinceLocationId(null);
       setProvinceLocationSearch('');
     } catch {
-      message.error('Unable to add location between two points.');
+      message.error('Unable to add location.');
     } finally {
       setRecalculatingDayNumber(null);
     }
@@ -1253,18 +1260,141 @@ const ItineraryResultPage = () => {
         return;
       }
 
-      timeline.splice(timelineIndex, 1);
-      day[timelineKey] = timeline;
+      const prevLocationIndex = findPreviousPrimaryLocationIndex(timeline, timelineIndex);
+      const nextLocationIndex = findNextPrimaryLocationIndex(timeline, timelineIndex);
+      const prevLocation = prevLocationIndex >= 0 ? timeline[prevLocationIndex] : null;
+      const nextLocation = nextLocationIndex >= 0 ? timeline[nextLocationIndex] : null;
 
-      await recalculateDayTimeline(draft, dayIndex, { preserveExternalSegments: true });
+      let leftTravelIndex = -1;
+      if (prevLocationIndex >= 0) {
+        for (let index = timelineIndex - 1; index > prevLocationIndex; index -= 1) {
+          if (isTravelEvent(timeline[index])) {
+            leftTravelIndex = index;
+            break;
+          }
+        }
+      }
+
+      let rightTravelIndex = -1;
+      if (nextLocationIndex >= 0) {
+        for (let index = timelineIndex + 1; index < nextLocationIndex; index += 1) {
+          if (isTravelEvent(timeline[index])) {
+            rightTravelIndex = index;
+            break;
+          }
+        }
+      }
+
+      let mergedTravelItem = null;
+      const prevLocationId = getItemLocationId(prevLocation);
+      const nextLocationId = getItemLocationId(nextLocation);
+      const canConnectPreviousAndNext = Number.isFinite(prevLocationId) && prevLocationId > 0
+        && Number.isFinite(nextLocationId) && nextLocationId > 0;
+
+      if (canConnectPreviousAndNext) {
+        const leftTravel = leftTravelIndex >= 0 ? timeline[leftTravelIndex] : null;
+        const rightTravel = rightTravelIndex >= 0 ? timeline[rightTravelIndex] : null;
+        const departureTime = pickFirstText(
+          leftTravel?.startTime,
+          leftTravel?.StartTime,
+          prevLocation?.endTime,
+          prevLocation?.EndTime,
+          '08:00:00',
+        );
+        const arrivalTime = pickFirstText(
+          rightTravel?.endTime,
+          rightTravel?.EndTime,
+          nextLocation?.startTime,
+          nextLocation?.StartTime,
+          addMinutesToTime(departureTime, 20),
+        );
+
+        const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+        const groupSizeValue = Number(draft?.groupSize ?? draft?.GroupSize);
+        const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0
+          ? Math.round(groupSizeValue)
+          : 1;
+
+        let travelLeg = null;
+        try {
+          travelLeg = await estimateLocalTravelApi({
+            fromLocationId: prevLocationId,
+            toLocationId: nextLocationId,
+            groupSize,
+            departureTime,
+            currencyCode,
+          });
+        } catch {
+          travelLeg = null;
+        }
+
+        const fromName = pickFirstText(
+          travelLeg?.fromLocationName,
+          travelLeg?.FromLocationName,
+          prevLocation?.locationName,
+          prevLocation?.LocationName,
+          prevLocation?.title,
+          prevLocation?.Title,
+        ) || `Location #${prevLocationId}`;
+        const toName = pickFirstText(
+          travelLeg?.toLocationName,
+          travelLeg?.ToLocationName,
+          nextLocation?.locationName,
+          nextLocation?.LocationName,
+          nextLocation?.title,
+          nextLocation?.Title,
+        ) || `Location #${nextLocationId}`;
+
+        mergedTravelItem = {
+          eventType: 'travel',
+          title: `Move from ${fromName} to ${toName}`,
+          startTime: departureTime,
+          endTime: arrivalTime,
+          locationId: 0,
+          tagNames: [],
+          note: 'Updated after removing location',
+          score: 0,
+          locationToLocationTravel: travelLeg
+            ? {
+              ...travelLeg,
+              departureTime,
+              DepartureTime: departureTime,
+              arrivalTime,
+              ArrivalTime: arrivalTime,
+            }
+            : null,
+          costForGroup: travelLeg?.selectedTotalCost || travelLeg?.SelectedTotalCost || null,
+        };
+      }
+
+      const indexesToRemove = new Set([timelineIndex]);
+      if (leftTravelIndex >= 0) indexesToRemove.add(leftTravelIndex);
+      if (rightTravelIndex >= 0) indexesToRemove.add(rightTravelIndex);
+
+      const rawInsertAt = leftTravelIndex >= 0 ? leftTravelIndex : timelineIndex;
+      const insertAt = timeline
+        .slice(0, rawInsertAt)
+        .filter((_, index) => !indexesToRemove.has(index))
+        .length;
+
+      const nextTimeline = timeline.filter((_, index) => !indexesToRemove.has(index));
+      if (mergedTravelItem) {
+        nextTimeline.splice(Math.max(0, Math.min(insertAt, nextTimeline.length)), 0, mergedTravelItem);
+      }
+
+      day[timelineKey] = nextTimeline;
+
+      const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+      updateDayEstimatedCost(day, timelineKey, currencyCode);
+      updateBudgetSummaryFromDays(draft);
       updateItinerary(draft);
-      message.success('Location removed and timeline recalculated.');
+      message.success('Location removed and adjacent locations were reconnected.');
     } catch {
-      message.error('Unable to remove location and recalculate timeline.');
+      message.error('Unable to remove location and reconnect adjacent points.');
     } finally {
       setRecalculatingDayNumber(null);
     }
-  }, [itinerary, recalculateDayTimeline, updateItinerary]);
+  }, [itinerary, updateItinerary]);
 
   const handleRegenerate = () => {
     clearItinerary();
@@ -1533,7 +1663,7 @@ const ItineraryResultPage = () => {
                         const note = translateNoteToEnglish(cleanedNote, eventType);
 
                         const canRemoveLocation = isEditableLocationEvent(item);
-                        const canAddBetweenMain = canRemoveLocation && findNextPrimaryLocationIndex(timeline, idx) >= 0;
+                        const canAddPoint = canRemoveLocation;
 
                         const displayCost = costForGroup || ticketCost;
 
@@ -1544,7 +1674,7 @@ const ItineraryResultPage = () => {
                                 View Details
                               </Button>
                             )}
-                            {canAddBetweenMain && (
+                            {canAddPoint && (
                               <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleOpenAddBetweenPicker(dayIdx, idx, currentProvinceId)}>
                                 Add Point
                               </Button>
