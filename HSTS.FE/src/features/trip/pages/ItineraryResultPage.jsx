@@ -14,8 +14,7 @@ import {
   ConfigProvider,
   Carousel,
   Collapse,
-  Progress,
-  Divider
+  Progress
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useTripPlanner } from '../hooks/useTripPlanner';
@@ -596,7 +595,6 @@ const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
   const [provinceNameById, setProvinceNameById] = useState(new Map());
-  const [showBudgetDetails, setShowBudgetDetails] = useState(false);
   const [showAlternativeItems, setShowAlternativeItems] = useState(true);
   const [showTransportOptionItems, setShowTransportOptionItems] = useState(true);
   const [recalculatingDayNumber, setRecalculatingDayNumber] = useState(null);
@@ -659,7 +657,8 @@ const ItineraryResultPage = () => {
     setAccommodationModal({ open: true, data });
   }, []);
 
-  const recalculateDayTimeline = useCallback(async (draftItinerary, dayIndex) => {
+  const recalculateDayTimeline = useCallback(async (draftItinerary, dayIndex, options = {}) => {
+    const preserveExternalSegments = Boolean(options?.preserveExternalSegments);
     const daysKey = Array.isArray(draftItinerary?.days) ? 'days' : 'Days';
     const days = Array.isArray(draftItinerary?.[daysKey]) ? draftItinerary[daysKey] : [];
     const day = days[dayIndex];
@@ -672,12 +671,16 @@ const ItineraryResultPage = () => {
       .filter((index) => index >= 0);
 
     if (locationIndexes.length === 0) {
-      day[timelineKey] = sourceTimeline.filter((item) => !isTravelEvent(item));
+      day[timelineKey] = preserveExternalSegments
+        ? sourceTimeline
+        : sourceTimeline.filter((item) => !isTravelEvent(item));
       return draftItinerary;
     }
 
     if (locationIndexes.length === 1) {
-      day[timelineKey] = sourceTimeline.filter((item) => !isTravelEvent(item));
+      day[timelineKey] = preserveExternalSegments
+        ? sourceTimeline
+        : sourceTimeline.filter((item) => !isTravelEvent(item));
       return draftItinerary;
     }
 
@@ -777,8 +780,12 @@ const ItineraryResultPage = () => {
 
     const firstLocationIndex = locationIndexes[0];
     const lastLocationIndex = locationIndexes[locationIndexes.length - 1];
-    const beforeSegment = sourceTimeline.slice(0, firstLocationIndex).filter((item) => !isTravelEvent(item));
-    const afterSegment = sourceTimeline.slice(lastLocationIndex + 1).filter((item) => !isTravelEvent(item));
+    const beforeSegment = preserveExternalSegments
+      ? sourceTimeline.slice(0, firstLocationIndex)
+      : sourceTimeline.slice(0, firstLocationIndex).filter((item) => !isTravelEvent(item));
+    const afterSegment = preserveExternalSegments
+      ? sourceTimeline.slice(lastLocationIndex + 1)
+      : sourceTimeline.slice(lastLocationIndex + 1).filter((item) => !isTravelEvent(item));
 
     day[timelineKey] = [...beforeSegment, ...rebuiltSegment, ...afterSegment];
     updateDayEstimatedCost(day, timelineKey, currencyCode);
@@ -851,6 +858,7 @@ const ItineraryResultPage = () => {
       const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
       const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
       const anchorItem = timeline[timelineIndex] || {};
+      const anchorLocationId = Number(anchorItem?.locationId ?? anchorItem?.LocationId);
       const altLocationId = Number(alternative?.locationId ?? alternative?.LocationId);
 
       if (!Number.isFinite(altLocationId) || altLocationId <= 0) {
@@ -863,13 +871,63 @@ const ItineraryResultPage = () => {
         alternative?.LocationName,
         alternative?.name,
         alternative?.Name,
+        locationNameById.get(altLocationId),
       ) || `Location #${altLocationId}`;
+
+      const anchorTitle = pickFirstText(anchorItem?.title, anchorItem?.Title)
+        .replace(/^(visit|meal at)\s+/i, '')
+        .trim();
+
+      const anchorName = pickFirstText(
+        anchorItem?.locationName,
+        anchorItem?.LocationName,
+        anchorItem?.name,
+        anchorItem?.Name,
+        anchorTitle,
+        Number.isFinite(anchorLocationId) ? locationNameById.get(anchorLocationId) : '',
+      ) || (Number.isFinite(anchorLocationId) ? `Location #${anchorLocationId}` : 'Current location');
+
+      const anchorMediaUrls = extractMediaUrls(anchorItem);
+      const currentAlternatives = anchorItem?.alternatives || anchorItem?.Alternatives || [];
+      const swappedAlternatives = currentAlternatives.filter((item) => {
+        const id = Number(item?.locationId ?? item?.LocationId);
+        if (!Number.isFinite(id)) return true;
+        if (id === altLocationId) return false;
+        if (Number.isFinite(anchorLocationId) && id === anchorLocationId) return false;
+        return true;
+      });
+
+      if (Number.isFinite(anchorLocationId) && anchorLocationId > 0 && anchorLocationId !== altLocationId) {
+        swappedAlternatives.unshift({
+          locationId: anchorLocationId,
+          locationName: anchorName,
+          LocationName: anchorName,
+          name: anchorName,
+          Name: anchorName,
+          tagNames: anchorItem?.tagNames || anchorItem?.TagNames || [],
+          ticketCost: anchorItem?.ticketCost || anchorItem?.TicketCost || null,
+          extraCostPerPerson: anchorItem?.extraCostPerPerson || anchorItem?.ExtraCostPerPerson || null,
+          score: anchorItem?.score ?? anchorItem?.Score ?? 0,
+          address: anchorItem?.address || anchorItem?.Address || null,
+          telephone: pickFirstText(
+            anchorItem?.telephone,
+            anchorItem?.Telephone,
+            locationTelephoneById.get(anchorLocationId),
+          ) || null,
+          mediaUrls: anchorMediaUrls.length > 0
+            ? anchorMediaUrls
+            : (locationMediaById.get(anchorLocationId) || []),
+        });
+      }
 
       const replacedItem = {
         ...anchorItem,
         eventType: sourceEventType || anchorItem?.eventType || anchorItem?.EventType || 'visit',
         title: sourceEventType === 'meal' ? `Meal at ${altName}` : `Visit ${altName}`,
         locationName: altName,
+        LocationName: altName,
+        name: altName,
+        Name: altName,
         locationId: altLocationId,
         tagNames: alternative?.tagNames || alternative?.TagNames || [],
         ticketCost: alternative?.ticketCost || alternative?.TicketCost || null,
@@ -880,8 +938,7 @@ const ItineraryResultPage = () => {
         address: alternative?.address || alternative?.Address || null,
         telephone: alternative?.telephone || alternative?.Telephone || null,
         mediaUrls: alternative?.mediaUrls || alternative?.MediaUrls || [],
-        alternatives: (anchorItem?.alternatives || anchorItem?.Alternatives || [])
-          .filter((item) => Number(item?.locationId ?? item?.LocationId) !== altLocationId),
+        alternatives: swappedAlternatives,
       };
 
       timeline[timelineIndex] = replacedItem;
@@ -889,13 +946,13 @@ const ItineraryResultPage = () => {
 
       await recalculateDayTimeline(draft, dayIndex);
       updateItinerary(draft);
-      message.success('Main location replaced and timeline recalculated.');
+      message.success('Swapped main location with selected alternative.');
     } catch {
       message.error('Unable to replace location and recalculate timeline.');
     } finally {
       setRecalculatingDayNumber(null);
     }
-  }, [itinerary, recalculateDayTimeline, updateItinerary]);
+  }, [itinerary, locationMediaById, locationNameById, locationTelephoneById, recalculateDayTimeline, updateItinerary]);
 
   const handleOpenAddBetweenPicker = useCallback(async (dayIndex, insertAfterIndex, provinceId) => {
     const normalizedProvinceId = Number(provinceId);
@@ -931,7 +988,7 @@ const ItineraryResultPage = () => {
 
     if (!Number.isFinite(dayIndex) || !Number.isFinite(insertAfterIndex)) return;
     if (!Number.isFinite(locationId) || locationId <= 0) {
-      message.warning('Please select a location to add between two main points.');
+      message.warning('Please select a location to add.');
       return;
     }
 
@@ -1199,7 +1256,7 @@ const ItineraryResultPage = () => {
       timeline.splice(timelineIndex, 1);
       day[timelineKey] = timeline;
 
-      await recalculateDayTimeline(draft, dayIndex);
+      await recalculateDayTimeline(draft, dayIndex, { preserveExternalSegments: true });
       updateItinerary(draft);
       message.success('Location removed and timeline recalculated.');
     } catch {
@@ -1237,6 +1294,7 @@ const ItineraryResultPage = () => {
   const endDate = itinerary.endDate || itinerary.EndDate;
   const groupSize = itinerary.groupSize || itinerary.GroupSize;
   const budgetLevel = itinerary.budgetLevel || itinerary.BudgetLevel;
+  const tripCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
 
   const totalBudgetValue = getMoneyAmount(budgetSummary?.totalBudget || budgetSummary?.TotalBudget) || 0;
   const estimatedTotalValue = getMoneyAmount(budgetSummary?.estimatedTotalCost || budgetSummary?.EstimatedTotalCost) || 0;
@@ -1267,31 +1325,6 @@ const ItineraryResultPage = () => {
         label: 'Remaining',
         value: formatMoney(budgetSummary.remainingBudget || budgetSummary.RemainingBudget),
         className: styles.budgetRemainingValue,
-      },
-    ]
-    : [];
-
-  const budgetDetailItems = budgetSummary
-    ? [
-      {
-        key: 'contingency',
-        label: 'Contingency',
-        value: formatMoney(budgetSummary.contingencyFund || budgetSummary.ContingencyFund),
-      },
-      {
-        key: 'transport',
-        label: 'Transport',
-        value: formatMoney(budgetSummary.estimatedTransportCost || budgetSummary.EstimatedTransportCost),
-      },
-      {
-        key: 'accommodation',
-        label: 'Accommodation',
-        value: formatMoney(budgetSummary.estimatedAccommodationCost || budgetSummary.EstimatedAccommodationCost),
-      },
-      {
-        key: 'activities',
-        label: 'Activities',
-        value: formatMoney(budgetSummary.estimatedActivityCost || budgetSummary.EstimatedActivityCost),
       },
     ]
     : [];
@@ -1340,14 +1373,6 @@ const ItineraryResultPage = () => {
               title={(
                 <div className={styles.budgetCardHeader}>
                   <span>Budget Summary</span>
-                  <Button
-                    type="link"
-                    size="small"
-                    className={styles.budgetToggleBtn}
-                    onClick={() => setShowBudgetDetails((prev) => !prev)}
-                  >
-                    {showBudgetDetails ? 'Hide details' : 'Show details'}
-                  </Button>
                 </div>
               )}
               size="small"
@@ -1374,21 +1399,6 @@ const ItineraryResultPage = () => {
                   </div>
                 ))}
               </div>
-
-              {showBudgetDetails && (
-                <div className={styles.budgetDetailsSection}>
-                  <Divider style={{ margin: '20px 0 16px', borderColor: 'rgba(26, 83, 92, 0.1)' }} />
-                  <div className={styles.budgetBreakdownTitle}>Expense Breakdown</div>
-                  <div className={styles.budgetDetailsGrid}>
-                    {budgetDetailItems.map((item) => (
-                      <div key={item.key} className={styles.budgetDetailBox}>
-                        <span className={styles.budgetDetailLabel}>{item.label}</span>
-                        <span className={styles.budgetDetailValue}>{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </Card>
           )}
 
@@ -1536,7 +1546,7 @@ const ItineraryResultPage = () => {
                             )}
                             {canAddBetweenMain && (
                               <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleOpenAddBetweenPicker(dayIdx, idx, currentProvinceId)}>
-                                Add Between Main Points
+                                Add Point
                               </Button>
                             )}
                             {canRemoveLocation && (
@@ -1596,7 +1606,7 @@ const ItineraryResultPage = () => {
                                                   {altScoreLabel && <Text type="secondary" className={styles.scoreText}>Score: {altScoreLabel}</Text>}
                                                   {altLocationId && (
                                                     <>
-                                                      <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleReplaceAlternative(dayIdx, idx, alternative, eventType)}>Replace Main</Button>
+                                                      <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleReplaceAlternative(dayIdx, idx, alternative, eventType)}>Replace</Button>
                                                       <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleViewLocation(altLocationId)}>View</Button>
                                                     </>
                                                   )}
@@ -1917,7 +1927,7 @@ const ItineraryResultPage = () => {
         </div>
 
         <Modal
-          title="Add Location Between Two Main Points"
+          title="Add Point"
           open={addBetweenModal.open}
           onCancel={handleCloseAddBetweenModal}
           onOk={handleConfirmAddBetween}
@@ -1953,6 +1963,7 @@ const ItineraryResultPage = () => {
         <LocationDetailModal
           open={locationModal.open}
           locationId={locationModal.locationId}
+          currencyCode={tripCurrencyCode}
           onClose={() => setLocationModal({ open: false, locationId: null })}
         />
         <TransportDetailModal

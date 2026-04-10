@@ -36,6 +36,21 @@ const VND_EXCHANGE_RATES = Object.freeze({
   PHP: 460,
 });
 
+export const convertCurrencyAmount = (amount, fromCurrencyCode = 'VND', toCurrencyCode = 'VND') => {
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount)) {
+    return 0;
+  }
+
+  const fromCurrency = String(fromCurrencyCode || 'VND').toUpperCase();
+  const toCurrency = String(toCurrencyCode || 'VND').toUpperCase();
+  const fromRate = VND_EXCHANGE_RATES[fromCurrency] ?? VND_EXCHANGE_RATES.VND;
+  const toRate = VND_EXCHANGE_RATES[toCurrency] ?? VND_EXCHANGE_RATES.VND;
+
+  const amountInVnd = numericAmount * fromRate;
+  return amountInVnd / toRate;
+};
+
 export const convertBudgetToVnd = (amount, currencyCode = 'VND') => {
   const numericAmount = Number(amount);
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
