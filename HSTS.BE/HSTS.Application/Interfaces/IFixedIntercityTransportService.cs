@@ -108,7 +108,15 @@ namespace HSTS.Application.Interfaces
             FixedIntercitySearchRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<FixedIntercitySearchResult> SearchBusWithDateFallbackAsync(
+            FixedIntercitySearchRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<FixedIntercitySearchResult> SearchTrainAsync(
+            TrainRouteSearchRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<FixedIntercitySearchResult> SearchTrainWithDateFallbackAsync(
             TrainRouteSearchRequest request,
             CancellationToken cancellationToken = default);
 
@@ -117,6 +125,10 @@ namespace HSTS.Application.Interfaces
             CancellationToken cancellationToken = default);
 
         Task<FixedIntercitySearchResult> SearchFlightAsync(
+            FlightRouteSearchRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<FixedIntercitySearchResult> SearchFlightWithDateFallbackAsync(
             FlightRouteSearchRequest request,
             CancellationToken cancellationToken = default);
 
