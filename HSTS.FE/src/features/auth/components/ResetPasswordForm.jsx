@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Button, Form, Input, Typography } from 'antd';
 import { LeftOutlined, LockOutlined } from '@ant-design/icons';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useResetPassword, useResendOtp, useVerifyForgotPasswordOtp } from '../hooks/useAuth';
 import OtpVerificationStep from './OtpVerificationStep';
 import { PATHS } from '@/routes/paths';
@@ -12,7 +12,11 @@ const { Title } = Typography;
 const ResetPasswordForm = () => {
   const [form] = Form.useForm();
   const location = useLocation();
-  const email = location.state?.email;
+  const [searchParams] = useSearchParams();
+  const onboardingMode = searchParams.get('mode') === 'onboarding';
+  const onboardingToken = searchParams.get('token');
+  const onboardingEmail = searchParams.get('email');
+  const email = onboardingMode ? onboardingEmail : location.state?.email;
   const initialRemainingResends = location.state?.remainingResends;
   const initialCooldownSeconds = location.state?.cooldownSeconds;
 
@@ -41,18 +45,28 @@ const ResetPasswordForm = () => {
     (values) => {
       if (!email) return;
       resetPassword(
-        { email, otpCode, newPassword: values.newPassword },
-        { onError: () => { setStep(1); setOtpCode(''); } },
+        onboardingMode
+          ? { token: onboardingToken, newPassword: values.newPassword }
+          : { email, otpCode, newPassword: values.newPassword },
+        {
+          mode: onboardingMode ? 'onboarding' : undefined,
+          onError: () => {
+            if (!onboardingMode) {
+              setStep(1);
+              setOtpCode('');
+            }
+          },
+        },
       );
     },
     [email, otpCode, resetPassword],
   );
 
-  if (!email) return <Navigate to={PATHS.AUTH.FORGOT_PASSWORD} replace />;
+  if (!email || (onboardingMode && !onboardingToken)) return <Navigate to={PATHS.AUTH.FORGOT_PASSWORD} replace />;
 
   return (
     <>
-      {step === 1 ? (
+      {!onboardingMode && step === 1 ? (
         <OtpVerificationStep
           email={email}
           onSubmitOtp={handleOtpSubmit}
@@ -67,8 +81,8 @@ const ResetPasswordForm = () => {
           <div className={styles.resetContainer}>
             <div className={styles.resetContent}>
               
-              <div className={styles.subHeading}>Create new key</div>
-              <Title level={2} className={styles.resetTitle}>Reset Password</Title>
+              <div className={styles.subHeading}>{onboardingMode ? 'Welcome aboard' : 'Create new key'}</div>
+              <Title level={2} className={styles.resetTitle}>{onboardingMode ? 'Set Password' : 'Reset Password'}</Title>
 
               <Form
                 form={form}
