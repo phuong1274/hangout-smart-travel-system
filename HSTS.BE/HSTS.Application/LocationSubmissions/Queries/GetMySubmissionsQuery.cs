@@ -75,7 +75,22 @@ namespace HSTS.Application.LocationSubmissions.Queries
                 query,
                 ct);
 
-            // Resolve tags and existing location for each submission
+            // Batch-resolve all tags for all submissions in one query
+            var allTagIds = items
+                .Where(s => s.TagIdsJson != null)
+                .SelectMany(s => System.Text.Json.JsonSerializer.Deserialize<List<int>>(s.TagIdsJson) ?? Enumerable.Empty<int>())
+                .Distinct()
+                .ToList();
+
+            var allTags = allTagIds.Count > 0
+                ? (await _tagRepository.Query()
+                    .Where(t => allTagIds.Contains(t.Id) && !t.IsDeleted)
+                    .Select(t => new LocationSubmissionTagDto(t.Id, t.Name))
+                    .ToListAsync(ct))
+                    .ToDictionary(t => t.Id)
+                : new Dictionary<int, LocationSubmissionTagDto>();
+
+            // Map submissions with pre-fetched tags
             var submissionDtos = new List<LocationSubmissionDto>();
             foreach (var submission in items)
             {
@@ -83,10 +98,12 @@ namespace HSTS.Application.LocationSubmissions.Queries
                     ? System.Text.Json.JsonSerializer.Deserialize<List<int>>(submission.TagIdsJson)
                     : null;
 
-                var tags = await LocationSubmissionMappingExtensions.ResolveTagsAsync(
-                    tagIds,
-                    _tagRepository,
-                    ct);
+                var tags = tagIds != null
+                    ? tagIds
+                        .Where(id => allTags.ContainsKey(id))
+                        .Select(id => allTags[id])
+                        .ToList()
+                    : null;
 
                 // Map existing location if present
                 HSTS.Application.Locations.LocationDto? existingLocationDto = null;

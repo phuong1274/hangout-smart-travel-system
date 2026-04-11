@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using HSTS.Application.Trips;
 using HSTS.Application.Trips.Commands;
 using HSTS.Application.Trips.Queries;
+using HSTS.Application.TripActivities.Commands;
+using HSTS.Domain.Enums;
 
 namespace HSTS.API.Controllers
 {
@@ -126,5 +128,33 @@ namespace HSTS.API.Controllers
 
             return NoContent();
         }
+
+        /// <summary>
+        /// Update a trip activity's status (Upcoming, InProgress, Completed).
+        /// If no status is provided, it auto-determines based on activity start/end times.
+        /// </summary>
+        [HttpPatch("activities/{activityId}/status")]
+        public async Task<IActionResult> UpdateTripActivityStatus(
+            int activityId,
+            [FromBody] UpdateTripActivityStatusRequest request,
+            CancellationToken ct)
+        {
+            var command = new UpdateTripActivityStatusCommand(activityId, request.Status);
+            var result = await _mediator.Send(command, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(result.Value);
+        }
     }
+
+    public record UpdateTripActivityStatusRequest(TripActivityStatus? Status = null);
 }

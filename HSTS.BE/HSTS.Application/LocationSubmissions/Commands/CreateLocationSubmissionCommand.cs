@@ -210,7 +210,6 @@ namespace HSTS.Application.LocationSubmissions.Commands
             };
 
             await _repository.AddAsync(submission, cancellationToken);
-            await _repository.UpdateAsync(submission, cancellationToken);
 
             // Resolve tags for the response
             var tags = await LocationSubmissionMappingExtensions.ResolveTagsAsync(
