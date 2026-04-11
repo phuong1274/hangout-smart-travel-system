@@ -10,6 +10,15 @@ namespace HSTS.Application.Expenses.Queries
     public record GetExpensesByTripQuery(int TripId) : IRequest<ErrorOr<List<ExpenseDto>>>;
     public record GetTotalExpenseByTripQuery(int TripId) : IRequest<ErrorOr<ExpenseTotalDto>>;
     public record AggregateExpensesByTimelineQuery(int TripId) : IRequest<ErrorOr<List<ExpenseByTimelineDto>>>;
+    public record GetExpensesGroupedByActivityQuery(int TripId) : IRequest<ErrorOr<List<ActivityExpensesDto>>>;
+
+    // New DTOs
+    public record ActivityExpensesDto(
+        int ActivityId,
+        string ActivityTitle,
+        decimal TotalExpense,
+        List<ExpenseDto> Expenses
+    );
 
     public class GetExpenseByIdQueryHandler : IRequestHandler<GetExpenseByIdQuery, ErrorOr<ExpenseDto>>
     {
@@ -128,6 +137,39 @@ namespace HSTS.Application.Expenses.Queries
                 .ToListAsync(cancellationToken);
 
             return results;
+        }
+    }
+
+    public class GetExpensesGroupedByActivityQueryHandler : IRequestHandler<GetExpensesGroupedByActivityQuery, ErrorOr<List<ActivityExpensesDto>>>
+    {
+        private readonly IRepository<Expense> _expenseRepository;
+
+        public GetExpensesGroupedByActivityQueryHandler(IRepository<Expense> expenseRepository)
+        {
+            _expenseRepository = expenseRepository;
+        }
+
+        public async Task<ErrorOr<List<ActivityExpensesDto>>> Handle(GetExpensesGroupedByActivityQuery request, CancellationToken cancellationToken)
+        {
+            var expenses = await _expenseRepository.Query()
+                .Include(e => e.CreatedByMember)
+                .Include(e => e.TripActivity)
+                    .ThenInclude(a => a.TripDay)
+                .Where(e => e.TripActivity.TripDay.TripId == request.TripId)
+                .OrderBy(e => e.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            var grouped = expenses
+                .GroupBy(e => new { e.TripActivityId, Title = e.TripActivity.Title })
+                .Select(g => new ActivityExpensesDto(
+                    g.Key.TripActivityId,
+                    g.Key.Title,
+                    g.Sum(e => e.TotalAmount),
+                    g.Select(e => e.ToDto()).ToList()
+                ))
+                .ToList();
+
+            return grouped;
         }
     }
 }

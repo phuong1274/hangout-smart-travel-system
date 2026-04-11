@@ -25,12 +25,7 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Status)
                 .HasConversion<int>();
 
-            builder.HasOne(t => t.User)
-                .WithMany(u => u.Trips)
-                .HasForeignKey(t => t.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
-            // User relationship now managed through TripMembers
-            // The creator (Leader) is added via TripMember on trip creation
+            builder.Ignore(t => t.StartingLocation);
 
             builder.HasMany(t => t.TripMembers)
                 .WithOne(tm => tm.Trip)

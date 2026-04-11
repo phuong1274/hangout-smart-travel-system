@@ -5,7 +5,6 @@ import PublicRoute from './PublicRoute';
 import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
-import ItineraryResultPage from '@/features/trip/pages/ItineraryResultPage';
 
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
@@ -30,10 +29,9 @@ const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-sub
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
 const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
 const TripDetailPage = lazy(() => import('@/features/trip/pages/TripDetailPage'));
+const TripsPage = lazy(() => import('@/features/trip/pages/TripsPage'));
 
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
-
-const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
 
 const DashboardOverview = () => (
   <div>
@@ -121,12 +119,16 @@ export const router = createBrowserRouter([
             element: <CreateTripPage />
           },
           {
+            path: PATHS.TRIPS_LIST,
+            element: <TripsPage />
+          },
+          {
             path: PATHS.ITINERARY,
             element: <ItineraryResultPage />
           },
           {
             path: PATHS.TRIP_DETAIL,
-            element: <ItineraryResultPage />
+            element: <TripDetailPage />
           },
           {
             path: '/my-locations',

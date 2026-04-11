@@ -42,7 +42,7 @@ namespace HSTS.Application.Expenses.Commands
                 return Error.NotFound("TripMember.TripNotFound", "Trip not found.");
             }
 
-            if (!Enum.TryParse<Domain.Enums.TripMemberRole>(request.Role, out var role))
+            if (!Enum.TryParse<Domain.Enums.TripRole>(request.Role, out var role))
             {
                 return Error.Validation("TripMember.InvalidRole", "Invalid trip member role.");
             }
@@ -50,7 +50,7 @@ namespace HSTS.Application.Expenses.Commands
             var member = new TripMember
             {
                 TripId = request.TripId,
-                UserId = request.UserId,
+                UserId = request.UserId.Value,
                 Name = request.Name,
                 Role = role
             };
@@ -78,7 +78,7 @@ namespace HSTS.Application.Expenses.Commands
                 return Error.NotFound("TripMember.NotFound", "Trip member not found.");
             }
 
-            if (!Enum.TryParse<Domain.Enums.TripMemberRole>(request.Role, out var role))
+            if (!Enum.TryParse<Domain.Enums.TripRole>(request.Role, out var role))
             {
                 return Error.Validation("TripMember.InvalidRole", "Invalid trip member role.");
             }

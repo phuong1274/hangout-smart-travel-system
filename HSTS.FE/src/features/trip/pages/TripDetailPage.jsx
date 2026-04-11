@@ -16,6 +16,13 @@ import {
   Progress,
   Avatar,
   List,
+  Modal,
+  Form,
+  Input,
+  InputNumber,
+  message,
+  Tooltip,
+  Popconfirm,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -24,8 +31,13 @@ import {
   ClockCircleOutlined,
   UserOutlined,
   EnvironmentOutlined,
+  CheckCircleOutlined,
+  PlayCircleOutlined,
+  ClockCircleFilled,
+  PlusOutlined,
 } from '@ant-design/icons';
-import { getTripDetailApi } from '../api';
+import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, getExpensesByActivityApi, deleteExpenseApi } from '../api';
+import { useAuthStore } from '@/store/authStore';
 import {
   getProvincesApi,
   getLocationByIdApi,
@@ -47,6 +59,12 @@ const EVENT_BADGES = {
   Shopping: { badge: 'SH', bg: '#fff7e6' },
   Meal: { badge: 'ML', bg: '#fff0f6' },
   LuggageRefresh: { badge: 'LG', bg: '#fff0f6' },
+};
+
+const ACTIVITY_STATUS_CONFIG = {
+  0: { label: 'Upcoming', color: 'default', icon: <ClockCircleFilled />, nextStatus: 1, nextLabel: 'Start' },
+  1: { label: 'In Progress', color: 'processing', icon: <PlayCircleOutlined />, nextStatus: 2, nextLabel: 'Complete' },
+  2: { label: 'Completed', color: 'success', icon: <CheckCircleOutlined />, nextStatus: null, nextLabel: null },
 };
 
 const formatMoney = (amount, currency = 'VND') => {
@@ -72,6 +90,7 @@ const formatMinutesAsHourMinute = (minutes) => {
 const TripDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [provinceNameById, setProvinceNameById] = useState(new Map());
@@ -85,6 +104,10 @@ const TripDetailPage = () => {
   const [locationModal, setLocationModal] = useState({ open: false, locationId: null });
   const [transportModal, setTransportModal] = useState({ open: false, data: null });
   const [accommodationModal, setAccommodationModal] = useState({ open: false, data: null });
+  const [expenseModal, setExpenseModal] = useState({ open: false, activityId: null, activityTitle: '' });
+  const [updatingActivityIds, setUpdatingActivityIds] = useState(new Set());
+  const [activityExpenses, setActivityExpenses] = useState({}); // { activityId: [expense1, expense2, ...] }
+  const [expenseForm] = Form.useForm();
 
   // Load province names
   useEffect(() => {
@@ -186,6 +209,108 @@ const TripDetailPage = () => {
     return () => { mounted = false; };
   }, [trip]);
 
+  // Load expenses for this trip (grouped by activity)
+  useEffect(() => {
+    let mounted = true;
+    const loadExpenses = async () => {
+      if (!trip) return;
+      try {
+        const groupedExpenses = await getExpensesByActivityApi(Number(id));
+        if (!mounted) return;
+        
+        // Convert to lookup by activityId: { activityId: expenses[], activityId2: expenses[], ... }
+        const lookup = {};
+        (groupedExpenses || []).forEach(item => {
+          lookup[item.activityId] = item.expenses || [];
+        });
+        setActivityExpenses(lookup);
+      } catch {
+        // ignore
+      }
+    };
+    loadExpenses();
+    return () => { mounted = false; };
+  }, [trip, id]);
+
+  // Find the current user's TripMember id for this trip
+  const currentUserId = user?.id;
+  const myMember = trip?.tripMembers?.find(m => m.userId === currentUserId);
+
+  // Handle activity status update
+  const handleUpdateActivityStatus = useCallback(async (activityId) => {
+    const activity = trip?.tripDays?.flatMap(d => d.activities || []).find(a => a.id === activityId);
+    const currentStatus = activity?.status ?? 0;
+    const config = ACTIVITY_STATUS_CONFIG[currentStatus];
+
+    if (!config.nextStatus) return; // Already completed
+
+    setUpdatingActivityIds(prev => new Set(prev).add(activityId));
+    try {
+      await updateTripActivityStatusApi(activityId, config.nextStatus);
+      message.success(`Activity marked as "${config.nextLabel === 'Complete' ? 'Completed' : 'In Progress'}"`);
+      // Reload trip data
+      const data = await getTripDetailApi(Number(id));
+      setTrip(data);
+    } catch (err) {
+      console.error('Failed to update activity status:', err);
+      message.error('Failed to update activity status');
+    } finally {
+      setUpdatingActivityIds(prev => {
+        const next = new Set(prev);
+        next.delete(activityId);
+        return next;
+      });
+    }
+  }, [trip, id]);
+
+  // Handle expense submission
+  const handleExpenseSubmit = useCallback(async (values) => {
+    try {
+      await logActualExpenseApi({
+        tripActivityId: expenseModal.activityId,
+        title: values.title,
+        description: values.description,
+        totalAmount: values.totalAmount,
+        createdById: myMember.id,
+      });
+      message.success('Expense logged successfully');
+      expenseForm.resetFields();
+      setExpenseModal({ open: false, activityId: null, activityTitle: '' });
+      // Reload trip data and expenses
+      await reloadTripAndExpenses();
+    } catch (err) {
+      console.error('Failed to log expense:', err);
+      message.error(err?.response?.data?.message || 'Failed to log expense');
+    }
+  }, [expenseModal, expenseForm, id, trip, user, myMember]);
+
+  // Handle expense deletion
+  const handleDeleteExpense = useCallback(async (expenseId) => {
+    try {
+      await deleteExpenseApi(expenseId);
+      message.success('Expense deleted');
+      await reloadTripAndExpenses();
+    } catch (err) {
+      console.error('Failed to delete expense:', err);
+      message.error('Failed to delete expense');
+    }
+  }, [id]);
+
+  // Helper to reload trip + expenses
+  const reloadTripAndExpenses = useCallback(async () => {
+    const [tripData, groupedExpenses] = await Promise.all([
+      getTripDetailApi(Number(id)),
+      getExpensesByActivityApi(Number(id)),
+    ]);
+    setTrip(tripData);
+    
+    const lookup = {};
+    (groupedExpenses || []).forEach(item => {
+      lookup[item.activityId] = item.expenses || [];
+    });
+    setActivityExpenses(lookup);
+  }, [id]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
@@ -213,8 +338,10 @@ const TripDetailPage = () => {
 
   // Budget status calculation
   const totalBudget = summary?.totalBudget || 0;
-  const totalActual = trip.tripDays?.reduce((sum, day) =>
-    sum + (day.activities?.reduce((aSum, act) => aSum + (act.budget?.actualExpense || 0), 0) || 0), 0) || 0;
+  // Calculate total spent from all expense logs
+  const totalActual = Object.values(activityExpenses).reduce(
+    (sum, expenses) => sum + expenses.reduce((a, e) => a + (e.totalAmount || 0), 0), 0
+  );
   const totalEstimated = summary?.estimatedTotalCost || 0;
   const variance = totalActual - totalEstimated;
   const budgetPercent = totalEstimated > 0 ? (totalActual / totalEstimated) * 100 : 0;
@@ -224,15 +351,22 @@ const TripDetailPage = () => {
   // Category budget vs actual
   const categoryData = [];
   if (summary) {
-    const accommodationActual = trip.tripDays?.reduce((sum, day) =>
-      sum + (day.activities?.filter(a => a.type === 'CheckIn' || a.type === 'CheckOut')
-        .reduce((aSum, act) => aSum + (act.budget?.actualExpense || 0), 0) || 0), 0) || 0;
-    const transportActual = trip.tripDays?.reduce((sum, day) =>
-      sum + (day.activities?.filter(a => a.type === 'Travel')
-        .reduce((aSum, act) => aSum + (act.budget?.actualExpense || 0), 0) || 0), 0) || 0;
-    const activityActual = trip.tripDays?.reduce((sum, day) =>
-      sum + (day.activities?.filter(a => a.type === 'Visit' || a.type === 'Meal' || a.type === 'Shopping')
-        .reduce((aSum, act) => aSum + (act.budget?.actualExpense || 0), 0) || 0), 0) || 0;
+    // Calculate actuals from expense logs grouped by activity type
+    const allActivities = trip.tripDays?.flatMap(d => d.activities || []) || [];
+    const accommodationActivityIds = new Set(
+      allActivities.filter(a => a.type === 'CheckIn' || a.type === 'CheckOut').map(a => a.id)
+    );
+    const transportActivityIds = new Set(
+      allActivities.filter(a => a.type === 'Travel').map(a => a.id)
+    );
+
+    const accommodationActual = Object.entries(activityExpenses)
+      .filter(([id]) => accommodationActivityIds.has(Number(id)))
+      .reduce((sum, [, expenses]) => sum + expenses.reduce((a, e) => a + (e.totalAmount || 0), 0), 0);
+    const transportActual = Object.entries(activityExpenses)
+      .filter(([id]) => transportActivityIds.has(Number(id)))
+      .reduce((sum, [, expenses]) => sum + expenses.reduce((a, e) => a + (e.totalAmount || 0), 0), 0);
+    const activityActual = totalActual - accommodationActual - transportActual;
 
     categoryData.push({
       key: 'Accommodation',
@@ -350,7 +484,7 @@ const TripDetailPage = () => {
               </Col>
               <Col span={6}>
                 <Statistic
-                  title="Actual Spent"
+                  title="Total Spent"
                   value={totalActual}
                   precision={0}
                   valueStyle={{ color: budgetStatusColor }}
@@ -451,8 +585,11 @@ const TripDetailPage = () => {
                             const mediaUrls = locationMediaById.get(locationId) || [];
                             const budget = activity.budget;
                             const estimatedCost = budget?.estimateCost || 0;
-                            const actualCost = budget?.actualExpense || 0;
-                            const costVariance = actualCost - estimatedCost;
+                            const activityStatus = activity.status ?? 0;
+                            const statusConfig = ACTIVITY_STATUS_CONFIG[activityStatus];
+                            const isUpdating = updatingActivityIds.has(activity.id);
+                            const activityExpensesList = activityExpenses[activity.id] || [];
+                            const totalExpenses = activityExpensesList.reduce((sum, e) => sum + (e.totalAmount || 0), 0);
 
                             return (
                               <div key={actIdx} className={styles.timelineItem}>
@@ -472,19 +609,59 @@ const TripDetailPage = () => {
                                     {locationName || activity.title}
                                   </div>
                                   {budget && (
-                                    <div style={{ display: 'flex', gap: 8, marginTop: 4, fontSize: 12 }}>
-                                      <span>
-                                        Est: <strong>{formatMoney(estimatedCost, currency)}</strong>
-                                      </span>
-                                      {actualCost > 0 && (
+                                    <div style={{ marginTop: 6 }}>
+                                      <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
                                         <span>
-                                          Actual: <strong>{formatMoney(actualCost, currency)}</strong>
+                                          Est: <strong>{formatMoney(estimatedCost, currency)}</strong>
                                         </span>
-                                      )}
-                                      {costVariance !== 0 && (
-                                        <span style={{ color: costVariance > 0 ? '#ff4d4f' : '#52c41a' }}>
-                                          ({costVariance > 0 ? '+' : ''}{formatMoney(costVariance, currency)})
-                                        </span>
+                                        {totalExpenses > 0 && (
+                                          <span>
+                                            Spent: <strong>{formatMoney(totalExpenses, currency)}</strong>
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Individual expense logs */}
+                                      {activityExpensesList.length > 0 && (
+                                        <div style={{ marginTop: 6, background: '#fafafa', borderRadius: 6, padding: '6px 8px' }}>
+                                          {activityExpensesList.map(exp => (
+                                            <div
+                                              key={exp.id}
+                                              style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                fontSize: 12,
+                                                padding: '3px 0',
+                                                borderBottom: '1px solid #f0f0f0',
+                                              }}
+                                            >
+                                              <div style={{ flex: 1 }}>
+                                                <span style={{ fontWeight: 500 }}>{exp.title}</span>
+                                                {exp.description && (
+                                                  <span style={{ color: '#888', marginLeft: 4 }}>({exp.description})</span>
+                                                )}
+                                                <span style={{ color: '#aaa', marginLeft: 4 }}>by {exp.createdByName}</span>
+                                              </div>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                <strong>{formatMoney(exp.totalAmount, currency)}</strong>
+                                                <Popconfirm
+                                                  title="Delete this expense?"
+                                                  onConfirm={() => handleDeleteExpense(exp.id)}
+                                                  okText="Delete"
+                                                  cancelText="Cancel"
+                                                >
+                                                  <Button type="link" size="small" danger style={{ padding: 0, height: 'auto', fontSize: 12 }}>
+                                                    ✕
+                                                  </Button>
+                                                </Popconfirm>
+                                              </div>
+                                            </div>
+                                          ))}
+                                          <div style={{ textAlign: 'right', marginTop: 4, fontWeight: 600, fontSize: 12 }}>
+                                            Total: {formatMoney(totalExpenses, currency)}
+                                          </div>
+                                        </div>
                                       )}
                                     </div>
                                   )}
@@ -521,9 +698,36 @@ const TripDetailPage = () => {
                                     <div className={styles.timelineTelephone}>Phone: {telephone}</div>
                                   )}
 
+                                  {/* Status Badge */}
+                                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                    <Tag
+                                      icon={statusConfig.icon}
+                                      color={statusConfig.color}
+                                      style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                                    >
+                                      {statusConfig.label}
+                                    </Tag>
+
+                                    {/* Status Progression Button */}
+                                    {statusConfig.nextStatus !== null && (
+                                      <Tooltip title={`Mark as "${statusConfig.nextLabel}"`}>
+                                        <Button
+                                          type="link"
+                                          size="small"
+                                          loading={isUpdating}
+                                          disabled={isUpdating}
+                                          style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                                          onClick={() => handleUpdateActivityStatus(activity.id)}
+                                        >
+                                          {statusConfig.nextLabel}
+                                        </Button>
+                                      </Tooltip>
+                                    )}
+                                  </div>
+
                                   {/* Actions */}
-                                  {locationId > 0 && eventType !== 'Travel' && (
-                                    <div className={styles.timelineActions}>
+                                  <div className={styles.timelineActions} style={{ marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                    {locationId > 0 && eventType !== 'Travel' && (
                                       <Button
                                         type="link"
                                         size="small"
@@ -533,8 +737,24 @@ const TripDetailPage = () => {
                                       >
                                         View Details
                                       </Button>
-                                    </div>
-                                  )}
+                                    )}
+                                    <Button
+                                      type="link"
+                                      size="small"
+                                      icon={<PlusOutlined />}
+                                      disabled={activityStatus !== 1}
+                                      style={{ padding: 0, height: 'auto', fontSize: 12, opacity: activityStatus === 1 ? 1 : 0.5 }}
+                                      onClick={() => {
+                                        setExpenseModal({
+                                          open: true,
+                                          activityId: activity.id,
+                                          activityTitle: activity.title || locationName || 'Activity',
+                                        });
+                                      }}
+                                    >
+                                      Log Expense
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -599,6 +819,54 @@ const TripDetailPage = () => {
           data={accommodationModal.data}
           onClose={() => setAccommodationModal({ open: false, data: null })}
         />
+
+        {/* Log Expense Modal */}
+        <Modal
+          title={`Log Expense: ${expenseModal.activityTitle}`}
+          open={expenseModal.open}
+          onCancel={() => {
+            setExpenseModal({ open: false, activityId: null, activityTitle: '' });
+            expenseForm.resetFields();
+          }}
+          onOk={() => expenseForm.submit()}
+          okText="Log Expense"
+          cancelText="Cancel"
+        >
+          <Form
+            form={expenseForm}
+            layout="vertical"
+            onFinish={handleExpenseSubmit}
+            style={{ marginTop: 16 }}
+          >
+            <Form.Item
+              name="title"
+              label="Expense Title"
+              rules={[{ required: true, message: 'Please enter expense title' }]}
+            >
+              <Input placeholder="e.g., Lunch, Taxi fare, Entrance fee" />
+            </Form.Item>
+            <Form.Item
+              name="description"
+              label="Description (optional)"
+            >
+              <Input.TextArea rows={2} placeholder="Optional details about the expense" />
+            </Form.Item>
+            <Form.Item
+              name="totalAmount"
+              label="Amount"
+              rules={[{ required: true, message: 'Please enter amount' }]}
+            >
+              <InputNumber
+                style={{ width: '100%' }}
+                min={0}
+                precision={0}
+                placeholder="Enter amount"
+                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={value => value.replace(/\$\s?|(,*)/g, '')}
+              />
+            </Form.Item>
+          </Form>
+        </Modal>
       </div>
     </div>
   );

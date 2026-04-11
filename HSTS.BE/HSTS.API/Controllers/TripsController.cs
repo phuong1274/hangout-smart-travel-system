@@ -6,9 +6,7 @@ using HSTS.Application.Trips.Commands;
 using HSTS.Application.Trips.Queries;
 using HSTS.Application.TripActivities.Commands;
 using HSTS.Domain.Enums;
-using Microsoft.AspNetCore.Mvc;
 using HSTS.API.Common;
-using HSTS.Application.Trips.Commands;
 using HSTS.Application.Trips.Dtos;
 
 namespace HSTS.API.Controllers
@@ -158,21 +156,26 @@ namespace HSTS.API.Controllers
 
             return Ok(result.Value);
         }
+
+        [HttpPost("save")]
+        public async Task<IActionResult> SaveTrip([FromBody] SaveTripRequest request, CancellationToken ct)
+        {
+            var command = new SaveTripCommand(request);
+            var result = await _mediator.Send(command, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(new { message = "Trip was saved successfully!!!", tripId = result.Value });
+        }
     }
 
     public record UpdateTripActivityStatusRequest(TripActivityStatus? Status = null);
-    public class TripsController : BaseApiController
-    {
-        [HttpPost("save")]
-        public async Task<IActionResult> SaveTrip(SaveTripRequest request)
-        {
-            var command = new SaveTripCommand(request);
-            var result = await Mediator.Send(command);
-
-            return result.Match(
-                tripId => Ok(new { message = "Trip was saved successfully!!!", tripId = tripId }),
-                MapErrors
-            );
-        }
-    }
 }

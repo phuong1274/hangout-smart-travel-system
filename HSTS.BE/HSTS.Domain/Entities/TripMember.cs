@@ -26,6 +26,11 @@ namespace HSTS.Domain.Entities
         [Column("Role")]
         public TripRole Role { get; set; }
 
+        [Required]
+        [MaxLength(200)]
+        [Column("Name")]
+        public string Name { get; set; } = null!;
+
         [Column("JoinedDate")]
         public DateTime JoinedDate { get; set; } = DateTime.UtcNow;
 

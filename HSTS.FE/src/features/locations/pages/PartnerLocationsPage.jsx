@@ -549,7 +549,6 @@ const PartnerLocationsPage = () => {
           locationName={selectedLocationForClosure?.name}
           onClosureChange={fetchLocations}
         />
-      </div>
 
       {/* Suggest Edit Modal - Using SubmissionForm with existingLocation prop */}
       <SubmissionForm
@@ -614,7 +613,8 @@ const PartnerLocationsPage = () => {
           />
         )}
       </Modal>
-    </div>
+      </div>
+    </ConfigProvider>
   );
 };
 

@@ -77,7 +77,7 @@ namespace HSTS.Application.Expenses.Commands
                 return Error.NotFound("Expense.MemberNotFound", "Trip member not found.");
             }
 
-            if (member.Role != TripMemberRole.TREASURER)
+            if (member.Role != TripRole.Treasurer)
             {
                 return Error.Forbidden("Expense.NotTreasurer", "Only TREASURER can create expenses.");
             }
@@ -88,10 +88,14 @@ namespace HSTS.Application.Expenses.Commands
                 return Error.NotFound("Expense.ActivityNotFound", "Trip activity not found.");
             }
 
-            // Get currency from Trip
+            if (activity.Status != TripActivityStatus.InProgress)
+            {
+                return Error.Validation("Expense.ActivityNotInProgress", "Can only log expenses for activities that are In Progress.");
+            }
+
             var tripDay = await _tripDayRepository.Query()
                 .FirstOrDefaultAsync(td => td.Id == activity.TripDayId, cancellationToken);
-            
+
             if (tripDay == null)
             {
                 return Error.NotFound("Expense.TripDayNotFound", "Trip day not found.");
@@ -142,7 +146,7 @@ namespace HSTS.Application.Expenses.Commands
                 return Error.NotFound("Expense.NotFound", "Expense not found.");
             }
 
-            if (expense.CreatedByMember.Role != TripMemberRole.TREASURER)
+            if (expense.CreatedByMember.Role != TripRole.Treasurer)
             {
                 return Error.Forbidden("Expense.NotTreasurer", "Only TREASURER can update expenses.");
             }
@@ -181,12 +185,13 @@ namespace HSTS.Application.Expenses.Commands
                 return Error.NotFound("Expense.NotFound", "Expense not found.");
             }
 
-            if (expense.CreatedByMember.Role != TripMemberRole.TREASURER)
+            if (expense.CreatedByMember.Role != TripRole.Treasurer)
             {
                 return Error.Forbidden("Expense.NotTreasurer", "Only TREASURER can delete expenses.");
             }
 
-            await _expenseRepository.DeleteAsync(expense, cancellationToken);
+            expense.IsDeleted = true;
+            await _expenseRepository.SoftDeleteAsync(expense, cancellationToken);
 
             return Result.Success;
         }

@@ -1,9 +1,8 @@
-using HSTS.Domain.Entities;
 using HSTS.Domain.Enums;
 
-namespace HSTS.Application.Trips
+namespace HSTS.Application.Trips.Dtos
 {
-    public record TripDto(
+    public record TripDetailDto(
         int Id,
         string TripName,
         string? Description,
@@ -12,6 +11,9 @@ namespace HSTS.Application.Trips
         string? StartingLocation,
         TripStatus Status,
         string Currency,
-        DateTime CreatedAt
+        DateTime CreatedAt,
+        TripSummaryDto? TripSummary,
+        List<TripDayDto> TripDays,
+        List<TripMemberDto> TripMembers
     );
 }

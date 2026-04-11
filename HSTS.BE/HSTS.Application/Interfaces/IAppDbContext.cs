@@ -39,10 +39,9 @@ namespace HSTS.Application.Interfaces
         DbSet<TripTransport> TripTransports { get; }
         DbSet<TripSummary> TripSummaries { get; }
         DbSet<TripActivityBudget> TripActivityBudgets { get; }
-        
+
         DbSet<CustomLocation> CustomLocations { get; }
         DbSet<CustomTransitHub> CustomTransitHubs { get; }
-        DbSet<TripMember> TripMembers { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }

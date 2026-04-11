@@ -5,9 +5,9 @@ namespace HSTS.Application.Expenses
     public record TripMemberDto(
         int Id,
         int TripId,
-        int? UserId,
+        int UserId,
         string Name,
-        TripMemberRole Role,
+        TripRole Role,
         DateTime CreatedAt
     );
 }

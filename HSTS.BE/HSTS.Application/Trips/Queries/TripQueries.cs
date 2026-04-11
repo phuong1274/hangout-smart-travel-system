@@ -1,5 +1,5 @@
 using ErrorOr;
-using HSTS.Application.Trips;
+using HSTS.Application.Trips.Dtos;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -22,9 +22,7 @@ namespace HSTS.Application.Trips.Queries
 
         public async Task<ErrorOr<TripDto>> Handle(GetTripByIdQuery request, CancellationToken cancellationToken)
         {
-            var trip = await _tripRepository.Query()
-                .Include(t => t.User)
-                .FirstOrDefaultAsync(t => t.Id == request.TripId, cancellationToken);
+            var trip = await _tripRepository.GetAsync(request.TripId, cancellationToken);
 
             if (trip == null)
             {
@@ -72,18 +70,17 @@ namespace HSTS.Application.Trips.Queries
                         .OrderBy(a => a.StartTime)
                         .Select(a => new TripActivityDto(
                             a.Id,
-                            a.TripDayId,
                             a.Type.ToString(),
                             a.Title,
                             a.StartTime,
                             a.EndTime,
                             a.LocationId,
+                            (int)a.Status,
                             a.Budget != null ? new TripActivityBudgetDto(
                                 a.Budget.Id,
                                 a.Budget.EstimateCost,
                                 a.Budget.Title,
-                                a.Budget.Description,
-                                a.Budget.ActualExpense
+                                a.Budget.Description
                             ) : null
                         ))
                         .ToList()
@@ -108,6 +105,7 @@ namespace HSTS.Application.Trips.Queries
                 trip.TripSummary.EstimatedAccommodationCost,
                 trip.TripSummary.EstimatedTransportCost,
                 trip.TripSummary.EstimatedActivityCost,
+                trip.TripSummary.EstimatedMealCost,
                 trip.TripSummary.EstimatedTotalCost,
                 trip.TripSummary.RemainingBudget,
                 trip.TripSummary.ContingencyFund
@@ -117,7 +115,6 @@ namespace HSTS.Application.Trips.Queries
                 trip.Id,
                 trip.TripName,
                 trip.Description,
-                trip.ProfileId,
                 trip.StartDate,
                 trip.EndDate,
                 trip.StartingLocation,
@@ -143,7 +140,8 @@ namespace HSTS.Application.Trips.Queries
         public async Task<ErrorOr<List<TripDto>>> Handle(GetTripsByProfileQuery request, CancellationToken cancellationToken)
         {
             var trips = await _tripRepository.Query()
-                .Where(t => t.ProfileId == request.ProfileId)
+                .Include(t => t.TripMembers)
+                .Where(t => t.TripMembers.Any(tm => tm.UserId == request.ProfileId))
                 .OrderByDescending(t => t.StartDate)
                 .ToListAsync(cancellationToken);
 

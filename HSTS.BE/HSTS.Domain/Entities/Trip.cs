@@ -26,16 +26,10 @@ namespace HSTS.Domain.Entities
         public int GroupSize { get; set; }
 
         [Required]
-        public int UserId { get; set; }
-
-        [Required]
         [MaxLength(10)]
         public string Currency { get; set; } = "VND";
 
         public TripStatus Status { get; set; } = TripStatus.Planned;
-
-        // Backward compatibility (ProfileId maps to UserId)
-        public int ProfileId { get => UserId; set => UserId = value; }
 
         [NotMapped]
         public string? StartingLocation { get; set; }
@@ -43,7 +37,6 @@ namespace HSTS.Domain.Entities
         // Navigation properties
         public ICollection<TripMember> TripMembers { get; set; } = new List<TripMember>();
         public ICollection<TripDay> TripDays { get; set; } = new List<TripDay>();
-        public ICollection<TripMember> TripMembers { get; set; } = new List<TripMember>();
         public TripSummary? TripSummary { get; set; }
     }
 }

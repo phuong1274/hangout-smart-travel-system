@@ -15,6 +15,7 @@ namespace HSTS.Application.Trips.Commands
         int ProfileId,
         DateTime StartDate,
         DateTime EndDate,
+        int GroupSize,
         string? StartingLocation,
         string Currency,
         TripStatus Status = TripStatus.Planned
@@ -38,7 +39,6 @@ namespace HSTS.Application.Trips.Commands
         public CreateTripCommandValidator()
         {
             RuleFor(x => x.TripName).NotEmpty().MaximumLength(200);
-            RuleFor(x => x.ProfileId).GreaterThan(0);
             RuleFor(x => x.StartDate).NotEmpty();
             RuleFor(x => x.EndDate).NotEmpty();
             RuleFor(x => x.EndDate).GreaterThan(x => x.StartDate)
@@ -78,7 +78,7 @@ namespace HSTS.Application.Trips.Commands
             {
                 TripName = request.TripName,
                 Description = request.Description,
-                ProfileId = request.ProfileId,
+                GroupSize = request.GroupSize,
                 StartDate = request.StartDate,
                 EndDate = request.EndDate,
                 StartingLocation = request.StartingLocation,

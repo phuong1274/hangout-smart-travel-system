@@ -24,9 +24,6 @@ namespace HSTS.Domain.Entities
         [Column("Description")]
         public string? Description { get; set; }
 
-        [Column("ActualExpense")]
-        public decimal? ActualExpense { get; set; }
-
         // Navigation properties
         public TripActivity TripActivity { get; set; } = null!;
     }

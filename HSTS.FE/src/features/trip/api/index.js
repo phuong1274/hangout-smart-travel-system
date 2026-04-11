@@ -117,3 +117,34 @@ export const getAmenitiesApi = () => {
 export const getTripDetailApi = (id) => {
   return apiClient.get(`/api/trips/${id}/detail`).then(res => res.data);
 };
+
+// Get trips list by user id
+export const getTripsApi = (userId) => {
+  return apiClient.get(`/api/trips/profile/${userId}`).then(res => res.data);
+};
+
+// Delete trip by id
+export const deleteTripApi = (id) => {
+  return apiClient.delete(`/api/trips/${id}`).then(res => res.data);
+};
+
+// Update trip activity status
+// Status flow: Upcoming (0) -> InProgress (1) -> Completed (2)
+export const updateTripActivityStatusApi = (activityId, status) => {
+  return apiClient.patch(`/api/trips/activities/${activityId}/status`, { status }).then(res => res.data);
+};
+
+// Log actual expense for an activity
+export const logActualExpenseApi = (data) => {
+  return apiClient.post('/api/Expenses', data).then(res => res.data);
+};
+
+// Get expenses by activity (grouped)
+export const getExpensesByActivityApi = (tripId) => {
+  return apiClient.get(`/api/Expenses/trip/${tripId}/by-activity`).then(res => res.data);
+};
+
+// Delete expense
+export const deleteExpenseApi = (expenseId) => {
+  return apiClient.delete(`/api/Expenses/${expenseId}`).then(res => res.data);
+};

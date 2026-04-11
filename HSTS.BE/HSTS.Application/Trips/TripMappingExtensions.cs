@@ -10,7 +10,6 @@ namespace HSTS.Application.Trips
                 trip.Id,
                 trip.TripName,
                 trip.Description,
-                trip.ProfileId,
                 trip.StartDate,
                 trip.EndDate,
                 trip.StartingLocation,
