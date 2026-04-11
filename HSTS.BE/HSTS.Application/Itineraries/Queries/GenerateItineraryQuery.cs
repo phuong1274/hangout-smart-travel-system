@@ -872,7 +872,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 $"Check in at {destAccommodation.Name} - Drop off luggage",
                                 TimeOnly.FromDateTime(checkInStart), TimeOnly.FromDateTime(checkInEnd),
                                 destAccommodation.Id, checkInTagNames,
-                                toMoney(0), toMoney(accPerPerson), toMoney(accGroupCost), "Check in and drop off luggage",
+                                toMoney(0), toMoney(0), toMoney(0), "Check in and drop off luggage",
                                 Math.Round((double)(destAccommodation.Score ?? 0), 2),
                                 destAccommodation.Address, destAccommodation.Telephone, GetMediaUrls(destAccommodation),
                                 Alternatives: accomAlts is { Count: > 0 } ? accomAlts : null,
@@ -1019,11 +1019,13 @@ namespace HSTS.Application.Itineraries.Queries
                             var checkoutEnd = AddMinutes(currentTime, 30);
                             var prevAccomAlts = accommodationAlternativesByProvince.GetValueOrDefault(prevProvince.Id);
                             var checkoutTagNames = GetTags(prevAccom);
+                            var coPerPerson = GetPerPersonPrice(prevAccom);
+                            var coGroupCost = coPerPerson * groupSize;
                             timeline.Add(new ItineraryTimelineItemDto("check-out",
                                 $"Check out from {prevAccom.Name} - Pick up luggage",
                                 TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(checkoutEnd),
                                 prevAccom.Id, checkoutTagNames,
-                                toMoney(0), toMoney(0), toMoney(0), "Check out and pick up luggage",
+                                toMoney(0), toMoney(coPerPerson), toMoney(coGroupCost), "Check out and pick up luggage",
                                 Math.Round((double)(prevAccom.Score ?? 0), 2),
                                 Alternatives: prevAccomAlts is { Count: > 0 } ? prevAccomAlts : null));
                             currentTime = AddMinutes(checkoutEnd, 10);
@@ -1144,7 +1146,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 $"Check in at {destAccommodation.Name} - Drop off luggage",
                                 TimeOnly.FromDateTime(checkInStart), TimeOnly.FromDateTime(checkInEnd),
                                 destAccommodation.Id, checkIn2TagNames,
-                                toMoney(0), toMoney(accPerPerson), toMoney(accGroupCost), "Check in and drop off luggage",
+                                toMoney(0), toMoney(0), toMoney(0), "Check in and drop off luggage",
                                 Math.Round((double)(destAccommodation.Score ?? 0), 2),
                                 Alternatives: accomAlts2 is { Count: > 0 } ? accomAlts2 : null,
                                 AccommodationRecommendations: accomRecsForCheckIn2.Count > 0 ? accomRecsForCheckIn2 : null));
@@ -1172,15 +1174,17 @@ namespace HSTS.Application.Itineraries.Queries
                             var checkoutEnd = AddMinutes(currentTime, 15);
                             var refreshAlts = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
                             var refreshTagNames = GetTags(destAccommodation);
+                            var refreshPerPerson = GetPerPersonPrice(destAccommodation);
+                            var refreshGroupCost = refreshPerPerson * groupSize;
                             timeline.Add(new ItineraryTimelineItemDto("luggage-refresh",
                                 $"Room extension / luggage storage at {destAccommodation.Name}",
                                 TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(checkoutEnd),
                                 destAccommodation.Id, refreshTagNames,
-                                toMoney(0), toMoney(0), toMoney(0), "Room extension or luggage storage",
+                                toMoney(0), toMoney(refreshPerPerson), toMoney(refreshGroupCost), "Room extension or luggage storage",
                                 Math.Round((double)(destAccommodation.Score ?? 0), 2),
                                 Alternatives: refreshAlts is { Count: > 0 } ? refreshAlts : null));
                             currentTime = AddMinutes(checkoutEnd, 10);
-                            dayAccommodationCost += GetPerPersonPrice(destAccommodation) * groupSize;
+                            dayAccommodationCost += refreshGroupCost;
                         }
                     }
 
@@ -1810,8 +1814,8 @@ namespace HSTS.Application.Itineraries.Queries
                         currentLocationId = destAccommodation.Id;
                     }
 
-                    // Evening check-in (for mid-trip days that didn't already check in earlier — skip on last day)
-                    if (destAccommodation is not null && globalDayIndex > 0 && globalDayIndex != totalDays - 1 && !(localDay == 0 && destIdx > 0))
+                    // Evening check-in (for all days except the last day and the first day at a new destination which already checked in earlier)
+                    if (destAccommodation is not null && globalDayIndex != totalDays - 1 && !(localDay == 0 && destIdx > 0))
                     {
                         var eveningCheckInStart = Max(currentTime, date.ToDateTime(new TimeOnly(21, 0)));
                         if (eveningCheckInStart < dayEndTime.AddHours(1))
@@ -2043,11 +2047,13 @@ namespace HSTS.Application.Itineraries.Queries
                             var coEnd = AddMinutes(coStart, 20);
                             var lastDayAlts = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
                             var lastDayTagNames = GetTags(destAccommodation);
+                            var lastDayCoPerPerson = GetPerPersonPrice(destAccommodation);
+                            var lastDayCoGroupCost = lastDayCoPerPerson * groupSize;
                             timeline.Add(new ItineraryTimelineItemDto("check-out",
                                 $"Check out from {destAccommodation.Name}",
                                 TimeOnly.FromDateTime(coStart), TimeOnly.FromDateTime(coEnd),
                                 destAccommodation.Id, lastDayTagNames,
-                                toMoney(0), toMoney(0), toMoney(0), "Check out before departure",
+                                toMoney(0), toMoney(lastDayCoPerPerson), toMoney(lastDayCoGroupCost), "Check out before departure",
                                 Math.Round((double)(destAccommodation.Score ?? 0), 2),
                                 Alternatives: lastDayAlts is { Count: > 0 } ? lastDayAlts : null));
                             currentTime = AddMinutes(coEnd, 10);
