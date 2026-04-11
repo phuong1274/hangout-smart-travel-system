@@ -183,8 +183,13 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 : null;
 
             // Reset status to pending when updated
+            // NOTE: This resets the review workflow. Admin reviewers will need to re-review.
+            // TODO: Consider adding a notification to the review queue or requiring admin approval
+            // before allowing updates to submitted content.
             submission.Status = Domain.Entities.SubmissionStatus.Pending;
             submission.RejectionReason = null;
+            submission.ReviewedBy = null;
+            submission.ReviewedAt = null;
 
             await _repository.UpdateAsync(submission, cancellationToken);
 

@@ -39,31 +39,24 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<LocationClosure> LocationClosures => Set<LocationClosure>();
         public DbSet<LocationSubmission> LocationSubmissions => Set<LocationSubmission>();
         public DbSet<LocationSeason> LocationSeasons => Set<LocationSeason>();
-
         public DbSet<Trip> Trips => Set<Trip>();
         public DbSet<TripDay> TripDays => Set<TripDay>();
         public DbSet<TripActivity> TripActivities => Set<TripActivity>();
         public DbSet<TripTransport> TripTransports => Set<TripTransport>();
         public DbSet<TripSummary> TripSummaries => Set<TripSummary>();
         public DbSet<TripActivityBudget> TripActivityBudgets => Set<TripActivityBudget>();
-
+        public DbSet<TripMember> TripMembers => Set<TripMember>();
+        public DbSet<Expense> Expenses => Set<Expense>();
         public DbSet<CustomLocation> CustomLocations => Set<CustomLocation>();
         public DbSet<CustomTransitHub> CustomTransitHubs => Set<CustomTransitHub>();
-        public DbSet<TripMember> TripMembers => Set<TripMember>();
 
         #region Logging
-        /// <summary>
-        /// Logging config
-        /// !!!WARNING, DO NOT DELETE THIS SECTION!!!
-        /// If you delete this section, the logging feature will be broken.
-        /// </summary>
         public DbSet<LogError> LogErrors => Set<LogError>();
         public DbSet<LogActivity> LogActivities => Set<LogActivity>();
         public DbSet<LogHistory> LogHistories => Set<LogHistory>();
         public DbSet<LogLogin> LogLogins => Set<LogLogin>();
         #endregion
 
-        // Explicit implementation of ITransactionDbContext
         public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
         {
             return await Database.BeginTransactionAsync(cancellationToken);

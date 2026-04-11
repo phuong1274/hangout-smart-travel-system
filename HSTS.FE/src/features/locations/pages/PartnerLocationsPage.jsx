@@ -29,7 +29,7 @@ const { Title } = Typography;
 const PartnerLocationsPage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('locations');
-  
+
   const {
     data: locationsData,
     loading: locationsLoading,
@@ -386,9 +386,9 @@ const PartnerLocationsPage = () => {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div className={styles.headerContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Title level={4} className={styles.sectionTitle}>Your Managed Locations</Title>
-            <Button 
+            <Button
               className={styles.ctaButton}
-              icon={<PlusOutlined />} 
+              icon={<PlusOutlined />}
               onClick={handleCreateSubmission}
             >
               Submit New Location
@@ -422,9 +422,9 @@ const PartnerLocationsPage = () => {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div className={styles.headerContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Title level={4} className={styles.sectionTitle}>Your Location Submissions</Title>
-            <Button 
+            <Button
               className={styles.ctaButton}
-              icon={<PlusOutlined />} 
+              icon={<PlusOutlined />}
               onClick={handleCreateSubmission}
             >
               Submit New Location
@@ -453,14 +453,14 @@ const PartnerLocationsPage = () => {
   }
 
   return (
-    <ConfigProvider 
-      theme={{ 
-        token: { 
-          colorPrimary: '#FF6B6B', 
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: '#FF6B6B',
           borderRadius: 16,
           colorText: '#1A535C',
           fontFamily: "'Plus Jakarta Sans', sans-serif"
-        } 
+        }
       }}
     >
       <div className={styles.tropicalContainer}>

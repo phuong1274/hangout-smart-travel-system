@@ -73,6 +73,17 @@ namespace HSTS.Application.Locations.Commands
                 await _submissionRepository.UpdateAsync(submission, cancellationToken);
             }
 
+            // Soft-delete pending submissions referencing this location via ExistingLocationId
+            var pendingSubmissions = await _submissionRepository.Query()
+                .Where(s => s.ExistingLocationId == request.Id && s.Status == SubmissionStatus.Pending && !s.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            foreach (var pendingSubmission in pendingSubmissions)
+            {
+                pendingSubmission.IsDeleted = true;
+                await _submissionRepository.UpdateAsync(pendingSubmission, cancellationToken);
+            }
+
             return Result.Deleted;
         }
     }

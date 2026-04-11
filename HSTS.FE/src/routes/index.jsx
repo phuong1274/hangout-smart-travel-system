@@ -5,7 +5,6 @@ import PublicRoute from './PublicRoute';
 import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
-import ItineraryResultPage from '@/features/trip/pages/ItineraryResultPage';
 
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
@@ -30,8 +29,9 @@ const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/ReportedReviewsPage'));
-
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
+const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
+const TripDetailPage = lazy(() => import('@/features/trip/pages/TripDetailPage'));
 
 const DashboardOverview = () => (
   <div>
@@ -69,6 +69,34 @@ export const router = createBrowserRouter([
     ]
   },
   {
+    path: PATHS.DESTINATIONS.replace('/', ''),
+    element: <SuspenseWrapper><DestinationsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.TAGS.replace('/', ''),
+    element: <SuspenseWrapper><TagsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.LOCATION_TYPES.replace('/', ''),
+    element: <SuspenseWrapper><LocationTypesPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.AMENITIES.replace('/', ''),
+    element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.CREATE_TRIP.replace('/', ''),
+    element: <SuspenseWrapper><CreateTripPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.ITINERARY.replace('/', ''),
+    element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
+  },
+  {
+    path: 'trips/:id',
+    element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
+  },
+  {
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
       {
@@ -92,7 +120,7 @@ export const router = createBrowserRouter([
           },
           {
             path: PATHS.TRIP_DETAIL,
-            element: <ItineraryResultPage />
+            element: <TripDetailPage />
           },
           {
             path: PATHS.MY_LOCATIONS,

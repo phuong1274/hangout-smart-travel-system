@@ -1,6 +1,6 @@
+using HSTS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using HSTS.Domain.Entities;
 
 namespace HSTS.Infrastructure.Persistence.Configurations
 {
@@ -19,14 +19,16 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasMaxLength(2000);
 
             builder.Property(x => x.Currency)
-                .HasMaxLength(3)
+                .HasMaxLength(10)
                 .IsRequired();
 
             builder.Property(x => x.Status)
                 .HasConversion<int>();
 
-            // User relationship now managed through TripMembers
-            // The creator (Leader) is added via TripMember on trip creation
+            builder.HasOne(t => t.User)
+                .WithMany()
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(t => t.TripMembers)
                 .WithOne(tm => tm.Trip)
