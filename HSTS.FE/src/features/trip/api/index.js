@@ -8,6 +8,11 @@ export const generateItineraryApi = (data) => {
   return apiClient.post('/api/Itineraries/generate', data, { timeout: 120000 }).then(res => res.data);
 };
 
+// Save finalized trip
+export const saveTripApi = (data) => {
+  return apiClient.post('/api/Trips/save', data).then(res => res.data);
+};
+
 // Estimate local travel leg between two locations
 export const estimateLocalTravelApi = ({ fromLocationId, toLocationId, groupSize, departureTime, currencyCode }) => {
   return apiClient.get('/api/Itineraries/local-travel-estimate', {
