@@ -1841,17 +1841,7 @@ namespace HSTS.Application.Itineraries.Queries
                     // === RULES 5, 6, 7: Final day — breakfast → activities → lunch → checkout → departure ===
                     if (globalDayIndex == totalDays - 1)
                     {
-                        // On the last day, activities must end before checkout (12:00)
-                        // After checkout, we do lunch, then travel to hub and depart
                         var lastDayCheckoutTime = date.ToDateTime(new TimeOnly(12, 0));
-
-                        // The greedy loop above already ran with dayEndTime = 22:00,
-                        // but on the last day we need to tighten it to before checkout
-                        // NOTE: We do NOT re-run the loop; we just ensure checkout is properly placed
-                        // and add lunch + post-checkout activities if time allows.
-
-                        // === RULE 6: Try to insert a late morning activity before lunch (~11:30-13:30) ===
-                        // Only if current time is before lunch window and we have time before checkout
                         var currentTimeOnlyLastDay = TimeOnly.FromDateTime(currentTime);
                         if (currentTimeOnlyLastDay < new TimeOnly(11, 30) && destAccommodation is not null)
                         {
