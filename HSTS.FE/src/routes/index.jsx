@@ -15,6 +15,7 @@ const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage
 const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
 const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
+const UserDetailPage = lazy(() => import('@/features/users/pages/UserDetailPage'));
 const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const HomePage = lazy(() => import('@/features/home/pages/Home'));
 
@@ -28,6 +29,7 @@ const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPag
 const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
+const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/ReportedReviewsPage'));
 
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
 
@@ -89,11 +91,7 @@ export const router = createBrowserRouter([
             element: <ItineraryResultPage />
           },
           {
-            path: PATHS.TRIP_DETAIL,
-            element: <ItineraryResultPage />
-          },
-          {
-            path: '/my-locations',
+            path: PATHS.MY_LOCATIONS,
             element: <SubmissionsPage />
           },
           {
@@ -136,7 +134,7 @@ export const router = createBrowserRouter([
             ]
           },
           {
-            path: '/admin/location-submissions',
+            path: PATHS.LOCATION_SUBMISSIONS_REVIEW,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
             children: [
               { index: true, element: <LocationSubmissionsReviewPage /> }
@@ -146,7 +144,15 @@ export const router = createBrowserRouter([
             path: PATHS.USERS,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
             children: [
-              { index: true, element: <UsersPage /> }
+              { index: true, element: <UsersPage /> },
+              { path: ':id', element: <UserDetailPage /> },
+            ]
+          },
+          {
+            path: PATHS.REPORTED_REVIEWS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+            children: [
+              { index: true, element: <ReportedReviewsPage /> },
             ]
           },
           {

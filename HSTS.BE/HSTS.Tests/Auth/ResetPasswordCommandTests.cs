@@ -59,6 +59,23 @@ public class ResetPasswordCommandTests
     }
 
     [Fact]
+    public async Task Handle_ValidOnboardingOtp_UpdatesPasswordAndMarksOtpUsed()
+    {
+        var account = AuthFakes.ActiveAccount();
+        account.PasswordHash = null;
+        var otp = AuthFakes.ValidOtp(account.Email, OtpType.OnboardingPasswordSetup);
+        otp.Code = "123456";
+        var ctx = MockDbContextFactory.Create().WithAccounts(account).WithOtps(otp).Build();
+        var handler = new ResetPasswordCommandHandler(ctx.Object, _hasher.Object);
+
+        var result = await handler.Handle(new ResetPasswordCommand(account.Email, "123456", "newpass123"), CancellationToken.None);
+
+        result.IsError.Should().BeFalse();
+        account.PasswordHash.Should().Be("new-hashed");
+        otp.IsUsed.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Handle_ValidRequest_RevokesAllActiveRefreshTokens()
     {
         var account = AuthFakes.ActiveAccount();

@@ -156,11 +156,16 @@ export const useResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const resetPassword = useCallback(async (data, { onError } = {}) => {
+  const resetPassword = useCallback(async (data, { onError, mode } = {}) => {
     setLoading(true);
     try {
-      await authApi.resetPassword(data);
-      message.success('Password reset successful!');
+      if (mode === 'onboarding') {
+        await authApi.completeOnboarding(data);
+        message.success('Password setup successful!');
+      } else {
+        await authApi.resetPassword(data);
+        message.success('Password reset successful!');
+      }
       navigate(PATHS.AUTH.LOGIN);
     } catch (err) {
       onError?.(err);

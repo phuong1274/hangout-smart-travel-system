@@ -16,6 +16,7 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<Otp> Otps => Set<Otp>();
+        public DbSet<PasswordSetupToken> PasswordSetupTokens => Set<PasswordSetupToken>();
         public DbSet<AccountRefreshToken> AccountRefreshTokens => Set<AccountRefreshToken>();
         public DbSet<TransportMode> TransportModes => Set<TransportMode>();
         public DbSet<LocalTransportMetrics> LocalTransportMetrics => Set<LocalTransportMetrics>();
@@ -26,6 +27,8 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Country> Countries => Set<Country>();
         public DbSet<LocationType> LocationTypes => Set<LocationType>();
         public DbSet<Location> Locations => Set<Location>();
+        public DbSet<LocationReview> LocationReviews => Set<LocationReview>();
+        public DbSet<LocationReviewReport> LocationReviewReports => Set<LocationReviewReport>();
         public DbSet<LocationSocialLink> LocationSocialLinks => Set<LocationSocialLink>();
         public DbSet<LocationMedia> LocationMedias => Set<LocationMedia>();
         public DbSet<LocationTag> LocationTags => Set<LocationTag>();

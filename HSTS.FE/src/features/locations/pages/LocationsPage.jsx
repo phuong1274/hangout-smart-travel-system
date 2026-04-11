@@ -9,8 +9,10 @@ import DetailModal from '@/components/DetailModal';
 import ClosureModal from '../components/ClosureModal';
 import ClosureHistoryModal from '../components/ClosureHistoryModal';
 import { deleteLocationApi, getLocationByIdApi } from '../api';
+import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
 import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
 import { transformLocationForDisplay } from '@/utils/locationMappers';
+import { LocationReviewSection } from '@/features/reviews/components/LocationReviewSection';
 import styles from '../styles/LocationsPage.module.css';
 
 const { Title } = Typography;
@@ -170,6 +172,9 @@ const LocationsPage = () => {
               onEdit={handleEdit}
               onView={handleView}
               onDelete={handleDelete}
+              onCloseLocation={handleCloseLocation}
+              onOpenLocation={handleOpenLocation}
+              onViewClosureHistory={handleViewClosureHistory}
             />
           </Card>
         </Space>
@@ -190,8 +195,10 @@ const LocationsPage = () => {
         }}
         data={viewingLocation}
         type="location"
-      />
-      
+      >
+        {viewingLocation?.id && <LocationReviewSection locationId={viewingLocation.id} />}
+      </DetailModal>
+
       <ClosureModal
         open={closureModalOpen}
         onClose={handleClosureModalClose}
@@ -199,7 +206,7 @@ const LocationsPage = () => {
         locationId={closingLocation?.id}
         locationName={closingLocation?.name}
       />
-      
+
       <ClosureHistoryModal
         open={closureHistoryModalOpen}
         onClose={handleClosureHistoryModalClose}
