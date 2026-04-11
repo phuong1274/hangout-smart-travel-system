@@ -18,7 +18,7 @@ namespace HSTS.Domain.Entities
 
         [MaxLength(200)]
         [Column("Title")]
-        public string Title { get; set; } = null!;
+        public string? Title { get; set; }
 
         [MaxLength(500)]
         [Column("Description")]

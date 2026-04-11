@@ -41,7 +41,7 @@ namespace HSTS.Domain.Entities
         public string? StartingLocation { get; set; }
 
         // Navigation properties
-        public User User { get; set; } = null!;
+        public ICollection<TripMember> TripMembers { get; set; } = new List<TripMember>();
         public ICollection<TripDay> TripDays { get; set; } = new List<TripDay>();
         public ICollection<TripMember> TripMembers { get; set; } = new List<TripMember>();
         public TripSummary? TripSummary { get; set; }

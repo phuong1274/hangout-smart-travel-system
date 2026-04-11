@@ -12,6 +12,7 @@ namespace HSTS.Application.Itineraries.Queries
          MoneyDto UsableBudget,
          MoneyDto EstimatedTransportCost,
          MoneyDto EstimatedAccommodationCost,
+         MoneyDto EstimatedMealCost,
          MoneyDto EstimatedActivityCost,
          MoneyDto EstimatedTotalCost,
          MoneyDto RemainingBudget);

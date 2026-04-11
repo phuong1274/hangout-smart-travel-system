@@ -19,6 +19,7 @@ export const PATHS = {
   PROFILE: '/profile',
   PARTNER_LOCATIONS: '/partner/locations',
   CREATE_TRIP: '/create-trip',
+  TRIP_DETAIL: '/trips/:tripId',
   ITINERARY: '/itinerary',
   TRIP_DETAIL: '/trips/:id',
   UNAUTHORIZED: '/403',

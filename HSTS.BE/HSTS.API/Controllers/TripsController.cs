@@ -6,6 +6,10 @@ using HSTS.Application.Trips.Commands;
 using HSTS.Application.Trips.Queries;
 using HSTS.Application.TripActivities.Commands;
 using HSTS.Domain.Enums;
+using Microsoft.AspNetCore.Mvc;
+using HSTS.API.Common;
+using HSTS.Application.Trips.Commands;
+using HSTS.Application.Trips.Dtos;
 
 namespace HSTS.API.Controllers
 {
@@ -157,4 +161,18 @@ namespace HSTS.API.Controllers
     }
 
     public record UpdateTripActivityStatusRequest(TripActivityStatus? Status = null);
+    public class TripsController : BaseApiController
+    {
+        [HttpPost("save")]
+        public async Task<IActionResult> SaveTrip(SaveTripRequest request)
+        {
+            var command = new SaveTripCommand(request);
+            var result = await Mediator.Send(command);
+
+            return result.Match(
+                tripId => Ok(new { message = "Trip was saved successfully!!!", tripId = tripId }),
+                MapErrors
+            );
+        }
+    }
 }

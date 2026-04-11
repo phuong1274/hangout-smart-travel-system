@@ -25,7 +25,8 @@ namespace HSTS.Infrastructure.Persistence.Configurations
 
             builder.Property(x => x.EstimatedActivityCost)
                 .HasColumnType("decimal(18,2)");
-
+            builder.Property(x => x.EstimatedMealCost)
+               .HasColumnType("decimal(18,2)");
             builder.Property(x => x.EstimatedTotalCost)
                 .HasColumnType("decimal(18,2)");
 

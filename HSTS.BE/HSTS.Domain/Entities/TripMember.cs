@@ -4,25 +4,33 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HSTS.Domain.Entities
 {
+    /// <summary>
+    /// Junction table between Trip and User with role-based permissions.
+    /// Tracks which users are members of which trips and their roles.
+    /// </summary>
     public class TripMember : BaseEntity
     {
         [Key]
+        [Column("Id")]
         public int Id { get; set; }
 
         [Required]
+        [Column("TripId")]
         public int TripId { get; set; }
 
-        public int? UserId { get; set; }
+        [Required]
+        [Column("UserId")]
+        public int UserId { get; set; }
 
         [Required]
-        [MaxLength(200)]
-        public string Name { get; set; } = null!;
+        [Column("Role")]
+        public TripRole Role { get; set; }
 
-        [Required]
-        public TripMemberRole Role { get; set; } = TripMemberRole.MEMBER;
+        [Column("JoinedDate")]
+        public DateTime JoinedDate { get; set; } = DateTime.UtcNow;
 
         // Navigation properties
         public Trip Trip { get; set; } = null!;
-        public User? User { get; set; }
+        public User User { get; set; } = null!;
     }
 }

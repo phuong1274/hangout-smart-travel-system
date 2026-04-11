@@ -12,6 +12,7 @@ namespace HSTS.Application.Itineraries.Queries
         IList<string> TagNames,
         MoneyDto TicketCost,
         MoneyDto ExtraCostPerPerson,
+        MoneyDto CostForGroup,
         double Score,
         double DistanceFromPrevKm,
         int EstimatedTravelMinutes,

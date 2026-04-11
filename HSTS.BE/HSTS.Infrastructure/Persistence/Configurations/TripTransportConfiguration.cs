@@ -14,12 +14,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.DistanceKm)
                 .HasColumnType("decimal(18,2)");
 
-            builder.Property(x => x.TotalCost)
-                .HasColumnType("decimal(18,2)");
-
-            builder.Property(x => x.Cost)
-                .HasColumnType("decimal(18,2)");
-
             builder.HasOne(tt => tt.TripActivity)
                 .WithOne(a => a.Transport)
                 .HasForeignKey<TripTransport>(tt => tt.TripActivityId)
@@ -38,6 +32,16 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.HasOne(tt => tt.ToTransitHub)
                 .WithMany()
                 .HasForeignKey(tt => tt.ToTransitHubId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasOne(tt => tt.CustomFromTransitHub)
+                .WithMany(cth => cth.FromTransitHubTransports)
+                .HasForeignKey(tt => tt.CustomFromTransitHubId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasOne(tt => tt.CustomToTransitHub)
+                .WithMany(cth => cth.ToTransitHubTransports)
+                .HasForeignKey(tt => tt.CustomToTransitHubId)
                 .OnDelete(DeleteBehavior.SetNull);
 
             builder.HasOne(tt => tt.FromLocation)

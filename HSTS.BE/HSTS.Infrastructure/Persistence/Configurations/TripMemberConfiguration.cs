@@ -1,6 +1,7 @@
-using HSTS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using HSTS.Domain.Entities;
+using HSTS.Domain.Enums;
 
 namespace HSTS.Infrastructure.Persistence.Configurations
 {
@@ -10,20 +11,27 @@ namespace HSTS.Infrastructure.Persistence.Configurations
         {
             builder.ToTable("TripMembers");
             builder.HasKey(x => x.Id);
-            builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
-            builder.Property(x => x.Role).IsRequired();
 
-            builder.HasOne(x => x.Trip)
+            builder.Property(x => x.Role)
+                .HasConversion<int>();
+
+            builder.Property(x => x.JoinedDate)
+                .IsRequired();
+
+            // Configure relationships
+            builder.HasOne(tm => tm.Trip)
                 .WithMany(t => t.TripMembers)
-                .HasForeignKey(x => x.TripId)
+                .HasForeignKey(tm => tm.TripId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne(x => x.User)
-                .WithMany()
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.SetNull);
+            builder.HasOne(tm => tm.User)
+                .WithMany(u => u.TripMembers)
+                .HasForeignKey(tm => tm.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasIndex(x => new { x.TripId, x.UserId });
+            // Create unique index to prevent duplicate user in same trip
+            builder.HasIndex(tm => new { tm.TripId, tm.UserId })
+                .IsUnique();
         }
     }
 }

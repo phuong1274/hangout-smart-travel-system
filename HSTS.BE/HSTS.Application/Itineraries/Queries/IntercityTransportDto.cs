@@ -15,5 +15,6 @@ namespace HSTS.Application.Itineraries.Queries
         string? SelectedMethod,
         int SelectedTravelTimeMinutes,
         MoneyDto SelectedTotalCost,
-        IList<TransportOptionDto> TransportOptions);
+        IList<TransportOptionDto> TransportOptions,
+        string? Warning = null);
 }

@@ -1,11 +1,16 @@
 import apiClient from '@/lib/axios';
 
 // Temporary switch: disable /api/Locations/{id} requests while replacement API is being developed.
-const ENABLE_LOCATION_DETAIL_API = false;
+const ENABLE_LOCATION_DETAIL_API = true;
 
 // Generate itinerary from trip plan request
 export const generateItineraryApi = (data) => {
   return apiClient.post('/api/Itineraries/generate', data, { timeout: 120000 }).then(res => res.data);
+};
+
+// Save finalized trip
+export const saveTripApi = (data) => {
+  return apiClient.post('/api/Trips/save', data).then(res => res.data);
 };
 
 // Estimate local travel leg between two locations
