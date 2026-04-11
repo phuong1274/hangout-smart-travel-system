@@ -877,7 +877,6 @@ namespace HSTS.Application.Itineraries.Queries
                                 destAccommodation.Address, destAccommodation.Telephone, GetMediaUrls(destAccommodation),
                                 Alternatives: accomAlts is { Count: > 0 } ? accomAlts : null,
                                 AccommodationRecommendations: accomRecsForCheckIn.Count > 0 ? accomRecsForCheckIn : null));
-                            dayAccommodationCost += accGroupCost;
                             currentTime = AddMinutes(checkInEnd, BufferAfterLocalTransfer);
                             currentPoint = GeoPoint.FromLocation(destAccommodation);
                             currentLocationName = destAccommodation.Name;
@@ -1028,6 +1027,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 toMoney(0), toMoney(coPerPerson), toMoney(coGroupCost), "Check out and pick up luggage",
                                 Math.Round((double)(prevAccom.Score ?? 0), 2),
                                 Alternatives: prevAccomAlts is { Count: > 0 } ? prevAccomAlts : null));
+                            dayAccommodationCost += coGroupCost;
                             currentTime = AddMinutes(checkoutEnd, 10);
                         }
 
@@ -1150,7 +1150,6 @@ namespace HSTS.Application.Itineraries.Queries
                                 Math.Round((double)(destAccommodation.Score ?? 0), 2),
                                 Alternatives: accomAlts2 is { Count: > 0 } ? accomAlts2 : null,
                                 AccommodationRecommendations: accomRecsForCheckIn2.Count > 0 ? accomRecsForCheckIn2 : null));
-                            dayAccommodationCost += accGroupCost;
                             currentTime = AddMinutes(checkInEnd, 10);
                             currentPoint = GeoPoint.FromLocation(destAccommodation);
                             currentLocationName = destAccommodation.Name;
@@ -2056,6 +2055,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 toMoney(0), toMoney(lastDayCoPerPerson), toMoney(lastDayCoGroupCost), "Check out before departure",
                                 Math.Round((double)(destAccommodation.Score ?? 0), 2),
                                 Alternatives: lastDayAlts is { Count: > 0 } ? lastDayAlts : null));
+                            dayAccommodationCost += lastDayCoGroupCost;
                             currentTime = AddMinutes(coEnd, 10);
                             currentPoint = GeoPoint.FromLocation(destAccommodation);
                             currentLocationName = destAccommodation.Name;
