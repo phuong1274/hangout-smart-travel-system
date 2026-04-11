@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HSTS.Application.Interfaces
 {
-    public interface IAppDbContext
+    public interface IAppDbContext : ITransactionDbContext
     {
         DbSet<Account> Accounts { get; }
         DbSet<User> Users { get; }
