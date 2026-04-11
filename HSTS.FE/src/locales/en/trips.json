@@ -1,0 +1,41 @@
+{
+  "title": "My Trips",
+  "planTrip": "Plan a Trip",
+  "createTrip": "Create Trip",
+  "noTrips": "You don't have any trips yet. Start planning!",
+  "status": {
+    "draft": "Draft",
+    "planned": "Planned",
+    "ongoing": "Ongoing",
+    "completed": "Completed",
+    "cancelled": "Cancelled"
+  },
+  "fields": {
+    "name": "Trip Name",
+    "destination": "Destination",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "duration": "Duration",
+    "budget": "Budget",
+    "members": "Members",
+    "status": "Status"
+  },
+  "detail": {
+    "overview": "Overview",
+    "itinerary": "Itinerary",
+    "expenses": "Expenses",
+    "members": "Members",
+    "settings": "Settings"
+  },
+  "preference": {
+    "title": "Tell us about your trip",
+    "destination": "Where do you want to go?",
+    "dates": "When are you traveling?",
+    "budget": "What's your budget?",
+    "groupSize": "How many people?",
+    "interests": "What are you interested in?",
+    "next": "Next",
+    "previous": "Previous",
+    "generateItinerary": "Generate Itinerary"
+  }
+}

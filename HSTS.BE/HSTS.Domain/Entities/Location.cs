@@ -1,0 +1,121 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using HSTS.Domain.Enums;
+
+namespace HSTS.Domain.Entities
+{
+    public class Location : BaseEntity
+    {
+        [Key]
+        public int Id { get; set; }
+
+        [Required]
+        [MaxLength(200)]
+        public string Name { get; set; } = null!;
+
+        [MaxLength(2000)]
+        public string? Description { get; set; }
+
+        [Required]
+        [Range(-90, 90)]
+        public double Latitude { get; set; }
+
+        [Required]
+        [Range(-180, 180)]
+        public double Longitude { get; set; }
+
+        [Required]
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(0, 100000000)]
+        public decimal TicketPrice { get; set; }
+
+        [Range(0, 120)]
+        public int MinimumAge { get; set; }
+
+        [Required]
+        [MaxLength(300)]
+        public string Address { get; set; } = null!;
+
+        [MaxLength(50)]
+        public string? Telephone { get; set; }
+
+        [EmailAddress]
+        [MaxLength(200)]
+        public string? Email { get; set; }
+
+        [Required]
+        public int DistrictId { get; set; }
+        public District? District { get; set; }
+
+        // Location Type (foreign key to LocationTypes table)
+        public int? LocationTypeId { get; set; }
+        public LocationType? LocationType { get; set; }
+        public string? SourceUrl { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(0, 100000000)]
+        public decimal? PriceMinUsd { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(0, 100000000)]
+        public decimal? PriceMaxUsd { get; set; }
+
+        public int? RecommendedDurationMinutes { get; set; }
+
+        [Range(0, 5)]
+        public decimal? Score { get; set; }
+
+        // Owner who created this location
+        public int? OwnerId { get; set; }
+        public User? Owner { get; set; }
+
+        // Status
+        public Domain.Enums.LocationStatus Status { get; set; } = Domain.Enums.LocationStatus.Active;
+
+        // Navigation properties
+        public ICollection<LocationSocialLink> SocialLinks { get; set; } = new List<LocationSocialLink>();
+        public ICollection<LocationTag> LocationTags { get; set; } = new List<LocationTag>();
+        public ICollection<Tag> Tags { get; set; } = new List<Tag>();
+        public ICollection<LocationMedia> LocationMedias { get; set; } = new List<LocationMedia>();
+        public ICollection<LocationAmenity> LocationAmenities { get; set; } = new List<LocationAmenity>();
+        public ICollection<LocationOpeningHour> OpeningHours { get; set; } = new List<LocationOpeningHour>();
+        public ICollection<LocationSeason> Seasons { get; set; } = new List<LocationSeason>();
+        public ICollection<LocationClosure> Closures { get; set; } = new List<LocationClosure>();
+
+        /// <summary>
+        /// Computes the effective status for a given reference date.
+        /// - If Status = Inactive, returns Inactive immediately
+        /// - Otherwise, checks for active closures that cover the reference date
+        /// - Returns TemporarilyClosed if within closure period, otherwise returns Status
+        /// </summary>
+        public Domain.Enums.LocationStatus GetEffectiveStatus(DateTime? referenceDate = null)
+        {
+            // If base status is Inactive, always return Inactive
+            if (Status == Domain.Enums.LocationStatus.Inactive)
+            {
+                return Domain.Enums.LocationStatus.Inactive;
+            }
+
+            // Use provided reference date or current UTC time
+            var dateToCheck = referenceDate ?? DateTime.UtcNow;
+
+            // Check if there's an active closure that covers the reference date
+            // Use .Date to ignore time components and compare dates only
+            var hasActiveClosure = Closures?.Any(c =>
+                c.IsActive &&
+                !c.IsDeleted &&
+                c.StartDate.Date <= dateToCheck.Date &&
+                c.EndDate.Date >= dateToCheck.Date
+            ) ?? false;
+
+            return hasActiveClosure
+                ? Domain.Enums.LocationStatus.TemporarilyClosed
+                : Status;
+        }
+    }
+}

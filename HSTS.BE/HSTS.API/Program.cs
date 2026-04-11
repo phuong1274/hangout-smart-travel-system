@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using HSTS.API.Middleware;
+using HSTS.Application.Auth.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -18,10 +20,10 @@ namespace HSTS.API
             {
                 options.AddFixedWindowLimiter(policyName: "fixed", opt =>
                 {
-                    opt.PermitLimit = 10;
+                    opt.PermitLimit = 100;
                     opt.Window = TimeSpan.FromSeconds(10);
                     opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                    opt.QueueLimit = 2;
+                    opt.QueueLimit = 20;
                 });
 
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -53,6 +55,23 @@ namespace HSTS.API
                         {
                             context.Token = context.Request.Cookies["access_token"];
                             return Task.CompletedTask;
+                        },
+                        OnTokenValidated = async context =>
+                        {
+                            var accountIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+                                ?? context.Principal?.FindFirstValue("sub");
+
+                            if (!int.TryParse(accountIdValue, out var accountId))
+                            {
+                                context.Fail("Invalid account identifier.");
+                                return;
+                            }
+
+                            var accessPolicy = context.HttpContext.RequestServices.GetRequiredService<IAccountAccessPolicy>();
+                            var canAccess = await accessPolicy.CanAccessAsync(accountId, context.HttpContext.RequestAborted);
+
+                            if (!canAccess)
+                                context.Fail("Account is not active.");
                         }
                     };
                 });
@@ -65,9 +84,14 @@ namespace HSTS.API
                 options.AddPolicy("AllowFrontend", policy =>
                 {
                     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                        ?? new[] { "http://localhost:3000" };
+                        ?? new[] { "http://localhost:3000",
+                                    "http://localhost:5173" };
 
-                    policy.WithOrigins(origins)
+                    policy.SetIsOriginAllowed(origin =>
+                        origins.Contains(origin, StringComparer.OrdinalIgnoreCase)
+                        || (Uri.TryCreate(origin, UriKind.Absolute, out var uri)
+                            && (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                                || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase))))
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials();

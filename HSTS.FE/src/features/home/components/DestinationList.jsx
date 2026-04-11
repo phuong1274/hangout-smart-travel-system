@@ -30,10 +30,13 @@ const destinations = [
 
 const DestinationList = () => (
   <div className={styles.destSection}>
-    <Title level={2} className={styles.sectionTitle}>Popular destinations in Vietnam</Title>
-    <Row gutter={[24, 24]}>
+    <div className={styles.destHeader}>
+      <span className={styles.destSubTitle}>Explore the Best</span>
+      <Title level={2} className={styles.sectionTitle}>Popular Destinations in Vietnam</Title>
+    </div>
+    <Row gutter={[32, 32]}>
       {destinations.map((item, index) => (
-        <Col xs={24} sm={12} md={8} key={index}>
+        <Col xs={24} sm={24} md={8} key={index} className={styles.destCol} style={{ animationDelay: `${index * 0.15}s` }}>
           <Card
             hoverable
             className={styles.destCard}
@@ -43,7 +46,10 @@ const DestinationList = () => (
               </div>
             }
           >
-            <Card.Meta title={item.title} description={item.desc} />
+            <Card.Meta 
+              title={<span className={styles.cardTitle}>{item.title}</span>} 
+              description={<span className={styles.cardDesc}>{item.desc}</span>} 
+            />
           </Card>
         </Col>
       ))}

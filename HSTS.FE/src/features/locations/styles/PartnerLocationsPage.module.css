@@ -1,0 +1,187 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Dancing+Script:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+
+.tropicalContainer {
+  background-color: #F7F9F9;
+  min-height: 100vh;
+  padding: clamp(16px, 4vw, 40px);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #1A535C;
+  overflow-x: hidden;
+}
+
+.tropicalContainer :global(.ant-typography) {
+  color: #1A535C !important;
+}
+
+.tropicalContainer :global(h1),
+.tropicalContainer :global(h2),
+.tropicalContainer :global(h3),
+.tropicalContainer :global(h4),
+.tropicalContainer :global(h5),
+.tropicalContainer :global(h6) {
+  font-family: 'Plus Jakarta Sans', 'Poppins', sans-serif;
+  font-weight: 700;
+  color: #1A535C !important;
+}
+
+.sectionTitle {
+  font-family: 'Plus Jakarta Sans', 'Poppins', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: clamp(1.25rem, 2.5vw, 1.75rem) !important;
+  margin: 0 !important;
+  color: #1A535C !important;
+}
+
+.tropicalCard {
+  background-color: #FFFFFF;
+  border-radius: 20px !important;
+  border: none !important;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08) !important;
+  animation: fadeUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  margin-bottom: clamp(40px, 8vw, 100px);
+  overflow: hidden;
+}
+
+.ctaButton {
+  background-color: #FFE66D !important;
+  color: #1A535C !important;
+  border-radius: 999px !important;
+  text-transform: uppercase;
+  font-weight: 600 !important;
+  letter-spacing: 0.8px;
+  border: none !important;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  box-shadow: 0 4px 12px rgba(26, 83, 92, 0.1) !important;
+}
+
+.ctaButton:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3) !important;
+  color: #1A535C !important;
+}
+
+.tropicalTabs :global(.ant-tabs-ink-bar) {
+  background-color: #FF6B6B !important;
+}
+
+.tropicalTabs :global(.ant-tabs-tab) {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 600;
+  font-size: clamp(14px, 1.5vw, 16px);
+}
+
+.tropicalTabs :global(.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn) {
+  color: #FF6B6B !important;
+}
+
+.tropicalTabs :global(.ant-tabs-tab:hover) {
+  color: #FF6B6B !important;
+}
+
+.tropicalTabs :global(.ant-btn-link) {
+  color: #4ECDC4 !important;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-height: 44px;
+}
+
+.tropicalTabs :global(.ant-btn-link:hover) {
+  color: #FF6B6B !important;
+  transform: translateY(-2px);
+}
+
+.tropicalTabs :global(.ant-btn-dangerous.ant-btn-link) {
+  color: #FF6B6B !important;
+}
+
+.tropicalTabs :global(.ant-btn-dangerous.ant-btn-link:hover) {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.tropicalTabs :global(.ant-tag) {
+  border-radius: 8px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 500;
+  padding: 4px 8px;
+}
+
+.tropicalTabs :global(.ant-table-wrapper) {
+  animation: fadeUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.tropicalTabs :global(.ant-table-cell) {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.tropicalTabs :global(.ant-table-thead > tr > th) {
+  background-color: #F7F9F9 !important;
+  color: #1A535C !important;
+  font-weight: 700;
+}
+
+.imageThumbnail {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.imageThumbnail::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: rgba(255, 107, 107, 0.05);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.imageThumbnail:hover {
+  transform: scale(1.1);
+}
+
+.imageThumbnail:hover::after {
+  opacity: 1;
+}
+
+.floatingIcon {
+  animation: float 5s ease-in-out infinite;
+}
+
+@keyframes fadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .tropicalTabs :global(.ant-table-wrapper) {
+    overflow-x: auto;
+  }
+  
+  .headerContainer {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 16px;
+  }
+
+  .ctaButton {
+    width: 100%;
+  }
+}

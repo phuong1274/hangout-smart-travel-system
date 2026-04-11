@@ -116,6 +116,35 @@ public class LoginCommandTests
     }
 
     [Fact]
+    public async Task Handle_PendingVerification_EmailProviderFails_LeavesExistingValidOtpUsable()
+    {
+        var account = AuthFakes.PendingAccount();
+        var previousOtp = AuthFakes.ValidOtp(account.Email, OtpType.EmailVerification);
+        previousOtp.IsUsed = false;
+        previousOtp.ExpiredAt = DateTime.UtcNow.AddMinutes(-1);
+        previousOtp.CreatedAt = DateTime.UtcNow.AddMinutes(-2);
+
+        _hasher.Setup(x => x.Verify(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
+        _email.Setup(x => x.SendOtpEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OtpType>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("provider failure"));
+
+        var ctx = MockDbContextFactory.Create()
+            .WithAccounts(account)
+            .WithOtps(previousOtp)
+            .Build();
+        var handler = new LoginCommandHandler(ctx.Object, _jwt.Object, _hasher.Object, _email.Object);
+
+        var result = await handler.Handle(new LoginCommand(account.Email, "pass"), CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("Account.EmailNotVerified");
+        result.FirstError.Description.Should().Contain("check your inbox");
+        previousOtp.IsUsed.Should().BeFalse();
+        ctx.Verify(x => x.Otps.Add(It.IsAny<Otp>()), Times.Never);
+        ctx.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Handle_BannedAccount_ReturnsForbidden()
     {
         var account = AuthFakes.BannedAccount();
@@ -127,6 +156,36 @@ public class LoginCommandTests
 
         result.IsError.Should().BeTrue();
         result.FirstError.Code.Should().Be("Auth.Banned");
+    }
+
+    [Fact]
+    public async Task Handle_DeactivatedAccount_ReturnsForbidden()
+    {
+        var account = AuthFakes.ActiveAccount();
+        account.IsDeleted = true;
+        _hasher.Setup(x => x.Verify(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
+        var ctx = MockDbContextFactory.Create().WithAccounts(account).Build();
+        var handler = new LoginCommandHandler(ctx.Object, _jwt.Object, _hasher.Object, _email.Object);
+
+        var result = await handler.Handle(new LoginCommand(account.Email, "pass"), CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("Auth.AccountInactive");
+    }
+
+    [Fact]
+    public async Task Handle_PasswordlessNonGoogleAccount_ReturnsValidation()
+    {
+        var account = AuthFakes.ActiveAccount();
+        account.PasswordHash = null;
+        account.GoogleId = null;
+        var ctx = MockDbContextFactory.Create().WithAccounts(account).Build();
+        var handler = new LoginCommandHandler(ctx.Object, _jwt.Object, _hasher.Object, _email.Object);
+
+        var result = await handler.Handle(new LoginCommand(account.Email, "pass"), CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("Auth.PasswordSetupRequired");
     }
 
     [Fact]

@@ -2,14 +2,15 @@ import { useRef, useState } from 'react';
 import { Avatar, Button, Card, Tag, Typography, message } from 'antd';
 import { CameraOutlined } from '@ant-design/icons';
 import { useUploadAvatar } from '../hooks/useUserProfile';
+import styles from '../styles/ProfileHeader.module.css';
 
 const { Title, Text } = Typography;
 
 const ROLE_COLORS = {
-  ADMIN: 'red',
-  CONTENT_MODERATOR: 'orange',
-  PARTNER: 'blue',
-  TRAVELER: 'green',
+  ADMIN: '#FF6B6B',
+  CONTENT_MODERATOR: '#FFE66D',
+  PARTNER: '#4ECDC4',
+  TRAVELER: '#1A535C',
 };
 
 const ProfileHeader = ({ user, onAvatarUploaded }) => {
@@ -39,7 +40,6 @@ const ProfileHeader = ({ user, onAvatarUploaded }) => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(file));
     setPendingFile(file);
-    // Reset input so same file can be re-selected
     e.target.value = '';
   };
 
@@ -51,60 +51,66 @@ const ProfileHeader = ({ user, onAvatarUploaded }) => {
   const initials = user?.fullName?.charAt(0)?.toUpperCase() ?? '?';
 
   return (
-    <Card style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-        {/* Avatar + upload controls */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>
-            <Avatar
-              size={80}
-              src={displayUrl}
-              style={{ backgroundColor: '#1677ff', fontSize: 28 }}
+    <div className={styles.headerContainer}>
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div 
+              style={{ position: 'relative', cursor: 'pointer' }} 
+              onClick={() => fileInputRef.current?.click()}
+              className={styles.popIcon}
             >
-              {!displayUrl && initials}
-            </Avatar>
-            <div style={{
-              position: 'absolute', bottom: 0, right: 0,
-              width: 24, height: 24, borderRadius: '50%',
-              background: '#fff', border: '1px solid #d9d9d9',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <CameraOutlined style={{ fontSize: 12, color: '#595959' }} />
+              <Avatar
+                size={100}
+                src={displayUrl}
+                style={{ backgroundColor: '#4ECDC4', fontSize: 36, fontWeight: 700 }}
+                className={styles.ambientFloating}
+              >
+                {!displayUrl && initials}
+              </Avatar>
+              <div style={{
+                position: 'absolute', bottom: 0, right: 0,
+                width: 32, height: 32, borderRadius: '50%',
+                background: '#FFE66D', border: 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(255, 230, 109, 0.5)'
+              }}>
+                <CameraOutlined style={{ fontSize: 16, color: '#1A535C' }} />
+              </div>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
+            {pendingFile && (
+              <Button size="middle" type="primary" loading={loading} onClick={handleSaveAvatar}>
+                Save Avatar
+              </Button>
+            )}
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={handleFileChange}
-          />
-          {pendingFile && (
-            <Button size="small" type="primary" loading={loading} onClick={handleSaveAvatar}>
-              Save Avatar
-            </Button>
-          )}
-        </div>
 
-        {/* User info */}
-        <div style={{ flex: 1 }}>
-          <Title level={4} style={{ margin: 0 }}>{user?.fullName}</Title>
-          <Text type="secondary" style={{ fontSize: 13 }}>{user?.email}</Text>
-          <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {user?.roles?.map((role) => (
-              <Tag key={role} color={ROLE_COLORS[role] ?? 'default'}>
-                {role}
-              </Tag>
-            ))}
+          <div style={{ flex: 1 }}>
+            <Title level={2} className={styles.heading}>{user?.fullName}</Title>
+            <Text style={{ fontSize: 15, color: '#4ECDC4', fontWeight: 500 }}>{user?.email}</Text>
+            <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {user?.roles?.map((role) => (
+                <Tag key={role} color={ROLE_COLORS[role] ?? '#4ECDC4'}>
+                  {role.replace('_', ' ')}
+                </Tag>
+              ))}
+            </div>
+            {user?.bio && (
+              <Text style={{ display: 'block', marginTop: 16, fontSize: 15, lineHeight: 1.6, color: '#1A535C' }}>
+                {user.bio}
+              </Text>
+            )}
           </div>
-          {user?.bio && (
-            <Text italic type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 13 }}>
-              {user.bio}
-            </Text>
-          )}
         </div>
-      </div>
-    </Card>
+      </Card>
+    </div>
   );
 };
 

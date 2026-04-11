@@ -42,13 +42,21 @@ namespace HSTS.Application.Auth.Commands
         public async Task<ErrorOr<AuthResult>> Handle(LoginCommand request, CancellationToken cancellationToken)
         {
             var account = await _context.Accounts
-                .FirstOrDefaultAsync(a => a.Email == request.Email && !a.IsDeleted, cancellationToken);
+                .FirstOrDefaultAsync(a => a.Email == request.Email, cancellationToken);
 
             if (account is null)
                 return Error.NotFound("Auth.InvalidCredentials", "Invalid email or password.");
 
+            if (account.IsDeleted)
+                return Error.Forbidden("Auth.AccountInactive", "Your account is inactive.");
+
             if (account.PasswordHash is null)
-                return Error.Validation("Auth.NoPassword", "This account uses Google sign-in. Please use Google to log in.");
+            {
+                if (account.GoogleId is not null)
+                    return Error.Validation("Auth.NoPassword", "This account uses Google sign-in. Please use Google to log in.");
+
+                return Error.Validation("Auth.PasswordSetupRequired", "You need to set your password from the onboarding email before signing in.");
+            }
 
             if (!_passwordHasher.Verify(request.Password, account.PasswordHash))
                 return Error.NotFound("Auth.InvalidCredentials", "Invalid email or password.");
@@ -134,13 +142,9 @@ namespace HSTS.Application.Auth.Commands
             if (lastOtp is not null && (DateTime.UtcNow - lastOtp.CreatedAt).TotalSeconds < CooldownSeconds)
                 return VerificationOtpResult.RateLimited;
 
-            // Invalidate previous OTPs
             var previousOtps = await _context.Otps
                 .Where(o => o.Email == email && o.Type == otpType && !o.IsUsed)
                 .ToListAsync(cancellationToken);
-
-            foreach (var old in previousOtps)
-                old.IsUsed = true;
 
             var otpCode = Random.Shared.Next(100000, 999999).ToString();
             var otp = new Otp
@@ -151,9 +155,6 @@ namespace HSTS.Application.Auth.Commands
                 ExpiredAt = DateTime.UtcNow.AddMinutes(5)
             };
 
-            _context.Otps.Add(otp);
-            await _context.SaveChangesAsync(cancellationToken);
-
             try
             {
                 await _emailService.SendOtpEmailAsync(email, otpCode, otpType, cancellationToken);
@@ -162,6 +163,12 @@ namespace HSTS.Application.Auth.Commands
             {
                 return VerificationOtpResult.ProviderFailed;
             }
+
+            foreach (var old in previousOtps)
+                old.IsUsed = true;
+
+            _context.Otps.Add(otp);
+            await _context.SaveChangesAsync(cancellationToken);
 
             return VerificationOtpResult.Sent;
         }

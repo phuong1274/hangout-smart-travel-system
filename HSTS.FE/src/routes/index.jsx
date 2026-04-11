@@ -5,8 +5,8 @@ import PublicRoute from './PublicRoute';
 import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
+import ItineraryResultPage from '@/features/trip/pages/ItineraryResultPage';
 
-// Lazy load layouts and pages
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
@@ -15,12 +15,36 @@ const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage
 const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
 const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
+const UserDetailPage = lazy(() => import('@/features/users/pages/UserDetailPage'));
 const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const HomePage = lazy(() => import('@/features/home/pages/Home'));
 
-// Global Pages
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
+const DestinationsPage = lazy(() => import('@/features/destinations/pages/DestinationsPage'));
+const TagsPage = lazy(() => import('@/features/tags/pages/TagsPage'));
+const LocationTypesPage = lazy(() => import('@/features/locationTypes/pages/LocationTypesPage'));
+const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPage'));
+const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPage'));
+const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
+const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
+const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
+const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/ReportedReviewsPage'));
+
+const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
+
+const DashboardOverview = () => (
+  <div>
+    <h2>Overview</h2>
+    <p>Algorithm-based destination scheduling system.</p>
+  </div>
+);
+
+const ScheduleManagement = () => (
+  <div>
+    <h2>Algorithm Scheduling Management</h2>
+  </div>
+);
 
 export const router = createBrowserRouter([
   {
@@ -52,24 +76,89 @@ export const router = createBrowserRouter([
         children: [
           {
             path: PATHS.DASHBOARD,
-            element: <div><h2>Overview</h2><p>Algorithm-based destination scheduling system.</p></div>
+            element: <DashboardOverview />
           },
           {
             path: PATHS.SCHEDULES,
-            element: <div><h2>Algorithm Scheduling Management</h2></div>
+            element: <ScheduleManagement />
+          },
+          {
+            path: PATHS.CREATE_TRIP,
+            element: <CreateTripPage />
+          },
+          {
+            path: PATHS.ITINERARY,
+            element: <ItineraryResultPage />
+          },
+          {
+            path: PATHS.MY_LOCATIONS,
+            element: <SubmissionsPage />
+          },
+          {
+            path: PATHS.PARTNER_LOCATIONS,
+            element: <PartnerLocationsPage />
+          },
+          {
+            path: PATHS.DESTINATIONS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <DestinationsPage /> }
+            ]
+          },
+          {
+            path: PATHS.LOCATION_TYPES,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <LocationTypesPage /> }
+            ]
+          },
+          {
+            path: PATHS.AMENITIES,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <AmenitiesPage /> }
+            ]
+          },
+          {
+            path: PATHS.TAGS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <TagsPage /> }
+            ]
+          },
+          {
+            path: PATHS.LOCATIONS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <LocationsPage /> }
+            ]
+          },
+          {
+            path: PATHS.LOCATION_SUBMISSIONS_REVIEW,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <LocationSubmissionsReviewPage /> }
+            ]
           },
           {
             path: PATHS.USERS,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
             children: [
-              { index: true, element: <UsersPage /> }
+              { index: true, element: <UsersPage /> },
+              { path: ':id', element: <UserDetailPage /> },
+            ]
+          },
+          {
+            path: PATHS.REPORTED_REVIEWS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+            children: [
+              { index: true, element: <ReportedReviewsPage /> },
             ]
           },
           {
             path: PATHS.PROFILE,
             element: <ProfilePage />,
           },
-          // Error 403 shown within Layout when user doesn't have permissions
           {
             path: PATHS.UNAUTHORIZED,
             element: <Error403 />

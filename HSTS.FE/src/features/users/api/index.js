@@ -2,6 +2,13 @@ import apiClient from '@/lib/axios';
 
 export const usersApi = {
   getUsers: (params) => apiClient.get('/api/users', { params }),
+  getUserById: (userId) => apiClient.get(`/api/users/${userId}`),
+  getRoles: () => apiClient.get('/api/users/roles'),
+  createUser: (data) => apiClient.post('/api/users', data),
+  changeUserRole: ({ userId, roleId }) =>
+    apiClient.put(`/api/users/${userId}/role`, { userId, roleId }),
+  banUser: (userId) => apiClient.post(`/api/users/${userId}/ban`),
+  unbanUser: (userId) => apiClient.post(`/api/users/${userId}/unban`),
   getMyInfo: () => apiClient.get('/api/users/me'),
   updateMyInfo: (data) => apiClient.put('/api/users/me', data),
   uploadAvatar: (formData) => apiClient.post('/api/users/me/avatar', formData, {
