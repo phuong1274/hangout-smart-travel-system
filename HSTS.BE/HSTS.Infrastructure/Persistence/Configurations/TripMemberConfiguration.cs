@@ -33,9 +33,9 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasForeignKey(tm => tm.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Create unique index to prevent duplicate user in same trip
-            builder.HasIndex(tm => new { tm.TripId, tm.UserId })
-                .IsUnique();
+            // Index (UserId can be null for non-user members)
+            builder.HasIndex(tm => tm.TripId);
+            builder.HasIndex(tm => tm.UserId);
         }
     }
 }
