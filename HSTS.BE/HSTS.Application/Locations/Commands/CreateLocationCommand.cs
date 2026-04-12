@@ -38,30 +38,52 @@ namespace HSTS.Application.Locations.Commands
         private readonly IRepository<Location> _locationRepository;
         private readonly IRepository<Tag> _tagRepository;
         private readonly IRepository<Amenity> _amenityRepository;
+        private readonly IRepository<District> _districtRepository;
+        private readonly IRepository<LocationType> _locationTypeRepository;
         private readonly ICurrentUserService _currentUser;
 
         public CreateLocationCommandHandler(
             IRepository<Location> locationRepository,
             IRepository<Tag> tagRepository,
             IRepository<Amenity> amenityRepository,
+            IRepository<District> districtRepository,
+            IRepository<LocationType> locationTypeRepository,
             ICurrentUserService currentUser)
         {
             _locationRepository = locationRepository;
             _tagRepository = tagRepository;
             _amenityRepository = amenityRepository;
+            _districtRepository = districtRepository;
+            _locationTypeRepository = locationTypeRepository;
             _currentUser = currentUser;
         }
 
         public async Task<ErrorOr<LocationDto>> Handle(CreateLocationCommand request, CancellationToken cancellationToken)
         {
             var existingLocation = await _locationRepository.Query()
-                .Where(x => x.Name == request.Name && !x.IsDeleted)
+                .Where(x => x.Name.ToLower() == request.Name.ToLower() && !x.IsDeleted)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (existingLocation != null)
             {
                 return Error.Conflict("Location.DuplicateName",
                     $"A location with the name '{request.Name}' already exists.");
+            }
+
+            // Validate District exists
+            var district = await _districtRepository.GetAsync(request.DistrictId, cancellationToken);
+            if (district == null || district.IsDeleted)
+            {
+                return Error.NotFound("District.NotFound",
+                    "Specified district does not exist or has been deleted.");
+            }
+
+            // Validate LocationType exists
+            var locationType = await _locationTypeRepository.GetAsync(request.LocationTypeId, cancellationToken);
+            if (locationType == null || locationType.IsDeleted)
+            {
+                return Error.NotFound("LocationType.NotFound",
+                    "Specified location type does not exist or has been deleted.");
             }
 
             var location = new Location
@@ -83,8 +105,6 @@ namespace HSTS.Application.Locations.Commands
                 Score = request.Score,
                 OwnerId = _currentUser.UserId
             };
-
-            await _locationRepository.AddAsync(location, cancellationToken);
 
             // Add tags if provided (deduplicated)
             if (request.TagIds != null && request.TagIds.Count > 0)
@@ -193,7 +213,7 @@ namespace HSTS.Application.Locations.Commands
                 }
             }
 
-            await _locationRepository.UpdateAsync(location, cancellationToken);
+            await _locationRepository.AddAsync(location, cancellationToken);
 
             return location.ToDto();
         }

@@ -21,9 +21,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Description)
                 .HasMaxLength(500);
 
-            builder.Property(x => x.ActualExpense)
-                .HasColumnType("decimal(18,2)");
-
             builder.HasOne(b => b.TripActivity)
                 .WithOne(a => a.Budget)
                 .HasForeignKey<TripActivityBudget>(b => b.TripActivityId)

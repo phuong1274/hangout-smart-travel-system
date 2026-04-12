@@ -21,12 +21,15 @@ namespace HSTS.Infrastructure.Persistence.Configurations
 
             // Seed data - matching the original enum values
             builder.HasData(
-                new LocationType { Id = 1, Name = "Attraction", Description = "Tourist attractions and points of interest" },
-                new LocationType { Id = 2, Name = "Restaurant", Description = "Dining establishments and food venues" },
-                new LocationType { Id = 3, Name = "Accommodation", Description = "Hotels, resorts, and lodging options" },
-                new LocationType { Id = 4, Name = "Shopping", Description = "Shopping centers, markets, and retail stores" },
-                new LocationType { Id = 5, Name = "TravelService", Description = "Travel agencies and transportation services" }
+                new LocationType { Id = 1, Name = "Attraction", Description = "Tourist attractions and points of interest", IsDeleted = false },
+                new LocationType { Id = 2, Name = "Restaurant", Description = "Dining establishments and food venues", IsDeleted = false },
+                new LocationType { Id = 3, Name = "Accommodation", Description = "Hotels, resorts, and lodging options", IsDeleted = false },
+                new LocationType { Id = 4, Name = "Shopping", Description = "Shopping centers, markets, and retail stores", IsDeleted = false },
+                new LocationType { Id = 5, Name = "TravelService", Description = "Travel agencies and transportation services", IsDeleted = false }
             );
+
+            // Global soft-delete filter
+            builder.HasQueryFilter(x => !x.IsDeleted);
         }
     }
 }

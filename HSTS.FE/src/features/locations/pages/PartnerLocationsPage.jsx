@@ -549,6 +549,70 @@ const PartnerLocationsPage = () => {
           locationName={selectedLocationForClosure?.name}
           onClosureChange={fetchLocations}
         />
+
+      {/* Suggest Edit Modal - Using SubmissionForm with existingLocation prop */}
+      <SubmissionForm
+        open={suggestEditOpen}
+        submission={null}
+        existingLocation={selectedLocation}
+        onClose={() => {
+          setSuggestEditOpen(false);
+          setSelectedLocation(null);
+        }}
+        onSuccess={handleSuggestEditSuccess}
+      />
+
+      <SubmissionForm
+        open={formOpen}
+        submission={editingSubmission}
+        onClose={handleFormClose}
+        onSuccess={handleFormSuccess}
+      />
+
+      <Modal
+        title={`📝 ${viewingSubmission?.name || 'Submission Details'}`}
+        open={detailModalOpen}
+        onCancel={() => {
+          setDetailModalOpen(false);
+          setViewingSubmission(null);
+        }}
+        footer={null}
+        width={900}
+      >
+        {viewingSubmission && (
+          <LocationDetailView
+            data={viewingSubmission}
+            options={{
+              showSubmissionInfo: true,
+              showId: true,
+              showTimestamps: true,
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* Location Detail Modal */}
+      <Modal
+        title={`📍 ${viewingLocation?.name || 'Location Details'}`}
+        open={locationDetailModalOpen}
+        onCancel={() => {
+          setLocationDetailModalOpen(false);
+          setViewingLocation(null);
+        }}
+        footer={null}
+        width={900}
+      >
+        {viewingLocation && (
+          <LocationDetailView
+            data={viewingLocation}
+            options={{
+              showSubmissionInfo: false,
+              showId: true,
+              showTimestamps: true,
+            }}
+          />
+        )}
+      </Modal>
       </div>
     </ConfigProvider>
   );

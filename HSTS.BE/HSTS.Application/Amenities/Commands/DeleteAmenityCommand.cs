@@ -30,6 +30,9 @@ namespace HSTS.Application.Amenities.Commands
             }
 
             // Check if amenity is in use by any location
+            // Note: Only checks active (non-deleted) LocationAmenity records.
+            // Soft-deleted LocationAmenity records are intentionally excluded,
+            // as they represent historical data that no longer references this amenity.
             var isInUse = await _locationAmenityRepository.Query()
                 .AnyAsync(la => la.AmenityId == request.Id && !la.IsDeleted, cancellationToken);
 

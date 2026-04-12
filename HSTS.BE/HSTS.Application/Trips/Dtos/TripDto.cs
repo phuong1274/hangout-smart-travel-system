@@ -25,13 +25,12 @@ namespace HSTS.Application.Trips.Dtos
 
     public record TripActivityDto(
         int Id,
-        int Type,
-        string Title,
+        string Type,
+        string? Title,
         TimeOnly? StartTime,
         TimeOnly? EndTime,
         int? LocationId,
-        int? CustomLocationId,
-        TripTransportDto? Transport,
+        int Status,
         TripActivityBudgetDto? Budget
     );
 
@@ -66,5 +65,30 @@ namespace HSTS.Application.Trips.Dtos
         decimal EstimatedTotalCost,
         decimal RemainingBudget,
         decimal? ContingencyFund
+    );
+
+    public record TripMemberDto(
+        int Id,
+        int TripId,
+        int UserId,
+        string Role,
+        DateTime CreatedAt
+    );
+
+    public record TripMemberDetailDto(
+        int Id,
+        int TripId,
+        int UserId,
+        string FullName,
+        string? AvatarUrl,
+        string Role,
+        int RoleValue,
+        DateTime JoinedDate,
+        string? PhoneNumber
+    );
+
+    public record TripJoinCodeDto(
+        string? JoinCode,
+        bool IsJoinCodeActive
     );
 }

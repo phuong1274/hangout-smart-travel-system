@@ -61,10 +61,23 @@ namespace HSTS.Infrastructure.Repositories
             {
                 _ctx.Set<T>().Update(entity);
                 await _ctx.SaveChangesAsync(cancellationToken);
+                var prop = entity.GetType().GetProperty("IsDeleted");
+                if (prop != null)
+                {
+                    prop.SetValue(entity, true);
+                    _ctx.Set<T>().Update(entity);
+                    await _ctx.SaveChangesAsync(cancellationToken);
+                }
+                else
+                {
+                    _ctx.Set<T>().Remove(entity);
+                    await _ctx.SaveChangesAsync(cancellationToken);
+                }
             }
             catch (Exception ex)
             {
                 await _loggingService.LogErrorAsync($"Error updating entity of type {typeof(T).Name}: {ex.Message}", "SoftDeleteAsync");
+                await _loggingService.LogErrorAsync($"Error soft-deleting entity of type {typeof(T).Name}: {ex.Message}", "SoftDeleteAsync");
                 throw;
             }
         }

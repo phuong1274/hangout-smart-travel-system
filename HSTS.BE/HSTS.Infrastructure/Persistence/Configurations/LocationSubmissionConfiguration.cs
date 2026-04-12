@@ -116,11 +116,8 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                    .HasForeignKey(s => s.UserId)
                    .OnDelete(DeleteBehavior.Cascade);
 
-            // Configure relationship with created Location
-            builder.HasOne(s => s.CreatedLocation)
-                   .WithMany()
-                   .HasForeignKey(s => s.CreatedLocationId)
-                   .OnDelete(DeleteBehavior.SetNull);
+            // Global soft-delete filter
+            builder.HasQueryFilter(x => !x.IsDeleted);
         }
     }
 }
