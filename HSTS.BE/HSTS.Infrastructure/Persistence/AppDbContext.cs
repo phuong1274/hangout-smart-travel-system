@@ -1,5 +1,6 @@
 using HSTS.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace HSTS.Infrastructure.Persistence
 {
@@ -15,6 +16,7 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<Otp> Otps => Set<Otp>();
+        public DbSet<PasswordSetupToken> PasswordSetupTokens => Set<PasswordSetupToken>();
         public DbSet<AccountRefreshToken> AccountRefreshTokens => Set<AccountRefreshToken>();
         public DbSet<TransportMode> TransportModes => Set<TransportMode>();
         public DbSet<LocalTransportMetrics> LocalTransportMetrics => Set<LocalTransportMetrics>();
@@ -25,6 +27,8 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Country> Countries => Set<Country>();
         public DbSet<LocationType> LocationTypes => Set<LocationType>();
         public DbSet<Location> Locations => Set<Location>();
+        public DbSet<LocationReview> LocationReviews => Set<LocationReview>();
+        public DbSet<LocationReviewReport> LocationReviewReports => Set<LocationReviewReport>();
         public DbSet<LocationSocialLink> LocationSocialLinks => Set<LocationSocialLink>();
         public DbSet<LocationMedia> LocationMedias => Set<LocationMedia>();
         public DbSet<LocationTag> LocationTags => Set<LocationTag>();
@@ -42,7 +46,7 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<TripTransport> TripTransports => Set<TripTransport>();
         public DbSet<TripSummary> TripSummaries => Set<TripSummary>();
         public DbSet<TripActivityBudget> TripActivityBudgets => Set<TripActivityBudget>();
-        
+
         public DbSet<CustomLocation> CustomLocations => Set<CustomLocation>();
         public DbSet<CustomTransitHub> CustomTransitHubs => Set<CustomTransitHub>();
         public DbSet<TripMember> TripMembers => Set<TripMember>();
@@ -58,6 +62,12 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<LogHistory> LogHistories => Set<LogHistory>();
         public DbSet<LogLogin> LogLogins => Set<LogLogin>();
         #endregion
+
+        // Explicit implementation of ITransactionDbContext
+        public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            return await Database.BeginTransactionAsync(cancellationToken);
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

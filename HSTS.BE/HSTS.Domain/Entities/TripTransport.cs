@@ -23,9 +23,6 @@ namespace HSTS.Domain.Entities
         [Column("TravelTimeMinutes")]
         public int TravelTimeMinutes { get; set; }
 
-        [Column("TotalCost")]
-        public decimal TotalCost { get; set; }
-
         [Column("FromYourLocation")]
         public String? YourLocationName { get; set; }
 

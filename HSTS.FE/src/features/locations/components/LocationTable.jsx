@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Button, Space, Popconfirm, Tag } from 'antd';
+import { Table, Button, Space, Popconfirm, Tag, Tooltip } from 'antd';
 import { EditOutlined, DeleteOutlined, EnvironmentOutlined, EyeOutlined, PhoneOutlined, MailOutlined, LinkOutlined, LockOutlined, UnlockOutlined, HistoryOutlined } from '@ant-design/icons';
 import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import styles from '../styles/LocationTable.module.css';
@@ -114,30 +114,74 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
 
         return (
           <Space direction="vertical" size="small">
-            <Button type="text" className={styles.actionBtnInfo} icon={<EyeOutlined />} onClick={() => onView(record)}>
-              VIEW
-            </Button>
-            {!isInactive && (
-              <Button type="text" className={styles.actionBtnPrimary} icon={<EditOutlined />} onClick={() => onEdit(record)}>
-                EDIT
+            <Tooltip title="View details & reviews">
+              <Button
+                type="text"
+                className={styles.actionBtnInfo}
+                icon={<EyeOutlined />}
+                onClick={() => onView(record)}
+                aria-label="View details & reviews"
+              >
+                VIEW
               </Button>
+            </Tooltip>
+            {!isInactive && (
+              <Tooltip title="Edit location">
+                <Button
+                  type="text"
+                  className={styles.actionBtnPrimary}
+                  icon={<EditOutlined />}
+                  onClick={() => onEdit(record)}
+                  aria-label="Edit location"
+                >
+                  EDIT
+                </Button>
+              </Tooltip>
             )}
             {!isInactive && (
-              <Button type="text" className={styles.actionBtnInfo} icon={<HistoryOutlined />} onClick={() => onViewClosureHistory?.(record)}>
-                HISTORY
-              </Button>
+              <Tooltip title="View closure history">
+                <Button
+                  type="text"
+                  className={styles.actionBtnInfo}
+                  icon={<HistoryOutlined />}
+                  onClick={() => onViewClosureHistory?.(record)}
+                  aria-label="View closure history"
+                >
+                  HISTORY
+                </Button>
+              </Tooltip>
             )}
             {isClosed ? (
               <Popconfirm title="Open Location" onConfirm={() => onOpenLocation(record)} okText="Yes, Open" cancelText="Cancel">
-                <Button type="text" className={styles.actionBtnSuccess} icon={<UnlockOutlined />}>OPEN</Button>
+                <Button type="text" className={styles.actionBtnSuccess} icon={<UnlockOutlined />} aria-label="Open location">
+                  OPEN
+                </Button>
               </Popconfirm>
             ) : !isInactive ? (
-              <Button type="text" className={styles.actionBtnWarning} icon={<LockOutlined />} onClick={() => onCloseLocation(record)}>
-                CLOSE
-              </Button>
+              <Tooltip title="Temporarily close location">
+                <Button
+                  type="text"
+                  className={styles.actionBtnWarning}
+                  icon={<LockOutlined />}
+                  onClick={() => onCloseLocation(record)}
+                  aria-label="Temporarily close location"
+                >
+                  CLOSE
+                </Button>
+              </Tooltip>
             ) : null}
-            <Popconfirm title="Delete Location" onConfirm={() => onDelete(record)} okText="Yes" cancelText="No">
-              <Button type="text" className={styles.actionBtnDanger} icon={<DeleteOutlined />}>DELETE</Button>
+            <Popconfirm
+              title="Delete Location"
+              description="Are you sure you want to delete this location?"
+              onConfirm={() => onDelete(record)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Tooltip title="Delete location">
+                <Button type="text" className={styles.actionBtnDanger} icon={<DeleteOutlined />} aria-label="Delete location">
+                  DELETE
+                </Button>
+              </Tooltip>
             </Popconfirm>
           </Space>
         );

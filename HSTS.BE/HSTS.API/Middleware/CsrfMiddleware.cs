@@ -18,7 +18,8 @@ namespace HSTS.API.Middleware
             "/api/auth/resend-otp",
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
-            "/api/auth/refresh-token"
+            "/api/auth/refresh-token",
+            
         };
 
         public CsrfMiddleware(RequestDelegate next)

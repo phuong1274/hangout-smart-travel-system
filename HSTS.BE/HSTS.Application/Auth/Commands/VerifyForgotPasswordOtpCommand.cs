@@ -30,7 +30,7 @@ namespace HSTS.Application.Auth.Commands
             var otp = await _context.Otps
                 .Where(o => o.Email == request.Email
                     && o.Code == request.OtpCode
-                    && o.Type == OtpType.ForgotPassword
+                    && (o.Type == OtpType.ForgotPassword || o.Type == OtpType.OnboardingPasswordSetup)
                     && !o.IsUsed
                     && o.ExpiredAt > DateTime.UtcNow)
                 .OrderByDescending(o => o.CreatedAt)

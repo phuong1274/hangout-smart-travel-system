@@ -29,6 +29,8 @@ namespace HSTS.Infrastructure
             // Auth services
             services.AddScoped<IPasswordHasher, PasswordHasher>();
             services.AddScoped<IJwtService, JwtService>();
+            services.AddScoped<IAccountAccessStateLoader, AccountAccessStateLoader>();
+            services.AddScoped<IAccountAccessPolicy, HSTS.Application.Auth.Services.AccountAccessPolicy>();
             services.AddScoped<IGoogleAuthService, GoogleAuthService>();
             services.Configure<ResendSettings>(configuration.GetSection("Resend"));
             services.Configure<EmailPolicySettings>(configuration.GetSection("EmailPolicy"));

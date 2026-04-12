@@ -281,8 +281,8 @@ namespace HSTS.Application.Itineraries.Queries
                 try
                 {
                     var busReq = new FixedIntercitySearchRequest(
-                        request.FromTransitHubId.Value, fromLat, fromLng,
-                        request.ToTransitHubId.Value, toLat, toLng,
+                        request.FromTransitHubId!.Value, fromLat, fromLng,
+                        request.ToTransitHubId!.Value, toLat, toLng,
                         departDate, null, 1, 5);
                     var busResult = await _fixedIntercityTransportService.SearchBusAsync(busReq, ct);
                     if (busResult.IsSuccess && busResult.RecommendedOption is not null)
@@ -352,8 +352,8 @@ namespace HSTS.Application.Itineraries.Queries
                 try
                 {
                     var ferryReq = new FixedIntercitySearchRequest(
-                        request.FromTransitHubId.Value, fromLat, fromLng,
-                        request.ToTransitHubId.Value, toLat, toLng,
+                        request.FromTransitHubId!.Value, fromLat, fromLng,
+                        request.ToTransitHubId!.Value, toLat, toLng,
                         departDate, null, 1, 5);
                     var busResult = await _fixedIntercityTransportService.SearchBusAsync(ferryReq, ct); // Reuse bus API for ferry as fallback
                     if (busResult.IsSuccess && busResult.RecommendedOption is not null)

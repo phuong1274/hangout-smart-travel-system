@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using HSTS.API.Middleware;
+using HSTS.Application.Auth.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -53,6 +55,23 @@ namespace HSTS.API
                         {
                             context.Token = context.Request.Cookies["access_token"];
                             return Task.CompletedTask;
+                        },
+                        OnTokenValidated = async context =>
+                        {
+                            var accountIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+                                ?? context.Principal?.FindFirstValue("sub");
+
+                            if (!int.TryParse(accountIdValue, out var accountId))
+                            {
+                                context.Fail("Invalid account identifier.");
+                                return;
+                            }
+
+                            var accessPolicy = context.HttpContext.RequestServices.GetRequiredService<IAccountAccessPolicy>();
+                            var canAccess = await accessPolicy.CanAccessAsync(accountId, context.HttpContext.RequestAborted);
+
+                            if (!canAccess)
+                                context.Fail("Account is not active.");
                         }
                     };
                 });
