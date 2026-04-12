@@ -17,6 +17,7 @@
     "endDate": "End Date",
     "duration": "Duration",
     "budget": "Budget",
+    "currency": "Currency",
     "members": "Members",
     "status": "Status"
   },

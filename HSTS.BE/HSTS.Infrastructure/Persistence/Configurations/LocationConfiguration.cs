@@ -104,6 +104,9 @@ namespace HSTS.Infrastructure.Persistence.Configurations
 
             // Index for querying locations by status
             builder.HasIndex(x => x.Status);
+
+            // Global soft-delete filter
+            builder.HasQueryFilter(x => !x.IsDeleted);
         }
     }
 }

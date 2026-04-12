@@ -5,7 +5,6 @@ import PublicRoute from './PublicRoute';
 import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
-import ItineraryResultPage from '@/features/trip/pages/ItineraryResultPage';
 
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
@@ -32,6 +31,10 @@ const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/Partn
 const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/ReportedReviewsPage'));
 
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
+const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
+const TripDetailPage = lazy(() => import('@/features/trip/pages/TripDetailPage'));
+const TripsPage = lazy(() => import('@/features/trip/pages/TripsPage'));
+const AcceptInvitationPage = lazy(() => import('@/features/trip/pages/AcceptInvitationPage'));
 
 const DashboardOverview = () => (
   <div>
@@ -68,6 +71,42 @@ export const router = createBrowserRouter([
       }
     ]
   },
+
+  // Public Routes (Feature pages - for testing/demo)
+  {
+    path: PATHS.DESTINATIONS.replace('/', ''),
+    element: <SuspenseWrapper><DestinationsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.TAGS.replace('/', ''),
+    element: <SuspenseWrapper><TagsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.LOCATION_TYPES.replace('/', ''),
+    element: <SuspenseWrapper><LocationTypesPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.AMENITIES.replace('/', ''),
+    element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.CREATE_TRIP.replace('/', ''),
+    element: <SuspenseWrapper><CreateTripPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.ITINERARY.replace('/', ''),
+    element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
+  },
+  {
+    path: 'trips/:id',
+    element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
+  },
+  {
+    path: 'invitations/accept',
+    element: <SuspenseWrapper><AcceptInvitationPage /></SuspenseWrapper>
+  },
+
+  // Protected Routes (Admin/Authenticated users)
   {
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
@@ -87,11 +126,19 @@ export const router = createBrowserRouter([
             element: <CreateTripPage />
           },
           {
+            path: PATHS.TRIPS_LIST,
+            element: <TripsPage />
+          },
+          {
             path: PATHS.ITINERARY,
             element: <ItineraryResultPage />
           },
           {
-            path: PATHS.MY_LOCATIONS,
+            path: PATHS.TRIP_DETAIL,
+            element: <TripDetailPage />
+          },
+          {
+            path: '/my-locations',
             element: <SubmissionsPage />
           },
           {

@@ -18,6 +18,9 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Description)
                 .HasMaxLength(500)
                 .IsRequired(false);
+
+            // Global soft-delete filter
+            builder.HasQueryFilter(x => !x.IsDeleted);
         }
     }
 }
