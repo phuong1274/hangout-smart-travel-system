@@ -19,7 +19,7 @@ namespace HSTS.API.Middleware
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
             "/api/auth/refresh-token",
-            
+            "/api/itineraries/generate",
         };
 
         public CsrfMiddleware(RequestDelegate next)

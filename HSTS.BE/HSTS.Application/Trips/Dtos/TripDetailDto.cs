@@ -12,8 +12,7 @@ namespace HSTS.Application.Trips.Dtos
         TripStatus Status,
         string Currency,
         DateTime CreatedAt,
-        string? JoinCode,
-        bool IsJoinCodeActive,
+        int GroupSize,
         TripSummaryDto? TripSummary,
         List<TripDayDto> TripDays,
         List<TripMemberDto> TripMembers

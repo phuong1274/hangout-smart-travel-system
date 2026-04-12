@@ -25,11 +25,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Status)
                 .HasConversion<int>();
 
-            builder.Property(x => x.JoinCode)
-                .HasMaxLength(10);
-
-            builder.HasIndex(x => x.JoinCode).IsUnique();
-
             builder.Ignore(t => t.StartingLocation);
 
             builder.HasMany(t => t.TripMembers)
