@@ -13,6 +13,8 @@ export const PATHS = {
   TAGS: '/tags',
   LOCATION_TYPES: '/location-types',
   LOCATIONS: '/locations',
+  PUBLIC_LOCATIONS: '/explore/locations',
+  PUBLIC_LOCATION_DETAIL: (id = ':id') => `/explore/locations/${id}`,
   AMENITIES: '/amenities',
   ITINERARY: '/itinerary',
   MY_LOCATIONS: '/my-locations',

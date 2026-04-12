@@ -1,0 +1,4 @@
+-- Scope-focused review seed
+-- Replace with validated INSERT statements from Master Data.xlsx sheets
+-- INSERT INTO LocationReviews (...)
+-- VALUES (...);

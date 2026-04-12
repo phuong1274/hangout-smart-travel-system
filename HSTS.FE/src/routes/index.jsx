@@ -17,6 +17,7 @@ const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
 const UserDetailPage = lazy(() => import('@/features/users/pages/UserDetailPage'));
 const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const HomePage = lazy(() => import('@/features/home/pages/Home'));
+const DashboardPage = lazy(() => import('@/features/dashboard/pages/DashboardPage'));
 
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
@@ -24,6 +25,8 @@ const DestinationsPage = lazy(() => import('@/features/destinations/pages/Destin
 const TagsPage = lazy(() => import('@/features/tags/pages/TagsPage'));
 const LocationTypesPage = lazy(() => import('@/features/locationTypes/pages/LocationTypesPage'));
 const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPage'));
+const PublicLocationsPage = lazy(() => import('@/features/locations/pages/PublicLocationsPage'));
+const PublicLocationDetailPage = lazy(() => import('@/features/locations/pages/PublicLocationDetailPage'));
 const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPage'));
 const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
@@ -32,13 +35,6 @@ const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/Reported
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
 const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
 const TripDetailPage = lazy(() => import('@/features/trip/pages/TripDetailPage'));
-
-const DashboardOverview = () => (
-  <div>
-    <h2>Overview</h2>
-    <p>Algorithm-based destination scheduling system.</p>
-  </div>
-);
 
 const ScheduleManagement = () => (
   <div>
@@ -69,6 +65,14 @@ export const router = createBrowserRouter([
     ]
   },
   {
+    path: PATHS.PUBLIC_LOCATIONS.replace('/', ''),
+    element: <SuspenseWrapper><PublicLocationsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.PUBLIC_LOCATION_DETAIL().replace('/', ''),
+    element: <SuspenseWrapper><PublicLocationDetailPage /></SuspenseWrapper>
+  },
+  {
     path: PATHS.DESTINATIONS.replace('/', ''),
     element: <SuspenseWrapper><DestinationsPage /></SuspenseWrapper>
   },
@@ -85,14 +89,6 @@ export const router = createBrowserRouter([
     element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
   },
   {
-    path: PATHS.CREATE_TRIP.replace('/', ''),
-    element: <SuspenseWrapper><CreateTripPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.ITINERARY.replace('/', ''),
-    element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
-  },
-  {
     path: 'trips/:id',
     element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
   },
@@ -104,7 +100,10 @@ export const router = createBrowserRouter([
         children: [
           {
             path: PATHS.DASHBOARD,
-            element: <DashboardOverview />
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+            children: [
+              { index: true, element: <DashboardPage /> }
+            ]
           },
           {
             path: PATHS.SCHEDULES,

@@ -4,8 +4,16 @@ export const getLocationsApi = (params) => {
   return apiClient.get('/api/Locations', { params }).then(res => res.data);
 };
 
+export const getPublicLocationsApi = (params) => {
+  return apiClient.get('/api/PublicLocations', { params }).then(res => res.data);
+};
+
 export const getLocationByIdApi = (id) => {
   return apiClient.get(`/api/Locations/${id}`).then(res => res.data);
+};
+
+export const getPublicLocationDetailApi = (id) => {
+  return apiClient.get(`/api/PublicLocations/${id}`).then(res => res.data);
 };
 
 export const getPartnerLocationsApi = (params) => {
