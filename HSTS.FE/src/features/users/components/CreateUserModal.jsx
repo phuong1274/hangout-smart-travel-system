@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Button, Form, Input, Modal, Select, Space, Typography, message } from 'antd';
 import { usersApi } from '../api';
+import styles from '../styles/CreateUserModal.module.css';
 
 const { Text } = Typography;
 
@@ -74,12 +75,21 @@ export const CreateUserModal = ({ open, onClose, onCreated, roles = [] }) => {
             <Select options={roleOptions} placeholder="Select a role" />
           </Form.Item>
 
-          <Space>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button type="primary" htmlType="submit" loading={submitting}>
-              Send onboarding
-            </Button>
-          </Space>
+          <div className={styles.btnGroup}>
+            <Space>
+              <Button className={styles.actionBtn} onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                loading={submitting} 
+                className={`${styles.actionBtn} ${styles.primaryBtn}`}
+              >
+                Send onboarding
+              </Button>
+            </Space>
+          </div>
         </Form>
       </Space>
     </Modal>
