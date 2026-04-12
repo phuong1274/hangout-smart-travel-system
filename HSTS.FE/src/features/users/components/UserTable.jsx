@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button } from 'antd';
+import { Button, Tooltip } from 'antd';
+import { EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '@/routes/paths';
 import DataTable from '@/components/UI/DataTable';
@@ -33,10 +34,16 @@ export const UserTable = ({ data, loading, pagination, onTableChange, onChanged 
     {
       title: 'Actions',
       key: 'actions',
+      align: 'center',
       render: (_, row) => (
-        <Button size="small" onClick={() => navigate(PATHS.USER_DETAIL(row.id))}>
-          View detail
-        </Button>
+        <Tooltip title="View detail">
+          <Button
+            type="text"
+            className={styles.actionIconBtn}
+            icon={<EyeOutlined />}
+            onClick={() => navigate(PATHS.USER_DETAIL(row.id))}
+          />
+        </Tooltip>
       ),
     },
   ];

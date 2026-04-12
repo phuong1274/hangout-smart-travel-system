@@ -3,7 +3,6 @@ import { Layout, Menu, Avatar, Dropdown } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
-  ScheduleOutlined,
   EnvironmentOutlined,
   CompassOutlined,
   TagsOutlined,
@@ -39,12 +38,6 @@ const Sidebar = () => {
       icon: <DashboardOutlined />,
       label: 'Dashboard',
       onClick: () => navigate(PATHS.DASHBOARD),
-    },
-    {
-      key: PATHS.SCHEDULES,
-      icon: <ScheduleOutlined />,
-      label: 'Schedules',
-      onClick: () => navigate(PATHS.SCHEDULES),
     },
     {
       key: PATHS.CREATE_TRIP,

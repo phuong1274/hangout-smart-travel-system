@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button, Popconfirm, Space, Typography, message } from 'antd';
 import { usersApi } from '../api';
 import { getUserLifecycleState } from './UserGovernanceStatus';
+import styles from '../styles/UserGovernanceActions.module.css';
 
 const { Text } = Typography;
 
@@ -9,7 +10,7 @@ export const UserGovernanceActions = ({ user, compact = false, onChanged }) => {
   const [submittingAction, setSubmittingAction] = useState('');
   const lifecycleState = getUserLifecycleState(user);
   const isBanned = lifecycleState === 'Banned';
-  const buttonProps = compact ? { size: 'small', type: 'link' } : {};
+  const buttonProps = compact ? { size: 'small' } : {};
 
   const runAction = async (action) => {
     setSubmittingAction(action);
@@ -27,13 +28,13 @@ export const UserGovernanceActions = ({ user, compact = false, onChanged }) => {
     <Space wrap>
       {isBanned ? (
         <Popconfirm title="Unban user?" onConfirm={() => runAction('unban')}>
-          <Button {...buttonProps} loading={submittingAction === 'unban'}>
+          <Button {...buttonProps} className={styles.actionBtn} loading={submittingAction === 'unban'}>
             Unban
           </Button>
         </Popconfirm>
       ) : (
         <Popconfirm title="Ban user?" description="This updates GovernanceState to Banned and revokes tokens." onConfirm={() => runAction('ban')}>
-          <Button {...buttonProps} danger loading={submittingAction === 'ban'}>
+          <Button {...buttonProps} className={styles.actionBtn} loading={submittingAction === 'ban'}>
             Ban
           </Button>
         </Popconfirm>
