@@ -139,6 +139,11 @@ export const logActualExpenseApi = (data) => {
   return apiClient.post('/api/Expenses', data).then(res => res.data);
 };
 
+// Update an expense
+export const updateExpenseApi = (expenseId, data) => {
+  return apiClient.put(`/api/Expenses/${expenseId}`, { expenseId, ...data }).then(res => res.data);
+};
+
 // Get expenses by activity (grouped)
 export const getExpensesByActivityApi = (tripId) => {
   return apiClient.get(`/api/Expenses/trip/${tripId}/by-activity`).then(res => res.data);

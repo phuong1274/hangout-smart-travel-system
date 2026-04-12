@@ -77,20 +77,15 @@ namespace HSTS.Application.Expenses.Commands
                 return Error.NotFound("Expense.MemberNotFound", "Trip member not found.");
             }
 
-            if (member.Role != TripRole.Treasurer)
+            if (member.Role != TripRole.Treasurer && member.Role != TripRole.Leader)
             {
-                return Error.Forbidden("Expense.NotTreasurer", "Only TREASURER can create expenses.");
+                return Error.Forbidden("Expense.NotAuthorized", "Only TREASURER or LEADER can create expenses.");
             }
 
             var activity = await _activityRepository.GetAsync(request.TripActivityId, cancellationToken);
             if (activity == null)
             {
                 return Error.NotFound("Expense.ActivityNotFound", "Trip activity not found.");
-            }
-
-            if (activity.Status != TripActivityStatus.InProgress)
-            {
-                return Error.Validation("Expense.ActivityNotInProgress", "Can only log expenses for activities that are In Progress.");
             }
 
             var tripDay = await _tripDayRepository.Query()
@@ -105,6 +100,12 @@ namespace HSTS.Application.Expenses.Commands
             if (trip == null)
             {
                 return Error.NotFound("Expense.TripNotFound", "Trip not found.");
+            }
+
+            // Lock expense creation 2 days after trip ends
+            if (DateTime.UtcNow.Date > trip.EndDate.Date.AddDays(2))
+            {
+                return Error.Validation("Expense.TripLocked", "Cannot add expenses. The trip ended more than 2 days ago.");
             }
 
             var expense = new Expense
@@ -126,13 +127,22 @@ namespace HSTS.Application.Expenses.Commands
     {
         private readonly IRepository<Expense> _expenseRepository;
         private readonly IRepository<TripMember> _memberRepository;
+        private readonly IRepository<TripActivity> _activityRepository;
+        private readonly IRepository<TripDay> _tripDayRepository;
+        private readonly IRepository<Trip> _tripRepository;
 
         public UpdateExpenseCommandHandler(
             IRepository<Expense> expenseRepository,
-            IRepository<TripMember> memberRepository)
+            IRepository<TripMember> memberRepository,
+            IRepository<TripActivity> activityRepository,
+            IRepository<TripDay> tripDayRepository,
+            IRepository<Trip> tripRepository)
         {
             _expenseRepository = expenseRepository;
             _memberRepository = memberRepository;
+            _activityRepository = activityRepository;
+            _tripDayRepository = tripDayRepository;
+            _tripRepository = tripRepository;
         }
 
         public async Task<ErrorOr<ExpenseDto>> Handle(UpdateExpenseCommand request, CancellationToken cancellationToken)
@@ -146,9 +156,23 @@ namespace HSTS.Application.Expenses.Commands
                 return Error.NotFound("Expense.NotFound", "Expense not found.");
             }
 
-            if (expense.CreatedByMember.Role != TripRole.Treasurer)
+            if (expense.CreatedByMember.Role != TripRole.Treasurer && expense.CreatedByMember.Role != TripRole.Leader)
             {
-                return Error.Forbidden("Expense.NotTreasurer", "Only TREASURER can update expenses.");
+                return Error.Forbidden("Expense.NotAuthorized", "Only TREASURER or LEADER can update expenses.");
+            }
+
+            // Get trip to check end date lock
+            var activity = await _activityRepository.Query()
+                .Include(a => a.TripDay)
+                .FirstOrDefaultAsync(a => a.Id == expense.TripActivityId, cancellationToken);
+
+            if (activity?.TripDay != null)
+            {
+                var trip = await _tripRepository.GetAsync(activity.TripDay.TripId, cancellationToken);
+                if (trip != null && DateTime.UtcNow.Date > trip.EndDate.Date.AddDays(2))
+                {
+                    return Error.Validation("Expense.TripLocked", "Cannot update expenses. The trip ended more than 2 days ago.");
+                }
             }
 
             expense.Title = request.Title;
@@ -165,13 +189,22 @@ namespace HSTS.Application.Expenses.Commands
     {
         private readonly IRepository<Expense> _expenseRepository;
         private readonly IRepository<TripMember> _memberRepository;
+        private readonly IRepository<TripActivity> _activityRepository;
+        private readonly IRepository<TripDay> _tripDayRepository;
+        private readonly IRepository<Trip> _tripRepository;
 
         public DeleteExpenseCommandHandler(
             IRepository<Expense> expenseRepository,
-            IRepository<TripMember> memberRepository)
+            IRepository<TripMember> memberRepository,
+            IRepository<TripActivity> activityRepository,
+            IRepository<TripDay> tripDayRepository,
+            IRepository<Trip> tripRepository)
         {
             _expenseRepository = expenseRepository;
             _memberRepository = memberRepository;
+            _activityRepository = activityRepository;
+            _tripDayRepository = tripDayRepository;
+            _tripRepository = tripRepository;
         }
 
         public async Task<ErrorOr<Success>> Handle(DeleteExpenseCommand request, CancellationToken cancellationToken)
@@ -185,9 +218,23 @@ namespace HSTS.Application.Expenses.Commands
                 return Error.NotFound("Expense.NotFound", "Expense not found.");
             }
 
-            if (expense.CreatedByMember.Role != TripRole.Treasurer)
+            if (expense.CreatedByMember.Role != TripRole.Treasurer && expense.CreatedByMember.Role != TripRole.Leader)
             {
-                return Error.Forbidden("Expense.NotTreasurer", "Only TREASURER can delete expenses.");
+                return Error.Forbidden("Expense.NotAuthorized", "Only TREASURER or LEADER can delete expenses.");
+            }
+
+            // Get trip to check end date lock
+            var activity = await _activityRepository.Query()
+                .Include(a => a.TripDay)
+                .FirstOrDefaultAsync(a => a.Id == expense.TripActivityId, cancellationToken);
+
+            if (activity?.TripDay != null)
+            {
+                var trip = await _tripRepository.GetAsync(activity.TripDay.TripId, cancellationToken);
+                if (trip != null && DateTime.UtcNow.Date > trip.EndDate.Date.AddDays(2))
+                {
+                    return Error.Validation("Expense.TripLocked", "Cannot delete expenses. The trip ended more than 2 days ago.");
+                }
             }
 
             expense.IsDeleted = true;

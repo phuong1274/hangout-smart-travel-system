@@ -36,7 +36,7 @@ import {
   ClockCircleFilled,
   PlusOutlined,
 } from '@ant-design/icons';
-import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, getExpensesByActivityApi, deleteExpenseApi } from '../api';
+import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi } from '../api';
 import { useAuthStore } from '@/store/authStore';
 import {
   getProvincesApi,
@@ -104,7 +104,7 @@ const TripDetailPage = () => {
   const [locationModal, setLocationModal] = useState({ open: false, locationId: null });
   const [transportModal, setTransportModal] = useState({ open: false, data: null });
   const [accommodationModal, setAccommodationModal] = useState({ open: false, data: null });
-  const [expenseModal, setExpenseModal] = useState({ open: false, activityId: null, activityTitle: '' });
+  const [expenseModal, setExpenseModal] = useState({ open: false, activityId: null, activityTitle: '', editExpense: null });
   const [updatingActivityIds, setUpdatingActivityIds] = useState(new Set());
   const [activityExpenses, setActivityExpenses] = useState({}); // { activityId: [expense1, expense2, ...] }
   const [expenseForm] = Form.useForm();
@@ -263,24 +263,32 @@ const TripDetailPage = () => {
     }
   }, [trip, id]);
 
-  // Handle expense submission
+  // Handle expense submission (create or update)
   const handleExpenseSubmit = useCallback(async (values) => {
     try {
-      await logActualExpenseApi({
-        tripActivityId: expenseModal.activityId,
-        title: values.title,
-        description: values.description,
-        totalAmount: values.totalAmount,
-        createdById: myMember.id,
-      });
-      message.success('Expense logged successfully');
+      if (expenseModal.editExpense) {
+        await updateExpenseApi(expenseModal.editExpense.id, {
+          title: values.title,
+          description: values.description,
+          totalAmount: values.totalAmount,
+        });
+        message.success('Expense updated successfully');
+      } else {
+        await logActualExpenseApi({
+          tripActivityId: expenseModal.activityId,
+          title: values.title,
+          description: values.description,
+          totalAmount: values.totalAmount,
+          createdById: myMember.id,
+        });
+        message.success('Expense logged successfully');
+      }
       expenseForm.resetFields();
-      setExpenseModal({ open: false, activityId: null, activityTitle: '' });
-      // Reload trip data and expenses
+      setExpenseModal({ open: false, activityId: null, activityTitle: '', editExpense: null });
       await reloadTripAndExpenses();
     } catch (err) {
-      console.error('Failed to log expense:', err);
-      message.error(err?.response?.data?.message || 'Failed to log expense');
+      console.error('Failed to save expense:', err);
+      message.error(err?.response?.data?.message || 'Failed to save expense');
     }
   }, [expenseModal, expenseForm, id, trip, user, myMember]);
 
@@ -645,6 +653,26 @@ const TripDetailPage = () => {
                                               </div>
                                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                 <strong>{formatMoney(exp.totalAmount, currency)}</strong>
+                                                <Button
+                                                  type="link"
+                                                  size="small"
+                                                  style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                                                  onClick={() => {
+                                                    expenseForm.setFieldsValue({
+                                                      title: exp.title,
+                                                      description: exp.description,
+                                                      totalAmount: exp.totalAmount,
+                                                    });
+                                                    setExpenseModal({
+                                                      open: true,
+                                                      activityId: activity.id,
+                                                      activityTitle: activity.title || locationName || 'Activity',
+                                                      editExpense: exp,
+                                                    });
+                                                  }}
+                                                >
+                                                  ✎
+                                                </Button>
                                                 <Popconfirm
                                                   title="Delete this expense?"
                                                   onConfirm={() => handleDeleteExpense(exp.id)}
@@ -742,13 +770,14 @@ const TripDetailPage = () => {
                                       type="link"
                                       size="small"
                                       icon={<PlusOutlined />}
-                                      disabled={activityStatus !== 1}
-                                      style={{ padding: 0, height: 'auto', fontSize: 12, opacity: activityStatus === 1 ? 1 : 0.5 }}
+                                      style={{ padding: 0, height: 'auto', fontSize: 12 }}
                                       onClick={() => {
+                                        expenseForm.resetFields();
                                         setExpenseModal({
                                           open: true,
                                           activityId: activity.id,
                                           activityTitle: activity.title || locationName || 'Activity',
+                                          editExpense: null,
                                         });
                                       }}
                                     >
@@ -822,14 +851,14 @@ const TripDetailPage = () => {
 
         {/* Log Expense Modal */}
         <Modal
-          title={`Log Expense: ${expenseModal.activityTitle}`}
+          title={expenseModal.editExpense ? `Edit Expense: ${expenseModal.editExpense.title}` : `Log Expense: ${expenseModal.activityTitle}`}
           open={expenseModal.open}
           onCancel={() => {
-            setExpenseModal({ open: false, activityId: null, activityTitle: '' });
+            setExpenseModal({ open: false, activityId: null, activityTitle: '', editExpense: null });
             expenseForm.resetFields();
           }}
           onOk={() => expenseForm.submit()}
-          okText="Log Expense"
+          okText={expenseModal.editExpense ? 'Update' : 'Log Expense'}
           cancelText="Cancel"
         >
           <Form

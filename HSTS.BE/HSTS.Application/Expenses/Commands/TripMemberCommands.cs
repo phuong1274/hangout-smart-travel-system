@@ -10,7 +10,7 @@ namespace HSTS.Application.Expenses.Commands
     public record CreateTripMemberCommand(
         int TripId,
         int? UserId,
-        string Name,
+        string? Name,
         string Role
     ) : IRequest<ErrorOr<TripMemberDto>>;
 
@@ -25,13 +25,16 @@ namespace HSTS.Application.Expenses.Commands
     {
         private readonly IRepository<TripMember> _memberRepository;
         private readonly IRepository<Trip> _tripRepository;
+        private readonly IRepository<User> _userRepository;
 
         public CreateTripMemberCommandHandler(
             IRepository<TripMember> memberRepository,
-            IRepository<Trip> tripRepository)
+            IRepository<Trip> tripRepository,
+            IRepository<User> userRepository)
         {
             _memberRepository = memberRepository;
             _tripRepository = tripRepository;
+            _userRepository = userRepository;
         }
 
         public async Task<ErrorOr<TripMemberDto>> Handle(CreateTripMemberCommand request, CancellationToken cancellationToken)
@@ -47,11 +50,26 @@ namespace HSTS.Application.Expenses.Commands
                 return Error.Validation("TripMember.InvalidRole", "Invalid trip member role.");
             }
 
+            string resolvedName = request.Name ?? string.Empty;
+            if (request.UserId.HasValue)
+            {
+                var user = await _userRepository.GetAsync(request.UserId.Value, cancellationToken);
+                if (user == null)
+                {
+                    return Error.NotFound("TripMember.UserNotFound", "User not found.");
+                }
+                resolvedName = user.FullName;
+            }
+            else if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return Error.Validation("TripMember.NameRequired", "Name is required when adding a member without a user account.");
+            }
+
             var member = new TripMember
             {
                 TripId = request.TripId,
-                UserId = request.UserId.Value,
-                Name = request.Name,
+                UserId = request.UserId,
+                Name = resolvedName,
                 Role = role
             };
 

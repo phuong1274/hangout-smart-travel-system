@@ -11,7 +11,7 @@ namespace HSTS.Application.Expenses
                 member.TripId,
                 member.UserId,
                 member.Name,
-                member.Role,
+                member.Role.ToString(),
                 member.CreatedAt
             );
         }
