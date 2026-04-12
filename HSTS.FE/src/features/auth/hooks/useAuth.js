@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { message } from 'antd';
 import { authApi } from '../api';
 import { useAuthStore } from '@/store/authStore';
@@ -17,6 +17,7 @@ export const useLogin = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const loginFn = useCallback(async (data) => {
     setLoading(true);
@@ -31,7 +32,8 @@ export const useLogin = () => {
         hasGoogleLinked: res.data.hasGoogleLinked,
       });
       message.success('Login successful!');
-      navigate(getRedirectPath(res.data.roles));
+      const redirect = searchParams.get('redirect');
+      navigate(redirect || getRedirectPath(res.data.roles));
     } catch (err) {
       const code = err?.response?.data?.code;
       if (code === 'Account.EmailNotVerified') {
@@ -44,7 +46,7 @@ export const useLogin = () => {
     } finally {
       setLoading(false);
     }
-  }, [login, navigate]);
+  }, [login, navigate, searchParams]);
 
   return { login: loginFn, loading };
 };
@@ -156,11 +158,16 @@ export const useResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const resetPassword = useCallback(async (data, { onError } = {}) => {
+  const resetPassword = useCallback(async (data, { onError, mode } = {}) => {
     setLoading(true);
     try {
-      await authApi.resetPassword(data);
-      message.success('Password reset successful!');
+      if (mode === 'onboarding') {
+        await authApi.completeOnboarding(data);
+        message.success('Password setup successful!');
+      } else {
+        await authApi.resetPassword(data);
+        message.success('Password reset successful!');
+      }
       navigate(PATHS.AUTH.LOGIN);
     } catch (err) {
       onError?.(err);
@@ -195,6 +202,7 @@ export const useGoogleLogin = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const googleLogin = useCallback(async (googleIdToken) => {
     setLoading(true);
@@ -209,13 +217,14 @@ export const useGoogleLogin = () => {
         hasGoogleLinked: res.data.hasGoogleLinked,
       });
       message.success('Login successful!');
-      navigate(getRedirectPath(res.data.roles));
+      const redirect = searchParams.get('redirect');
+      navigate(redirect || getRedirectPath(res.data.roles));
     } catch {
       // handled by interceptor
     } finally {
       setLoading(false);
     }
-  }, [login, navigate]);
+  }, [login, navigate, searchParams]);
 
   return { googleLogin, loading };
 };

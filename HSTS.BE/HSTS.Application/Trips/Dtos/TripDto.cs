@@ -75,4 +75,21 @@ namespace HSTS.Application.Trips.Dtos
         string Role,
         DateTime CreatedAt
     );
+
+    public record TripMemberDetailDto(
+        int Id,
+        int TripId,
+        int UserId,
+        string FullName,
+        string? AvatarUrl,
+        string Role,
+        int RoleValue,
+        DateTime JoinedDate,
+        string? PhoneNumber
+    );
+
+    public record TripJoinCodeDto(
+        string? JoinCode,
+        bool IsJoinCodeActive
+    );
 }

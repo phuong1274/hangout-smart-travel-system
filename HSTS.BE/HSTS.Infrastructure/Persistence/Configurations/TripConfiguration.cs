@@ -25,6 +25,11 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.Status)
                 .HasConversion<int>();
 
+            builder.Property(x => x.JoinCode)
+                .HasMaxLength(10);
+
+            builder.HasIndex(x => x.JoinCode).IsUnique();
+
             builder.Ignore(t => t.StartingLocation);
 
             builder.HasMany(t => t.TripMembers)
@@ -35,6 +40,11 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.HasMany(t => t.TripDays)
                 .WithOne(td => td.Trip)
                 .HasForeignKey(td => td.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(t => t.TripInvitations)
+                .WithOne(ti => ti.Trip)
+                .HasForeignKey(ti => ti.TripId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(t => t.TripSummary)

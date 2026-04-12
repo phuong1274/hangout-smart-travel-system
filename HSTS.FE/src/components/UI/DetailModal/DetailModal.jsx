@@ -3,7 +3,7 @@ import { Modal, Descriptions, Tag, Space, Image, Divider } from 'antd';
 import { MONTH_NAMES } from '@/utils/locationConstants';
 import styles from './DetailModal.module.css';
 
-const DetailModal = ({ open, onClose, data, type }) => {
+const DetailModal = ({ open, onClose, data, type, children }) => {
   if (!data) return null;
 
   const renderContent = () => {
@@ -300,6 +300,7 @@ const DetailModal = ({ open, onClose, data, type }) => {
     >
       <div className={styles.modalContentWrapper}>
         {renderContent()}
+        {children}
       </div>
     </Modal>
   );

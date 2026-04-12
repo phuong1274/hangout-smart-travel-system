@@ -43,7 +43,7 @@ namespace HSTS.Application.Expenses.Queries
         {
             var members = await _memberRepository.Query()
                 .Where(m => m.TripId == request.TripId)
-                .OrderBy(m => m.Name)
+                .OrderBy(m => m.Id)
                 .ToListAsync(cancellationToken);
 
             return members.Select(m => m.ToDto()).ToList();

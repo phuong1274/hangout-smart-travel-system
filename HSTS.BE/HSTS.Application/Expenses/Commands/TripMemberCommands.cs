@@ -70,6 +70,7 @@ namespace HSTS.Application.Expenses.Commands
                 TripId = request.TripId,
                 UserId = request.UserId,
                 Name = resolvedName,
+                UserId = request.UserId.Value,
                 Role = role
             };
 

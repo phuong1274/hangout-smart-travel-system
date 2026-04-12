@@ -59,6 +59,8 @@ namespace HSTS.Infrastructure.Repositories
         {
             try
             {
+                _ctx.Set<T>().Update(entity);
+                await _ctx.SaveChangesAsync(cancellationToken);
                 var prop = entity.GetType().GetProperty("IsDeleted");
                 if (prop != null)
                 {

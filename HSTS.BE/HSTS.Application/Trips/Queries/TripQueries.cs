@@ -92,7 +92,6 @@ namespace HSTS.Application.Trips.Queries
                     tm.Id,
                     tm.TripId,
                     tm.UserId,
-                    tm.Name,
                     tm.Role.ToString(),
                     tm.CreatedAt
                 ))
@@ -121,6 +120,8 @@ namespace HSTS.Application.Trips.Queries
                 trip.Status,
                 trip.Currency,
                 trip.CreatedAt,
+                trip.JoinCode,
+                trip.IsJoinCodeActive,
                 tripSummary,
                 tripDays,
                 tripMembers

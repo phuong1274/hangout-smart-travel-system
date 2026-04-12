@@ -8,12 +8,7 @@
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
-}
-
-.sidebarWrapper::-webkit-scrollbar {
-  width: 0;
-  display: none;
+  overflow: hidden;
 }
 
 .profileContainer {
@@ -69,11 +64,20 @@
 .sidebarWrapper :global(.ant-layout-sider-children) {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .sidebarWrapper :global(.ant-menu) {
   background: transparent !important;
   border-right: none !important;
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 64px;
+}
+
+.sidebarWrapper :global(.ant-menu)::-webkit-scrollbar {
+  width: 0;
+  display: none;
 }
 
 .sidebarWrapper :global(.ant-menu-item) {

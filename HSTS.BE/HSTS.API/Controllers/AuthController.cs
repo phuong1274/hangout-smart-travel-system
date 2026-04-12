@@ -143,6 +143,16 @@ namespace HSTS.API.Controllers
                 MapErrors);
         }
 
+        [HttpPost("complete-onboarding")]
+        public async Task<IActionResult> CompleteOnboarding(CompleteOnboardingCommand command)
+        {
+            var result = await Mediator.Send(command);
+
+            return result.Match<IActionResult>(
+                value => Ok(new { message = value }),
+                MapErrors);
+        }
+
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken()
         {

@@ -175,7 +175,76 @@ namespace HSTS.API.Controllers
 
             return Ok(new { message = "Trip was saved successfully!!!", tripId = result.Value });
         }
+
+        [HttpPut("{id}/save")]
+        public async Task<IActionResult> UpdateSavedTrip(int id, [FromBody] SaveTripRequest request, CancellationToken ct)
+        {
+            var command = new UpdateSavedTripCommand(id, request);
+            var result = await _mediator.Send(command, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    ErrorType.Forbidden => Forbid(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(new { message = "Trip was updated successfully!!!", tripId = result.Value });
+        }
+
+        /// <summary>
+        /// Join a trip using a join code. Returns "Phone_Number_Required" if phone is missing.
+        /// </summary>
+        [Authorize]
+        [HttpPost("join-by-code")]
+        public async Task<IActionResult> JoinByCode([FromBody] JoinByCodeRequest request, CancellationToken ct)
+        {
+            var command = new JoinTripByCodeCommand(request.JoinCode);
+            var result = await _mediator.Send(command, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(result.Value);
+        }
+
+        /// <summary>
+        /// Update join code settings for a trip. Leader only.
+        /// Set isActive to enable/disable, regenerate to create a new code.
+        /// </summary>
+        [Authorize]
+        [HttpPut("{tripId}/join-code")]
+        public async Task<IActionResult> UpdateJoinCode(int tripId, [FromBody] UpdateJoinCodeRequest request, CancellationToken ct)
+        {
+            var command = new UpdateJoinCodeCommand(tripId, request.IsActive, request.Regenerate);
+            var result = await _mediator.Send(command, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Forbidden => StatusCode(403, result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(result.Value);
+        }
     }
 
     public record UpdateTripActivityStatusRequest(TripActivityStatus? Status = null);
+    public record JoinByCodeRequest(string JoinCode);
+    public record UpdateJoinCodeRequest(bool IsActive, bool Regenerate);
 }

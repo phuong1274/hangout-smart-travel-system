@@ -18,10 +18,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
             builder.Property(x => x.JoinedDate)
                 .IsRequired();
 
-            builder.Property(x => x.Name)
-                .IsRequired()
-                .HasMaxLength(200);
-
             // Configure relationships
             builder.HasOne(tm => tm.Trip)
                 .WithMany(t => t.TripMembers)

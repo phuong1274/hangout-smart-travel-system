@@ -153,3 +153,54 @@ export const getExpensesByActivityApi = (tripId) => {
 export const deleteExpenseApi = (expenseId) => {
   return apiClient.delete(`/api/Expenses/${expenseId}`).then(res => res.data);
 };
+
+// ==================== INVITATIONS API ====================
+
+// Send invitation to a user by email
+export const createInvitationApi = (tripId, email) => {
+  return apiClient.post(`/api/trips/${tripId}/invitations`, { email }).then(res => res.data);
+};
+
+// Verify invitation token
+export const verifyInvitationApi = (token) => {
+  return apiClient.get('/api/invitations/verify', { params: { token } }).then(res => res.data);
+};
+
+// Respond to invitation (accept/reject)
+export const respondInvitationApi = (invitationId, isAccepted) => {
+  return apiClient.post(`/api/invitations/${invitationId}/respond`, { isAccepted }).then(res => res.data);
+};
+
+// Get current user's pending invitations
+export const getMyInvitationsApi = () => {
+  return apiClient.get('/api/users/me/invitations').then(res => res.data);
+};
+
+// ==================== JOIN BY CODE API ====================
+
+// Join trip by code
+export const joinTripByCodeApi = (joinCode) => {
+  return apiClient.post('/api/trips/join-by-code', { joinCode }).then(res => res.data);
+};
+
+// Update join code settings (leader only)
+export const updateJoinCodeApi = (tripId, { isActive, regenerate }) => {
+  return apiClient.put(`/api/trips/${tripId}/join-code`, { isActive, regenerate }).then(res => res.data);
+};
+
+// ==================== MEMBER MANAGEMENT API ====================
+
+// Get trip members with detail
+export const getTripMembersDetailApi = (tripId) => {
+  return apiClient.get(`/api/trips/${tripId}/members/detail`).then(res => res.data);
+};
+
+// Remove a member from the trip (leader only)
+export const removeTripMemberApi = (tripId, userId) => {
+  return apiClient.delete(`/api/trips/${tripId}/members/${userId}`).then(res => res.data);
+};
+
+// Change member role (leader only)
+export const changeMemberRoleApi = (tripId, userId, newRole) => {
+  return apiClient.put(`/api/trips/${tripId}/members/${userId}/role`, { newRole }).then(res => res.data);
+};

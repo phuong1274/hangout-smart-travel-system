@@ -31,12 +31,18 @@ namespace HSTS.Domain.Entities
 
         public TripStatus Status { get; set; } = TripStatus.Planned;
 
+        [MaxLength(10)]
+        public string? JoinCode { get; set; }
+
+        public bool IsJoinCodeActive { get; set; } = true;
+
         [NotMapped]
         public string? StartingLocation { get; set; }
 
         // Navigation properties
         public ICollection<TripMember> TripMembers { get; set; } = new List<TripMember>();
         public ICollection<TripDay> TripDays { get; set; } = new List<TripDay>();
+        public ICollection<TripInvitation> TripInvitations { get; set; } = new List<TripInvitation>();
         public TripSummary? TripSummary { get; set; }
     }
 }

@@ -36,22 +36,20 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<LocationClosure> LocationClosures => Set<LocationClosure>();
         public DbSet<LocationSubmission> LocationSubmissions => Set<LocationSubmission>();
         public DbSet<LocationSeason> LocationSeasons => Set<LocationSeason>();
-        public DbSet<Trip> Trips => Set<Trip>();
-        public DbSet<TripDay> TripDays => Set<TripDay>();
-        public DbSet<TripActivity> TripActivities => Set<TripActivity>();
+        public DbSet<PasswordSetupToken> PasswordSetupTokens => Set<PasswordSetupToken>();
+        public DbSet<LocationReview> LocationReviews => Set<LocationReview>();
+        public DbSet<LocationReviewReport> LocationReviewReports => Set<LocationReviewReport>();
         public DbSet<TripMember> TripMembers => Set<TripMember>();
         public DbSet<Expense> Expenses => Set<Expense>();
-
         public DbSet<Trip> Trips => Set<Trip>();
         public DbSet<TripDay> TripDays => Set<TripDay>();
         public DbSet<TripActivity> TripActivities => Set<TripActivity>();
         public DbSet<TripTransport> TripTransports => Set<TripTransport>();
         public DbSet<TripSummary> TripSummaries => Set<TripSummary>();
         public DbSet<TripActivityBudget> TripActivityBudgets => Set<TripActivityBudget>();
-
         public DbSet<CustomLocation> CustomLocations => Set<CustomLocation>();
         public DbSet<CustomTransitHub> CustomTransitHubs => Set<CustomTransitHub>();
-        public DbSet<TripMember> TripMembers => Set<TripMember>();
+        public DbSet<TripInvitation> TripInvitations => Set<TripInvitation>();
 
         #region Logging
         /// <summary>
@@ -64,12 +62,6 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<LogHistory> LogHistories => Set<LogHistory>();
         public DbSet<LogLogin> LogLogins => Set<LogLogin>();
         #endregion
-
-        // Explicit implementation of ITransactionDbContext
-        public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
-        {
-            return await Database.BeginTransactionAsync(cancellationToken);
-        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -95,6 +87,11 @@ namespace HSTS.Infrastructure.Persistence
                         .HasDefaultValue(false);
                 }
             }
+        }
+
+        public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            return await Database.BeginTransactionAsync(cancellationToken);
         }
     }
 }

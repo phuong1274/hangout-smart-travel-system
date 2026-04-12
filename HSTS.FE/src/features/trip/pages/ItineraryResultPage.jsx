@@ -87,6 +87,27 @@ const ACTIVITY_TYPE_ENUM = {
   meal: 6,
 };
 
+const ACTIVITY_EVENT_TYPE_BY_ENUM = Object.entries(ACTIVITY_TYPE_ENUM).reduce((acc, [key, value]) => {
+  acc[String(value)] = key;
+  return acc;
+}, {});
+
+const toEventType = (value) => {
+  const normalizedText = String(value ?? '').trim();
+  if (!normalizedText) return 'visit';
+
+  const mappedFromEnumText = ACTIVITY_EVENT_TYPE_BY_ENUM[normalizedText];
+  if (mappedFromEnumText) return mappedFromEnumText;
+
+  const numeric = Number(normalizedText);
+  if (Number.isFinite(numeric)) {
+    const mapped = ACTIVITY_EVENT_TYPE_BY_ENUM[String(Math.round(numeric))];
+    if (mapped) return mapped;
+  }
+
+  return normalizedText.toLowerCase();
+};
+
 const normalizeTitle = (text) => String(text || '')
   .toLowerCase()
   .normalize('NFD')
@@ -156,6 +177,10 @@ const getTravelPointName = (travelDetail, isFrom) => {
   if (!travelDetail) return '';
   if (isFrom) {
     return pickFirstText(
+      travelDetail?.customFromTransitHub?.name,
+      travelDetail?.customFromTransitHub?.Name,
+      travelDetail?.CustomFromTransitHub?.name,
+      travelDetail?.CustomFromTransitHub?.Name,
       travelDetail.fromTransitHubName,
       travelDetail.FromTransitHubName,
       travelDetail.fromLocationName,
@@ -173,6 +198,10 @@ const getTravelPointName = (travelDetail, isFrom) => {
     );
   }
   return pickFirstText(
+    travelDetail?.customToTransitHub?.name,
+    travelDetail?.customToTransitHub?.Name,
+    travelDetail?.CustomToTransitHub?.name,
+    travelDetail?.CustomToTransitHub?.Name,
     travelDetail.toTransitHubName,
     travelDetail.ToTransitHubName,
     travelDetail.toLocationName,
@@ -231,6 +260,59 @@ const normalizeMoney = (value, fallbackCurrency = 'VND') => {
   };
 };
 
+const getDayTimeline = (day, fallbackCurrency = 'VND') => {
+  const timeline = day?.timeline || day?.Timeline;
+  if (Array.isArray(timeline)) return timeline;
+
+  const activities = day?.activities || day?.Activities;
+  if (!Array.isArray(activities)) return [];
+
+  return activities.map((activity) => {
+    const eventType = toEventType(
+      activity?.eventType
+      ?? activity?.EventType
+      ?? activity?.type
+      ?? activity?.Type
+    );
+
+    const budgetValue = activity?.budget?.estimateCost
+      ?? activity?.budget?.EstimateCost
+      ?? activity?.Budget?.estimateCost
+      ?? activity?.Budget?.EstimateCost;
+    const budgetMoney = normalizeMoney(budgetValue, fallbackCurrency);
+    const transport = activity?.transport || activity?.Transport || null;
+
+    const customLocationName = pickFirstText(
+      activity?.customLocation?.name,
+      activity?.customLocation?.Name,
+      activity?.CustomLocation?.name,
+      activity?.CustomLocation?.Name,
+    );
+    const customAddress = pickFirstText(
+      activity?.customLocation?.address,
+      activity?.customLocation?.Address,
+      activity?.CustomLocation?.address,
+      activity?.CustomLocation?.Address,
+    );
+
+    return {
+      ...activity,
+      eventType,
+      EventType: eventType,
+      locationName: pickFirstText(activity?.locationName, activity?.LocationName, customLocationName),
+      LocationName: pickFirstText(activity?.LocationName, activity?.locationName, customLocationName),
+      address: pickFirstText(activity?.address, activity?.Address, customAddress),
+      Address: pickFirstText(activity?.Address, activity?.address, customAddress),
+      locationToLocationTravel: activity?.locationToLocationTravel || activity?.LocationToLocationTravel || transport,
+      LocationToLocationTravel: activity?.LocationToLocationTravel || activity?.locationToLocationTravel || transport,
+      costForGroup: activity?.costForGroup ?? activity?.CostForGroup ?? budgetMoney,
+      CostForGroup: activity?.CostForGroup ?? activity?.costForGroup ?? budgetMoney,
+      ticketCost: activity?.ticketCost ?? activity?.TicketCost ?? budgetMoney,
+      TicketCost: activity?.TicketCost ?? activity?.ticketCost ?? budgetMoney,
+    };
+  });
+};
+
 const pickBestMoney = (...candidates) => {
   const valid = candidates.filter((candidate) => getMoneyAmount(candidate) != null);
   if (!valid.length) return null;
@@ -269,7 +351,9 @@ const getTravelDurationMinutes = (travelDetail) => {
   if (selected != null && selected > 0) return selected;
 
   const direct = toFiniteNumber(
-    travelDetail?.durationMinutes
+    travelDetail?.travelTimeMinutes
+    ?? travelDetail?.TravelTimeMinutes
+    ?? travelDetail?.durationMinutes
     ?? travelDetail?.DurationMinutes
     ?? travelDetail?.duration
     ?? travelDetail?.Duration
@@ -285,6 +369,8 @@ const getTravelGroupCost = (itemCostForGroup, travelDetail) => {
   const recommended = getRecommendedTransportOption(travelDetail);
   return pickBestMoney(
     itemCostForGroup,
+    travelDetail?.costForGroup,
+    travelDetail?.CostForGroup,
     travelDetail?.selectedTotalCost,
     travelDetail?.SelectedTotalCost,
     recommended?.costForGroup,
@@ -430,7 +516,7 @@ const shiftTimeByMinutes = (timeStr, deltaMinutes) => {
 };
 
 const getTimelineDurationMinutes = (item) => {
-  const eventType = item?.eventType || item?.EventType;
+  const eventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
   const start = toMinutesOfDay(item?.startTime || item?.StartTime);
   const end = toMinutesOfDay(item?.endTime || item?.EndTime);
 
@@ -446,7 +532,7 @@ const getTimelineDurationMinutes = (item) => {
 
 const getItemLocationId = (item) => Number(item?.locationId ?? item?.LocationId);
 
-const isTravelEvent = (item) => (item?.eventType || item?.EventType) === 'travel';
+const isTravelEvent = (item) => toEventType(item?.eventType || item?.EventType || item?.type || item?.Type) === 'travel';
 
 const isEditableLocationEvent = (item) => {
   const locationId = getItemLocationId(item);
@@ -516,8 +602,9 @@ const buildLocationMetadataFromItinerary = (itinerary) => {
   };
 
   const days = itinerary?.days || itinerary?.Days || [];
+  const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
   days.forEach((day) => {
-    const timeline = day?.timeline || day?.Timeline || [];
+    const timeline = getDayTimeline(day, itineraryCurrency);
     timeline.forEach((item) => {
       upsertLocationMetadata(item);
       const alternatives = item?.alternatives || item?.Alternatives || [];
@@ -551,7 +638,7 @@ const getTimelineCostBreakdown = (timeline) => {
     const amount = getTimelineItemCostAmount(item);
     if (amount <= 0) return acc;
 
-    const eventType = String(item?.eventType || item?.EventType || '').toLowerCase();
+    const eventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
     if (eventType === 'meal') {
       acc.meal += amount;
     } else {
@@ -569,7 +656,7 @@ const getTimelineDetailedCostBreakdown = (timeline) => {
     const amount = getTimelineItemCostAmount(item);
     if (amount <= 0) return acc;
 
-    const eventType = String(item?.eventType || item?.EventType || '').toLowerCase();
+    const eventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
     if (eventType === 'meal') {
       acc.meal += amount;
     } else if (eventType === 'travel') {
@@ -655,7 +742,7 @@ const updateBudgetSummaryFromDays = (draftItinerary) => {
 
   const currencyCode = pickFirstText(draftItinerary?.currencyCode, draftItinerary?.CurrencyCode) || 'VND';
   const totalBreakdown = days.reduce((acc, day) => {
-    const timeline = day?.timeline || day?.Timeline || [];
+    const timeline = getDayTimeline(day, currencyCode);
     const dayBreakdown = getTimelineCostBreakdown(timeline);
     acc.meal += dayBreakdown.meal;
     acc.other += dayBreakdown.other;
@@ -756,6 +843,46 @@ const ItineraryResultPage = () => {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!itinerary) return;
+
+    const daysKey = Array.isArray(itinerary?.days)
+      ? 'days'
+      : (Array.isArray(itinerary?.Days) ? 'Days' : null);
+    if (!daysKey) return;
+
+    const sourceDays = itinerary?.[daysKey];
+    if (!Array.isArray(sourceDays) || sourceDays.length === 0) return;
+
+    const currencyCode = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+    const draft = clonePlainObject(itinerary);
+    const draftDays = draft?.[daysKey];
+    if (!Array.isArray(draftDays)) return;
+
+    let changed = false;
+
+    draftDays.forEach((day) => {
+      if (!day || typeof day !== 'object') return;
+
+      if (!Array.isArray(day?.timeline) && !Array.isArray(day?.Timeline)) {
+        day.timeline = getDayTimeline(day, currencyCode);
+        changed = true;
+      }
+
+      if (!pickFirstText(day?.dayTitle, day?.DayTitle)) {
+        const normalizedDayTitle = pickFirstText(day?.daytitle, day?.Daytitle, day?.title, day?.Title);
+        if (normalizedDayTitle) {
+          day.dayTitle = normalizedDayTitle;
+          changed = true;
+        }
+      }
+    });
+
+    if (changed) {
+      updateItinerary(draft);
+    }
+  }, [itinerary, updateItinerary]);
 
   const handleViewLocation = useCallback((locationId) => {
     setLocationModal({ open: true, locationId });
@@ -908,7 +1035,8 @@ const ItineraryResultPage = () => {
     try {
       const draftDays = itinerary.days || itinerary.Days || [];
       const day = draftDays[dayIndex];
-      const dayTimeline = day ? (day.timeline || day.Timeline || []) : [];
+      const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+      const dayTimeline = day ? getDayTimeline(day, itineraryCurrency) : [];
       const usedLocationIds = new Set(
         dayTimeline
           .filter((item) => isEditableLocationEvent(item))
@@ -1538,7 +1666,7 @@ const ItineraryResultPage = () => {
   const tripCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
 
   const timelineCostBreakdown = useMemo(() => days.reduce((acc, day) => {
-    const timeline = day.timeline || day.Timeline || [];
+    const timeline = getDayTimeline(day, tripCurrencyCode);
     const dayBreakdown = getTimelineCostBreakdown(timeline);
     acc.meal += dayBreakdown.meal;
     acc.other += dayBreakdown.other;
@@ -1546,7 +1674,7 @@ const ItineraryResultPage = () => {
   }, { meal: 0, other: 0 }), [days]);
 
   const timelineDetailedCostBreakdown = useMemo(() => days.reduce((acc, day) => {
-    const timeline = day.timeline || day.Timeline || [];
+    const timeline = getDayTimeline(day, tripCurrencyCode);
     const dayBreakdown = getTimelineDetailedCostBreakdown(timeline);
     acc.meal += dayBreakdown.meal;
     acc.transport += dayBreakdown.transport;
@@ -1617,6 +1745,11 @@ const ItineraryResultPage = () => {
   const handleSaveTrip = async () => {
     if (!itinerary || savingTrip) return;
 
+    if (!Array.isArray(days) || days.length === 0) {
+      message.error('Trip must include at least one day before saving.');
+      return;
+    }
+
     const getNonNegativeAmount = (value, fallback = 0) => {
       const money = normalizeMoney(value, tripCurrencyCode);
       const amount = money?.amount;
@@ -1635,12 +1768,48 @@ const ItineraryResultPage = () => {
     };
 
     const toActivityType = (eventType) => {
-      const key = String(eventType || '').toLowerCase();
+      const key = toEventType(eventType);
       return ACTIVITY_TYPE_ENUM[key] ?? ACTIVITY_TYPE_ENUM.visit;
     };
 
+    const sanitizeTransportEndpoint = ({ locationId, transitHubId, customTransitHubId, customTransitHub }) => {
+      if (locationId) {
+        return {
+          locationId,
+          transitHubId: null,
+          customTransitHubId: null,
+          customTransitHub: null,
+        };
+      }
+
+      if (transitHubId) {
+        return {
+          locationId: null,
+          transitHubId,
+          customTransitHubId: null,
+          customTransitHub: null,
+        };
+      }
+
+      if (customTransitHubId) {
+        return {
+          locationId: null,
+          transitHubId: null,
+          customTransitHubId,
+          customTransitHub: null,
+        };
+      }
+
+      return {
+        locationId: null,
+        transitHubId: null,
+        customTransitHubId: null,
+        customTransitHub: customTransitHub || null,
+      };
+    };
+
     const toTransportPayload = (item) => {
-      const eventType = String(item?.eventType || item?.EventType || '').toLowerCase();
+      const eventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
       const [, travelDetail] = getTravelDetailEntry(item);
       if (eventType !== 'travel' && !travelDetail) return null;
 
@@ -1652,6 +1821,20 @@ const ItineraryResultPage = () => {
         || getTravelDurationFromTimes(startTime, endTime)
         || 1
       ));
+
+      const fromEndpoint = sanitizeTransportEndpoint({
+        locationId: toPositiveIntOrNull(travelDetail?.fromLocationId ?? travelDetail?.FromLocationId),
+        transitHubId: toPositiveIntOrNull(travelDetail?.fromTransitHubId ?? travelDetail?.FromTransitHubId),
+        customTransitHubId: toPositiveIntOrNull(travelDetail?.customFromTransitHubId ?? travelDetail?.CustomFromTransitHubId),
+        customTransitHub: toCustomGeoPayload(travelDetail?.customFromTransitHub || travelDetail?.CustomFromTransitHub),
+      });
+
+      const toEndpoint = sanitizeTransportEndpoint({
+        locationId: toPositiveIntOrNull(travelDetail?.toLocationId ?? travelDetail?.ToLocationId),
+        transitHubId: toPositiveIntOrNull(travelDetail?.toTransitHubId ?? travelDetail?.ToTransitHubId),
+        customTransitHubId: toPositiveIntOrNull(travelDetail?.customToTransitHubId ?? travelDetail?.CustomToTransitHubId),
+        customTransitHub: toCustomGeoPayload(travelDetail?.customToTransitHub || travelDetail?.CustomToTransitHub),
+      });
 
       return {
         transportModeId: toPositiveIntOrNull(
@@ -1666,14 +1849,14 @@ const ItineraryResultPage = () => {
         ),
         distanceKm: Math.max(0, Number(toFiniteNumber(travelDetail?.distanceKm ?? travelDetail?.DistanceKm) || 0)),
         travelTimeMinutes,
-        fromLocationId: toPositiveIntOrNull(travelDetail?.fromLocationId ?? travelDetail?.FromLocationId),
-        toLocationId: toPositiveIntOrNull(travelDetail?.toLocationId ?? travelDetail?.ToLocationId),
-        fromTransitHubId: toPositiveIntOrNull(travelDetail?.fromTransitHubId ?? travelDetail?.FromTransitHubId),
-        toTransitHubId: toPositiveIntOrNull(travelDetail?.toTransitHubId ?? travelDetail?.ToTransitHubId),
-        customFromTransitHubId: toPositiveIntOrNull(travelDetail?.customFromTransitHubId ?? travelDetail?.CustomFromTransitHubId),
-        customToTransitHubId: toPositiveIntOrNull(travelDetail?.customToTransitHubId ?? travelDetail?.CustomToTransitHubId),
-        customFromTransitHub: toCustomGeoPayload(travelDetail?.customFromTransitHub || travelDetail?.CustomFromTransitHub),
-        customToTransitHub: toCustomGeoPayload(travelDetail?.customToTransitHub || travelDetail?.CustomToTransitHub),
+        fromLocationId: fromEndpoint.locationId,
+        toLocationId: toEndpoint.locationId,
+        fromTransitHubId: fromEndpoint.transitHubId,
+        toTransitHubId: toEndpoint.transitHubId,
+        customFromTransitHubId: fromEndpoint.customTransitHubId,
+        customToTransitHubId: toEndpoint.customTransitHubId,
+        customFromTransitHub: fromEndpoint.customTransitHub,
+        customToTransitHub: toEndpoint.customTransitHub,
       };
     };
 
@@ -1691,9 +1874,16 @@ const ItineraryResultPage = () => {
       const dayNumber = Number(day?.dayNumber ?? day?.DayNumber);
       const safeDayNumber = Number.isFinite(dayNumber) && dayNumber > 0 ? Math.round(dayNumber) : dayIndex + 1;
       const dayDate = toIsoDateTimeString(day?.date || day?.Date, startDate);
-      const dayTitle = pickFirstText(day?.dayTitle, day?.DayTitle) || `Day ${safeDayNumber}`;
+      const dayTitle = pickFirstText(
+        day?.daytitle,
+        day?.dayTitle,
+        day?.DayTitle,
+        day?.Daytitle,
+        day?.title,
+        day?.Title,
+      ) || `Day ${safeDayNumber}`;
       const weatherSummary = pickFirstText(day?.weatherSummary, day?.WeatherSummary) || null;
-      const timeline = day?.timeline || day?.Timeline || [];
+      const timeline = getDayTimeline(day, tripCurrencyCode);
       const estimatedCost = getNonNegativeAmount(
         day?.estimatedCost
         || day?.EstimatedCost
@@ -1703,7 +1893,7 @@ const ItineraryResultPage = () => {
       );
 
       const activities = (Array.isArray(timeline) ? timeline : []).map((item, itemIndex) => {
-        const eventType = String(item?.eventType || item?.EventType || '').toLowerCase();
+        const eventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
         const locationId = toPositiveIntOrNull(item?.locationId ?? item?.LocationId);
         const customLocationId = locationId ? null : toPositiveIntOrNull(item?.customLocationId ?? item?.CustomLocationId);
         const customLocation = (!locationId && !customLocationId)
@@ -1751,7 +1941,10 @@ const ItineraryResultPage = () => {
 
     const summary = budgetSummary || {};
     const totalBudget = Math.round(getNonNegativeAmount(summary.totalBudget || summary.TotalBudget, totalBudgetValue));
-    const usableBudget = Math.round(getNonNegativeAmount(summary.usableBudget || summary.UsableBudget, totalBudget));
+    const usableBudget = Math.min(
+      totalBudget,
+      Math.round(getNonNegativeAmount(summary.usableBudget || summary.UsableBudget, totalBudget)),
+    );
     const estimatedAccommodationCost = Math.round(getNonNegativeAmount(
       summary.estimatedAccommodationCost || summary.EstimatedAccommodationCost,
       accommodationCostFallback,
@@ -1823,9 +2016,22 @@ const ItineraryResultPage = () => {
       }
     } catch (error) {
       const responseData = error?.response?.data;
-      const errorDetails = Array.isArray(responseData?.errors)
-        ? responseData.errors.map((item) => item?.description || item?.Description || '').filter(Boolean)
-        : [];
+      const errorDetails = [];
+
+      if (Array.isArray(responseData?.errors)) {
+        errorDetails.push(...responseData.errors.map((item) => item?.description || item?.Description || '').filter(Boolean));
+      } else if (responseData?.errors && typeof responseData.errors === 'object') {
+        Object.values(responseData.errors).forEach((value) => {
+          if (Array.isArray(value)) {
+            errorDetails.push(...value.map((item) => String(item || '').trim()).filter(Boolean));
+            return;
+          }
+
+          const text = String(value || '').trim();
+          if (text) errorDetails.push(text);
+        });
+      }
+
       const errorMessage = errorDetails[0]
         || responseData?.message
         || responseData?.Message
@@ -1912,11 +2118,17 @@ const ItineraryResultPage = () => {
             {days.map((day, dayIdx) => {
               const dayNum = day.dayNumber || day.DayNumber;
               const isDayUpdating = recalculatingDayNumber === dayNum;
-              const rawDayTitle = day.dayTitle || day.DayTitle || `Day ${dayNum}`;
+              const explicitDayTitle = pickFirstText(
+                day.daytitle,
+                day.dayTitle,
+                day.DayTitle,
+                day.Daytitle,
+              );
+              const rawDayTitle = explicitDayTitle || pickFirstText(day.title, day.Title) || `Day ${dayNum}`;
               const date = day.date || day.Date;
               const weather = day.weatherSummary || day.WeatherSummary;
-              const timeline = day.timeline || day.Timeline || [];
               const itineraryCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
+              const timeline = getDayTimeline(day, itineraryCurrencyCode);
               const estimatedCostRaw = day.estimatedCost
                 || day.EstimatedCost
                 || day.estimatedDayCost
@@ -1929,10 +2141,9 @@ const ItineraryResultPage = () => {
               const prevDay = dayIdx > 0 ? days[dayIdx - 1] : null;
               const prevProvinceId = Number(prevDay?.provinceId || prevDay?.ProvinceId);
               const prevProvinceName = provinceNameById.get(prevProvinceId);
-              const hasRouteTitle = String(rawDayTitle).includes(' - ');
-
               let dayTitle = rawDayTitle;
-              if (currentProvinceName) {
+              if (!explicitDayTitle && currentProvinceName) {
+                const hasRouteTitle = String(rawDayTitle).includes(' - ');
                 if (hasRouteTitle && prevProvinceName && prevProvinceName !== currentProvinceName) {
                   dayTitle = `Day ${dayNum}: ${prevProvinceName} - ${currentProvinceName}`;
                 } else {
@@ -1971,7 +2182,7 @@ const ItineraryResultPage = () => {
                     <>
                       <div className={styles.timeline}>
                         {timeline.map((item, idx) => {
-                          const eventType = item.eventType || item.EventType || 'visit';
+                          const eventType = toEventType(item.eventType || item.EventType || item.type || item.Type);
                           const startTime = item.startTime || item.StartTime;
                           const endTime = item.endTime || item.EndTime;
                           const startTimeLabel = formatTime(startTime);
@@ -2119,16 +2330,6 @@ const ItineraryResultPage = () => {
                                                     )}
                                                   </div>
                                                 </div>
-                                                {altTelephone && <div className={styles.timelineTelephone}>Phone: {altTelephone}</div>}
-                                                <div className={styles.alternativeActions}>
-                                                  {altScoreLabel && <Text type="secondary" className={styles.scoreText}>Score: {altScoreLabel}</Text>}
-                                                  {altLocationId && (
-                                                    <>
-                                                      <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleReplaceAlternative(dayIdx, idx, alternative, eventType)}>Replace</Button>
-                                                      <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleViewLocation(altLocationId)}>View</Button>
-                                                    </>
-                                                  )}
-                                                </div>
                                                 {altMediaUrls.length > 0 && (
                                                   <div className={styles.alternativeMedia}>
                                                     {altMediaUrls.length > 1 ? (
@@ -2177,7 +2378,11 @@ const ItineraryResultPage = () => {
                                   const travelDistanceKm = toFiniteNumber(travelDetail?.distanceKm ?? travelDetail?.DistanceKm);
                                   const travelCostForGroup = getTravelGroupCost(costForGroup, travelDetail);
                                   const fromText = getTravelPointName(travelDetail, true) || 'Previous Location';
-                                  const toText = getTravelPointName(travelDetail, false) || 'Next Location';
+                                  const toText = pickFirstText(
+                                    travelDetail?.toTransitHubName,
+                                    travelDetail?.ToTransitHubName,
+                                    getTravelPointName(travelDetail, false),
+                                  ) || 'Next Location';
 
                                   return (
                                     <div className={`${styles.card} ${styles.travelCard}`}>

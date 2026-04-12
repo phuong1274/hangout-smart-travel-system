@@ -47,6 +47,8 @@ import {
 import LocationDetailModal from '../components/LocationDetailModal';
 import TransportDetailModal from '../components/TransportDetailModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
+import MemberManagement from '../components/MemberManagement';
+import JoinCodeSettings from '../components/JoinCodeSettings';
 import styles from './ItineraryResultPage.module.css';
 
 const { Title, Text } = Typography;
@@ -132,6 +134,15 @@ const TripDetailPage = () => {
   }, []);
 
   // Load trip detail
+  const refetchTrip = useCallback(async () => {
+    try {
+      const data = await getTripDetailApi(Number(id));
+      setTrip(data);
+    } catch (err) {
+      console.error('Failed to load trip detail:', err);
+    }
+  }, [id]);
+
   useEffect(() => {
     let mounted = true;
     const loadTrip = async () => {
@@ -815,18 +826,20 @@ const TripDetailPage = () => {
               key: 'members',
               label: `Members (${trip.tripMembers?.length || 0})`,
               children: (
-                <List
-                  dataSource={trip.tripMembers || []}
-                  renderItem={(member) => (
-                    <List.Item>
-                      <List.Item.Meta
-                        avatar={<Avatar icon={<UserOutlined />} />}
-                        title={member.name}
-                        description={`${member.role} • Joined ${new Date(member.createdAt).toLocaleDateString()}`}
-                      />
-                    </List.Item>
+                <>
+                  {myMember?.role === 'Leader' && trip.joinCode !== undefined && (
+                    <JoinCodeSettings
+                      tripId={trip.id}
+                      joinCode={trip.joinCode}
+                      isJoinCodeActive={trip.isJoinCodeActive}
+                      onUpdate={(result) => {
+                        trip.joinCode = result.joinCode;
+                        trip.isJoinCodeActive = result.isJoinCodeActive;
+                      }}
+                    />
                   )}
-                />
+                  <MemberManagement tripId={trip.id} onMemberChange={refetchTrip} />
+                </>
               ),
             },
           ]}
