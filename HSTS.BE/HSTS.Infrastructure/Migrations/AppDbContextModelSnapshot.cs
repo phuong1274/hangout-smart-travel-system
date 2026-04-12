@@ -226,6 +226,118 @@ namespace HSTS.Infrastructure.Migrations
                     b.ToTable("Countries", (string)null);
                 });
 
+            modelBuilder.Entity("HSTS.Domain.Entities.CustomLocation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Address");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double")
+                        .HasColumnName("Latitude");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double")
+                        .HasColumnName("Longitude");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Name");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CustomLocations", (string)null);
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.CustomTransitHub", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Address");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double")
+                        .HasColumnName("Latitude");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double")
+                        .HasColumnName("Longitude");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Name");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CustomTransitHubs", (string)null);
+                });
+
             modelBuilder.Entity("HSTS.Domain.Entities.District", b =>
                 {
                     b.Property<int>("Id")
@@ -282,66 +394,6 @@ namespace HSTS.Infrastructure.Migrations
                     b.HasIndex("ProvinceId");
 
                     b.ToTable("Districts", (string)null);
-                });
-
-            modelBuilder.Entity("HSTS.Domain.Entities.Hub", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<string>("HubType")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false);
-
-                    b.Property<double>("Latitude")
-                        .HasColumnType("double");
-
-                    b.Property<int>("LocationId")
-                        .HasColumnType("int");
-
-                    b.Property<double>("Longitude")
-                        .HasColumnType("double");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("timestamp")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LocationId");
-
-                    b.ToTable("Hub");
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.LocalTransportMetrics", b =>
@@ -1770,6 +1822,8 @@ namespace HSTS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CustomLocationId");
+
                     b.HasIndex("LocationId");
 
                     b.HasIndex("TripDayId");
@@ -1990,10 +2044,9 @@ namespace HSTS.Infrastructure.Migrations
                     b.Property<int?>("DepartureHubId")
                         .HasColumnType("int");
 
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
+                    b.Property<int?>("CustomToTransitHubId")
+                        .HasColumnType("int")
+                        .HasColumnName("CustomToTransitHubId");
 
                     b.Property<int>("GroupSize")
                         .HasColumnType("int");
@@ -2274,17 +2327,6 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("Province");
                 });
 
-            modelBuilder.Entity("HSTS.Domain.Entities.Hub", b =>
-                {
-                    b.HasOne("HSTS.Domain.Entities.Location", "Location")
-                        .WithMany("Hubs")
-                        .HasForeignKey("LocationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Location");
-                });
-
             modelBuilder.Entity("HSTS.Domain.Entities.LocalTransportMetrics", b =>
                 {
                     b.HasOne("HSTS.Domain.Entities.TransportMode", "TransportMode")
@@ -2548,6 +2590,11 @@ namespace HSTS.Infrastructure.Migrations
 
             modelBuilder.Entity("HSTS.Domain.Entities.TripActivity", b =>
                 {
+                    b.HasOne("HSTS.Domain.Entities.CustomLocation", "CustomLocation")
+                        .WithMany("TripActivities")
+                        .HasForeignKey("CustomLocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("HSTS.Domain.Entities.Location", "Location")
                         .WithMany()
                         .HasForeignKey("LocationId");
@@ -2557,6 +2604,8 @@ namespace HSTS.Infrastructure.Migrations
                         .HasForeignKey("TripDayId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("CustomLocation");
 
                     b.Navigation("Location");
 
@@ -2583,6 +2632,25 @@ namespace HSTS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Trip");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.TripMember", b =>
+                {
+                    b.HasOne("HSTS.Domain.Entities.Trip", "Trip")
+                        .WithMany("TripMembers")
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HSTS.Domain.Entities.User", "User")
+                        .WithMany("TripMembers")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Trip");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.TripSummary", b =>
@@ -2666,6 +2734,18 @@ namespace HSTS.Infrastructure.Migrations
                     b.Navigation("Provinces");
                 });
 
+            modelBuilder.Entity("HSTS.Domain.Entities.CustomLocation", b =>
+                {
+                    b.Navigation("TripActivities");
+                });
+
+            modelBuilder.Entity("HSTS.Domain.Entities.CustomTransitHub", b =>
+                {
+                    b.Navigation("FromTransitHubTransports");
+
+                    b.Navigation("ToTransitHubTransports");
+                });
+
             modelBuilder.Entity("HSTS.Domain.Entities.District", b =>
                 {
                     b.Navigation("Locations");
@@ -2676,8 +2756,6 @@ namespace HSTS.Infrastructure.Migrations
             modelBuilder.Entity("HSTS.Domain.Entities.Location", b =>
                 {
                     b.Navigation("Closures");
-
-                    b.Navigation("Hubs");
 
                     b.Navigation("LocationAmenities");
 
@@ -2697,11 +2775,6 @@ namespace HSTS.Infrastructure.Migrations
             modelBuilder.Entity("HSTS.Domain.Entities.LocationType", b =>
                 {
                     b.Navigation("Locations");
-                });
-
-            modelBuilder.Entity("HSTS.Domain.Entities.Profile", b =>
-                {
-                    b.Navigation("Trips");
                 });
 
             modelBuilder.Entity("HSTS.Domain.Entities.Province", b =>
@@ -2739,6 +2812,8 @@ namespace HSTS.Infrastructure.Migrations
                 {
                     b.Navigation("TripDays");
 
+                    b.Navigation("TripMembers");
+
                     b.Navigation("TripSummary");
                 });
 
@@ -2762,6 +2837,8 @@ namespace HSTS.Infrastructure.Migrations
             modelBuilder.Entity("HSTS.Domain.Entities.User", b =>
                 {
                     b.Navigation("Profiles");
+
+                    b.Navigation("TripMembers");
 
                     b.Navigation("Trips");
 

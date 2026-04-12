@@ -63,7 +63,7 @@ const InlineMapCenterSync = ({ center }) => {
 
 const uiTheme = {
   token: {
-    colorPrimary: '#FF6B6B',
+    colorPrimary: '#F4CB8C',
     colorInfo: '#4ECDC4',
     colorTextBase: '#1A535C',
     fontFamily: "'Plus Jakarta Sans', 'Poppins', sans-serif",
@@ -384,7 +384,7 @@ const CreateTripPage = () => {
                     <InlineMapCenterSync center={mapCenter} />
                   </MapContainer>
                 </div>
-                <Button type="dashed" block onClick={handleGetCurrentLocation} style={{ marginTop: 16, borderColor: '#4ECDC4', color: '#4ECDC4' }}>
+                <Button type="dashed" block onClick={handleGetCurrentLocation} style={{ marginTop: 16, borderColor: '#4ECDC4', color: '#1A535C', backgroundColor: 'rgba(78, 205, 196, 0.1)' }}>
                   Use My Current Location
                 </Button>
                 <GoogleMapPicker open={mapOpen} onClose={() => setMapOpen(false)} onConfirm={handleMapConfirm} initialLat={userLocation?.latitude} initialLng={userLocation?.longitude} />
@@ -422,7 +422,7 @@ const CreateTripPage = () => {
                 <Form.Item name="dateRange" rules={[{ required: true, message: 'Please select your travel dates' }]}>
                   <RangePicker style={{ width: '100%' }} format="DD/MM/YYYY" disabledDate={(current) => current && current < dayjs().startOf('day')} placeholder={['Start date', 'End date']} />
                 </Form.Item>
-                {computedFields && <Tag color="#4ECDC4" style={{ padding: '6px 16px', borderRadius: 999, fontSize: 14 }}>Trip duration: {computedFields.days} Days, {computedFields.nights} Nights</Tag>}
+                {computedFields && <Tag color="#4ECDC4" style={{ padding: '6px 16px', borderRadius: 999, fontSize: 14, color: '#1A535C', fontWeight: 600 }}>Trip duration: {computedFields.days} Days, {computedFields.nights} Nights</Tag>}
               </Card>
 
               <Card className={styles.sectionCard} title={<span className={styles.sectionTitle}>Who is traveling with you?</span>}>
@@ -465,11 +465,11 @@ const CreateTripPage = () => {
                       <div className={styles.selectedTagSummary}>
                         <div className={styles.selectedTagSummaryHeader}>
                           <Text strong style={{ color: '#1A535C' }}>Selected Activities</Text>
-                          <Button type="link" size="small" onClick={() => setSelectedTagIds([])} style={{ color: '#FF6B6B' }}>Clear All</Button>
+                          <Button type="link" size="small" onClick={() => setSelectedTagIds([])} style={{ color: '#1A535C', fontWeight: 600, textDecoration: 'underline' }}>Clear All</Button>
                         </div>
                         <div className={styles.selectedTagList}>
                           {selectedTagList.map((tag) => (
-                            <Tag key={tag.id} color={tag.isParent ? '#FF6B6B' : '#4ECDC4'} closable onClose={(e) => { e.preventDefault(); handleRemoveSelectedTag(tag.id); }} style={{ borderRadius: 999, border: 'none', color: '#FFF' }}>{tag.name}</Tag>
+                            <Tag key={tag.id} color={tag.isParent ? '#F4CB8C' : '#4ECDC4'} closable onClose={(e) => { e.preventDefault(); handleRemoveSelectedTag(tag.id); }} style={{ borderRadius: 999, border: 'none', color: '#1A535C', fontWeight: 600 }}>{tag.name}</Tag>
                           ))}
                         </div>
                       </div>

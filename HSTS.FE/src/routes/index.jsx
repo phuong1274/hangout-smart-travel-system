@@ -5,6 +5,7 @@ import PublicRoute from './PublicRoute';
 import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
+import ItineraryResultPage from '@/features/trip/pages/ItineraryResultPage';
 
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
@@ -29,7 +30,6 @@ const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-sub
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
-const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
 
 const DashboardOverview = () => (
   <div>

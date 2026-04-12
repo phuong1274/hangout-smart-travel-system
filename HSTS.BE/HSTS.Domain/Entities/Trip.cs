@@ -17,9 +17,6 @@ namespace HSTS.Domain.Entities
         public string? Description { get; set; }
 
         [Required]
-        public int UserId { get; set; }
-
-        [Required]
         public DateTime StartDate { get; set; }
 
         [Required]
@@ -33,7 +30,7 @@ namespace HSTS.Domain.Entities
         public TripStatus Status { get; set; } = TripStatus.Planned;
 
         // Navigation properties
-        public User User { get; set; } = null!;
+        public ICollection<TripMember> TripMembers { get; set; } = new List<TripMember>();
         public ICollection<TripDay> TripDays { get; set; } = new List<TripDay>();
         public TripSummary? TripSummary { get; set; }
     }

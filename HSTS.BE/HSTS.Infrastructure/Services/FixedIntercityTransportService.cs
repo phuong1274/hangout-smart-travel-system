@@ -156,6 +156,51 @@ namespace HSTS.Infrastructure.Services
             }
         }
 
+        /// <summary>
+        /// Search bus with retry on alternative dates if no results found.
+        /// Tries ±1, ±2 days from the requested date.
+        /// </summary>
+        public async Task<FixedIntercitySearchResult> SearchBusWithDateFallbackAsync(
+            FixedIntercitySearchRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            // Try original date first
+            var result = await SearchBusAsync(request, cancellationToken);
+            if (result.IsSuccess && result.RecommendedOption is not null)
+                return result;
+
+            // Try alternative dates: ±1, ±2 days
+            int[] dayOffsets = { 1, -1, 2, -2 };
+            foreach (var offset in dayOffsets)
+            {
+                var alternativeDate = request.DepartDate.AddDays(offset);
+                var alternativeRequest = request with { DepartDate = alternativeDate };
+                var alternativeResult = await SearchBusAsync(alternativeRequest, cancellationToken);
+                
+                if (alternativeResult.IsSuccess && alternativeResult.RecommendedOption is not null)
+                {
+                    _logger.LogInformation(
+                        "Bus found on alternative date {Date} (original: {OriginalDate})",
+                        alternativeDate, request.DepartDate);
+                    
+                    return new FixedIntercitySearchResult(
+                        true,
+                        "fixed-intercity-bus-api",
+                        alternativeResult.RecommendedOption,
+                        alternativeResult.RawResponse,
+                        $"No bus available on {request.DepartDate:yyyy-MM-dd}. Found on {alternativeDate:yyyy-MM-dd}. Consider changing travel date.");
+                }
+            }
+
+            // All attempts failed
+            return new FixedIntercitySearchResult(
+                false,
+                "fixed-intercity-bus-api",
+                null,
+                null,
+                $"No bus available from {request.DepartDate:yyyy-MM-dd} to ±2 days. Please change travel dates.");
+        }
+
         public async Task<FixedIntercitySearchResult> SearchTrainAsync(
             TrainRouteSearchRequest request,
             CancellationToken cancellationToken = default)
@@ -219,6 +264,51 @@ namespace HSTS.Infrastructure.Services
                     null,
                     "Train API request failed. Please verify URL/API key and train parameters.");
             }
+        }
+
+        /// <summary>
+        /// Search train with retry on alternative dates if no results found.
+        /// Tries ±1, ±2 days from the requested date.
+        /// </summary>
+        public async Task<FixedIntercitySearchResult> SearchTrainWithDateFallbackAsync(
+            TrainRouteSearchRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            // Try original date first
+            var result = await SearchTrainAsync(request, cancellationToken);
+            if (result.IsSuccess && result.RecommendedOption is not null)
+                return result;
+
+            // Try alternative dates: ±1, ±2 days
+            int[] dayOffsets = { 1, -1, 2, -2 };
+            foreach (var offset in dayOffsets)
+            {
+                var alternativeDate = request.DepartDate.AddDays(offset);
+                var alternativeRequest = request with { DepartDate = alternativeDate };
+                var alternativeResult = await SearchTrainAsync(alternativeRequest, cancellationToken);
+                
+                if (alternativeResult.IsSuccess && alternativeResult.RecommendedOption is not null)
+                {
+                    _logger.LogInformation(
+                        "Train found on alternative date {Date} (original: {OriginalDate})",
+                        alternativeDate, request.DepartDate);
+                    
+                    return new FixedIntercitySearchResult(
+                        true,
+                        "fixed-intercity-train-api",
+                        alternativeResult.RecommendedOption,
+                        alternativeResult.RawResponse,
+                        $"No train available on {request.DepartDate:yyyy-MM-dd}. Found on {alternativeDate:yyyy-MM-dd}. Consider changing travel date.");
+                }
+            }
+
+            // All attempts failed
+            return new FixedIntercitySearchResult(
+                false,
+                "fixed-intercity-train-api",
+                null,
+                null,
+                $"No train available from {request.DepartDate:yyyy-MM-dd} to ±2 days. Please change travel dates.");
         }
 
         public async Task<TrainMonthlyCalendarResult> GetTrainMonthlyCalendarAsync(
@@ -342,6 +432,51 @@ namespace HSTS.Infrastructure.Services
                     null,
                     "Flight API request failed. Please verify URL/API key and flight parameters.");
             }
+        }
+
+        /// <summary>
+        /// Search flight with retry on alternative dates if no results found.
+        /// Tries ±1, ±2 days from the requested date.
+        /// </summary>
+        public async Task<FixedIntercitySearchResult> SearchFlightWithDateFallbackAsync(
+            FlightRouteSearchRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            // Try original date first
+            var result = await SearchFlightAsync(request, cancellationToken);
+            if (result.IsSuccess && result.RecommendedOption is not null)
+                return result;
+
+            // Try alternative dates: ±1, ±2 days
+            int[] dayOffsets = { 1, -1, 2, -2 };
+            foreach (var offset in dayOffsets)
+            {
+                var alternativeDate = request.DepartDate.AddDays(offset);
+                var alternativeRequest = request with { DepartDate = alternativeDate };
+                var alternativeResult = await SearchFlightAsync(alternativeRequest, cancellationToken);
+                
+                if (alternativeResult.IsSuccess && alternativeResult.RecommendedOption is not null)
+                {
+                    _logger.LogInformation(
+                        "Flight found on alternative date {Date} (original: {OriginalDate})",
+                        alternativeDate, request.DepartDate);
+                    
+                    return new FixedIntercitySearchResult(
+                        true,
+                        "fixed-intercity-flight-api",
+                        alternativeResult.RecommendedOption,
+                        alternativeResult.RawResponse,
+                        $"No flight available on {request.DepartDate:yyyy-MM-dd}. Found on {alternativeDate:yyyy-MM-dd}. Consider changing travel date.");
+                }
+            }
+
+            // All attempts failed
+            return new FixedIntercitySearchResult(
+                false,
+                "fixed-intercity-flight-api",
+                null,
+                null,
+                $"No flight available from {request.DepartDate:yyyy-MM-dd} to ±2 days. Please change travel dates.");
         }
 
         public async Task<FlightMonthlyCalendarResult> GetFlightMonthlyCalendarAsync(

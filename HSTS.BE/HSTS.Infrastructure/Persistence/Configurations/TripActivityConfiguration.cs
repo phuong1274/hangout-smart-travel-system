@@ -28,6 +28,11 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasForeignKey(ta => ta.LocationId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            builder.HasOne(ta => ta.CustomLocation)
+                .WithMany(cl => cl.TripActivities)
+                .HasForeignKey(ta => ta.CustomLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             builder.HasOne(ta => ta.Transport)
                 .WithOne(tt => tt.TripActivity)
                 .HasForeignKey<TripTransport>(tt => tt.TripActivityId)

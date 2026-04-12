@@ -18,5 +18,7 @@ namespace HSTS.Application.Itineraries.Queries
         int? ToTransitHubId,
         string? ToTransitHubName,
         int VehiclesNeeded,
-        MoneyDto CostForGroup);
+        MoneyDto CostForGroup,
+        bool IsEstimate = false,
+        string? Warning = null);
 }

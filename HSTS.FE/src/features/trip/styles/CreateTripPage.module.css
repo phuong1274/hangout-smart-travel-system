@@ -27,7 +27,7 @@
 }
 
 .headerTitle {
-  color: #FF6B6B !important;
+  color: #F4CB8C !important;
   font-family: 'Plus Jakarta Sans', sans-serif !important;
   font-weight: 700 !important;
   font-size: clamp(28px, 4vw, 42px) !important;
@@ -49,8 +49,12 @@
 }
 
 .stepper :global(.ant-steps-item-process .ant-steps-item-icon) {
-  background: #FF6B6B;
-  border-color: #FF6B6B;
+  background: #F4CB8C;
+  border-color: #F4CB8C;
+}
+
+.stepper :global(.ant-steps-item-process .ant-steps-item-icon > .ant-steps-icon) {
+  color: #1A535C !important;
 }
 
 .stepper :global(.ant-steps-item-finish .ant-steps-item-icon) {
@@ -69,7 +73,7 @@
 }
 
 .stepper :global(.ant-steps-item-process .ant-steps-item-title) {
-  color: #FF6B6B !important;
+  color: #1A535C !important;
 }
 
 .stepActive {
@@ -137,8 +141,8 @@
 }
 
 .selectedTagSummary {
-  background: #FFF9F9;
-  border: 1px dashed #FF6B6B;
+  background: #FFF9F2;
+  border: 1px dashed #F4CB8C;
   border-radius: 16px;
   padding: 16px;
 }
@@ -187,7 +191,7 @@
 
 .rootTagButtonActive {
   background: #4ECDC4;
-  color: #FFFFFF;
+  color: #1A535C;
   border-color: #4ECDC4;
 }
 
@@ -211,15 +215,16 @@
 }
 
 .childTagButton:hover {
-  border-color: #FF6B6B;
-  color: #FF6B6B;
+  border-color: #F4CB8C;
+  color: #1A535C;
   transform: scale(1.05);
 }
 
 .childTagButtonActive {
-  background: #FF6B6B;
-  color: #FFFFFF;
-  border-color: #FF6B6B;
+  background: #F4CB8C;
+  color: #1A535C;
+  border-color: #F4CB8C;
+  font-weight: 600;
 }
 
 .actionButtons {
@@ -242,6 +247,7 @@
 
 .navButtonPrimary {
   background-color: #4ECDC4 !important;
+  color: #1A535C !important;
   height: 54px !important;
   border-radius: 999px !important;
   padding: 0 40px !important;

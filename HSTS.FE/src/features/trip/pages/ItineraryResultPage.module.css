@@ -199,6 +199,8 @@
 .budgetTotalValue,
 .budgetUsableValue,
 .budgetEstimatedValue,
+.budgetMealValue,
+.budgetOtherValue,
 .budgetRemainingValue {
   font-size: 18px;
   font-weight: 800;
@@ -208,6 +210,8 @@
 .budgetTotalValue { color: #1A535C; }
 .budgetUsableValue { color: #1A535C; opacity: 0.8; }
 .budgetEstimatedValue { color: #1A535C; }
+.budgetMealValue { color: #E64A4A; }
+.budgetOtherValue { color: #2E6F7E; }
 .budgetRemainingValue { color: #4ECDC4; }
 
 .budgetDetailsSection {
@@ -984,11 +988,49 @@
 
 .actionBar {
   text-align: center;
-  padding: 40px 0;
+  padding: 40px 0 100px;
   display: flex;
   justify-content: center;
   gap: 20px;
   flex-wrap: wrap;
+}
+
+.saveTripFloatingBtn {
+  position: fixed !important;
+  right: 24px;
+  bottom: 24px;
+  z-index: 950;
+  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E72 100%) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 999px !important;
+  min-height: 56px !important;
+  min-width: 170px;
+  padding: 0 24px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.6px !important;
+  text-transform: uppercase !important;
+  box-shadow: 0 14px 34px rgba(230, 74, 74, 0.35) !important;
+  transition: transform 0.25s ease, box-shadow 0.25s ease !important;
+}
+
+.saveTripFloatingBtn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px rgba(230, 74, 74, 0.42) !important;
+}
+
+.saveTripFloatingBtn:focus-visible {
+  outline: 3px solid rgba(255, 230, 109, 0.9);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .saveTripFloatingBtn {
+    right: 16px;
+    left: 16px;
+    bottom: 16px;
+    width: auto;
+  }
 }
 
 .actionBtnPrimary {
