@@ -30,12 +30,12 @@ const FeaturedDestinations = ({ destinations = [] }) => {
             : PATHS.PUBLIC_LOCATIONS;
 
           return (
-            <Col xs={24} sm={24} md={8} key={destinationId || index} className={styles.destCol}>
+            <Col xs={24} sm={24} md={index === 0 ? 24 : 12} lg={index === 0 ? 24 : 12} key={destinationId || index} className={styles.destCol}>
               <Card className={styles.destCard} hoverable>
                 <span className={styles.cardTitle}>{item.name || item.title || 'Destination'}</span>
                 <div className={styles.cardMeta}>
                   <span className={styles.cardMetaValue}>{item.locationCount ?? 0}</span>
-                  <span className={styles.cardMetaLabel}>locations to explore</span>
+                  <span className={styles.cardMetaLabel}>places ready to compare</span>
                 </div>
                 <Space direction="vertical" size={10} className={styles.destActions}>
                   <Link to={explorePath} className={styles.destLinkFull}>
@@ -48,7 +48,7 @@ const FeaturedDestinations = ({ destinations = [] }) => {
                     className={styles.destLinkFull}
                   >
                     <Button block className={styles.destSecondaryAction}>
-                      Plan from here
+                      Start from this destination
                     </Button>
                   </Link>
                 </Space>

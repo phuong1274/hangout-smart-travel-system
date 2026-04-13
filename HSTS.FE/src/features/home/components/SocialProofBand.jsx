@@ -14,6 +14,7 @@ const SocialProofBand = ({ socialProof }) => {
   return (
     <section className={styles.socialProofSection}>
       <div className={styles.socialProofHeader}>
+        <span className={styles.destSubTitle}>Trust signals</span>
         <Title level={3} className={styles.socialProofTitle}>{title}</Title>
         <Paragraph className={styles.socialProofDescription}>{description}</Paragraph>
       </div>

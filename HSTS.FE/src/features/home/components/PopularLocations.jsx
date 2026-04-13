@@ -14,9 +14,10 @@ const PopularLocations = ({ locations = [] }) => {
     <section className={styles.popularSection}>
       <div className={styles.popularHeader}>
         <div>
+          <span className={styles.destSubTitle}>Popular now</span>
           <Title level={2} className={styles.popularTitle}>Popular locations for smarter trip decisions</Title>
           <Paragraph className={styles.popularDescription}>
-            Compare highly-rated places, scan budget ranges, and shortlist what fits your trip goals before you plan.
+            Scan the strongest places first, compare their travel fit, and jump into planning once one earns a spot on your route.
           </Paragraph>
         </div>
         <Link to={PATHS.PUBLIC_LOCATIONS}>
@@ -29,8 +30,8 @@ const PopularLocations = ({ locations = [] }) => {
           {featuredLocations.map((location, index) => {
             const key = location?.id ?? location?.locationId ?? location?.Id ?? `${location?.name || location?.title || 'location'}-${index}`;
             return (
-              <Col xs={24} sm={12} lg={8} xl={6} key={key}>
-                <PublicLocationCard location={location} variant="home" />
+              <Col xs={24} sm={12} lg={index === 0 ? 12 : 8} xl={index === 0 ? 12 : 6} key={key}>
+                <PublicLocationCard location={location} variant={index === 0 ? 'featured' : 'home'} />
               </Col>
             );
           })}
