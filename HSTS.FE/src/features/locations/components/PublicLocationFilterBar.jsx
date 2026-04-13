@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { Button, Form, Input, Rate, Select, Space, Typography } from 'antd';
+import { Button, Form, Input, InputNumber, Rate, Select, Space, Typography } from 'antd';
 
 const { Text } = Typography;
 
@@ -29,6 +29,8 @@ const PublicLocationFilterBar = ({
       locationTypeId: initialValues?.locationTypeId ? String(initialValues.locationTypeId) : undefined,
       keyword: initialValues?.keyword || '',
       minRating: initialValues?.minRating || 0,
+      minBudget: initialValues?.minBudget,
+      maxBudget: initialValues?.maxBudget,
     });
   }, [form, initialValues]);
 
@@ -39,6 +41,8 @@ const PublicLocationFilterBar = ({
       locationTypeId: values.locationTypeId ? Number(values.locationTypeId) : undefined,
       keyword: values.keyword?.trim() || '',
       minRating: values.minRating || 0,
+      minBudget: values.minBudget,
+      maxBudget: values.maxBudget,
     });
   };
 
@@ -49,6 +53,8 @@ const PublicLocationFilterBar = ({
       locationTypeId: undefined,
       keyword: '',
       minRating: 0,
+      minBudget: undefined,
+      maxBudget: undefined,
     };
     form.setFieldsValue(emptyValues);
     onApply?.(emptyValues);
@@ -81,13 +87,21 @@ const PublicLocationFilterBar = ({
           <Rate allowHalf />
         </Form.Item>
 
+        <Form.Item label="Budget From (USD)" name="minBudget" style={{ minWidth: 160, marginBottom: 0 }}>
+          <InputNumber min={0} style={{ width: '100%' }} placeholder="Min" />
+        </Form.Item>
+
+        <Form.Item label="Budget To (USD)" name="maxBudget" style={{ minWidth: 160, marginBottom: 0 }}>
+          <InputNumber min={0} style={{ width: '100%' }} placeholder="Max" />
+        </Form.Item>
+
         <Space>
           <Button type="primary" htmlType="submit" loading={loading}>Apply</Button>
           <Button onClick={handleReset} disabled={loading}>Reset</Button>
         </Space>
       </Space>
       <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-        Discover locations by destination, district, category, keyword, and quality.
+        Discover locations by destination, district, category, keyword, rating, and budget.
       </Text>
     </Form>
   );

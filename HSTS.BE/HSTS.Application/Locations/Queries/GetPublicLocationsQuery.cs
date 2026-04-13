@@ -14,6 +14,8 @@ public record GetPublicLocationsQuery(
     int? LocationTypeId = null,
     string? Keyword = null,
     decimal? MinRating = null,
+    decimal? MinBudget = null,
+    decimal? MaxBudget = null,
     int PageIndex = 1,
     int PageSize = 10)
     : IRequest<ErrorOr<PublicLocationPagedResponse>>;
@@ -25,6 +27,11 @@ public class GetPublicLocationsQueryValidator : AbstractValidator<GetPublicLocat
         RuleFor(x => x.PageIndex).GreaterThan(0);
         RuleFor(x => x.PageSize).GreaterThan(0);
         RuleFor(x => x.MinRating).InclusiveBetween(0, 5).When(x => x.MinRating.HasValue);
+        RuleFor(x => x.MinBudget).GreaterThanOrEqualTo(0).When(x => x.MinBudget.HasValue);
+        RuleFor(x => x.MaxBudget).GreaterThanOrEqualTo(0).When(x => x.MaxBudget.HasValue);
+        RuleFor(x => x.MaxBudget)
+            .GreaterThanOrEqualTo(x => x.MinBudget!.Value)
+            .When(x => x.MinBudget.HasValue && x.MaxBudget.HasValue);
     }
 }
 
@@ -75,6 +82,17 @@ public class GetPublicLocationsQueryHandler : IRequestHandler<GetPublicLocations
         if (request.MinRating.HasValue)
         {
             query = query.Where(x => (x.Score ?? 0) >= request.MinRating.Value);
+        }
+
+        if (request.MinBudget.HasValue)
+        {
+            query = query.Where(x => (x.PriceMinUsd ?? x.TicketPrice) >= request.MinBudget.Value
+                || (x.PriceMaxUsd ?? x.TicketPrice) >= request.MinBudget.Value);
+        }
+
+        if (request.MaxBudget.HasValue)
+        {
+            query = query.Where(x => (x.PriceMinUsd ?? x.TicketPrice) <= request.MaxBudget.Value);
         }
 
         query = query
