@@ -143,8 +143,7 @@ namespace HSTS.Application.Trips.Queries
                 trip.Status,
                 trip.Currency,
                 trip.CreatedAt,
-                trip.JoinCode,
-                trip.IsJoinCodeActive,
+                trip.GroupSize,
                 tripSummary,
                 tripDays,
                 tripMembers

@@ -1899,13 +1899,6 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false);
 
-                    b.Property<bool>("IsJoinCodeActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("JoinCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)");
-
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime(6)");
 
@@ -1928,9 +1921,6 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("JoinCode")
-                        .IsUnique();
 
                     b.ToTable("Trips", (string)null);
                 });

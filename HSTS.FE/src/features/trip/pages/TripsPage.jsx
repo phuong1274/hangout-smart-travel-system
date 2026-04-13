@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Typography, Space, Button, Table, Tag, Popconfirm, ConfigProvider, message, Tabs, List, Avatar, Modal, Input, Form, Badge } from 'antd';
-import { PlusOutlined, EyeOutlined, DeleteOutlined, TeamOutlined, KeyOutlined, CheckOutlined, CloseOutlined, UserOutlined } from '@ant-design/icons';
+import { Card, Typography, Space, Button, Table, Tag, Popconfirm, ConfigProvider, message, Tabs, List, Avatar, Badge } from 'antd';
+import { PlusOutlined, EyeOutlined, DeleteOutlined, TeamOutlined, CheckOutlined, CloseOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTrips } from '../hooks/useTrips';
-import { getMyInvitationsApi, respondInvitationApi, joinTripByCodeApi } from '../api';
+import { getMyInvitationsApi, respondInvitationApi } from '../api';
 import { PATHS } from '@/routes/paths';
 import { useAuthStore } from '@/store/authStore';
 import PhoneNumberModal from '../components/PhoneNumberModal';
@@ -27,14 +27,9 @@ const TripsPage = () => {
   const [invitationsLoading, setInvitationsLoading] = useState(false);
   const [respondingIds, setRespondingIds] = useState(new Set());
 
-  // Join by Code modal
-  const [joinCodeModalOpen, setJoinCodeModalOpen] = useState(false);
-  const [joinCodeValue, setJoinCodeValue] = useState('');
-  const [joinCodeLoading, setJoinCodeLoading] = useState(false);
-
   // Phone number modal
   const [phoneModalOpen, setPhoneModalOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null); // { type: 'invite' | 'joinCode', payload: any }
+  const [pendingAction, setPendingAction] = useState(null); // { type: 'invite', payload: any }
 
   const fetchInvitations = useCallback(async () => {
     setInvitationsLoading(true);
@@ -76,50 +71,11 @@ const TripsPage = () => {
     }
   };
 
-  const handleJoinByCode = async () => {
-    if (!joinCodeValue.trim()) {
-      message.warning('Please enter a join code.');
-      return;
-    }
-    setJoinCodeLoading(true);
-    try {
-      await joinTripByCodeApi(joinCodeValue.trim());
-      message.success('Successfully joined the trip!');
-      setJoinCodeModalOpen(false);
-      setJoinCodeValue('');
-      refetchTrips();
-    } catch (err) {
-      const errMsg = err?.response?.data?.detail || err?.response?.data?.title || err?.response?.data || '';
-      if (typeof errMsg === 'string' && errMsg.includes('Phone_Number_Required')) {
-        setPendingAction({ type: 'joinCode', payload: { joinCode: joinCodeValue.trim() } });
-        setPhoneModalOpen(true);
-      } else {
-        message.error(typeof errMsg === 'string' ? errMsg : 'Failed to join trip.');
-      }
-    } finally {
-      setJoinCodeLoading(false);
-    }
-  };
-
   const handlePhoneNumberSuccess = async () => {
     setPhoneModalOpen(false);
     // Retry the pending action after phone number update
     if (pendingAction?.type === 'invite') {
       await handleRespondInvitation(pendingAction.payload.invitationId, true);
-    } else if (pendingAction?.type === 'joinCode') {
-      setJoinCodeValue(pendingAction.payload.joinCode);
-      setJoinCodeLoading(true);
-      try {
-        await joinTripByCodeApi(pendingAction.payload.joinCode);
-        message.success('Successfully joined the trip!');
-        setJoinCodeModalOpen(false);
-        setJoinCodeValue('');
-        refetchTrips();
-      } catch (err) {
-        message.error('Failed to join trip. Please try again.');
-      } finally {
-        setJoinCodeLoading(false);
-      }
     }
     setPendingAction(null);
   };
@@ -295,49 +251,18 @@ const TripsPage = () => {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Space style={{ justifyContent: 'space-between', width: '100%' }}>
             <Title level={3} style={{ margin: 0 }}>My Trips</Title>
-            <Space>
-              <Button
-                icon={<KeyOutlined />}
-                onClick={() => setJoinCodeModalOpen(true)}
-              >
-                Join by Code
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => navigate(PATHS.CREATE_TRIP)}
-              >
-                Create Trip
-              </Button>
-            </Space>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => navigate(PATHS.CREATE_TRIP)}
+            >
+              Create Trip
+            </Button>
           </Space>
 
           <Tabs items={tabItems} defaultActiveKey="trips" />
         </Space>
       </Card>
-
-      {/* Join by Code Modal */}
-      <Modal
-        title="Join Trip by Code"
-        open={joinCodeModalOpen}
-        onCancel={() => { setJoinCodeModalOpen(false); setJoinCodeValue(''); }}
-        onOk={handleJoinByCode}
-        confirmLoading={joinCodeLoading}
-        okText="Join"
-      >
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Text>Enter the trip join code shared by the trip leader:</Text>
-          <Input
-            placeholder="Enter join code (e.g., ABC12345)"
-            value={joinCodeValue}
-            onChange={(e) => setJoinCodeValue(e.target.value.toUpperCase())}
-            maxLength={10}
-            size="large"
-            style={{ textAlign: 'center', letterSpacing: 2, fontWeight: 600 }}
-            onPressEnter={handleJoinByCode}
-          />
-        </Space>
-      </Modal>
 
       {/* Phone Number Required Modal */}
       <PhoneNumberModal

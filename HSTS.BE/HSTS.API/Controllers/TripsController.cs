@@ -226,4 +226,28 @@ namespace HSTS.API.Controllers
 
     public record UpdateTripActivityStatusRequest(TripActivityStatus? Status = null);
     public record BatchUpdateActivityStatusRequest(List<int> ActivityIdsToComplete, int ActivityIdToStart);
+
+        [HttpPut("{id}/save")]
+        public async Task<IActionResult> UpdateSavedTrip(int id, [FromBody] SaveTripRequest request, CancellationToken ct)
+        {
+            var command = new UpdateSavedTripCommand(id, request);
+            var result = await _mediator.Send(command, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    ErrorType.Forbidden => Forbid(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(new { message = "Trip was updated successfully!!!", tripId = result.Value });
+        }
+
+    }
+
+    public record UpdateTripActivityStatusRequest(TripActivityStatus? Status = null);
 }

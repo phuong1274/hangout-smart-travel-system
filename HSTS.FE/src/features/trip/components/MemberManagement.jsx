@@ -14,7 +14,7 @@ const ROLE_CONFIG = {
   Member: { color: 'blue', icon: <TeamOutlined /> },
 };
 
-const MemberManagement = ({ tripId, onMemberChange }) => {
+const MemberManagement = ({ tripId, groupSize, tripStatus, onMemberChange }) => {
   const { user } = useAuthStore();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -41,6 +41,9 @@ const MemberManagement = ({ tripId, onMemberChange }) => {
   const currentUserMember = members.find((m) => m.userId === user?.id);
   const isLeader = currentUserMember?.role === 'Leader';
   const hasTreasurer = members.some((m) => m.role === 'Treasurer');
+  const isPlanned = tripStatus === 'Planned' || tripStatus === 0;
+  const isGroupFull = groupSize != null && members.length >= groupSize;
+  const canInvite = isLeader && isPlanned && !isGroupFull;
 
   const handleRemoveMember = async (userId) => {
     try {
@@ -100,7 +103,7 @@ const MemberManagement = ({ tripId, onMemberChange }) => {
           </Space>
         }
         extra={
-          isLeader && (
+          canInvite && (
             <Button type="link" icon={<UserAddOutlined />} onClick={() => setInviteOpen(true)}>
               Invite
             </Button>

@@ -88,8 +88,4 @@ namespace HSTS.Application.Trips.Dtos
         string? PhoneNumber
     );
 
-    public record TripJoinCodeDto(
-        string? JoinCode,
-        bool IsJoinCodeActive
-    );
 }

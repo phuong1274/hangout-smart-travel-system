@@ -48,7 +48,6 @@ import LocationDetailModal from '../components/LocationDetailModal';
 import TransportDetailModal from '../components/TransportDetailModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
 import MemberManagement from '../components/MemberManagement';
-import JoinCodeSettings from '../components/JoinCodeSettings';
 import styles from './ItineraryResultPage.module.css';
 
 const { Title, Text } = Typography;
@@ -929,18 +928,7 @@ const TripDetailPage = () => {
               label: `Members (${trip.tripMembers?.length || 0})`,
               children: (
                 <>
-                  {myMember?.role === 'Leader' && trip.joinCode !== undefined && (
-                    <JoinCodeSettings
-                      tripId={trip.id}
-                      joinCode={trip.joinCode}
-                      isJoinCodeActive={trip.isJoinCodeActive}
-                      onUpdate={(result) => {
-                        trip.joinCode = result.joinCode;
-                        trip.isJoinCodeActive = result.isJoinCodeActive;
-                      }}
-                    />
-                  )}
-                  <MemberManagement tripId={trip.id} onMemberChange={refetchTrip} />
+                  <MemberManagement tripId={trip.id} groupSize={trip.groupSize} tripStatus={trip.status} onMemberChange={refetchTrip} />
                 </>
               ),
             },

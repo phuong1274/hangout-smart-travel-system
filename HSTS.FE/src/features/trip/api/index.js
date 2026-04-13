@@ -13,12 +13,30 @@ export const saveTripApi = (data) => {
   return apiClient.post('/api/Trips/save', data).then(res => res.data);
 };
 
-// Estimate local travel leg between two locations
-export const estimateLocalTravelApi = ({ fromLocationId, toLocationId, groupSize, departureTime, currencyCode }) => {
+// Estimate local travel leg between flexible endpoints (location, transit hub, or coordinates)
+export const estimateLocalTravelApi = ({
+  fromLocationId,
+  fromTransitHubId,
+  fromLat,
+  fromLng,
+  toLocationId,
+  toTransitHubId,
+  toLat,
+  toLng,
+  groupSize,
+  departureTime,
+  currencyCode,
+}) => {
   return apiClient.get('/api/Itineraries/local-travel-estimate', {
     params: {
       fromLocationId,
+      fromTransitHubId,
+      fromLat,
+      fromLng,
       toLocationId,
+      toTransitHubId,
+      toLat,
+      toLng,
       groupSize,
       departureTime,
       currencyCode,
