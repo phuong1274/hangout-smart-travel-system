@@ -24,7 +24,7 @@ namespace HSTS.Application.Expenses.Commands
         decimal TotalAmount
     ) : IRequest<ErrorOr<ExpenseDto>>;
 
-    public record DeleteExpenseCommand(int ExpenseId) : IRequest<ErrorOr<Success>>;
+    public record DeleteExpenseCommand(int ExpenseId, int CurrentUserId) : IRequest<ErrorOr<Success>>;
 
     public class CreateExpenseCommandValidator : AbstractValidator<CreateExpenseCommand>
     {
@@ -218,16 +218,30 @@ namespace HSTS.Application.Expenses.Commands
                 return Error.NotFound("Expense.NotFound", "Expense not found.");
             }
 
-            if (expense.CreatedByMember.Role != TripRole.Treasurer && expense.CreatedByMember.Role != TripRole.Leader)
+            // Get the current user's trip membership to check their role
+            var activity = await _activityRepository.Query()
+                .Include(a => a.TripDay)
+                .FirstOrDefaultAsync(a => a.Id == expense.TripActivityId, cancellationToken);
+
+            if (activity?.TripDay == null)
+            {
+                return Error.NotFound("Expense.ActivityNotFound", "Trip activity not found.");
+            }
+
+            var currentUsersMemberRole = await _memberRepository.Query()
+                .FirstOrDefaultAsync(m => m.TripId == activity.TripDay.TripId && m.UserId == request.CurrentUserId, cancellationToken);
+
+            if (currentUsersMemberRole == null)
+            {
+                return Error.Forbidden("Expense.NotAuthorized", "You are not a member of this trip.");
+            }
+
+            if (currentUsersMemberRole.Role != TripRole.Treasurer && currentUsersMemberRole.Role != TripRole.Leader)
             {
                 return Error.Forbidden("Expense.NotAuthorized", "Only TREASURER or LEADER can delete expenses.");
             }
 
             // Get trip to check end date lock
-            var activity = await _activityRepository.Query()
-                .Include(a => a.TripDay)
-                .FirstOrDefaultAsync(a => a.Id == expense.TripActivityId, cancellationToken);
-
             if (activity?.TripDay != null)
             {
                 var trip = await _tripRepository.GetAsync(activity.TripDay.TripId, cancellationToken);

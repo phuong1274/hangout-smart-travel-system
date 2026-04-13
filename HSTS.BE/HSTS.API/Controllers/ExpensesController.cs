@@ -4,18 +4,22 @@ using Microsoft.AspNetCore.Mvc;
 using HSTS.Application.Expenses;
 using HSTS.Application.Expenses.Commands;
 using HSTS.Application.Expenses.Queries;
+using HSTS.Application.Interfaces;
 
 namespace HSTS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ExpensesController : ControllerBase
     {
         private readonly ISender _mediator;
+        private readonly ICurrentUserService _currentUserService;
 
-        public ExpensesController(ISender mediator)
+        public ExpensesController(ISender mediator, ICurrentUserService currentUserService)
         {
             _mediator = mediator;
+            _currentUserService = currentUserService;
         }
 
         [HttpGet("{id}")]
@@ -168,7 +172,14 @@ namespace HSTS.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteExpense(int id, CancellationToken ct)
         {
-            var command = new DeleteExpenseCommand(id);
+            var currentUserId = _currentUserService.UserId;
+            
+            if (currentUserId == 0)
+            {
+                return Unauthorized("User not authenticated.");
+            }
+
+            var command = new DeleteExpenseCommand(id, currentUserId);
             var result = await _mediator.Send(command, ct);
 
             if (result.IsError)

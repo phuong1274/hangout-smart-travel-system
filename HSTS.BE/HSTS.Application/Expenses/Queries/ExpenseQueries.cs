@@ -33,7 +33,7 @@ namespace HSTS.Application.Expenses.Queries
         {
             var expense = await _expenseRepository.Query()
                 .Include(e => e.CreatedByMember)
-                .FirstOrDefaultAsync(e => e.Id == request.ExpenseId, cancellationToken);
+                .FirstOrDefaultAsync(e => e.Id == request.ExpenseId && !e.IsDeleted, cancellationToken);
 
             if (expense == null)
             {
@@ -59,7 +59,7 @@ namespace HSTS.Application.Expenses.Queries
                 .Include(e => e.CreatedByMember)
                 .Include(e => e.TripActivity)
                     .ThenInclude(a => a.TripDay)
-                .Where(e => e.TripActivity.TripDay.TripId == request.TripId)
+                .Where(e => e.TripActivity.TripDay.TripId == request.TripId && !e.IsDeleted)
                 .OrderByDescending(e => e.CreatedAt)
                 .ToListAsync(cancellationToken);
 
@@ -90,7 +90,7 @@ namespace HSTS.Application.Expenses.Queries
             var expenses = await _expenseRepository.Query()
                 .Include(e => e.TripActivity)
                     .ThenInclude(a => a.TripDay)
-                .Where(e => e.TripActivity.TripDay.TripId == request.TripId)
+                .Where(e => e.TripActivity.TripDay.TripId == request.TripId && !e.IsDeleted)
                 .ToListAsync(cancellationToken);
 
             var totalAmount = expenses.Sum(e => e.TotalAmount);
@@ -123,7 +123,7 @@ namespace HSTS.Application.Expenses.Queries
             var results = await _expenseRepository.Query()
                 .Include(e => e.TripActivity)
                     .ThenInclude(a => a.TripDay)
-                .Where(e => e.TripActivity.TripDay.TripId == request.TripId)
+                .Where(e => e.TripActivity.TripDay.TripId == request.TripId && !e.IsDeleted)
                 .GroupBy(e => new { e.TripActivityId, e.TripActivity.Title, e.TripActivity.TripDay.DayNumber })
                 .Select(g => new ExpenseByTimelineDto(
                     g.Key.TripActivityId,
@@ -155,7 +155,7 @@ namespace HSTS.Application.Expenses.Queries
                 .Include(e => e.CreatedByMember)
                 .Include(e => e.TripActivity)
                     .ThenInclude(a => a.TripDay)
-                .Where(e => e.TripActivity.TripDay.TripId == request.TripId)
+                .Where(e => e.TripActivity.TripDay.TripId == request.TripId && !e.IsDeleted)
                 .OrderBy(e => e.CreatedAt)
                 .ToListAsync(cancellationToken);
 
