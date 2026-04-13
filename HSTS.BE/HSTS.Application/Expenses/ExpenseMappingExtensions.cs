@@ -10,13 +10,13 @@ namespace HSTS.Application.Expenses
                 member.Id,
                 member.TripId,
                 member.UserId,
-                member.Name ?? member.User?.FullName ?? string.Empty,
+                member.Name,
                 member.Role.ToString(),
                 member.CreatedAt
             );
         }
 
-        public static ExpenseDto ToDto(this Expense expense)
+        public static ExpenseDto ToDto(this Expense expense, string createdByName, string? updatedByName)
         {
             return new ExpenseDto(
                 expense.Id,
@@ -24,9 +24,10 @@ namespace HSTS.Application.Expenses
                 expense.Title,
                 expense.Description,
                 expense.TotalAmount,
-                expense.CreatedById,
-                expense.CreatedByMember?.User?.FullName ?? string.Empty,
-                expense.CreatedAt
+                createdByName,
+                expense.CreatedAt,
+                updatedByName,
+                expense.UpdatedAt
             );
         }
     }

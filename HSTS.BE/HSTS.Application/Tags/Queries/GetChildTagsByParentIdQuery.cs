@@ -29,6 +29,7 @@ namespace HSTS.Application.Tags.Queries
             }
 
             var childTags = await _repository.Query()
+                .Include(t => t.ParentTag)
                 .Where(t => t.ParentTagId == request.ParentTagId && !t.IsDeleted)
                 .OrderBy(t => t.Name)
                 .ToListAsync(ct);

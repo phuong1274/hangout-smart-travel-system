@@ -97,14 +97,6 @@ export const router = createBrowserRouter([
     path: PATHS.ITINERARY.replace('/', ''),
     element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
   },
-  {
-    path: 'trips/:id',
-    element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
-  },
-  {
-    path: 'invitations/accept',
-    element: <SuspenseWrapper><AcceptInvitationPage /></SuspenseWrapper>
-  },
 
   // Protected Routes (Admin/Authenticated users)
   {

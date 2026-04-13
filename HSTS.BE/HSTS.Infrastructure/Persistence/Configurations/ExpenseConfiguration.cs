@@ -19,13 +19,7 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasForeignKey(x => x.TripActivityId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne(x => x.CreatedByMember)
-                .WithMany()
-                .HasForeignKey(x => x.CreatedById)
-                .OnDelete(DeleteBehavior.Restrict);
-
             builder.HasIndex(x => x.TripActivityId);
-            builder.HasIndex(x => x.CreatedById);
         }
     }
 }

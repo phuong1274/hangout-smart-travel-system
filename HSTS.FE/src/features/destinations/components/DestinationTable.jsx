@@ -16,7 +16,7 @@ const DistrictTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      width: '50%',
+      width: '40%',
     },
     {
       title: 'Province',

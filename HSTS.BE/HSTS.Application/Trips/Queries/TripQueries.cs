@@ -7,21 +7,32 @@ using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Application.Trips.Queries
 {
-    public record GetTripByIdQuery(int TripId) : IRequest<ErrorOr<TripDto>>;
-    public record GetTripDetailQuery(int TripId) : IRequest<ErrorOr<TripDetailDto>>;
+    public record GetTripByIdQuery(int TripId, int CurrentUserId) : IRequest<ErrorOr<TripDto>>;
+    public record GetTripDetailQuery(int TripId, int CurrentUserId) : IRequest<ErrorOr<TripDetailDto>>;
     public record GetTripsByProfileQuery(int ProfileId) : IRequest<ErrorOr<List<TripDto>>>;
 
     public class GetTripByIdQueryHandler : IRequestHandler<GetTripByIdQuery, ErrorOr<TripDto>>
     {
         private readonly IRepository<Trip> _tripRepository;
+        private readonly IRepository<TripMember> _tripMemberRepository;
 
-        public GetTripByIdQueryHandler(IRepository<Trip> tripRepository)
+        public GetTripByIdQueryHandler(IRepository<Trip> tripRepository, IRepository<TripMember> tripMemberRepository)
         {
             _tripRepository = tripRepository;
+            _tripMemberRepository = tripMemberRepository;
         }
 
         public async Task<ErrorOr<TripDto>> Handle(GetTripByIdQuery request, CancellationToken cancellationToken)
         {
+            // Check if user is a member of the trip
+            var isTripMember = await _tripMemberRepository.Query()
+                .AnyAsync(tm => tm.TripId == request.TripId && tm.UserId == request.CurrentUserId, cancellationToken);
+
+            if (!isTripMember)
+            {
+                return Error.Forbidden("Trip.AccessDenied", "You are not a member of this trip.");
+            }
+
             var trip = await _tripRepository.GetAsync(request.TripId, cancellationToken);
 
             if (trip == null)
@@ -36,14 +47,25 @@ namespace HSTS.Application.Trips.Queries
     public class GetTripDetailQueryHandler : IRequestHandler<GetTripDetailQuery, ErrorOr<TripDetailDto>>
     {
         private readonly IRepository<Trip> _tripRepository;
+        private readonly IRepository<TripMember> _tripMemberRepository;
 
-        public GetTripDetailQueryHandler(IRepository<Trip> tripRepository)
+        public GetTripDetailQueryHandler(IRepository<Trip> tripRepository, IRepository<TripMember> tripMemberRepository)
         {
             _tripRepository = tripRepository;
+            _tripMemberRepository = tripMemberRepository;
         }
 
         public async Task<ErrorOr<TripDetailDto>> Handle(GetTripDetailQuery request, CancellationToken cancellationToken)
         {
+            // Check if user is a member of the trip
+            var isTripMember = await _tripMemberRepository.Query()
+                .AnyAsync(tm => tm.TripId == request.TripId && tm.UserId == request.CurrentUserId, cancellationToken);
+
+            if (!isTripMember)
+            {
+                return Error.Forbidden("Trip.AccessDenied", "You are not a member of this trip.");
+            }
+
             var trip = await _tripRepository.Query()
                 .Include(t => t.TripSummary)
                 .Include(t => t.TripDays)

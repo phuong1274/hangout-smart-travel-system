@@ -26,18 +26,6 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       render: (text, record) => (
         <div className={styles.nameCell}>
           <strong className={styles.cellTitle}>{text}</strong>
-          {record.destinationName && (
-            <div className={styles.subText}>
-              <EnvironmentOutlined className={styles.iconSub} />
-              {record.destinationName}
-            </div>
-          )}
-          {record.socialLinks && record.socialLinks.length > 0 && (
-            <div className={styles.linkText}>
-              <LinkOutlined className={styles.iconSub} />
-              {record.socialLinks.length} link(s)
-            </div>
-          )}
         </div>
       ),
     },

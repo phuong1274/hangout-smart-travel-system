@@ -203,4 +203,7 @@ export const removeTripMemberApi = (tripId, userId) => {
 // Change member role (leader only)
 export const changeMemberRoleApi = (tripId, userId, newRole) => {
   return apiClient.put(`/api/trips/${tripId}/members/${userId}/role`, { newRole }).then(res => res.data);
+// Batch update activity statuses (complete previous + start current atomically)
+export const batchUpdateActivityStatusApi = (data) => {
+  return apiClient.post('/api/trips/activities/batch-status', data).then(res => res.data);
 };

@@ -17,7 +17,6 @@ const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, 
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      width: '50%',
       render: (name, record) => (
         <span className={styles.tagNameContainer} style={{ paddingLeft: record.level > 1 ? 20 : 0 }}>
           {record.level > 1 && <span className={styles.treeIcon}>└</span>}
@@ -29,10 +28,10 @@ const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, 
       title: 'Parent Tag',
       dataIndex: 'parentTagName',
       key: 'parentTagName',
-      width: '30%',
+      width: 180,
       render: (parentTagName, record) => (
-        record.level > 1 ? (
-          <span className={styles.parentName}>{parentTagName || 'N/A'}</span>
+        parentTagName ? (
+          <span className={styles.parentName}>{parentTagName}</span>
         ) : (
           <span className={styles.emptyDash}>—</span>
         )
