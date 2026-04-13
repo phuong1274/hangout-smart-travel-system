@@ -9,5 +9,5 @@ export const getHomeDestinationsApi = () => {
 };
 
 export const getHomeStatsApi = () => {
-  return apiClient.get('/api/Home/discovery').then((res) => res.data?.socialProof?.stats || []);
+  return getHomeDiscoveryApi().then((data) => data?.socialProof?.stats || []);
 };

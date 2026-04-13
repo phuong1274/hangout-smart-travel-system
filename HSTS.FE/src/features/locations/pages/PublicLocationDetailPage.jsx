@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button, Card, Descriptions, Rate, Skeleton, Space, Typography } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { PATHS } from '@/routes/paths';
+import { buildCreateTripPath, PATHS } from '@/routes/paths';
 import { ROLES } from '@/config/constants';
 import { useAuthStore } from '@/store/authStore';
 import { usePublicLocationDetail } from '../hooks/usePublicLocationDetail';
@@ -32,7 +32,15 @@ const PublicLocationDetailPage = () => {
   const isTraveler = String(user?.role || '').toUpperCase() === ROLES.TRAVELER;
   const showCta = isGuest || isTraveler;
   const ctaLabel = isGuest ? 'Sign in to plan' : 'Continue planning';
-  const ctaPath = isGuest ? PATHS.AUTH.LOGIN : PATHS.CREATE_TRIP;
+  const provinceId = data?.provinceId ?? data?.ProvinceId;
+  const districtId = data?.districtId ?? data?.DistrictId;
+  const ctaPath = isGuest
+    ? PATHS.AUTH.LOGIN
+    : buildCreateTripPath({
+        provinceId,
+        districtId,
+        locationId: Number(id),
+      });
 
   if (loading) {
     return (

@@ -1,25 +1,27 @@
 import React from 'react';
 import { Button, Space, Typography } from 'antd';
 import { Link } from 'react-router-dom';
-import { PATHS } from '@/routes/paths';
+import { buildCreateTripPath, PATHS } from '@/routes/paths';
 
 const { Title, Paragraph } = Typography;
 
 const PlanningEntry = ({ planningEntry }) => {
+  const title = planningEntry?.title || 'Ready to turn discovery into a real itinerary?';
+  const description =
+    planningEntry?.description ||
+    'Use what you discovered above to start planning with prefilled destination context.';
+
   return (
     <section>
-      <Title level={3}>{planningEntry?.title || 'Start planning your next journey'}</Title>
-      <Paragraph>
-        {planningEntry?.description ||
-          'Build your itinerary based on your interests, budget, and travel style in just a few steps.'}
-      </Paragraph>
+      <Title level={3}>{title}</Title>
+      <Paragraph>{description}</Paragraph>
 
       <Space size="middle" wrap>
-        <Link to={PATHS.PUBLIC_LOCATIONS}>
-          <Button type="primary">Explore locations</Button>
+        <Link to={buildCreateTripPath()}>
+          <Button type="primary">Start planning with these picks</Button>
         </Link>
-        <Link to={PATHS.CREATE_TRIP}>
-          <Button>Start planning</Button>
+        <Link to={PATHS.PUBLIC_LOCATIONS}>
+          <Button>Explore more locations</Button>
         </Link>
       </Space>
     </section>

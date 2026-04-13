@@ -31,8 +31,9 @@ const getImageUrl = (location) => {
   return first?.url || first?.Url || '';
 };
 
-const PublicLocationCard = ({ location }) => {
+const PublicLocationCard = ({ location, variant = 'default' }) => {
   const id = resolveLocationId(location);
+  const isHomeVariant = variant === 'home';
   const name = location?.name || location?.title || location?.Name || 'Location';
   const description = location?.description || location?.Description || 'No description available yet.';
   const district = location?.districtName || location?.DistrictName || location?.district?.name || '';
@@ -51,7 +52,7 @@ const PublicLocationCard = ({ location }) => {
           <img src={imageUrl} alt={name} style={{ height: 180, objectFit: 'cover' }} />
         ) : null
       }
-      actions={id ? [
+      actions={id && !isHomeVariant ? [
         <Link key="detail" to={PATHS.PUBLIC_LOCATION_DETAIL(id)}>
           View detail
         </Link>,
@@ -60,10 +61,14 @@ const PublicLocationCard = ({ location }) => {
       <Space direction="vertical" size={8} style={{ width: '100%' }}>
         <Title level={4} style={{ marginBottom: 0 }}>{name}</Title>
 
-        <Space size={8} wrap>
-          {district && <Tag>{district}</Tag>}
-          {province && <Tag color="blue">{province}</Tag>}
-        </Space>
+        {isHomeVariant ? (
+          <Text type="secondary">{[district, province].filter(Boolean).join(', ')}</Text>
+        ) : (
+          <Space size={8} wrap>
+            {district && <Tag>{district}</Tag>}
+            {province && <Tag color="blue">{province}</Tag>}
+          </Space>
+        )}
 
         <Space align="center" size={8}>
           <Rate allowHalf disabled value={normalizeRating(averageRating)} />
@@ -71,19 +76,19 @@ const PublicLocationCard = ({ location }) => {
           <Text type="secondary">({reviewCount} reviews)</Text>
         </Space>
 
-        {(minPrice != null || maxPrice != null) && (
+        {!isHomeVariant && (minPrice != null || maxPrice != null) && (
           <Text type="secondary">
             Budget: {minPrice ?? '?'} - {maxPrice ?? '?'} USD
           </Text>
         )}
 
-        <Paragraph ellipsis={{ rows: 3, expandable: false }} style={{ marginBottom: 0 }}>
+        <Paragraph ellipsis={{ rows: isHomeVariant ? 2 : 3, expandable: false }} style={{ marginBottom: 0 }}>
           {description}
         </Paragraph>
 
         {id && (
           <Link to={PATHS.PUBLIC_LOCATION_DETAIL(id)}>
-            <Button type="link" style={{ padding: 0 }}>Read more</Button>
+            <Button type="link" style={{ padding: 0 }}>{isHomeVariant ? 'View detail' : 'Read more'}</Button>
           </Link>
         )}
       </Space>

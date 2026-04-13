@@ -129,6 +129,155 @@
   white-space: normal;
 }
 
+.cardMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.cardMetaValue {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  color: #1A535C;
+}
+
+.cardMetaLabel {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(26, 83, 92, 0.7);
+}
+
+.destActions {
+  width: 100%;
+}
+
+.destLinkFull {
+  display: block;
+  width: 100%;
+}
+
+.destPrimaryAction {
+  min-height: 42px;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  background-color: #1A535C !important;
+  border-color: #1A535C !important;
+}
+
+.destPrimaryAction:hover {
+  background-color: #16474f !important;
+  border-color: #16474f !important;
+}
+
+.destSecondaryAction {
+  min-height: 42px;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  color: #1A535C !important;
+  border-color: rgba(26, 83, 92, 0.25) !important;
+}
+
+.destSecondaryAction:hover {
+  color: #1A535C !important;
+  border-color: #1A535C !important;
+}
+
+.popularSection {
+  width: 100%;
+}
+
+.popularHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.popularTitle {
+  margin: 0 !important;
+  color: #1A535C !important;
+  font-size: clamp(24px, 3vw, 34px) !important;
+}
+
+.popularDescription {
+  margin: 10px 0 0 !important;
+  color: rgba(26, 83, 92, 0.82) !important;
+  max-width: 760px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.popularAction {
+  min-height: 42px;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  color: #1A535C !important;
+  border-color: rgba(26, 83, 92, 0.3) !important;
+}
+
+.popularAction:hover {
+  color: #1A535C !important;
+  border-color: #1A535C !important;
+}
+
+.socialProofSection {
+  width: 100%;
+}
+
+.socialProofHeader {
+  margin-bottom: 24px;
+}
+
+.socialProofTitle {
+  margin: 0 0 10px !important;
+  color: #1A535C !important;
+  font-size: clamp(22px, 2.7vw, 32px) !important;
+}
+
+.socialProofDescription {
+  margin: 0 !important;
+  color: rgba(26, 83, 92, 0.82) !important;
+  max-width: 760px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.socialProofCard {
+  background: #FFFFFF;
+  border: 1px solid rgba(26, 83, 92, 0.12);
+  border-radius: 16px;
+  padding: 20px;
+  height: 100%;
+  box-shadow: 0 6px 18px rgba(26, 83, 92, 0.06);
+}
+
+.socialProofValue {
+  font-size: clamp(30px, 4vw, 42px);
+  font-weight: 700;
+  color: #1A535C;
+  line-height: 1.05;
+}
+
+.socialProofLabel {
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1A535C;
+}
+
+.socialProofSupportCopy {
+  margin: 10px 0 0 !important;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(26, 83, 92, 0.74) !important;
+}
+
 .ctaBanner {
   background-color: #4ECDC4;
   padding: clamp(60px, 8vw, 120px) 24px;

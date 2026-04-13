@@ -6,6 +6,28 @@ import {
   getDistrictsByProvinceApi,
 } from '../api';
 
+const toPositiveNumber = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+};
+
+export const parseTripPrefillParams = (searchParams) => {
+  const provinceId = toPositiveNumber(searchParams.get('provinceId'));
+  const districtId = toPositiveNumber(searchParams.get('districtId'));
+  const locationId = toPositiveNumber(searchParams.get('locationId'));
+  const tagIds = String(searchParams.get('tagIds') || '')
+    .split(',')
+    .map((value) => toPositiveNumber(value.trim()))
+    .filter((value) => value != null);
+
+  return {
+    provinceId,
+    districtId,
+    locationId,
+    tagIds: Array.from(new Set(tagIds)),
+  };
+};
+
 export const useTripFormData = () => {
   const [provinces, setProvinces] = useState([]);
   const [rootTags, setRootTags] = useState([]);

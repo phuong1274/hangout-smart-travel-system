@@ -13,13 +13,13 @@ import styles from '@/features/home/styles/Home.module.css';
 const { Content } = Layout;
 
 const Home = () => {
-  const { discovery, destinations, loading } = useHomeDiscovery();
+  const { discovery, homepageDestinations, heroHighlight, loading } = useHomeDiscovery();
 
   return (
     <Layout className={styles.layoutWrapper}>
       <div className={styles.heroWrapper}>
-        <AppHeader destinations={destinations} />
-        <HomeHero hero={discovery?.hero} />
+        <AppHeader destinations={homepageDestinations} />
+        <HomeHero hero={discovery?.hero} heroHighlight={heroHighlight} />
       </div>
 
       <Content className={styles.contentSection}>
@@ -29,9 +29,11 @@ const Home = () => {
           </div>
         ) : (
           <>
-            <div className={styles.sectionPadding}>
-              <FeaturedDestinations destinations={destinations} />
-            </div>
+            {homepageDestinations.length > 0 ? (
+              <div className={styles.sectionPadding}>
+                <FeaturedDestinations destinations={homepageDestinations} />
+              </div>
+            ) : null}
 
             <div className={styles.sectionPadding}>
               <PopularLocations locations={discovery?.popularLocations || []} />
@@ -42,7 +44,7 @@ const Home = () => {
             </div>
 
             <div className={styles.sectionPadding}>
-              <SocialProofBand stats={discovery?.socialProof?.stats || []} />
+              <SocialProofBand socialProof={discovery?.socialProof} />
             </div>
           </>
         )}

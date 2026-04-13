@@ -5,13 +5,15 @@ import { PATHS } from '@/routes/paths';
 import styles from '../styles/Hero.module.css';
 import backgroundHero from '../assets/BackgroundHero.jpg';
 
-const { Title, Paragraph } = Typography;
+const { Title, Paragraph, Text } = Typography;
 
-const HomeHero = ({ hero }) => {
-  const title = hero?.title || 'Craft Unforgettable Itineraries';
+const HomeHero = ({ hero, heroHighlight }) => {
+  const title = hero?.title || 'Discover places worth your next trip';
   const subtitle =
     hero?.subtitle ||
-    'Your personal trip planner and travel curator, creating custom itineraries tailored to your interests and budget.';
+    'Explore destinations, compare popular spots, and move into planning when you already know where you want to go.';
+
+  const primaryCta = hero?.primaryCta || 'Explore locations';
 
   return (
     <section className={styles.heroContent} style={{ '--bg-image': `url(${backgroundHero})` }}>
@@ -21,15 +23,12 @@ const HomeHero = ({ hero }) => {
         </Title>
         <Paragraph className={styles.description}>{subtitle}</Paragraph>
 
+        {heroHighlight ? <Text className={styles.description}>{heroHighlight}</Text> : null}
+
         <Space size="middle" wrap>
           <Link to={PATHS.PUBLIC_LOCATIONS}>
             <Button type="primary" size="large" className={styles.ctaBtn}>
-              Explore locations
-            </Button>
-          </Link>
-          <Link to={PATHS.CREATE_TRIP}>
-            <Button size="large" className={styles.ctaBtn}>
-              Start planning
+              {primaryCta}
             </Button>
           </Link>
         </Space>

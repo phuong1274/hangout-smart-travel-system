@@ -45,20 +45,30 @@ public class GetHomeDiscoveryQueryHandler : IRequestHandler<GetHomeDiscoveryQuer
                 && !x.District.IsDeleted
                 && !x.District.Province.IsDeleted);
 
-        var featuredDestinations = await visibleLocationsQuery
-            .GroupBy(x => new
+        var featuredDestinationsData = await visibleLocationsQuery
+            .Select(x => new
             {
-                x.District!.Province!.Id,
-                x.District.Province.Name
+                ProvinceId = x.District!.ProvinceId,
+                ProvinceName = x.District.Province!.Name
             })
-            .Select(x => new PublicDestinationDto(
-                x.Key.Id,
-                x.Key.Name,
-                x.Count()))
+            .GroupBy(x => new { x.ProvinceId, x.ProvinceName })
+            .Select(x => new
+            {
+                x.Key.ProvinceId,
+                x.Key.ProvinceName,
+                LocationCount = x.Count()
+            })
             .OrderByDescending(x => x.LocationCount)
-            .ThenBy(x => x.Name)
+            .ThenBy(x => x.ProvinceName)
             .Take(request.DestinationLimit)
             .ToListAsync(cancellationToken);
+
+        var featuredDestinations = featuredDestinationsData
+            .Select(x => new PublicDestinationDto(
+                x.ProvinceId!.Value,
+                x.ProvinceName,
+                x.LocationCount))
+            .ToList();
 
         var popularLocations = await visibleLocationsQuery
             .OrderByDescending(x => x.Score ?? 0)
