@@ -72,6 +72,14 @@ namespace HSTS.Application.Expenses.Queries
                 .Include(b => b.TripActivity)
                     .ThenInclude(a => a.TripDay)
                 .Where(b => b.TripActivity.TripDay.TripId == request.TripId)
+                .Select(b => new
+                {
+                    b.TripActivityId,
+                    b.EstimateCost,
+                    ActivityTitle = b.TripActivity.Title ?? "Untitled",
+                    ActivityStartTime = b.TripActivity.StartTime,
+                    DayNumber = b.TripActivity.TripDay.DayNumber
+                })
                 .ToListAsync(cancellationToken);
 
             // Get all expenses with activity info
@@ -80,6 +88,15 @@ namespace HSTS.Application.Expenses.Queries
                     .ThenInclude(a => a.TripDay)
                 .Where(e => e.TripActivity.TripDay.TripId == request.TripId && !e.IsDeleted)
                 .OrderBy(e => e.CreatedAt)
+                .Select(e => new
+                {
+                    e.TripActivityId,
+                    Title = e.Title ?? "Untitled",
+                    e.Description,
+                    e.TotalAmount,
+                    e.CreatedBy,
+                    e.CreatedAt
+                })
                 .ToListAsync(cancellationToken);
 
             // Collect user IDs for name resolution
@@ -105,8 +122,8 @@ namespace HSTS.Application.Expenses.Queries
 
             // Build activity-level export data
             var activities = budgets
-                .OrderBy(b => b.TripActivity.TripDay.DayNumber)
-                .ThenBy(b => b.TripActivity.StartTime)
+                .OrderBy(b => b.DayNumber)
+                .ThenBy(b => b.ActivityStartTime)
                 .Select(b =>
                 {
                     var activityExpenses = expenses
@@ -121,8 +138,8 @@ namespace HSTS.Application.Expenses.Queries
                         .ToList();
 
                     return new ActivityBudgetExportDto(
-                        b.TripActivity.TripDay.DayNumber,
-                        b.TripActivity.Title,
+                        b.DayNumber,
+                        b.ActivityTitle,
                         b.EstimateCost,
                         activityExpenses.Sum(x => x.Amount),
                         activityExpenses
