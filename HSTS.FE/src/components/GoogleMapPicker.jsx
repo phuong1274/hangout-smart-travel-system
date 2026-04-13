@@ -43,16 +43,19 @@ const MapPositionUpdater = ({ lat, lng }) => {
 const InvalidateSizeOnMount = () => {
   const map = useMap();
   useEffect(() => {
-    // Wait for the modal open animation to finish, then recalculate map size
-    const timer = setTimeout(() => {
+    // Re-invalidate a few times to avoid blank map when opened over another modal.
+    const timeouts = [150, 350, 650].map((delay) => setTimeout(() => {
       map.invalidateSize();
-    }, 300);
-    return () => clearTimeout(timer);
+    }, delay));
+
+    return () => {
+      timeouts.forEach((timer) => clearTimeout(timer));
+    };
   }, [map]);
   return null;
 };
 
-const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) => {
+const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng, zIndex = 1300 }) => {
   const DEFAULT_LAT = 10.823099;
   const DEFAULT_LNG = 106.629664;
 
@@ -172,8 +175,10 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
       onCancel={onClose}
       onOk={handleConfirm}
       width={900}
+      zIndex={zIndex}
       okText="Confirm Location"
       cancelText="Cancel"
+      maskClosable={false}
       destroyOnClose
     >
       <div style={{ marginBottom: 16 }}>

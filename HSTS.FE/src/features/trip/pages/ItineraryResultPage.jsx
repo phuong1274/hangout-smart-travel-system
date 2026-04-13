@@ -27,6 +27,9 @@ import {
   getLocationTypesApi,
   saveTripApi,
 } from '../api';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import LocationDetailModal from '../components/LocationDetailModal';
 import TransportDetailModal from '../components/TransportDetailModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
@@ -43,6 +46,13 @@ import {
 import styles from './ItineraryResultPage.module.css';
 
 const { Title, Text } = Typography;
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 const EVENT_BADGES = {
   travel: {
@@ -543,6 +553,30 @@ const isEditableLocationEvent = (item) => {
   return !isTravelEvent(item) && Number.isFinite(locationId) && locationId > 0;
 };
 
+const getItemCustomLocation = (item) => toCustomGeoPayload(item?.customLocation || item?.CustomLocation);
+
+const isTimelineStopEvent = (item) => {
+  if (isTravelEvent(item)) return false;
+  if (isEditableLocationEvent(item)) return true;
+  return Boolean(getItemCustomLocation(item));
+};
+
+const getTimelineStopEndpointParams = (item, side = 'from') => {
+  const locationId = getItemLocationId(item);
+  if (Number.isFinite(locationId) && locationId > 0) {
+    return side === 'from'
+      ? { fromLocationId: locationId }
+      : { toLocationId: locationId };
+  }
+
+  const customLocation = getItemCustomLocation(item);
+  if (!customLocation) return {};
+
+  return side === 'from'
+    ? { fromLat: customLocation.latitude, fromLng: customLocation.longitude }
+    : { toLat: customLocation.latitude, toLng: customLocation.longitude };
+};
+
 const getTravelDetailEntry = (item) => {
   const candidates = [
     ['locationToLocationTravel', item?.locationToLocationTravel],
@@ -946,6 +980,27 @@ const findPreviousPrimaryLocationIndex = (timeline, fromIndex) => {
   return -1;
 };
 
+const CustomLocationMapClickHandler = ({ onPick }) => {
+  useMapEvents({
+    click(event) {
+      onPick(event?.latlng?.lat, event?.latlng?.lng);
+    },
+  });
+
+  return null;
+};
+
+const CustomLocationMapInvalidate = ({ activeKey }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    const timers = [120, 300, 520].map((delay) => setTimeout(() => map.invalidateSize(), delay));
+    return () => timers.forEach((timer) => clearTimeout(timer));
+  }, [map, activeKey]);
+
+  return null;
+};
+
 const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
@@ -967,6 +1022,14 @@ const ItineraryResultPage = () => {
   const [addBetweenLocationTypeOptions, setAddBetweenLocationTypeOptions] = useState([]);
   const [addBetweenLocationTypeLoading, setAddBetweenLocationTypeLoading] = useState(false);
   const [selectedAddBetweenLocationTypeId, setSelectedAddBetweenLocationTypeId] = useState(null);
+  const [addBetweenCustomName, setAddBetweenCustomName] = useState('');
+  const [addBetweenCustomAddress, setAddBetweenCustomAddress] = useState('');
+  const [addBetweenCustomLat, setAddBetweenCustomLat] = useState(null);
+  const [addBetweenCustomLng, setAddBetweenCustomLng] = useState(null);
+  const [addBetweenCustomStartTime, setAddBetweenCustomStartTime] = useState('');
+  const [addBetweenCustomEndTime, setAddBetweenCustomEndTime] = useState('');
+  const [addBetweenCustomCostAmount, setAddBetweenCustomCostAmount] = useState(0);
+  const [addingCustomLocation, setAddingCustomLocation] = useState(false);
   const [editTimelineModal, setEditTimelineModal] = useState({
     open: false,
     dayIndex: null,
@@ -991,6 +1054,19 @@ const ItineraryResultPage = () => {
     telephoneMap: locationTelephoneById,
     amenitiesMap: locationAmenitiesById,
   } = useMemo(() => buildLocationMetadataFromItinerary(itinerary), [itinerary]);
+
+  const customLocationLatValue = toFiniteNumber(addBetweenCustomLat);
+  const customLocationLngValue = toFiniteNumber(addBetweenCustomLng);
+  const hasCustomLocationCoordinates = customLocationLatValue != null
+    && customLocationLngValue != null
+    && customLocationLatValue >= -90
+    && customLocationLatValue <= 90
+    && customLocationLngValue >= -180
+    && customLocationLngValue <= 180;
+  const customLocationMapCenter = hasCustomLocationCoordinates
+    ? [customLocationLatValue, customLocationLngValue]
+    : [10.823099, 106.629664];
+  const customLocationMapActiveKey = `${addBetweenModal?.open ? 'open' : 'closed'}-${addBetweenModal?.dayIndex ?? 'x'}-${addBetweenModal?.insertAfterIndex ?? 'x'}-${hasCustomLocationCoordinates ? 'picked' : 'empty'}`;
 
   useEffect(() => {
     let mounted = true;
@@ -1070,6 +1146,19 @@ const ItineraryResultPage = () => {
     setAccommodationModal({ open: true, data });
   }, []);
 
+  const resetAddBetweenCustomForm = useCallback((startTime = '08:00:00') => {
+    const normalizedStart = normalizeTimeOnly(startTime) || '08:00:00';
+    const defaultEnd = addMinutesToTime(normalizedStart, 90);
+
+    setAddBetweenCustomName('');
+    setAddBetweenCustomAddress('');
+    setAddBetweenCustomLat(null);
+    setAddBetweenCustomLng(null);
+    setAddBetweenCustomStartTime(normalizedStart.slice(0, 5));
+    setAddBetweenCustomEndTime(defaultEnd.slice(0, 5));
+    setAddBetweenCustomCostAmount(0);
+  }, []);
+
   const recalculateDayTimeline = useCallback(async (draftItinerary, dayIndex, options = {}) => {
     const preserveExternalSegments = Boolean(options?.preserveExternalSegments);
     const daysKey = Array.isArray(draftItinerary?.days) ? 'days' : 'Days';
@@ -1079,18 +1168,18 @@ const ItineraryResultPage = () => {
 
     const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
     const sourceTimeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
-    const locationIndexes = sourceTimeline
-      .map((item, index) => (isEditableLocationEvent(item) ? index : -1))
+    const stopIndexes = sourceTimeline
+      .map((item, index) => (isTimelineStopEvent(item) ? index : -1))
       .filter((index) => index >= 0);
 
-    if (locationIndexes.length === 0) {
+    if (stopIndexes.length === 0) {
       day[timelineKey] = preserveExternalSegments
         ? sourceTimeline
         : sourceTimeline.filter((item) => !isTravelEvent(item));
       return draftItinerary;
     }
 
-    if (locationIndexes.length === 1) {
+    if (stopIndexes.length === 1) {
       day[timelineKey] = preserveExternalSegments
         ? sourceTimeline
         : sourceTimeline.filter((item) => !isTravelEvent(item));
@@ -1103,14 +1192,14 @@ const ItineraryResultPage = () => {
       ? Math.round(groupSizeValue)
       : 1;
 
-    const locationStops = locationIndexes.map((index) => ({ ...sourceTimeline[index] }));
-    const stopDurations = locationStops.map(getTimelineDurationMinutes);
+    const timelineStops = stopIndexes.map((index) => ({ ...sourceTimeline[index] }));
+    const stopDurations = timelineStops.map(getTimelineDurationMinutes);
     const rebuiltSegment = [];
 
-    const firstStart = pickFirstText(locationStops[0]?.startTime, locationStops[0]?.StartTime) || '08:00:00';
+    const firstStart = pickFirstText(timelineStops[0]?.startTime, timelineStops[0]?.StartTime) || '08:00:00';
     const firstEnd = addMinutesToTime(firstStart, stopDurations[0]);
     const firstStop = {
-      ...locationStops[0],
+      ...timelineStops[0],
       startTime: firstStart,
       endTime: firstEnd,
     };
@@ -1118,18 +1207,18 @@ const ItineraryResultPage = () => {
 
     let prevStop = firstStop;
 
-    for (let index = 1; index < locationStops.length; index += 1) {
-      const currentStop = locationStops[index];
+    for (let index = 1; index < timelineStops.length; index += 1) {
+      const currentStop = timelineStops[index];
       const departureTime = pickFirstText(prevStop.endTime, prevStop.EndTime) || firstEnd;
-      const fromLocationId = getItemLocationId(prevStop);
-      const toLocationId = getItemLocationId(currentStop);
+      const fromEndpoint = getTimelineStopEndpointParams(prevStop, 'from');
+      const toEndpoint = getTimelineStopEndpointParams(currentStop, 'to');
+      const canEstimate = Object.values({ ...fromEndpoint, ...toEndpoint }).some((value) => value != null);
 
       let travelLeg = null;
-      if (Number.isFinite(fromLocationId) && fromLocationId > 0
-        && Number.isFinite(toLocationId) && toLocationId > 0) {
+      if (canEstimate) {
         travelLeg = await estimateLocalTravelApi({
-          fromLocationId,
-          toLocationId,
+          ...fromEndpoint,
+          ...toEndpoint,
           groupSize,
           departureTime,
           currencyCode,
@@ -1152,19 +1241,27 @@ const ItineraryResultPage = () => {
       const fromName = pickFirstText(
         travelLeg?.fromLocationName,
         travelLeg?.FromLocationName,
+        prevStop?.customLocation?.name,
+        prevStop?.customLocation?.Name,
+        prevStop?.CustomLocation?.name,
+        prevStop?.CustomLocation?.Name,
         prevStop?.locationName,
         prevStop?.LocationName,
         prevStop?.title,
         prevStop?.Title,
-      ) || `Location #${fromLocationId}`;
+      ) || 'Custom Point';
       const toName = pickFirstText(
         travelLeg?.toLocationName,
         travelLeg?.ToLocationName,
+        currentStop?.customLocation?.name,
+        currentStop?.customLocation?.Name,
+        currentStop?.CustomLocation?.name,
+        currentStop?.CustomLocation?.Name,
         currentStop?.locationName,
         currentStop?.LocationName,
         currentStop?.title,
         currentStop?.Title,
-      ) || `Location #${toLocationId}`;
+      ) || 'Custom Point';
 
       rebuiltSegment.push({
         eventType: 'travel',
@@ -1191,8 +1288,8 @@ const ItineraryResultPage = () => {
       prevStop = normalizedCurrentStop;
     }
 
-    const firstLocationIndex = locationIndexes[0];
-    const lastLocationIndex = locationIndexes[locationIndexes.length - 1];
+    const firstLocationIndex = stopIndexes[0];
+    const lastLocationIndex = stopIndexes[stopIndexes.length - 1];
     const beforeSegment = preserveExternalSegments
       ? sourceTimeline.slice(0, firstLocationIndex)
       : sourceTimeline.slice(0, firstLocationIndex).filter((item) => !isTravelEvent(item));
@@ -1419,15 +1516,49 @@ const ItineraryResultPage = () => {
       || (itinerary?.days || itinerary?.Days || [])[dayIndex]?.DayNumber
       || dayIndex + 1;
 
+    const day = (itinerary?.days || itinerary?.Days || [])[dayIndex];
+    const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+    const timeline = day ? getDayTimeline(day, itineraryCurrency) : [];
+    const anchorItem = timeline[insertAfterIndex] || {};
+    const defaultStartTime = pickFirstText(anchorItem?.endTime, anchorItem?.EndTime, '08:00:00');
+
     setSelectedProvinceLocationId(null);
     setProvinceLocationSearch('');
     setSelectedAddBetweenLocationTypeId(null);
     setProvinceLocationOptions([]);
+    resetAddBetweenCustomForm(defaultStartTime);
     setAddBetweenModal({ open: true, dayIndex, insertAfterIndex, provinceId: normalizedProvinceId });
     setRecalculatingDayNumber(dayNum);
     await loadAddBetweenLocationTypes();
     setRecalculatingDayNumber(null);
-  }, [itinerary, loadAddBetweenLocationTypes]);
+  }, [itinerary, loadAddBetweenLocationTypes, resetAddBetweenCustomForm]);
+
+  const handlePickCustomLocationOnMap = useCallback((latitude, longitude) => {
+    const safeLat = toFiniteNumber(latitude);
+    const safeLng = toFiniteNumber(longitude);
+    if (safeLat == null || safeLng == null) return;
+    if (safeLat < -90 || safeLat > 90 || safeLng < -180 || safeLng > 180) return;
+
+    setAddBetweenCustomLat(safeLat);
+    setAddBetweenCustomLng(safeLng);
+  }, []);
+
+  const handleUseCurrentLocationForCustom = useCallback(() => {
+    if (!navigator?.geolocation) {
+      message.error('Geolocation is not supported by this browser.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setAddBetweenCustomLat(position.coords.latitude);
+        setAddBetweenCustomLng(position.coords.longitude);
+      },
+      () => {
+        message.error('Unable to get your current location.');
+      },
+    );
+  }, []);
 
   const handleChangeAddBetweenLocationType = useCallback(async (value) => {
     const locationTypeId = Number(value);
@@ -1549,13 +1680,144 @@ const ItineraryResultPage = () => {
     updateItinerary,
   ]);
 
+  const handleConfirmAddCustomLocation = useCallback(async () => {
+    if (!itinerary) return;
+
+    const dayIndex = addBetweenModal?.dayIndex;
+    const insertAfterIndex = addBetweenModal?.insertAfterIndex;
+
+    if (!Number.isFinite(dayIndex) || !Number.isFinite(insertAfterIndex)) return;
+
+    const customName = String(addBetweenCustomName || '').trim();
+    if (!customName) {
+      message.warning('Please enter custom location name.');
+      return;
+    }
+
+    if (!Number.isFinite(Number(addBetweenCustomLat)) || !Number.isFinite(Number(addBetweenCustomLng))) {
+      message.warning('Please pick custom location on map.');
+      return;
+    }
+
+    const normalizedStart = normalizeTimeOnly(addBetweenCustomStartTime);
+    const normalizedEnd = normalizeTimeOnly(addBetweenCustomEndTime);
+    if (!normalizedStart || !normalizedEnd) {
+      message.warning('Please provide valid start and end time.');
+      return;
+    }
+
+    const startMinutes = toMinutesOfDay(normalizedStart);
+    const endMinutes = toMinutesOfDay(normalizedEnd);
+    const durationMinutes = startMinutes != null && endMinutes != null
+      ? ((endMinutes - startMinutes + 1440) % 1440)
+      : 0;
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+      message.warning('End time must be after start time.');
+      return;
+    }
+
+    const days = itinerary.days || itinerary.Days || [];
+    const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+    const costAmount = Math.max(0, Math.round(Number(addBetweenCustomCostAmount) || 0));
+    const customAddress = String(addBetweenCustomAddress || '').trim();
+
+    setRecalculatingDayNumber(dayNumber);
+    setAddingCustomLocation(true);
+    try {
+      const draft = clonePlainObject(itinerary);
+      const daysKey = Array.isArray(draft?.days) ? 'days' : 'Days';
+      const draftDays = Array.isArray(draft?.[daysKey]) ? draft[daysKey] : [];
+      const day = draftDays[dayIndex];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const customLocationPayload = {
+        name: customName,
+        Name: customName,
+        latitude: Number(addBetweenCustomLat),
+        Latitude: Number(addBetweenCustomLat),
+        longitude: Number(addBetweenCustomLng),
+        Longitude: Number(addBetweenCustomLng),
+        address: customAddress || null,
+        Address: customAddress || null,
+      };
+      const groupCost = {
+        amount: costAmount,
+        currency: itineraryCurrency,
+      };
+
+      const insertedItem = {
+        eventType: 'visit',
+        title: `Visit ${customName}`,
+        locationName: customName,
+        LocationName: customName,
+        startTime: normalizedStart,
+        StartTime: normalizedStart,
+        endTime: normalizedEnd,
+        EndTime: normalizedEnd,
+        locationId: 0,
+        LocationId: 0,
+        customLocation: customLocationPayload,
+        CustomLocation: customLocationPayload,
+        tagNames: [],
+        ticketCost: groupCost,
+        TicketCost: groupCost,
+        extraCostPerPerson: null,
+        costForGroup: groupCost,
+        CostForGroup: groupCost,
+        note: 'Custom location inserted manually',
+        score: 0,
+        address: customAddress || null,
+        Address: customAddress || null,
+        telephone: null,
+        mediaUrls: [],
+        alternatives: [],
+      };
+
+      timeline.splice(Math.min(timeline.length, insertAfterIndex + 1), 0, insertedItem);
+      day[timelineKey] = timeline;
+
+      updateDayEstimatedCost(day, timelineKey, itineraryCurrency);
+      updateBudgetSummaryFromDays(draft);
+      updateItinerary(draft);
+      message.success('Custom location added to timeline.');
+
+      setAddBetweenModal({ open: false, dayIndex: null, insertAfterIndex: null, provinceId: null });
+      setProvinceLocationOptions([]);
+      setSelectedProvinceLocationId(null);
+      setProvinceLocationSearch('');
+      setSelectedAddBetweenLocationTypeId(null);
+      resetAddBetweenCustomForm('08:00:00');
+    } catch {
+      message.error('Unable to add custom location.');
+    } finally {
+      setAddingCustomLocation(false);
+      setRecalculatingDayNumber(null);
+    }
+  }, [
+    itinerary,
+    addBetweenModal,
+    addBetweenCustomName,
+    addBetweenCustomAddress,
+    addBetweenCustomLat,
+    addBetweenCustomLng,
+    addBetweenCustomStartTime,
+    addBetweenCustomEndTime,
+    addBetweenCustomCostAmount,
+    resetAddBetweenCustomForm,
+    updateItinerary,
+  ]);
+
   const handleCloseAddBetweenModal = useCallback(() => {
     setAddBetweenModal({ open: false, dayIndex: null, insertAfterIndex: null, provinceId: null });
     setProvinceLocationOptions([]);
     setSelectedProvinceLocationId(null);
     setProvinceLocationSearch('');
     setSelectedAddBetweenLocationTypeId(null);
-  }, []);
+    resetAddBetweenCustomForm('08:00:00');
+  }, [resetAddBetweenCustomForm]);
 
   const loadEditTimelineLocations = useCallback(async (provinceId, searchTerm = '', ensureOption = null) => {
     const normalizedProvinceId = Number(provinceId);
@@ -3725,6 +3987,121 @@ const ItineraryResultPage = () => {
                 ? <Spin size="small" />
                 : (selectedAddBetweenLocationTypeId ? 'No available locations' : 'Select location type first')}
             />
+
+            <div className={styles.customLocationBlock}>
+              <span className={styles.customLocationTitle}>Custom Location</span>
+              <Text type="secondary" className={styles.customLocationHint}>
+                Add your own place by picking coordinates on map and entering custom timeline and cost.
+              </Text>
+
+              <div className={styles.editTimelineField}>
+                <span className={styles.editTimelineLabel}>Name</span>
+                <Input
+                  className={styles.editTimelineInput}
+                  placeholder="e.g. Secret sunset viewpoint"
+                  value={addBetweenCustomName}
+                  onChange={(event) => setAddBetweenCustomName(event?.target?.value || '')}
+                />
+              </div>
+
+              <div className={styles.editTimelineField}>
+                <span className={styles.editTimelineLabel}>Address (optional)</span>
+                <Input
+                  className={styles.editTimelineInput}
+                  placeholder="Address or short note"
+                  value={addBetweenCustomAddress}
+                  onChange={(event) => setAddBetweenCustomAddress(event?.target?.value || '')}
+                />
+              </div>
+
+              <Card
+                className={styles.customLocationMapCard}
+                title={<span className={styles.customLocationMapHeader}>Where are you starting from?</span>}
+              >
+                <div className={styles.customLocationMapWrap}>
+                  <MapContainer
+                    center={customLocationMapCenter}
+                    zoom={hasCustomLocationCoordinates ? 14 : 12}
+                    style={{ width: '100%', height: 180, borderRadius: 12 }}
+                    scrollWheelZoom
+                  >
+                    <TileLayer
+                      attribution='&copy; OpenStreetMap contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    {hasCustomLocationCoordinates && (
+                      <Marker position={[customLocationLatValue, customLocationLngValue]} />
+                    )}
+                    <CustomLocationMapClickHandler onPick={handlePickCustomLocationOnMap} />
+                    <CustomLocationMapInvalidate activeKey={customLocationMapActiveKey} />
+                  </MapContainer>
+                </div>
+
+                <Button
+                  type="dashed"
+                  block
+                  className={styles.customLocationCurrentBtn}
+                  onClick={handleUseCurrentLocationForCustom}
+                  style={{ marginTop: 16, borderColor: '#4ECDC4', color: '#1A535C', backgroundColor: 'rgba(78, 205, 196, 0.1)' }}
+                >
+                  Use My Current Location
+                </Button>
+              </Card>
+
+              {hasCustomLocationCoordinates && (
+                <span className={styles.customLocationCoordinates}>
+                  Picked: {customLocationLatValue.toFixed(6)}, {customLocationLngValue.toFixed(6)}
+                </span>
+              )}
+              <Text type="secondary" className={styles.customLocationHint}>
+                Click on map to pick location for custom point.
+              </Text>
+
+              <div className={styles.customLocationTimelineGrid}>
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Start time</span>
+                  <Input
+                    type="time"
+                    className={styles.editTimelineInput}
+                    value={addBetweenCustomStartTime}
+                    onChange={(event) => setAddBetweenCustomStartTime(event?.target?.value || '')}
+                  />
+                </div>
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>End time</span>
+                  <Input
+                    type="time"
+                    className={styles.editTimelineInput}
+                    value={addBetweenCustomEndTime}
+                    onChange={(event) => setAddBetweenCustomEndTime(event?.target?.value || '')}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.editTimelineField}>
+                <span className={styles.editTimelineLabel}>Cost for group</span>
+                <InputNumber
+                  className={styles.editTimelineInput}
+                  min={0}
+                  step={10000}
+                  precision={0}
+                  controls={false}
+                  value={addBetweenCustomCostAmount}
+                  onChange={(value) => setAddBetweenCustomCostAmount(value ?? 0)}
+                  addonAfter={tripCurrencyCode}
+                />
+              </div>
+
+              <Button
+                type="primary"
+                className={styles.customLocationAddButton}
+                loading={addingCustomLocation}
+                onClick={handleConfirmAddCustomLocation}
+              >
+                Add Custom Location
+              </Button>
+            </div>
           </div>
         </Modal>
 
