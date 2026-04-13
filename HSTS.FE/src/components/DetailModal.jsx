@@ -253,9 +253,6 @@ const DetailModal = ({ open, onClose, data, type }) => {
             <Descriptions.Item label="ID">{data.id}</Descriptions.Item>
             <Descriptions.Item label="Name">{data.name}</Descriptions.Item>
             <Descriptions.Item label="English Name">{data.englishName || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Code">
-              <Tag color="blue">{data.code || 'N/A'}</Tag>
-            </Descriptions.Item>
 
             <Descriptions.Item label="Coordinates">
               <Space direction="vertical" size="small">

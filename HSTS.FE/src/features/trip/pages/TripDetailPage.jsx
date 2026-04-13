@@ -23,6 +23,7 @@ import {
   message,
   Tooltip,
   Popconfirm,
+  Space,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -35,8 +36,9 @@ import {
   PlayCircleOutlined,
   ClockCircleFilled,
   PlusOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
-import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, getExpensesByActivityApi, deleteExpenseApi } from '../api';
+import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi, batchUpdateActivityStatusApi, getBudgetVsActualExportApi } from '../api';
 import { useAuthStore } from '@/store/authStore';
 import {
   getProvincesApi,
@@ -48,6 +50,7 @@ import LocationDetailModal from '../components/LocationDetailModal';
 import TransportDetailModal from '../components/TransportDetailModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
 import MemberManagement from '../components/MemberManagement';
+import { exportBudgetVsActualPdf } from '../utils/exportBudgetPdf';
 import styles from './ItineraryResultPage.module.css';
 
 const { Title, Text } = Typography;
@@ -66,6 +69,18 @@ const ACTIVITY_STATUS_CONFIG = {
   0: { label: 'Upcoming', color: 'default', icon: <ClockCircleFilled />, nextStatus: 1, nextLabel: 'Start' },
   1: { label: 'In Progress', color: 'processing', icon: <PlayCircleOutlined />, nextStatus: 2, nextLabel: 'Complete' },
   2: { label: 'Completed', color: 'success', icon: <CheckCircleOutlined />, nextStatus: null, nextLabel: null },
+};
+
+const TRIP_STATUS_CONFIG = {
+  0: { label: 'Planned', color: 'default' },
+  1: { label: 'In Progress', color: 'processing' },
+  2: { label: 'Completed', color: 'success' },
+  3: { label: 'Cancelled', color: 'error' },
+};
+
+const getTripStatusConfig = (status) => {
+  const key = typeof status === 'number' ? status : Number(status);
+  return TRIP_STATUS_CONFIG[key] || { label: `Unknown (${status})`, color: 'default' };
 };
 
 const formatMoney = (amount, currency = 'VND') => {
@@ -105,10 +120,11 @@ const TripDetailPage = () => {
   const [locationModal, setLocationModal] = useState({ open: false, locationId: null });
   const [transportModal, setTransportModal] = useState({ open: false, data: null });
   const [accommodationModal, setAccommodationModal] = useState({ open: false, data: null });
-  const [expenseModal, setExpenseModal] = useState({ open: false, activityId: null, activityTitle: '' });
+  const [expenseModal, setExpenseModal] = useState({ open: false, activityId: null, activityTitle: '', editExpense: null });
   const [updatingActivityIds, setUpdatingActivityIds] = useState(new Set());
   const [activityExpenses, setActivityExpenses] = useState({}); // { activityId: [expense1, expense2, ...] }
   const [expenseForm] = Form.useForm();
+  const [exporting, setExporting] = useState(false);
 
   // Load province names
   useEffect(() => {
@@ -247,12 +263,72 @@ const TripDetailPage = () => {
   const myMember = trip?.tripMembers?.find(m => m.userId === currentUserId);
 
   // Handle activity status update
-  const handleUpdateActivityStatus = useCallback(async (activityId) => {
-    const activity = trip?.tripDays?.flatMap(d => d.activities || []).find(a => a.id === activityId);
+  const handleUpdateActivityStatus = useCallback(async (activityId, skipConfirm = false) => {
+    const allActivities = trip?.tripDays?.flatMap(d => d.activities || []) || [];
+    const activity = allActivities.find(a => a.id === activityId);
     const currentStatus = activity?.status ?? 0;
     const config = ACTIVITY_STATUS_CONFIG[currentStatus];
 
     if (!config.nextStatus) return; // Already completed
+
+    // When starting an activity (0 -> 1), check for previous incomplete activities
+    if (currentStatus === 0 && config.nextStatus === 1 && !skipConfirm) {
+      const activityIndex = allActivities.findIndex(a => a.id === activityId);
+      const previousActivities = allActivities.slice(0, activityIndex);
+      const incompletePrevious = previousActivities.filter(a => (a.status ?? 0) < 2);
+
+      if (incompletePrevious.length > 0) {
+        Modal.confirm({
+          title: 'Complete Previous Activities?',
+          content: (
+            <div>
+              <p>Starting this activity will automatically complete the following {incompletePrevious.length} previous activit{incompletePrevious.length > 1 ? 'ies' : 'y'}:</p>
+              <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
+                {incompletePrevious.map((a, i) => {
+                  const locId = Number(a.locationId);
+                  const name = locationNameById.get(locId) || a.title || `Activity ${i + 1}`;
+                  return <li key={a.id}>{name}</li>;
+                })}
+              </ul>
+              <p style={{ color: '#888', fontSize: 12 }}>Do you want to proceed?</p>
+            </div>
+          ),
+          okText: 'Yes, Complete All',
+          cancelText: 'Cancel',
+          onOk: async () => {
+            // Set all involved activities as updating
+            setUpdatingActivityIds(prev => {
+              const next = new Set(prev);
+              incompletePrevious.forEach(a => next.add(a.id));
+              next.add(activityId);
+              return next;
+            });
+            try {
+              // Single atomic batch call
+              await batchUpdateActivityStatusApi({
+                activityIdsToComplete: incompletePrevious.map(a => a.id),
+                activityIdToStart: activityId,
+              });
+              message.success(`${incompletePrevious.length} previous activit${incompletePrevious.length > 1 ? 'ies' : 'y'} completed, now in progress`);
+              // Reload trip data
+              const data = await getTripDetailApi(Number(id));
+              setTrip(data);
+            } catch (err) {
+              console.error('Failed to batch update activity statuses:', err);
+              message.error('Failed to update activity statuses');
+            } finally {
+              setUpdatingActivityIds(prev => {
+                const next = new Set(prev);
+                incompletePrevious.forEach(a => next.delete(a.id));
+                next.delete(activityId);
+                return next;
+              });
+            }
+          },
+        });
+        return;
+      }
+    }
 
     setUpdatingActivityIds(prev => new Set(prev).add(activityId));
     try {
@@ -271,26 +347,33 @@ const TripDetailPage = () => {
         return next;
       });
     }
-  }, [trip, id]);
+  }, [trip, id, locationNameById]);
 
-  // Handle expense submission
+  // Handle expense submission (create or update)
   const handleExpenseSubmit = useCallback(async (values) => {
     try {
-      await logActualExpenseApi({
-        tripActivityId: expenseModal.activityId,
-        title: values.title,
-        description: values.description,
-        totalAmount: values.totalAmount,
-        createdById: myMember.id,
-      });
-      message.success('Expense logged successfully');
+      if (expenseModal.editExpense) {
+        await updateExpenseApi(expenseModal.editExpense.id, {
+          title: values.title,
+          description: values.description,
+          totalAmount: values.totalAmount,
+        });
+        message.success('Expense updated successfully');
+      } else {
+        await logActualExpenseApi({
+          tripActivityId: expenseModal.activityId,
+          title: values.title,
+          description: values.description,
+          totalAmount: values.totalAmount,
+        });
+        message.success('Expense logged successfully');
+      }
       expenseForm.resetFields();
-      setExpenseModal({ open: false, activityId: null, activityTitle: '' });
-      // Reload trip data and expenses
+      setExpenseModal({ open: false, activityId: null, activityTitle: '', editExpense: null });
       await reloadTripAndExpenses();
     } catch (err) {
-      console.error('Failed to log expense:', err);
-      message.error(err?.response?.data?.message || 'Failed to log expense');
+      console.error('Failed to save expense:', err);
+      message.error(err?.response?.data?.message || 'Failed to save expense');
     }
   }, [expenseModal, expenseForm, id, trip, user, myMember]);
 
@@ -313,12 +396,27 @@ const TripDetailPage = () => {
       getExpensesByActivityApi(Number(id)),
     ]);
     setTrip(tripData);
-    
+
     const lookup = {};
     (groupedExpenses || []).forEach(item => {
       lookup[item.activityId] = item.expenses || [];
     });
     setActivityExpenses(lookup);
+  }, [id]);
+
+  // Handle PDF export
+  const handleExportPdf = useCallback(async () => {
+    setExporting(true);
+    try {
+      const data = await getBudgetVsActualExportApi(Number(id));
+      await exportBudgetVsActualPdf(data);
+      message.success('PDF exported successfully');
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+      message.error('Failed to export PDF: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setExporting(false);
+    }
   }, [id]);
 
   if (loading) {
@@ -452,7 +550,7 @@ const TripDetailPage = () => {
               {currency}
             </span>
             <span className={styles.headerMetaItem}>
-              Status: <strong>{trip.status}</strong>
+              Status: <Tag color={getTripStatusConfig(trip.status).color}>{getTripStatusConfig(trip.status).label}</Tag>
             </span>
           </div>
         </Card>
@@ -463,13 +561,24 @@ const TripDetailPage = () => {
             className={styles.budgetCard}
             title="Budget Summary"
             extra={
-              <Button
-                type="link"
-                size="small"
-                onClick={() => setShowBudgetDetails((prev) => !prev)}
-              >
-                {showBudgetDetails ? 'Hide details' : 'Show details'}
-              </Button>
+              <Space size="small">
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<ExportOutlined />}
+                  loading={exporting}
+                  onClick={handleExportPdf}
+                >
+                  Export PDF
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => setShowBudgetDetails((prev) => !prev)}
+                >
+                  {showBudgetDetails ? 'Hide details' : 'Show details'}
+                </Button>
+              </Space>
             }
             size="small"
           >
@@ -630,6 +739,29 @@ const TripDetailPage = () => {
                                           </span>
                                         )}
                                       </div>
+                                      {totalExpenses > 0 && (() => {
+                                        const variance = totalExpenses - estimatedCost;
+                                        const budgetPercent = estimatedCost > 0 ? (totalExpenses / estimatedCost) * 100 : 0;
+                                        const isOverBudget = variance > 0;
+                                        const statusColor = isOverBudget ? '#ff4d4f' : '#52c41a';
+                                        const statusText = isOverBudget ? 'Over Budget' : 'Under Budget';
+                                        return (
+                                          <div style={{ marginTop: 4 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                                              <Text type="secondary" style={{ fontSize: 11 }}>Budget Usage</Text>
+                                              <Text strong style={{ color: statusColor, fontSize: 11 }}>{statusText} ({budgetPercent.toFixed(1)}%)</Text>
+                                            </div>
+                                            <Progress
+                                              percent={Math.min(budgetPercent, 100)}
+                                              strokeColor={statusColor}
+                                              status={budgetPercent > 100 ? 'exception' : 'normal'}
+                                              showInfo={false}
+                                              size="small"
+                                              style={{ marginBottom: 4 }}
+                                            />
+                                          </div>
+                                        );
+                                      })()}
 
                                       {/* Individual expense logs */}
                                       {activityExpensesList.length > 0 && (
@@ -652,9 +784,34 @@ const TripDetailPage = () => {
                                                   <span style={{ color: '#888', marginLeft: 4 }}>({exp.description})</span>
                                                 )}
                                                 <span style={{ color: '#aaa', marginLeft: 4 }}>by {exp.createdByName}</span>
+                                                {exp.updatedByName && (
+                                                  <span style={{ color: '#ff9800', marginLeft: 4, fontStyle: 'italic' }}>
+                                                    (edited by {exp.updatedByName})
+                                                  </span>
+                                                )}
                                               </div>
                                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                 <strong>{formatMoney(exp.totalAmount, currency)}</strong>
+                                                <Button
+                                                  type="link"
+                                                  size="small"
+                                                  style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                                                  onClick={() => {
+                                                    expenseForm.setFieldsValue({
+                                                      title: exp.title,
+                                                      description: exp.description,
+                                                      totalAmount: exp.totalAmount,
+                                                    });
+                                                    setExpenseModal({
+                                                      open: true,
+                                                      activityId: activity.id,
+                                                      activityTitle: activity.title || locationName || 'Activity',
+                                                      editExpense: exp,
+                                                    });
+                                                  }}
+                                                >
+                                                  ✎
+                                                </Button>
                                                 <Popconfirm
                                                   title="Delete this expense?"
                                                   onConfirm={() => handleDeleteExpense(exp.id)}
@@ -748,22 +905,26 @@ const TripDetailPage = () => {
                                         View Details
                                       </Button>
                                     )}
-                                    <Button
-                                      type="link"
-                                      size="small"
-                                      icon={<PlusOutlined />}
-                                      disabled={activityStatus !== 1}
-                                      style={{ padding: 0, height: 'auto', fontSize: 12, opacity: activityStatus === 1 ? 1 : 0.5 }}
-                                      onClick={() => {
-                                        setExpenseModal({
-                                          open: true,
-                                          activityId: activity.id,
-                                          activityTitle: activity.title || locationName || 'Activity',
-                                        });
-                                      }}
-                                    >
-                                      Log Expense
-                                    </Button>
+                                    <Tooltip title={activityStatus === 0 ? 'Start the activity before logging expenses' : ''}>
+                                      <Button
+                                        type="link"
+                                        size="small"
+                                        icon={<PlusOutlined />}
+                                        disabled={activityStatus === 0}
+                                        style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                                        onClick={() => {
+                                          expenseForm.resetFields();
+                                          setExpenseModal({
+                                            open: true,
+                                            activityId: activity.id,
+                                            activityTitle: activity.title || locationName || 'Activity',
+                                            editExpense: null,
+                                          });
+                                        }}
+                                      >
+                                        Log Expense
+                                      </Button>
+                                    </Tooltip>
                                   </div>
                                 </div>
                               </div>
@@ -823,14 +984,14 @@ const TripDetailPage = () => {
 
         {/* Log Expense Modal */}
         <Modal
-          title={`Log Expense: ${expenseModal.activityTitle}`}
+          title={expenseModal.editExpense ? `Edit Expense: ${expenseModal.editExpense.title}` : `Log Expense: ${expenseModal.activityTitle}`}
           open={expenseModal.open}
           onCancel={() => {
-            setExpenseModal({ open: false, activityId: null, activityTitle: '' });
+            setExpenseModal({ open: false, activityId: null, activityTitle: '', editExpense: null });
             expenseForm.resetFields();
           }}
           onOk={() => expenseForm.submit()}
-          okText="Log Expense"
+          okText={expenseModal.editExpense ? 'Update' : 'Log Expense'}
           cancelText="Cancel"
         >
           <Form

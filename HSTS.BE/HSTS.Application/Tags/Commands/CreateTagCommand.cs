@@ -56,7 +56,15 @@ namespace HSTS.Application.Tags.Commands
             };
 
             await _repository.AddAsync(tag, cancellationToken);
-            return tag.ToDto();
+
+            string? parentName = null;
+            if (request.ParentTagId.HasValue)
+            {
+                var parent = await _repository.GetAsync(request.ParentTagId.Value, cancellationToken);
+                parentName = parent?.Name;
+            }
+
+            return tag.ToDto(parentName);
         }
     }
 

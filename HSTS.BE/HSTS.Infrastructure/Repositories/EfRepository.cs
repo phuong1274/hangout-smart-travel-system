@@ -59,8 +59,6 @@ namespace HSTS.Infrastructure.Repositories
         {
             try
             {
-                _ctx.Set<T>().Update(entity);
-                await _ctx.SaveChangesAsync(cancellationToken);
                 var prop = entity.GetType().GetProperty("IsDeleted");
                 if (prop != null)
                 {
@@ -76,7 +74,6 @@ namespace HSTS.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                await _loggingService.LogErrorAsync($"Error updating entity of type {typeof(T).Name}: {ex.Message}", "SoftDeleteAsync");
                 await _loggingService.LogErrorAsync($"Error soft-deleting entity of type {typeof(T).Name}: {ex.Message}", "SoftDeleteAsync");
                 throw;
             }

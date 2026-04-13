@@ -162,6 +162,11 @@ export const logActualExpenseApi = (data) => {
   return apiClient.post('/api/Expenses', data).then(res => res.data);
 };
 
+// Update an expense
+export const updateExpenseApi = (expenseId, data) => {
+  return apiClient.put(`/api/Expenses/${expenseId}`, { expenseId, ...data }).then(res => res.data);
+};
+
 // Get expenses by activity (grouped)
 export const getExpensesByActivityApi = (tripId) => {
   return apiClient.get(`/api/Expenses/trip/${tripId}/by-activity`).then(res => res.data);
@@ -194,17 +199,6 @@ export const getMyInvitationsApi = () => {
   return apiClient.get('/api/users/me/invitations').then(res => res.data);
 };
 
-// ==================== JOIN BY CODE API ====================
-
-// Join trip by code
-export const joinTripByCodeApi = (joinCode) => {
-  return apiClient.post('/api/trips/join-by-code', { joinCode }).then(res => res.data);
-};
-
-// Update join code settings (leader only)
-export const updateJoinCodeApi = (tripId, { isActive, regenerate }) => {
-  return apiClient.put(`/api/trips/${tripId}/join-code`, { isActive, regenerate }).then(res => res.data);
-};
 
 // ==================== MEMBER MANAGEMENT API ====================
 
@@ -221,4 +215,13 @@ export const removeTripMemberApi = (tripId, userId) => {
 // Change member role (leader only)
 export const changeMemberRoleApi = (tripId, userId, newRole) => {
   return apiClient.put(`/api/trips/${tripId}/members/${userId}/role`, { newRole }).then(res => res.data);
+};
+// Batch update activity statuses (complete previous + start current atomically)
+export const batchUpdateActivityStatusApi = (data) => {
+  return apiClient.post('/api/trips/activities/batch-status', data).then(res => res.data);
+};
+
+// Get budget vs actual data for PDF export
+export const getBudgetVsActualExportApi = (tripId) => {
+  return apiClient.get(`/api/Expenses/trip/${tripId}/budget-vs-actual/export`).then(res => res.data);
 };

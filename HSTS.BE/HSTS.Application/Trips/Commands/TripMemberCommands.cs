@@ -162,7 +162,7 @@ namespace HSTS.Application.Trips.Commands
                 .Select(tm => new TripMemberDetailDto(
                     tm.Id,
                     tm.TripId,
-                    tm.UserId,
+                    tm.UserId ?? 0,
                     tm.User.FullName,
                     tm.User.AvatarUrl,
                     tm.Role.ToString(),

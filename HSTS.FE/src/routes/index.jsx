@@ -30,6 +30,10 @@ const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-sub
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/ReportedReviewsPage'));
 
+const TransportModesPage = lazy(() => import('@/features/transport-modes/pages/TransportModesPage'));
+const TransitHubsPage = lazy(() => import('@/features/transit-hubs/pages/TransitHubsPage'));
+const LocalTransportMetricsPage = lazy(() => import('@/features/local-transport-metrics/pages/LocalTransportMetricsPage'));
+
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
 const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
 const TripDetailPage = lazy(() => import('@/features/trip/pages/TripDetailPage'));
@@ -96,10 +100,6 @@ export const router = createBrowserRouter([
   {
     path: PATHS.ITINERARY.replace('/', ''),
     element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
-  },
-  {
-    path: 'trips/:id',
-    element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
   },
   {
     path: 'invitations/accept',
@@ -200,6 +200,27 @@ export const router = createBrowserRouter([
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
             children: [
               { index: true, element: <ReportedReviewsPage /> },
+            ]
+          },
+          {
+            path: PATHS.TRANSPORT_MODES,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <TransportModesPage /> },
+            ]
+          },
+          {
+            path: PATHS.TRANSIT_HUBS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <TransitHubsPage /> },
+            ]
+          },
+          {
+            path: PATHS.LOCAL_TRANSPORT_METRICS,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <LocalTransportMetricsPage /> },
             ]
           },
           {
