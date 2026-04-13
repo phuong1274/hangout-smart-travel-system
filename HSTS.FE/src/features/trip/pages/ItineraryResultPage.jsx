@@ -3,6 +3,8 @@ import {
   Card,
   Typography,
   Button,
+  Input,
+  InputNumber,
   Tag,
   Empty,
   Space,
@@ -321,13 +323,6 @@ const pickBestMoney = (...candidates) => {
   return positive || valid[0];
 };
 
-const pickFirstMoney = (...candidates) => {
-  for (const candidate of candidates) {
-    if (getMoneyAmount(candidate) != null) return candidate;
-  }
-  return null;
-};
-
 const getTransportOptions = (travelDetail) => {
   const options = travelDetail?.transportOptions || travelDetail?.TransportOptions || [];
   return Array.isArray(options) ? options : [];
@@ -374,7 +369,7 @@ const getTravelDurationMinutes = (travelDetail) => {
 
 const getTravelGroupCost = (itemCostForGroup, travelDetail) => {
   const recommended = getRecommendedTransportOption(travelDetail);
-  const cost = pickFirstMoney(
+  const cost = pickBestMoney(
     itemCostForGroup,
     travelDetail?.selectedTotalCost,
     travelDetail?.SelectedTotalCost,
@@ -780,19 +775,8 @@ const updateBudgetSummaryFromDays = (draftItinerary) => {
     ?? accommodationFallback
   );
   const estimatedTransportAmount = Math.round(totalBreakdown.transport);
-  const estimatedActivityAmount = Math.round(
-    getMoneyAmount(summary?.estimatedActivityCost || summary?.EstimatedActivityCost)
-    ?? totalBreakdown.activity
-  );
-  const estimatedMealAmount = Math.round(
-    getMoneyAmount(
-      summary?.estimatedMealCost
-      || summary?.EstimatedMealCost
-      || summary?.mealCost
-      || summary?.MealCost
-    )
-    ?? totalBreakdown.meal
-  );
+  const estimatedActivityAmount = Math.round(totalBreakdown.activity);
+  const estimatedMealAmount = Math.round(totalBreakdown.meal);
   const estimatedOtherAmount = estimatedTransportAmount + estimatedActivityAmount;
   const estimatedTotal = estimatedAccommodationAmount + estimatedTransportAmount + estimatedActivityAmount + estimatedMealAmount;
 
@@ -822,6 +806,126 @@ const updateBudgetSummaryFromDays = (draftItinerary) => {
   summary.otherCost = otherMoney;
   summary.OtherCost = otherMoney;
   if (remainingMoney) {
+    summary.remainingBudget = remainingMoney;
+    summary.RemainingBudget = remainingMoney;
+  }
+};
+
+const updateBudgetSummaryForTransportDelta = (draftItinerary, dayTimelineBefore, dayTimelineAfter) => {
+  if (!draftItinerary) return;
+
+  const summaryKey = draftItinerary?.budgetSummary ? 'budgetSummary' : 'BudgetSummary';
+  const summary = draftItinerary?.[summaryKey];
+  if (!summary) {
+    updateBudgetSummaryFromDays(draftItinerary);
+    return;
+  }
+
+  const currencyCode = pickFirstText(draftItinerary?.currencyCode, draftItinerary?.CurrencyCode) || 'VND';
+  const beforeTransport = Math.round(getTimelineDetailedCostBreakdown(dayTimelineBefore || []).transport || 0);
+  const afterTransport = Math.round(getTimelineDetailedCostBreakdown(dayTimelineAfter || []).transport || 0);
+  const transportDelta = afterTransport - beforeTransport;
+
+  if (transportDelta === 0) return;
+
+  const toAmount = (value, fallback = 0) => {
+    const amount = getMoneyAmount(value);
+    return Number.isFinite(amount) ? amount : fallback;
+  };
+  const toMoney = (amount) => ({
+    amount: Math.max(0, Math.round(amount)),
+    currency: currencyCode,
+  });
+
+  const estimatedAccommodation = toAmount(summary?.estimatedAccommodationCost || summary?.EstimatedAccommodationCost, 0);
+  const estimatedTransport = toAmount(summary?.estimatedTransportCost || summary?.EstimatedTransportCost, 0);
+  const estimatedActivity = toAmount(summary?.estimatedActivityCost || summary?.EstimatedActivityCost, 0);
+  const estimatedMeal = toAmount(summary?.estimatedMealCost || summary?.EstimatedMealCost || summary?.mealCost || summary?.MealCost, 0);
+  const estimatedTotal = toAmount(
+    summary?.estimatedTotalCost || summary?.EstimatedTotalCost,
+    estimatedAccommodation + estimatedTransport + estimatedActivity + estimatedMeal,
+  );
+
+  const nextTransport = Math.max(0, estimatedTransport + transportDelta);
+  const nextTotal = Math.max(0, estimatedTotal + transportDelta);
+  const nextOther = Math.max(0, toAmount(summary?.otherCost || summary?.OtherCost, 0) + transportDelta);
+
+  const transportMoney = toMoney(nextTransport);
+  const totalMoney = toMoney(nextTotal);
+  const otherMoney = toMoney(nextOther);
+
+  summary.estimatedTransportCost = transportMoney;
+  summary.EstimatedTransportCost = transportMoney;
+  summary.estimatedTotalCost = totalMoney;
+  summary.EstimatedTotalCost = totalMoney;
+  summary.otherCost = otherMoney;
+  summary.OtherCost = otherMoney;
+
+  const usable = normalizeMoney(summary?.usableBudget || summary?.UsableBudget, currencyCode);
+  if (usable) {
+    const remainingMoney = toMoney(usable.amount - nextTotal);
+    summary.remainingBudget = remainingMoney;
+    summary.RemainingBudget = remainingMoney;
+  }
+};
+
+const updateBudgetSummaryForTimelineItemCostDelta = (draftItinerary, eventType, costDelta) => {
+  if (!draftItinerary) return;
+  if (!Number.isFinite(costDelta) || costDelta === 0) return;
+
+  const summaryKey = draftItinerary?.budgetSummary ? 'budgetSummary' : 'BudgetSummary';
+  const summary = draftItinerary?.[summaryKey];
+  if (!summary) {
+    updateBudgetSummaryFromDays(draftItinerary);
+    return;
+  }
+
+  const normalizedEventType = toEventType(eventType);
+  const currencyCode = pickFirstText(draftItinerary?.currencyCode, draftItinerary?.CurrencyCode) || 'VND';
+  const toAmount = (value, fallback = 0) => {
+    const amount = getMoneyAmount(value);
+    return Number.isFinite(amount) ? amount : fallback;
+  };
+  const toMoney = (amount) => ({
+    amount: Math.max(0, Math.round(amount)),
+    currency: currencyCode,
+  });
+  const updatePair = (camelKey, pascalKey, amount) => {
+    const money = toMoney(amount);
+    summary[camelKey] = money;
+    summary[pascalKey] = money;
+  };
+
+  const currentEstimatedTotal = toAmount(summary?.estimatedTotalCost || summary?.EstimatedTotalCost, 0);
+  const nextEstimatedTotal = Math.max(0, currentEstimatedTotal + costDelta);
+  updatePair('estimatedTotalCost', 'EstimatedTotalCost', nextEstimatedTotal);
+
+  if (normalizedEventType === 'meal') {
+    const currentMealEstimated = toAmount(summary?.estimatedMealCost || summary?.EstimatedMealCost || summary?.mealCost || summary?.MealCost, 0);
+    const nextMealEstimated = Math.max(0, currentMealEstimated + costDelta);
+    updatePair('estimatedMealCost', 'EstimatedMealCost', nextMealEstimated);
+    updatePair('mealCost', 'MealCost', nextMealEstimated);
+  } else if (normalizedEventType === 'travel') {
+    const currentTransportEstimated = toAmount(summary?.estimatedTransportCost || summary?.EstimatedTransportCost, 0);
+    const nextTransportEstimated = Math.max(0, currentTransportEstimated + costDelta);
+    updatePair('estimatedTransportCost', 'EstimatedTransportCost', nextTransportEstimated);
+
+    const currentOther = toAmount(summary?.otherCost || summary?.OtherCost, 0);
+    const nextOther = Math.max(0, currentOther + costDelta);
+    updatePair('otherCost', 'OtherCost', nextOther);
+  } else {
+    const currentActivityEstimated = toAmount(summary?.estimatedActivityCost || summary?.EstimatedActivityCost, 0);
+    const nextActivityEstimated = Math.max(0, currentActivityEstimated + costDelta);
+    updatePair('estimatedActivityCost', 'EstimatedActivityCost', nextActivityEstimated);
+
+    const currentOther = toAmount(summary?.otherCost || summary?.OtherCost, 0);
+    const nextOther = Math.max(0, currentOther + costDelta);
+    updatePair('otherCost', 'OtherCost', nextOther);
+  }
+
+  const usableBudget = normalizeMoney(summary?.usableBudget || summary?.UsableBudget, currencyCode);
+  if (usableBudget) {
+    const remainingMoney = toMoney(usableBudget.amount - nextEstimatedTotal);
     summary.remainingBudget = remainingMoney;
     summary.RemainingBudget = remainingMoney;
   }
@@ -859,6 +963,20 @@ const ItineraryResultPage = () => {
   const [provinceLocationLoading, setProvinceLocationLoading] = useState(false);
   const [selectedProvinceLocationId, setSelectedProvinceLocationId] = useState(null);
   const [provinceLocationSearch, setProvinceLocationSearch] = useState('');
+  const [editTimelineModal, setEditTimelineModal] = useState({
+    open: false,
+    dayIndex: null,
+    timelineIndex: null,
+    provinceId: null,
+    canChangeLocation: false,
+  });
+  const [editTimelineStartTime, setEditTimelineStartTime] = useState('');
+  const [editTimelineEndTime, setEditTimelineEndTime] = useState('');
+  const [editTimelineCostAmount, setEditTimelineCostAmount] = useState(0);
+  const [editTimelineLocationId, setEditTimelineLocationId] = useState(null);
+  const [editTimelineLocationOptions, setEditTimelineLocationOptions] = useState([]);
+  const [editTimelineLocationLoading, setEditTimelineLocationLoading] = useState(false);
+  const [editTimelineLocationSearch, setEditTimelineLocationSearch] = useState('');
 
   const [locationModal, setLocationModal] = useState({ open: false, locationId: null });
   const [transportModal, setTransportModal] = useState({ open: false, data: null });
@@ -1357,6 +1475,348 @@ const ItineraryResultPage = () => {
     setProvinceLocationSearch('');
   }, []);
 
+  const loadEditTimelineLocations = useCallback(async (provinceId, searchTerm = '', ensureOption = null) => {
+    const normalizedProvinceId = Number(provinceId);
+    if (!Number.isFinite(normalizedProvinceId) || normalizedProvinceId <= 0) {
+      setEditTimelineLocationOptions(ensureOption ? [ensureOption] : []);
+      return;
+    }
+
+    setEditTimelineLocationLoading(true);
+    try {
+      const response = await getLocationsByProvinceApi({
+        provinceId: normalizedProvinceId,
+        countryId: 'VN',
+        searchTerm: searchTerm || undefined,
+        pageSize: 300,
+      });
+
+      const items = Array.isArray(response?.items) ? response.items : [];
+      const options = items
+        .map((location) => {
+          const id = Number(location?.id ?? location?.Id);
+          if (!Number.isFinite(id) || id <= 0) return null;
+
+          const name = pickFirstText(
+            location?.englishName,
+            location?.EnglishName,
+            location?.name,
+            location?.Name,
+          ) || `Location #${id}`;
+
+          return {
+            id,
+            name,
+            address: pickFirstText(location?.address, location?.Address),
+            score: location?.score ?? location?.Score ?? null,
+            tagNames: location?.tagNames || location?.TagNames || [],
+            telephone: pickFirstText(location?.telephone, location?.Telephone),
+            mediaUrls: location?.mediaLinks || location?.MediaLinks || [],
+          };
+        })
+        .filter(Boolean);
+
+      if (ensureOption && Number.isFinite(Number(ensureOption?.id))) {
+        const hasEnsured = options.some((option) => option.id === ensureOption.id);
+        if (!hasEnsured) {
+          options.unshift(ensureOption);
+        }
+      }
+
+      setEditTimelineLocationOptions(options);
+    } catch {
+      setEditTimelineLocationOptions(ensureOption ? [ensureOption] : []);
+      message.error('Unable to load locations for editing.');
+    } finally {
+      setEditTimelineLocationLoading(false);
+    }
+  }, []);
+
+  const handleOpenEditTimeline = useCallback(async (dayIndex, timelineIndex, provinceId) => {
+    if (!itinerary) return;
+
+    const days = itinerary.days || itinerary.Days || [];
+    const day = days[dayIndex];
+    const dayNumber = day?.dayNumber || day?.DayNumber || dayIndex + 1;
+    if (!day) return;
+
+    const timeline = getDayTimeline(day, pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND');
+    const item = timeline[timelineIndex];
+    if (!item) return;
+
+    const normalizedStart = normalizeTimeOnly(item?.startTime || item?.StartTime);
+    const normalizedEnd = normalizeTimeOnly(item?.endTime || item?.EndTime);
+    const currentCost = Math.round(Math.max(0, getTimelineItemCostAmount(item)));
+    const canChangeLocation = isEditableLocationEvent(item);
+    const currentLocationId = canChangeLocation ? getItemLocationId(item) : null;
+    const currentLocationName = canChangeLocation
+      ? pickFirstText(
+          item?.locationName,
+          item?.LocationName,
+          locationNameById.get(currentLocationId),
+        ) || `Location #${currentLocationId}`
+      : '';
+    const ensuredOption = canChangeLocation && Number.isFinite(currentLocationId) && currentLocationId > 0
+      ? {
+          id: currentLocationId,
+          name: currentLocationName,
+          address: pickFirstText(item?.address, item?.Address),
+          score: item?.score ?? item?.Score ?? null,
+          tagNames: item?.tagNames || item?.TagNames || [],
+          telephone: pickFirstText(item?.telephone, item?.Telephone),
+          mediaUrls: item?.mediaUrls || item?.MediaUrls || [],
+        }
+      : null;
+
+    setEditTimelineStartTime(normalizedStart ? normalizedStart.slice(0, 5) : '');
+    setEditTimelineEndTime(normalizedEnd ? normalizedEnd.slice(0, 5) : '');
+    setEditTimelineCostAmount(currentCost);
+    setEditTimelineLocationId(currentLocationId);
+    setEditTimelineLocationSearch('');
+    setEditTimelineModal({
+      open: true,
+      dayIndex,
+      timelineIndex,
+      provinceId: Number.isFinite(Number(provinceId)) ? Number(provinceId) : null,
+      canChangeLocation,
+    });
+
+    if (!canChangeLocation) {
+      setEditTimelineLocationOptions([]);
+      return;
+    }
+
+    setRecalculatingDayNumber(dayNumber);
+    await loadEditTimelineLocations(provinceId, '', ensuredOption);
+    setRecalculatingDayNumber(null);
+  }, [itinerary, loadEditTimelineLocations, locationNameById]);
+
+  const handleSearchEditTimelineLocations = useCallback(async (searchTerm) => {
+    if (!editTimelineModal?.open || !editTimelineModal?.canChangeLocation) return;
+    setEditTimelineLocationSearch(searchTerm);
+
+    const selectedLocation = editTimelineLocationOptions.find((option) => option.id === Number(editTimelineLocationId));
+    await loadEditTimelineLocations(editTimelineModal.provinceId, searchTerm, selectedLocation || null);
+  }, [editTimelineLocationId, editTimelineLocationOptions, editTimelineModal, loadEditTimelineLocations]);
+
+  const handleCloseEditTimelineModal = useCallback(() => {
+    setEditTimelineModal({
+      open: false,
+      dayIndex: null,
+      timelineIndex: null,
+      provinceId: null,
+      canChangeLocation: false,
+    });
+    setEditTimelineStartTime('');
+    setEditTimelineEndTime('');
+    setEditTimelineCostAmount(0);
+    setEditTimelineLocationId(null);
+    setEditTimelineLocationOptions([]);
+    setEditTimelineLocationSearch('');
+  }, []);
+
+  const handleConfirmEditTimeline = useCallback(async () => {
+    if (!itinerary || !editTimelineModal?.open) return;
+
+    const dayIndex = Number(editTimelineModal?.dayIndex);
+    const timelineIndex = Number(editTimelineModal?.timelineIndex);
+    if (!Number.isFinite(dayIndex) || !Number.isFinite(timelineIndex)) return;
+
+    const days = itinerary.days || itinerary.Days || [];
+    const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    setRecalculatingDayNumber(dayNumber);
+
+    try {
+      const draft = clonePlainObject(itinerary);
+      const daysKey = Array.isArray(draft?.days) ? 'days' : 'Days';
+      const draftDays = Array.isArray(draft?.[daysKey]) ? draft[daysKey] : [];
+      const day = draftDays[dayIndex];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const currentItem = timeline[timelineIndex];
+      if (!currentItem) return;
+
+      const getDurationMinutesFromClock = (startText, endText) => {
+        const start = toMinutesOfDay(startText);
+        const end = toMinutesOfDay(endText);
+        if (start == null || end == null) return null;
+        return end >= start ? end - start : (end + 1440) - start;
+      };
+
+      const shiftFollowingTimelineItems = (fromIndex, deltaMinutes) => {
+        if (!deltaMinutes) return;
+
+        for (let index = fromIndex + 1; index < timeline.length; index += 1) {
+          const next = { ...timeline[index] };
+          const itemStart = pickFirstText(next?.startTime, next?.StartTime);
+          const itemEnd = pickFirstText(next?.endTime, next?.EndTime);
+
+          if (itemStart) {
+            const shiftedStart = shiftTimeByMinutes(itemStart, deltaMinutes);
+            next.startTime = shiftedStart;
+            next.StartTime = shiftedStart;
+          }
+          if (itemEnd) {
+            const shiftedEnd = shiftTimeByMinutes(itemEnd, deltaMinutes);
+            next.endTime = shiftedEnd;
+            next.EndTime = shiftedEnd;
+          }
+
+          const [nextTravelKey, nextTravelDetail] = getTravelDetailEntry(next);
+          if (nextTravelKey && nextTravelDetail) {
+            const td = { ...nextTravelDetail };
+            const tdDeparture = pickFirstText(td?.departureTime, td?.DepartureTime);
+            const tdArrival = pickFirstText(td?.arrivalTime, td?.ArrivalTime);
+            if (tdDeparture) {
+              const shiftedDeparture = shiftTimeByMinutes(tdDeparture, deltaMinutes);
+              td.departureTime = shiftedDeparture;
+              td.DepartureTime = shiftedDeparture;
+            }
+            if (tdArrival) {
+              const shiftedArrival = shiftTimeByMinutes(tdArrival, deltaMinutes);
+              td.arrivalTime = shiftedArrival;
+              td.ArrivalTime = shiftedArrival;
+            }
+            next[nextTravelKey] = td;
+          }
+
+          timeline[index] = next;
+        }
+      };
+
+      const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+      const existingStart = normalizeTimeOnly(currentItem?.startTime || currentItem?.StartTime) || '08:00:00';
+      const existingEnd = normalizeTimeOnly(currentItem?.endTime || currentItem?.EndTime)
+        || addMinutesToTime(existingStart, getTimelineDurationMinutes(currentItem));
+
+      let nextStart = normalizeTimeOnly(editTimelineStartTime) || existingStart;
+      let nextEnd = normalizeTimeOnly(editTimelineEndTime) || existingEnd;
+
+      const previousItem = timelineIndex > 0 ? timeline[timelineIndex - 1] : null;
+      const previousEnd = normalizeTimeOnly(previousItem?.endTime || previousItem?.EndTime);
+      const previousEndMinutes = toMinutesOfDay(previousEnd);
+      const nextStartMinutes = toMinutesOfDay(nextStart);
+      if (previousEndMinutes != null && nextStartMinutes != null && nextStartMinutes < previousEndMinutes) {
+        nextStart = previousEnd;
+      }
+
+      const fallbackDuration = getDurationMinutesFromClock(existingStart, existingEnd)
+        || Math.max(15, getTimelineDurationMinutes(currentItem));
+      const nextDuration = getDurationMinutesFromClock(nextStart, nextEnd);
+      if (nextDuration == null || nextDuration <= 0) {
+        nextEnd = addMinutesToTime(nextStart, fallbackDuration);
+      }
+
+      const existingEndMinutes = toMinutesOfDay(existingEnd);
+      const normalizedNextEndMinutes = toMinutesOfDay(nextEnd);
+      const timelineShiftDeltaMinutes = (existingEndMinutes != null && normalizedNextEndMinutes != null)
+        ? normalizedNextEndMinutes - existingEndMinutes
+        : 0;
+      const normalizedCostAmount = Math.max(0, Math.round(Number(editTimelineCostAmount) || 0));
+      const updatedCost = { amount: normalizedCostAmount, currency: currencyCode };
+
+      const eventType = toEventType(
+        currentItem?.eventType
+        || currentItem?.EventType
+        || currentItem?.type
+        || currentItem?.Type
+      );
+      const previousCostAmount = Math.round(Math.max(0, getTimelineItemCostAmount(currentItem)));
+
+      const updatedBaseItem = {
+        ...currentItem,
+        startTime: nextStart,
+        StartTime: nextStart,
+        endTime: nextEnd,
+        EndTime: nextEnd,
+        costForGroup: updatedCost,
+        CostForGroup: updatedCost,
+        ticketCost: updatedCost,
+        TicketCost: updatedCost,
+      };
+
+      const canChangeLocation = isEditableLocationEvent(currentItem) && editTimelineModal?.canChangeLocation;
+      const currentLocationId = getItemLocationId(currentItem);
+      const nextLocationId = Number(editTimelineLocationId);
+      const locationChanged = canChangeLocation
+        && Number.isFinite(nextLocationId)
+        && nextLocationId > 0
+        && nextLocationId !== currentLocationId;
+
+      if (locationChanged) {
+        const selectedLocation = editTimelineLocationOptions.find((option) => option.id === nextLocationId);
+        if (!selectedLocation) {
+          message.warning('Selected location is not available for this day.');
+          return;
+        }
+
+        const selectedName = selectedLocation.name || `Location #${nextLocationId}`;
+        const nextTitle = eventType === 'meal'
+          ? `Meal at ${selectedName}`
+          : (eventType === 'visit' ? `Visit ${selectedName}` : (pickFirstText(currentItem?.title, currentItem?.Title) || selectedName));
+
+        timeline[timelineIndex] = {
+          ...updatedBaseItem,
+          title: nextTitle,
+          Title: nextTitle,
+          locationId: nextLocationId,
+          LocationId: nextLocationId,
+          locationName: selectedName,
+          LocationName: selectedName,
+          name: selectedName,
+          Name: selectedName,
+          address: selectedLocation.address || null,
+          Address: selectedLocation.address || null,
+          telephone: selectedLocation.telephone || null,
+          Telephone: selectedLocation.telephone || null,
+          tagNames: selectedLocation.tagNames || [],
+          TagNames: selectedLocation.tagNames || [],
+          mediaUrls: selectedLocation.mediaUrls || [],
+          MediaUrls: selectedLocation.mediaUrls || [],
+        };
+
+        day[timelineKey] = timeline;
+        await recalculateDayTimeline(draft, dayIndex);
+      } else {
+        timeline[timelineIndex] = updatedBaseItem;
+        if (timelineShiftDeltaMinutes !== 0) {
+          shiftFollowingTimelineItems(timelineIndex, timelineShiftDeltaMinutes);
+        }
+        day[timelineKey] = timeline;
+
+        const updatedItem = timeline[timelineIndex];
+        const nextCostAmount = Math.round(Math.max(0, getTimelineItemCostAmount(updatedItem)));
+        const costDelta = nextCostAmount - previousCostAmount;
+
+        updateDayEstimatedCost(day, timelineKey, currencyCode);
+        updateBudgetSummaryForTimelineItemCostDelta(draft, eventType, costDelta);
+      }
+
+      updateItinerary(draft);
+      handleCloseEditTimelineModal();
+      message.success(locationChanged
+        ? 'Timeline item updated. Route and budget were recalculated.'
+        : 'Timeline item updated and budget summary refreshed.');
+    } catch {
+      message.error('Unable to update timeline item.');
+    } finally {
+      setRecalculatingDayNumber(null);
+    }
+  }, [
+    editTimelineCostAmount,
+    editTimelineEndTime,
+    editTimelineLocationId,
+    editTimelineLocationOptions,
+    editTimelineModal,
+    editTimelineStartTime,
+    handleCloseEditTimelineModal,
+    itinerary,
+    recalculateDayTimeline,
+    updateItinerary,
+  ]);
+
   const handleSelectTransportOption = useCallback(async (dayIndex, timelineIndex, optionIndex) => {
     if (!itinerary) return;
 
@@ -1373,6 +1833,7 @@ const ItineraryResultPage = () => {
 
       const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
       const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const timelineBeforeTransportChange = timeline.map((item) => clonePlainObject(item));
       const travelItem = timeline[timelineIndex];
       if (!travelItem || !isTravelEvent(travelItem)) {
         message.warning('Only travel segments can change transport option.');
@@ -1541,7 +2002,7 @@ const ItineraryResultPage = () => {
           targetDetail?.SelectedMethod,
         ) || 'Transport';
 
-        const nextCost = normalizeMoney(pickFirstMoney(
+        const nextCost = normalizeMoney(pickBestMoney(
           travelLeg?.selectedTotalCost,
           travelLeg?.SelectedTotalCost,
           recommendedIncoming?.costForGroup,
@@ -1697,7 +2158,7 @@ const ItineraryResultPage = () => {
         travelDetail?.selectedMethod,
         travelDetail?.SelectedMethod,
       ) || 'Transport';
-      const selectedCost = normalizeMoney(pickFirstMoney(
+      const selectedCost = normalizeMoney(pickBestMoney(
         selectedOption?.costForGroup,
         selectedOption?.CostForGroup,
         selectedOption?.estimatedTotalCost,
@@ -1861,7 +2322,7 @@ const ItineraryResultPage = () => {
         if (!detailKey || !detail) continue;
 
         const recommended = getRecommendedTransportOption(detail);
-        const canonicalCost = normalizeMoney(pickFirstMoney(
+        const canonicalCost = normalizeMoney(pickBestMoney(
           detail?.selectedTotalCost,
           detail?.SelectedTotalCost,
           detail?.costForGroup,
@@ -1894,7 +2355,7 @@ const ItineraryResultPage = () => {
 
       day[timelineKey] = timeline;
       updateDayEstimatedCost(day, timelineKey, currencyCode);
-      updateBudgetSummaryFromDays(draft);
+      updateBudgetSummaryForTransportDelta(draft, timelineBeforeTransportChange, timeline);
       updateItinerary(draft);
       message.success('Transport option and related segments updated.');
     } catch {
@@ -2711,6 +3172,9 @@ const ItineraryResultPage = () => {
 
                           const renderActions = () => (
                             <div className={styles.cardActions}>
+                              <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleOpenEditTimeline(dayIdx, idx, currentProvinceId)}>
+                                Edit
+                              </Button>
                               {locationId && !isTravel && (
                                 <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleViewLocation(locationId)}>
                                   View Details
@@ -3153,6 +3617,79 @@ const ItineraryResultPage = () => {
               }))}
               notFoundContent={provinceLocationLoading ? <Spin size="small" /> : 'No available locations'}
             />
+          </div>
+        </Modal>
+
+        <Modal
+          title="Edit Timeline Item"
+          open={editTimelineModal.open}
+          onCancel={handleCloseEditTimelineModal}
+          onOk={handleConfirmEditTimeline}
+          okText="Save Changes"
+          cancelText="Cancel"
+          okButtonProps={{ loading: recalculatingDayNumber != null }}
+        >
+          <div className={styles.editTimelineModalBody}>
+            <Text type="secondary" className={styles.addBetweenHint}>
+              Edit time and cost. If you change location, routes before and after this point will be re-estimated automatically.
+            </Text>
+
+            {editTimelineModal.canChangeLocation && (
+              <div className={styles.editTimelineField}>
+                <span className={styles.editTimelineLabel}>Location</span>
+                <Select
+                  showSearch
+                  allowClear={false}
+                  className={styles.editTimelineInput}
+                  placeholder="Search and select location"
+                  searchValue={editTimelineLocationSearch}
+                  value={editTimelineLocationId}
+                  onChange={(value) => setEditTimelineLocationId(value ?? null)}
+                  onSearch={handleSearchEditTimelineLocations}
+                  filterOption={false}
+                  loading={editTimelineLocationLoading}
+                  options={editTimelineLocationOptions.map((location) => ({
+                    label: location.address ? `${location.name} - ${location.address}` : location.name,
+                    value: location.id,
+                  }))}
+                  notFoundContent={editTimelineLocationLoading ? <Spin size="small" /> : 'No locations found'}
+                />
+              </div>
+            )}
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>Start time</span>
+              <Input
+                type="time"
+                className={styles.editTimelineInput}
+                value={editTimelineStartTime}
+                onChange={(event) => setEditTimelineStartTime(event?.target?.value || '')}
+              />
+            </div>
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>End time</span>
+              <Input
+                type="time"
+                className={styles.editTimelineInput}
+                value={editTimelineEndTime}
+                onChange={(event) => setEditTimelineEndTime(event?.target?.value || '')}
+              />
+            </div>
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>Cost for group</span>
+              <InputNumber
+                className={styles.editTimelineInput}
+                min={0}
+                step={10000}
+                precision={0}
+                controls={false}
+                value={editTimelineCostAmount}
+                onChange={(value) => setEditTimelineCostAmount(value ?? 0)}
+                addonAfter={tripCurrencyCode}
+              />
+            </div>
           </div>
         </Modal>
 

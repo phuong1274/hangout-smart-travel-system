@@ -1099,6 +1099,30 @@
   width: 100%;
 }
 
+.editTimelineModalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.editTimelineField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editTimelineLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(26, 83, 92, 0.85);
+  letter-spacing: 0.2px;
+}
+
+.editTimelineInput {
+  width: 100%;
+}
+
 @media (min-width: 768px) {
   .visitTop, .mealTop {
     flex-direction: row;
