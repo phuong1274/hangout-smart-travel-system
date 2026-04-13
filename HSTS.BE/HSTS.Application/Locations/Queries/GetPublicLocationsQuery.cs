@@ -10,6 +10,8 @@ namespace HSTS.Application.Locations.Queries;
 
 public record GetPublicLocationsQuery(
     int? DestinationId = null,
+    int? DistrictId = null,
+    int? LocationTypeId = null,
     string? Keyword = null,
     decimal? MinRating = null,
     int PageIndex = 1,
@@ -52,6 +54,16 @@ public class GetPublicLocationsQueryHandler : IRequestHandler<GetPublicLocations
         if (request.DestinationId.HasValue)
         {
             query = query.Where(x => x.District!.ProvinceId == request.DestinationId.Value);
+        }
+
+        if (request.DistrictId.HasValue)
+        {
+            query = query.Where(x => x.DistrictId == request.DistrictId.Value);
+        }
+
+        if (request.LocationTypeId.HasValue)
+        {
+            query = query.Where(x => x.LocationTypeId == request.LocationTypeId.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))

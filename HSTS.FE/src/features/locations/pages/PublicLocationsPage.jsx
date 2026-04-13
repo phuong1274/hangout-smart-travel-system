@@ -11,7 +11,9 @@ const PublicLocationsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initialFilters = useMemo(() => ({
-    destinationId: searchParams.get('destinationId') || '',
+    destinationId: searchParams.get('destinationId') ? Number(searchParams.get('destinationId')) : undefined,
+    districtId: searchParams.get('districtId') ? Number(searchParams.get('districtId')) : undefined,
+    locationTypeId: searchParams.get('locationTypeId') ? Number(searchParams.get('locationTypeId')) : undefined,
     keyword: searchParams.get('keyword') || '',
     minRating: Number(searchParams.get('minRating') || 0),
   }), [searchParams]);
@@ -21,6 +23,9 @@ const PublicLocationsPage = () => {
     loading,
     pagination,
     filters,
+    destinations,
+    districts,
+    locationTypes,
     handleTableChange,
     handleFilterChange,
   } = usePublicLocations(initialFilters);
@@ -29,7 +34,9 @@ const PublicLocationsPage = () => {
     handleFilterChange(nextFilters);
 
     const params = new URLSearchParams();
-    if (nextFilters.destinationId) params.set('destinationId', nextFilters.destinationId);
+    if (nextFilters.destinationId) params.set('destinationId', String(nextFilters.destinationId));
+    if (nextFilters.districtId) params.set('districtId', String(nextFilters.districtId));
+    if (nextFilters.locationTypeId) params.set('locationTypeId', String(nextFilters.locationTypeId));
     if (nextFilters.keyword) params.set('keyword', nextFilters.keyword);
     if (nextFilters.minRating) params.set('minRating', String(nextFilters.minRating));
     setSearchParams(params);
@@ -45,6 +52,9 @@ const PublicLocationsPage = () => {
         <Card>
           <PublicLocationFilterBar
             initialValues={filters}
+            destinations={destinations}
+            districts={districts}
+            locationTypes={locationTypes}
             onApply={applyFilters}
             loading={loading}
           />

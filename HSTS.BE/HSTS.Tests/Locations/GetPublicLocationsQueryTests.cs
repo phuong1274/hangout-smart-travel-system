@@ -27,6 +27,7 @@ public class GetPublicLocationsQueryTests
             TicketPrice = 0,
             DistrictId = baDinh.Id,
             District = baDinh,
+            LocationTypeId = 1,
             Status = LocationStatus.Active,
             IsDeleted = false,
             Score = 4.8m
@@ -44,6 +45,7 @@ public class GetPublicLocationsQueryTests
             TicketPrice = 0,
             DistrictId = baDinh.Id,
             District = baDinh,
+            LocationTypeId = 2,
             Status = LocationStatus.Active,
             IsDeleted = false,
             Score = 4.2m
@@ -60,6 +62,7 @@ public class GetPublicLocationsQueryTests
             TicketPrice = 0,
             DistrictId = haiChau.Id,
             District = haiChau,
+            LocationTypeId = 1,
             Status = LocationStatus.Active,
             IsDeleted = false,
             Score = 4.9m
@@ -74,7 +77,7 @@ public class GetPublicLocationsQueryTests
             .Build();
 
         var handler = new GetPublicLocationsQueryHandler(ctx.Object);
-        var result = await handler.Handle(new GetPublicLocationsQuery(hanoi.Id, "Tem", 4.5m, 1, 10), default);
+        var result = await handler.Handle(new GetPublicLocationsQuery(hanoi.Id, baDinh.Id, 1, "Tem", 4.5m, 1, 10), default);
 
         result.IsError.Should().BeFalse();
         result.Value.TotalCount.Should().Be(1);
