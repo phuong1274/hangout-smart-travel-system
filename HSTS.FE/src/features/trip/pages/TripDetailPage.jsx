@@ -23,6 +23,7 @@ import {
   message,
   Tooltip,
   Popconfirm,
+  Space,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -35,8 +36,9 @@ import {
   PlayCircleOutlined,
   ClockCircleFilled,
   PlusOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
-import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi, batchUpdateActivityStatusApi } from '../api';
+import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi, batchUpdateActivityStatusApi, getBudgetVsActualExportApi } from '../api';
 import { useAuthStore } from '@/store/authStore';
 import {
   getProvincesApi,
@@ -47,6 +49,7 @@ import {
 import LocationDetailModal from '../components/LocationDetailModal';
 import TransportDetailModal from '../components/TransportDetailModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
+import { exportBudgetVsActualPdf } from '../utils/exportBudgetPdf';
 import styles from './ItineraryResultPage.module.css';
 
 const { Title, Text } = Typography;
@@ -120,6 +123,7 @@ const TripDetailPage = () => {
   const [updatingActivityIds, setUpdatingActivityIds] = useState(new Set());
   const [activityExpenses, setActivityExpenses] = useState({}); // { activityId: [expense1, expense2, ...] }
   const [expenseForm] = Form.useForm();
+  const [exporting, setExporting] = useState(false);
 
   // Load province names
   useEffect(() => {
@@ -382,12 +386,27 @@ const TripDetailPage = () => {
       getExpensesByActivityApi(Number(id)),
     ]);
     setTrip(tripData);
-    
+
     const lookup = {};
     (groupedExpenses || []).forEach(item => {
       lookup[item.activityId] = item.expenses || [];
     });
     setActivityExpenses(lookup);
+  }, [id]);
+
+  // Handle PDF export
+  const handleExportPdf = useCallback(async () => {
+    setExporting(true);
+    try {
+      const data = await getBudgetVsActualExportApi(Number(id));
+      await exportBudgetVsActualPdf(data);
+      message.success('PDF exported successfully');
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+      message.error('Failed to export PDF: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setExporting(false);
+    }
   }, [id]);
 
   if (loading) {
@@ -532,13 +551,24 @@ const TripDetailPage = () => {
             className={styles.budgetCard}
             title="Budget Summary"
             extra={
-              <Button
-                type="link"
-                size="small"
-                onClick={() => setShowBudgetDetails((prev) => !prev)}
-              >
-                {showBudgetDetails ? 'Hide details' : 'Show details'}
-              </Button>
+              <Space size="small">
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<ExportOutlined />}
+                  loading={exporting}
+                  onClick={handleExportPdf}
+                >
+                  Export PDF
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => setShowBudgetDetails((prev) => !prev)}
+                >
+                  {showBudgetDetails ? 'Hide details' : 'Show details'}
+                </Button>
+              </Space>
             }
             size="small"
           >

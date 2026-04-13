@@ -106,6 +106,27 @@ namespace HSTS.API.Controllers
         }
 
         /// <summary>
+        /// Get budget vs actual data formatted for PDF export with individual expense logs per activity.
+        /// </summary>
+        [HttpGet("trip/{tripId}/budget-vs-actual/export")]
+        public async Task<IActionResult> GetTripBudgetVsActualExport(int tripId, CancellationToken ct)
+        {
+            var query = new GetTripBudgetVsActualExportQuery(tripId);
+            var result = await _mediator.Send(query, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(result.Value);
+        }
+
+        /// <summary>
         /// Get expenses grouped by activity for a trip. Returns each activity's individual expense logs + total.
         /// </summary>
         [HttpGet("trip/{tripId}/by-activity")]

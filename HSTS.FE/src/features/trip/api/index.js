@@ -158,3 +158,8 @@ export const deleteExpenseApi = (expenseId) => {
 export const batchUpdateActivityStatusApi = (data) => {
   return apiClient.post('/api/trips/activities/batch-status', data).then(res => res.data);
 };
+
+// Get budget vs actual data for PDF export
+export const getBudgetVsActualExportApi = (tripId) => {
+  return apiClient.get(`/api/Expenses/trip/${tripId}/budget-vs-actual/export`).then(res => res.data);
+};
