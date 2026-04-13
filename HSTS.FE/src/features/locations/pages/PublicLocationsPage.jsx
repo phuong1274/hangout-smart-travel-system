@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { Card, Pagination, Space, Typography } from 'antd';
+import { Card, Pagination, Space, Tag, Typography } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import PublicLocationFilterBar from '../components/PublicLocationFilterBar';
 import PublicLocationGrid from '../components/PublicLocationGrid';
 import { usePublicLocations } from '../hooks/usePublicLocations';
+import styles from '../styles/LocationsPage.module.css';
 
-const { Title } = Typography;
+const { Paragraph, Text, Title } = Typography;
 
 const PublicLocationsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -31,6 +32,7 @@ const PublicLocationsPage = () => {
     districts,
     locationTypes,
     tags,
+    activeFilterCount,
     handleTableChange,
     handleFilterChange,
   } = usePublicLocations(initialFilters);
@@ -53,37 +55,70 @@ const PublicLocationsPage = () => {
     setSearchParams(params);
   };
 
+  const activeFilterChips = [
+    filters.destinationId ? destinations.find((item) => Number(item?.id ?? item?.Id) === Number(filters.destinationId))?.name || destinations.find((item) => Number(item?.id ?? item?.Id) === Number(filters.destinationId))?.Name : null,
+    filters.districtId ? districts.find((item) => Number(item?.id ?? item?.Id) === Number(filters.districtId))?.name || districts.find((item) => Number(item?.id ?? item?.Id) === Number(filters.districtId))?.Name : null,
+    filters.locationTypeId ? locationTypes.find((item) => Number(item?.id ?? item?.Id) === Number(filters.locationTypeId))?.name || locationTypes.find((item) => Number(item?.id ?? item?.Id) === Number(filters.locationTypeId))?.Name : null,
+    ...(Array.isArray(filters.tagIds)
+      ? filters.tagIds.map((tagId) => tags.find((item) => Number(item?.id ?? item?.Id) === Number(tagId))?.name || tags.find((item) => Number(item?.id ?? item?.Id) === Number(tagId))?.Name).filter(Boolean)
+      : []),
+    filters.minRating ? `${filters.minRating}+ rating` : null,
+    filters.minBudget != null || filters.maxBudget != null ? `$${filters.minBudget ?? 0} - $${filters.maxBudget ?? 'Any'}` : null,
+    filters.maxDurationMinutes ? `Up to ${filters.maxDurationMinutes} min` : null,
+  ].filter(Boolean);
+
   return (
-    <div style={{ padding: '24px 32px' }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <div>
-          <Title level={2} style={{ marginBottom: 0 }}>Explore Locations</Title>
-        </div>
+    <div className={styles.content}>
+      <div className={styles.mainContainer}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <div className={styles.pageHeader}>
+            <div>
+              <Title level={2} className={styles.pageTitle}>Explore Locations</Title>
+              <Paragraph className={styles.pageSubtitle}>
+                Refine destinations, interests, budget, and time to discover places that fit your trip style.
+              </Paragraph>
+            </div>
+          </div>
 
-        <Card>
-          <PublicLocationFilterBar
-            initialValues={filters}
-            destinations={destinations}
-            districts={districts}
-            locationTypes={locationTypes}
-            tags={tags}
-            onApply={applyFilters}
-            loading={loading}
-          />
-        </Card>
+          <Card className={styles.mainCard}>
+            <PublicLocationFilterBar
+              initialValues={filters}
+              destinations={destinations}
+              districts={districts}
+              locationTypes={locationTypes}
+              tags={tags}
+              onApply={applyFilters}
+              loading={loading}
+            />
+          </Card>
 
-        <PublicLocationGrid data={data} loading={loading} />
+          <div className={styles.resultsSummary}>
+            <div>
+              <Text className={styles.resultCount}>{pagination.total} locations found</Text>
+              <Text className={styles.resultHint}>{activeFilterCount > 0 ? `Using ${activeFilterCount} active filters` : 'Showing all available matches'}</Text>
+            </div>
+            {activeFilterChips.length > 0 ? (
+              <div className={styles.chipsRow}>
+                {activeFilterChips.map((chip) => (
+                  <Tag key={chip} className={styles.filterChip}>{chip}</Tag>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Pagination
-            current={pagination.current}
-            pageSize={pagination.pageSize}
-            total={pagination.total}
-            onChange={(current, pageSize) => handleTableChange({ current, pageSize })}
-            showSizeChanger
-          />
-        </div>
-      </Space>
+          <PublicLocationGrid data={data} loading={loading} />
+
+          <div className={styles.paginationWrap}>
+            <Pagination
+              current={pagination.current}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              onChange={(current, pageSize) => handleTableChange({ current, pageSize })}
+              showSizeChanger
+            />
+          </div>
+        </Space>
+      </div>
     </div>
   );
 };

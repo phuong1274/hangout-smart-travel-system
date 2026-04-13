@@ -95,6 +95,18 @@ export const usePublicLocations = (initialFilters = {}) => {
     handleTableChange({ current: 1, pageSize });
   }, [handleTableChange, pageSize]);
 
+  const activeFilterCount = [
+    filters.destinationId,
+    filters.districtId,
+    filters.locationTypeId,
+    filters.keyword,
+    filters.tagIds?.length ? filters.tagIds : undefined,
+    filters.minRating,
+    filters.minBudget,
+    filters.maxBudget,
+    filters.maxDurationMinutes,
+  ].filter((value) => value !== undefined && value !== null && value !== '' && value !== 0).length;
+
   return {
     data,
     loading,
@@ -104,6 +116,7 @@ export const usePublicLocations = (initialFilters = {}) => {
     districts,
     locationTypes,
     tags,
+    activeFilterCount,
     handleTableChange,
     handleFilterChange,
     fetchLocations,

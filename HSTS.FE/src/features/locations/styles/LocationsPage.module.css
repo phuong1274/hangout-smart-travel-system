@@ -110,11 +110,63 @@
   background-color: #ffed99 !important;
 }
 
+.pageSubtitle {
+  margin: 10px 0 0 !important;
+  color: rgba(26, 83, 92, 0.82) !important;
+  max-width: 760px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.resultsSummary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.resultCount {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1A535C;
+}
+
+.resultHint {
+  display: block;
+  margin-top: 4px;
+  color: rgba(26, 83, 92, 0.72);
+}
+
+.chipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.filterChip {
+  border-radius: 999px !important;
+  padding: 6px 12px !important;
+  background: rgba(78, 205, 196, 0.12) !important;
+  border: 1px solid rgba(78, 205, 196, 0.2) !important;
+  color: #1A535C !important;
+  font-weight: 500;
+}
+
+.paginationWrap {
+  display: flex;
+  justify-content: flex-end;
+}
+
 @media (max-width: 768px) {
   .content { padding: 40px 16px; }
   .pageHeader { flex-direction: column; align-items: flex-start; gap: 16px; }
   .mainCard { padding: 16px; }
-  
+  .resultsSummary { flex-direction: column; }
+  .chipsRow { justify-content: flex-start; }
+
   .filterRow {
     flex-direction: column;
     align-items: stretch;
