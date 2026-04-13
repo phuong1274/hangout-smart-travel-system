@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { Layout, Menu, Avatar, Dropdown } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  DashboardOutlined, 
-  ScheduleOutlined, 
-  EnvironmentOutlined, 
-  CompassOutlined, 
-  TagsOutlined, 
-  AppstoreOutlined, 
-  GoldOutlined, 
-  ShopOutlined, 
-  UserOutlined, 
+import {
+  DashboardOutlined,
+  ScheduleOutlined,
+  EnvironmentOutlined,
+  CompassOutlined,
+  TagsOutlined,
+  AppstoreOutlined,
+  GoldOutlined,
+  ShopOutlined,
+  UserOutlined,
   LogoutOutlined,
-  RocketOutlined 
+  RocketOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/features/auth/hooks/useAuth';
@@ -49,6 +50,12 @@ const Sidebar = () => {
       icon: <RocketOutlined />,
       label: 'Plan Trip',
       onClick: () => navigate(PATHS.CREATE_TRIP)
+    },
+    {
+      key: PATHS.TRIPS_LIST,
+      icon: <CalendarOutlined />,
+      label: 'My Trips',
+      onClick: () => navigate(PATHS.TRIPS_LIST)
     },
     {
       key: PATHS.DESTINATIONS,
