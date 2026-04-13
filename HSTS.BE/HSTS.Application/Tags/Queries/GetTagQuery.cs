@@ -1,6 +1,7 @@
 using HSTS.Application.Interfaces;
 using HSTS.Application.Tags;
 using HSTS.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Application.Tags.Queries
@@ -16,7 +17,10 @@ namespace HSTS.Application.Tags.Queries
 
         public async Task<ErrorOr<TagDto>> Handle(GetTagQuery request, CancellationToken ct)
         {
-            var tag = await _repository.GetAsync(request.Id, ct);
+            var tag = await _repository.Query()
+                .Include(t => t.ParentTag)
+                .Where(t => t.Id == request.Id)
+                .FirstOrDefaultAsync(ct);
 
             if (tag is null || tag.IsDeleted)
             {

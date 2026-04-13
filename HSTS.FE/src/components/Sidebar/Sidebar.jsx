@@ -3,6 +3,7 @@ import { Layout, Menu, Avatar, Dropdown } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
+  ScheduleOutlined,
   EnvironmentOutlined,
   CompassOutlined,
   TagsOutlined,
@@ -15,6 +16,7 @@ import {
   SafetyCertificateOutlined,
   AuditOutlined,
   UnorderedListOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/features/auth/hooks/useAuth';
@@ -48,7 +50,7 @@ const Sidebar = () => {
     },
     {
       key: PATHS.TRIPS_LIST,
-      icon: <UnorderedListOutlined />,
+      icon: <CalendarOutlined />,
       label: 'My Trips',
       onClick: () => navigate(PATHS.TRIPS_LIST)
     },

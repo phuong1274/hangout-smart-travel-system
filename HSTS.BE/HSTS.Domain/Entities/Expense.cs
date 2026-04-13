@@ -22,11 +22,7 @@ namespace HSTS.Domain.Entities
         [Column(TypeName = "decimal(18,2)")]
         public decimal TotalAmount { get; set; }
 
-        [Required]
-        public int CreatedById { get; set; }
-
         // Navigation properties
         public TripActivity TripActivity { get; set; } = null!;
-        public TripMember CreatedByMember { get; set; } = null!;
     }
 }

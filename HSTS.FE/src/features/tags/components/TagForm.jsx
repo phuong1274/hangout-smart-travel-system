@@ -106,16 +106,6 @@ const TagForm = ({ open, tag, onClose, onSuccess }) => {
             }))}
           />
         </Form.Item>
-
-        {!isEdit && (
-          <Form.Item
-            name="level"
-            label={<span className={styles.formLabel}>Level</span>}
-            tooltip="Automatically calculated based on parent tag"
-          >
-            <Input disabled value={form.getFieldValue('parentTagId') ? 'Level 2 (Child)' : 'Level 1 (Root)'} className={styles.inputDisabled} />
-          </Form.Item>
-        )}
       </Form>
     </Modal>
   );

@@ -5,13 +5,13 @@ namespace HSTS.Application.Tags
 {
     public static class TagMappingExtensions
     {
-        public static TagDto ToDto(this Tag tag)
+        public static TagDto ToDto(this Tag tag, string? overrideParentName = null)
         {
             return new TagDto(
                 tag.Id,
                 tag.Name,
                 tag.ParentTagId,
-                tag.ParentTag?.Name,
+                overrideParentName ?? tag.ParentTag?.Name,
                 tag.Level,
                 tag.CreatedAt,
                 tag.UpdatedAt

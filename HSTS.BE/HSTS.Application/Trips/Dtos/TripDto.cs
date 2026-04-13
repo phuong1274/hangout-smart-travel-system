@@ -70,7 +70,8 @@ namespace HSTS.Application.Trips.Dtos
     public record TripMemberDto(
         int Id,
         int TripId,
-        int UserId,
+        int? UserId,
+        string Name,
         string Role,
         DateTime CreatedAt
     );
