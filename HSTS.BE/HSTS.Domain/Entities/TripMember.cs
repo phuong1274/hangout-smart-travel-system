@@ -21,6 +21,9 @@ namespace HSTS.Domain.Entities
         [Column("UserId")]
         public int? UserId { get; set; }
 
+        [Column("Name")]
+        public string? Name { get; set; }
+
         [Required]
         [Column("Role")]
         public TripRole Role { get; set; }

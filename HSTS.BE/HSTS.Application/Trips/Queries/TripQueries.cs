@@ -92,6 +92,7 @@ namespace HSTS.Application.Trips.Queries
                     tm.Id,
                     tm.TripId,
                     tm.UserId,
+                    tm.Name ?? tm.User?.FullName ?? string.Empty,
                     tm.Role.ToString(),
                     tm.CreatedAt
                 ))

@@ -67,7 +67,7 @@ namespace HSTS.Application.Trips.Commands
             return new TripMemberDetailDto(
                 tripMember.Id,
                 tripMember.TripId,
-                tripMember.UserId,
+                tripMember.UserId.Value,
                 user.FullName,
                 user.AvatarUrl,
                 TripRole.Member.ToString(),

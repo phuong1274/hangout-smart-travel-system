@@ -10,9 +10,8 @@ namespace HSTS.Application.Expenses
                 member.Id,
                 member.TripId,
                 member.UserId,
-                member.Name,
+                member.Name ?? member.User?.FullName ?? string.Empty,
                 member.Role.ToString(),
-                member.Role,
                 member.CreatedAt
             );
         }
@@ -26,7 +25,7 @@ namespace HSTS.Application.Expenses
                 expense.Description,
                 expense.TotalAmount,
                 expense.CreatedById,
-                expense.CreatedByMember.User.FullName,
+                expense.CreatedByMember?.User?.FullName ?? string.Empty,
                 expense.CreatedAt
             );
         }
