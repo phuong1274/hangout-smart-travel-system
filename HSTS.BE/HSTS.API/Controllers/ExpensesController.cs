@@ -127,8 +127,22 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateExpense([FromBody] CreateExpenseCommand command, CancellationToken ct)
+        public async Task<IActionResult> CreateExpense([FromBody] CreateExpenseRequest request, CancellationToken ct)
         {
+            var currentUserId = _currentUserService.UserId;
+
+            if (currentUserId == 0)
+            {
+                return Unauthorized("User not authenticated.");
+            }
+
+            var command = new CreateExpenseCommand(
+                request.TripActivityId,
+                request.Title,
+                request.Description,
+                request.TotalAmount,
+                currentUserId.ToString()
+            );
             var result = await _mediator.Send(command, ct);
 
             if (result.IsError)
@@ -146,13 +160,22 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateExpense(int id, [FromBody] UpdateExpenseCommand command, CancellationToken ct)
+        public async Task<IActionResult> UpdateExpense(int id, [FromBody] UpdateExpenseRequest request, CancellationToken ct)
         {
-            if (id != command.ExpenseId)
+            var currentUserId = _currentUserService.UserId;
+
+            if (currentUserId == 0)
             {
-                return BadRequest("ID mismatch.");
+                return Unauthorized("User not authenticated.");
             }
 
+            var command = new UpdateExpenseCommand(
+                id,
+                request.Title,
+                request.Description,
+                request.TotalAmount,
+                currentUserId.ToString()
+            );
             var result = await _mediator.Send(command, ct);
 
             if (result.IsError)
@@ -195,4 +218,17 @@ namespace HSTS.API.Controllers
             return NoContent();
         }
     }
+
+    public record CreateExpenseRequest(
+        int TripActivityId,
+        string Title,
+        string? Description,
+        decimal TotalAmount
+    );
+
+    public record UpdateExpenseRequest(
+        string Title,
+        string? Description,
+        decimal TotalAmount
+    );
 }

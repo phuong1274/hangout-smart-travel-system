@@ -153,3 +153,8 @@ export const getExpensesByActivityApi = (tripId) => {
 export const deleteExpenseApi = (expenseId) => {
   return apiClient.delete(`/api/Expenses/${expenseId}`).then(res => res.data);
 };
+
+// Batch update activity statuses (complete previous + start current atomically)
+export const batchUpdateActivityStatusApi = (data) => {
+  return apiClient.post('/api/trips/activities/batch-status', data).then(res => res.data);
+};

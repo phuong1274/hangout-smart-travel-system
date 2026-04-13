@@ -36,7 +36,7 @@ import {
   ClockCircleFilled,
   PlusOutlined,
 } from '@ant-design/icons';
-import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi } from '../api';
+import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi, batchUpdateActivityStatusApi } from '../api';
 import { useAuthStore } from '@/store/authStore';
 import {
   getProvincesApi,
@@ -65,6 +65,18 @@ const ACTIVITY_STATUS_CONFIG = {
   0: { label: 'Upcoming', color: 'default', icon: <ClockCircleFilled />, nextStatus: 1, nextLabel: 'Start' },
   1: { label: 'In Progress', color: 'processing', icon: <PlayCircleOutlined />, nextStatus: 2, nextLabel: 'Complete' },
   2: { label: 'Completed', color: 'success', icon: <CheckCircleOutlined />, nextStatus: null, nextLabel: null },
+};
+
+const TRIP_STATUS_CONFIG = {
+  0: { label: 'Planned', color: 'default' },
+  1: { label: 'In Progress', color: 'processing' },
+  2: { label: 'Completed', color: 'success' },
+  3: { label: 'Cancelled', color: 'error' },
+};
+
+const getTripStatusConfig = (status) => {
+  const key = typeof status === 'number' ? status : Number(status);
+  return TRIP_STATUS_CONFIG[key] || { label: `Unknown (${status})`, color: 'default' };
 };
 
 const formatMoney = (amount, currency = 'VND') => {
@@ -237,12 +249,72 @@ const TripDetailPage = () => {
   const myMember = trip?.tripMembers?.find(m => m.userId === currentUserId);
 
   // Handle activity status update
-  const handleUpdateActivityStatus = useCallback(async (activityId) => {
-    const activity = trip?.tripDays?.flatMap(d => d.activities || []).find(a => a.id === activityId);
+  const handleUpdateActivityStatus = useCallback(async (activityId, skipConfirm = false) => {
+    const allActivities = trip?.tripDays?.flatMap(d => d.activities || []) || [];
+    const activity = allActivities.find(a => a.id === activityId);
     const currentStatus = activity?.status ?? 0;
     const config = ACTIVITY_STATUS_CONFIG[currentStatus];
 
     if (!config.nextStatus) return; // Already completed
+
+    // When starting an activity (0 -> 1), check for previous incomplete activities
+    if (currentStatus === 0 && config.nextStatus === 1 && !skipConfirm) {
+      const activityIndex = allActivities.findIndex(a => a.id === activityId);
+      const previousActivities = allActivities.slice(0, activityIndex);
+      const incompletePrevious = previousActivities.filter(a => (a.status ?? 0) < 2);
+
+      if (incompletePrevious.length > 0) {
+        Modal.confirm({
+          title: 'Complete Previous Activities?',
+          content: (
+            <div>
+              <p>Starting this activity will automatically complete the following {incompletePrevious.length} previous activit{incompletePrevious.length > 1 ? 'ies' : 'y'}:</p>
+              <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
+                {incompletePrevious.map((a, i) => {
+                  const locId = Number(a.locationId);
+                  const name = locationNameById.get(locId) || a.title || `Activity ${i + 1}`;
+                  return <li key={a.id}>{name}</li>;
+                })}
+              </ul>
+              <p style={{ color: '#888', fontSize: 12 }}>Do you want to proceed?</p>
+            </div>
+          ),
+          okText: 'Yes, Complete All',
+          cancelText: 'Cancel',
+          onOk: async () => {
+            // Set all involved activities as updating
+            setUpdatingActivityIds(prev => {
+              const next = new Set(prev);
+              incompletePrevious.forEach(a => next.add(a.id));
+              next.add(activityId);
+              return next;
+            });
+            try {
+              // Single atomic batch call
+              await batchUpdateActivityStatusApi({
+                activityIdsToComplete: incompletePrevious.map(a => a.id),
+                activityIdToStart: activityId,
+              });
+              message.success(`${incompletePrevious.length} previous activit${incompletePrevious.length > 1 ? 'ies' : 'y'} completed, now in progress`);
+              // Reload trip data
+              const data = await getTripDetailApi(Number(id));
+              setTrip(data);
+            } catch (err) {
+              console.error('Failed to batch update activity statuses:', err);
+              message.error('Failed to update activity statuses');
+            } finally {
+              setUpdatingActivityIds(prev => {
+                const next = new Set(prev);
+                incompletePrevious.forEach(a => next.delete(a.id));
+                next.delete(activityId);
+                return next;
+              });
+            }
+          },
+        });
+        return;
+      }
+    }
 
     setUpdatingActivityIds(prev => new Set(prev).add(activityId));
     try {
@@ -261,7 +333,7 @@ const TripDetailPage = () => {
         return next;
       });
     }
-  }, [trip, id]);
+  }, [trip, id, locationNameById]);
 
   // Handle expense submission (create or update)
   const handleExpenseSubmit = useCallback(async (values) => {
@@ -279,7 +351,6 @@ const TripDetailPage = () => {
           title: values.title,
           description: values.description,
           totalAmount: values.totalAmount,
-          createdById: myMember.id,
         });
         message.success('Expense logged successfully');
       }
@@ -450,7 +521,7 @@ const TripDetailPage = () => {
               {currency}
             </span>
             <span className={styles.headerMetaItem}>
-              Status: <strong>{trip.status}</strong>
+              Status: <Tag color={getTripStatusConfig(trip.status).color}>{getTripStatusConfig(trip.status).label}</Tag>
             </span>
           </div>
         </Card>
@@ -673,6 +744,11 @@ const TripDetailPage = () => {
                                                   <span style={{ color: '#888', marginLeft: 4 }}>({exp.description})</span>
                                                 )}
                                                 <span style={{ color: '#aaa', marginLeft: 4 }}>by {exp.createdByName}</span>
+                                                {exp.updatedByName && (
+                                                  <span style={{ color: '#ff9800', marginLeft: 4, fontStyle: 'italic' }}>
+                                                    (edited by {exp.updatedByName})
+                                                  </span>
+                                                )}
                                               </div>
                                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                 <strong>{formatMoney(exp.totalAmount, currency)}</strong>
@@ -789,23 +865,26 @@ const TripDetailPage = () => {
                                         View Details
                                       </Button>
                                     )}
-                                    <Button
-                                      type="link"
-                                      size="small"
-                                      icon={<PlusOutlined />}
-                                      style={{ padding: 0, height: 'auto', fontSize: 12 }}
-                                      onClick={() => {
-                                        expenseForm.resetFields();
-                                        setExpenseModal({
-                                          open: true,
-                                          activityId: activity.id,
-                                          activityTitle: activity.title || locationName || 'Activity',
-                                          editExpense: null,
-                                        });
-                                      }}
-                                    >
-                                      Log Expense
-                                    </Button>
+                                    <Tooltip title={activityStatus === 0 ? 'Start the activity before logging expenses' : ''}>
+                                      <Button
+                                        type="link"
+                                        size="small"
+                                        icon={<PlusOutlined />}
+                                        disabled={activityStatus === 0}
+                                        style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                                        onClick={() => {
+                                          expenseForm.resetFields();
+                                          setExpenseModal({
+                                            open: true,
+                                            activityId: activity.id,
+                                            activityTitle: activity.title || locationName || 'Activity',
+                                            editExpense: null,
+                                          });
+                                        }}
+                                      >
+                                        Log Expense
+                                      </Button>
+                                    </Tooltip>
                                   </div>
                                 </div>
                               </div>

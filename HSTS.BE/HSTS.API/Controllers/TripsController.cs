@@ -177,6 +177,33 @@ namespace HSTS.API.Controllers
             return Ok(result.Value);
         }
 
+        /// <summary>
+        /// Batch update: complete all previous activities and start a new one atomically.
+        /// </summary>
+        [HttpPost("activities/batch-status")]
+        public async Task<IActionResult> BatchUpdateActivityStatus(
+            [FromBody] BatchUpdateActivityStatusRequest request,
+            CancellationToken ct)
+        {
+            var command = new BatchUpdateActivityStatusCommand(
+                request.ActivityIdsToComplete,
+                request.ActivityIdToStart
+            );
+            var result = await _mediator.Send(command, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(result.Value);
+        }
+
         [HttpPost("save")]
         public async Task<IActionResult> SaveTrip([FromBody] SaveTripRequest request, CancellationToken ct)
         {
@@ -198,4 +225,5 @@ namespace HSTS.API.Controllers
     }
 
     public record UpdateTripActivityStatusRequest(TripActivityStatus? Status = null);
+    public record BatchUpdateActivityStatusRequest(List<int> ActivityIdsToComplete, int ActivityIdToStart);
 }

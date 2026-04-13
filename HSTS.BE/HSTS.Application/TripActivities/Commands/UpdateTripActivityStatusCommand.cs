@@ -1,10 +1,9 @@
 using ErrorOr;
 using FluentValidation;
+using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
 using HSTS.Domain.Enums;
-using HSTS.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using static HSTS.Application.Interfaces.IRepository;
 
 namespace HSTS.Application.TripActivities.Commands
 {
@@ -17,35 +16,42 @@ namespace HSTS.Application.TripActivities.Commands
 
     public class UpdateTripActivityStatusCommandHandler : IRequestHandler<UpdateTripActivityStatusCommand, ErrorOr<TripActivityStatusDto>>
     {
-        private readonly IRepository<TripActivity> _activityRepository;
+        private readonly IAppDbContext _context;
 
-        public UpdateTripActivityStatusCommandHandler(IRepository<TripActivity> activityRepository)
+        public UpdateTripActivityStatusCommandHandler(IAppDbContext context)
         {
-            _activityRepository = activityRepository;
+            _context = context;
         }
 
         public async Task<ErrorOr<TripActivityStatusDto>> Handle(UpdateTripActivityStatusCommand request, CancellationToken cancellationToken)
         {
-            var activity = await _activityRepository.GetAsync(request.ActivityId, cancellationToken);
+            var activity = await _context.TripActivities
+                .FirstOrDefaultAsync(a => a.Id == request.ActivityId, cancellationToken);
 
             if (activity == null)
             {
                 return Error.NotFound("TripActivity.NotFound", $"Trip activity with ID {request.ActivityId} not found.");
             }
 
+            var tripDay = await _context.TripDays
+                .FirstOrDefaultAsync(td => td.Id == activity.TripDayId, cancellationToken);
+
+            if (tripDay == null)
+            {
+                return Error.NotFound("TripDay.NotFound", "Associated trip day not found.");
+            }
+
+            var trip = await _context.Trips
+                .FirstOrDefaultAsync(t => t.Id == tripDay.TripId, cancellationToken);
+
+            if (trip == null)
+            {
+                return Error.NotFound("Trip.NotFound", "Trip not found.");
+            }
+
             // If no status provided, auto-determine based on current time vs activity schedule
             if (request.Status == null)
             {
-                var tripDay = await _activityRepository.Query()
-                    .Where(a => a.Id == activity.Id)
-                    .Select(a => a.TripDay)
-                    .FirstOrDefaultAsync(cancellationToken);
-
-                if (tripDay == null)
-                {
-                    return Error.NotFound("TripDay.NotFound", "Associated trip day not found.");
-                }
-
                 var now = TimeOnly.FromDateTime(DateTime.Now);
                 activity.Status = activity.StartTime.HasValue && activity.EndTime.HasValue
                     ? now >= activity.StartTime.Value && now <= activity.EndTime.Value
@@ -60,7 +66,63 @@ namespace HSTS.Application.TripActivities.Commands
                 activity.Status = request.Status.Value;
             }
 
-            await _activityRepository.UpdateAsync(activity, cancellationToken);
+            // Determine the target status for this activity after the update
+            var newActivityStatus = activity.Status;
+
+            using var transaction = await _context.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                // 1. Update trip status when starting any activity
+                if (newActivityStatus == TripActivityStatus.InProgress && trip.Status != TripStatus.InProgress)
+                {
+                    trip.Status = TripStatus.InProgress;
+                    _context.Trips.Update(trip);
+                }
+
+                // 2. When completing an activity, auto-complete remaining and possibly complete the trip
+                if (newActivityStatus == TripActivityStatus.Completed && trip.Status != TripStatus.Completed)
+                {
+                    // Find the "last" activity: highest DayNumber, then highest StartTime
+                    var lastActivity = await _context.TripActivities
+                        .Include(a => a.TripDay)
+                        .Where(a => a.TripDay.TripId == trip.Id)
+                        .OrderByDescending(a => a.TripDay.DayNumber)
+                        .ThenByDescending(a => a.StartTime)
+                        .FirstOrDefaultAsync(cancellationToken);
+
+                    var isLastActivity = lastActivity != null && lastActivity.Id == activity.Id;
+
+                    if (isLastActivity)
+                    {
+                        // Auto-complete any remaining incomplete activities from previous days
+                        var activitiesToAutoComplete = await _context.TripActivities
+                            .Where(a => a.TripDay.TripId == trip.Id
+                                && a.Status != TripActivityStatus.Completed
+                                && a.Id != activity.Id)
+                            .ToListAsync(cancellationToken);
+
+                        foreach (var prevActivity in activitiesToAutoComplete)
+                        {
+                            prevActivity.Status = TripActivityStatus.Completed;
+                            _context.TripActivities.Update(prevActivity);
+                        }
+
+                        // All activities are now completed
+                        trip.Status = TripStatus.Completed;
+                        _context.Trips.Update(trip);
+                    }
+                }
+
+                _context.TripActivities.Update(activity);
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
 
             return new TripActivityStatusDto(
                 activity.Id,
