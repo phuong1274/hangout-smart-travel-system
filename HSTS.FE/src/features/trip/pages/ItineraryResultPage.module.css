@@ -21,13 +21,13 @@
 
 @media (min-width: 1024px) {
   .planColumnWithLocation {
-    width: calc(100% - 700px);
+    width: calc(100% - 490px);
   }
   .planColumnWithAccommodation {
-    width: calc(100% - 600px);
+    width: calc(100% - 490px);
   }
   .planColumnWithTransport {
-    width: calc(100% - 700px);
+    width: calc(100% - 490px);
   }
 }
 @media (min-width: 1024px) {

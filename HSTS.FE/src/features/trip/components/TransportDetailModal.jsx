@@ -349,7 +349,7 @@ const TransportDetailModal = ({ open, data, onClose }) => {
       onClose={onClose}
       placement="right"
       mask={false}
-      width={700}
+      width={490}
       destroyOnClose
     >
       {/* Route */}
