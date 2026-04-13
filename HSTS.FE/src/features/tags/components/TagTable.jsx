@@ -1,6 +1,6 @@
 import React from 'react';
-import { Table, Button, Space, Popconfirm, Tag } from 'antd';
-import { EditOutlined, DeleteOutlined, EyeOutlined, ApartmentOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Popconfirm } from 'antd';
+import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import { PAGINATION } from '@/config/constants';
 import styles from '../styles/TagTable.module.css';
@@ -25,24 +25,13 @@ const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, 
       ),
     },
     {
-      title: 'Level',
-      dataIndex: 'level',
-      key: 'level',
-      width: 120,
-      render: (level) => (
-        <Tag className={level === 1 ? styles.tagLevel1 : styles.tagLevel2}>
-          <ApartmentOutlined /> Level {level}
-        </Tag>
-      ),
-    },
-    {
       title: 'Parent Tag',
       dataIndex: 'parentTagName',
       key: 'parentTagName',
-      width: 150,
+      width: 180,
       render: (parentTagName, record) => (
-        record.level > 1 ? (
-          <span className={styles.parentName}>{parentTagName || 'N/A'}</span>
+        parentTagName ? (
+          <span className={styles.parentName}>{parentTagName}</span>
         ) : (
           <span className={styles.emptyDash}>—</span>
         )

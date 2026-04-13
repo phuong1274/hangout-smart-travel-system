@@ -19,16 +19,10 @@ const DistrictTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       width: '40%',
     },
     {
-      title: 'Code',
-      dataIndex: 'code',
-      key: 'code',
-      width: '20%',
-    },
-    {
       title: 'Province',
       dataIndex: 'provinceName',
       key: 'provinceName',
-      width: '25%',
+      width: '35%',
       render: (provinceName) => provinceName ?? '-',
     },
     {

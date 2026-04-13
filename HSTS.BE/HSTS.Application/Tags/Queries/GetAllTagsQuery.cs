@@ -17,12 +17,12 @@ namespace HSTS.Application.Tags.Queries
         public async Task<ErrorOr<IEnumerable<TagDto>>> Handle(GetAllTagsQuery request, CancellationToken ct)
         {
             var tags = await _repository.Query()
+                .Include(t => t.ParentTag)
                 .Where(t => !t.IsDeleted)
                 .OrderBy(t => t.Name)
-                .Select(t => t.ToDto())
                 .ToListAsync(ct);
 
-            return tags;
+            return tags.Select(t => t.ToDto()).ToList();
         }
     }
 }

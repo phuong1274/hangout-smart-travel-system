@@ -23,18 +23,18 @@ const MapClickHandler = ({ onMapClick }) => {
   return null;
 };
 
-// Component to fly to a new position
-const FlyToPosition = ({ lat, lng }) => {
+// Component to re-center map when position changes
+const MapPositionUpdater = ({ lat, lng }) => {
   const map = useMap();
-  const prevRef = useRef(null);
+  const isFirst = useRef(true);
   useEffect(() => {
-    if (lat && lng) {
-      const key = `${lat},${lng}`;
-      if (prevRef.current !== key) {
-        prevRef.current = key;
-        map.flyTo([lat, lng], 15, { duration: 1 });
-      }
-    }
+    if (isFirst.current) { isFirst.current = false; return; }
+    if (!map) return;
+    if (typeof lat !== 'number' || typeof lng !== 'number') return;
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    try {
+      map.panTo([lat, lng]);
+    } catch { /* ignore bad coord */ }
   }, [lat, lng, map]);
   return null;
 };
@@ -56,8 +56,13 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
   const DEFAULT_LAT = 10.823099;
   const DEFAULT_LNG = 106.629664;
 
-  const [latitude, setLatitude] = useState(initialLat || DEFAULT_LAT);
-  const [longitude, setLongitude] = useState(initialLng || DEFAULT_LNG);
+  const sanitizeCoord = (val, fallback) => {
+    const n = Number(val);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const [latitude, setLatitude] = useState(() => sanitizeCoord(initialLat, DEFAULT_LAT));
+  const [longitude, setLongitude] = useState(() => sanitizeCoord(initialLng, DEFAULT_LNG));
   const [searchValue, setSearchValue] = useState('');
   const [searchOptions, setSearchOptions] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -66,14 +71,16 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
   // Sync initial coordinates when modal opens
   useEffect(() => {
     if (open) {
-      setLatitude(initialLat || DEFAULT_LAT);
-      setLongitude(initialLng || DEFAULT_LNG);
+      setLatitude(sanitizeCoord(initialLat, DEFAULT_LAT));
+      setLongitude(sanitizeCoord(initialLng, DEFAULT_LNG));
       setSearchValue('');
       setSearchOptions([]);
     }
   }, [open, initialLat, initialLng]);
 
-  const markerPosition = useMemo(() => [latitude, longitude], [latitude, longitude]);
+  const safeLat = Number.isFinite(latitude) ? latitude : DEFAULT_LAT;
+  const safeLng = Number.isFinite(longitude) ? longitude : DEFAULT_LNG;
+  const centerPosition = useMemo(() => [safeLat, safeLng], [safeLat, safeLng]);
 
   const handleMapClick = (lat, lng) => {
     setLatitude(lat);
@@ -89,9 +96,15 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setLatitude(position.coords.latitude);
-          setLongitude(position.coords.longitude);
-          message.success('Current location detected!');
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            setLatitude(lat);
+            setLongitude(lng);
+            message.success('Current location detected!');
+          } else {
+            message.error('Invalid location data from browser');
+          }
         },
         () => {
           message.error('Unable to get current location');
@@ -135,8 +148,14 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
   };
 
   const handleSelectPlace = (value, option) => {
-    setLatitude(option.lat);
-    setLongitude(option.lon);
+    const lat = Number(option.lat);
+    const lon = Number(option.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      message.warning('Invalid location data received');
+      return;
+    }
+    setLatitude(lat);
+    setLongitude(lon);
     setSearchValue(option.label);
     message.success('Location found!');
   };
@@ -188,17 +207,17 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
       }}>
         {open && (
           <MapContainer
-            center={markerPosition}
+            center={centerPosition}
             zoom={12}
             style={{ width: '100%', height: '450px' }}
-            key={`${initialLat}-${initialLng}`}
+            key={`map-${safeLat.toFixed(6)}-${safeLng.toFixed(6)}`}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <Marker
-              position={markerPosition}
+              position={centerPosition}
               draggable
               eventHandlers={{
                 dragend: (e) => {
@@ -209,7 +228,7 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng }) =
               }}
             />
             <MapClickHandler onMapClick={handleMapClick} />
-            <FlyToPosition lat={latitude} lng={longitude} />
+            <MapPositionUpdater lat={safeLat} lng={safeLng} />
             <InvalidateSizeOnMount />
           </MapContainer>
         )}
