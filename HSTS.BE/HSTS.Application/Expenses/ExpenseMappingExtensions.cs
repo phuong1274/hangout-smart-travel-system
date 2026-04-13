@@ -10,7 +10,7 @@ namespace HSTS.Application.Expenses
                 member.Id,
                 member.TripId,
                 member.UserId,
-                member.Name,
+                member.User?.FullName ?? "",
                 member.Role.ToString(),
                 member.CreatedAt
             );

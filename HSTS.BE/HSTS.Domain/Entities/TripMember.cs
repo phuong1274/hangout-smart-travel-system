@@ -20,7 +20,6 @@ namespace HSTS.Domain.Entities
 
         [Column("UserId")]
         public int? UserId { get; set; }
-
         [Required]
         [Column("Role")]
         public TripRole Role { get; set; }

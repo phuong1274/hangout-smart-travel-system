@@ -412,9 +412,6 @@ namespace HSTS.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("longtext");
 
-                    b.Property<int>("CreatedById")
-                        .HasColumnType("int");
-
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)");
@@ -446,8 +443,6 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
 
                     b.HasIndex("TripActivityId");
 
@@ -2235,16 +2230,15 @@ namespace HSTS.Infrastructure.Migrations
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("longtext");
 
-                    b.Property<int>("UserId")
+                    b.Property<int?>("UserId")
                         .HasColumnType("int")
                         .HasColumnName("UserId");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("TripId");
 
-                    b.HasIndex("TripId", "UserId")
-                        .IsUnique();
+                    b.HasIndex("UserId");
 
                     b.ToTable("TripMembers", (string)null);
                 });
@@ -2654,19 +2648,11 @@ namespace HSTS.Infrastructure.Migrations
 
             modelBuilder.Entity("HSTS.Domain.Entities.Expense", b =>
                 {
-                    b.HasOne("HSTS.Domain.Entities.TripMember", "CreatedByMember")
-                        .WithMany()
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("HSTS.Domain.Entities.TripActivity", "TripActivity")
                         .WithMany()
                         .HasForeignKey("TripActivityId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("CreatedByMember");
 
                     b.Navigation("TripActivity");
                 });
@@ -3038,8 +3024,7 @@ namespace HSTS.Infrastructure.Migrations
                     b.HasOne("HSTS.Domain.Entities.User", "User")
                         .WithMany("TripMembers")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Trip");
 
