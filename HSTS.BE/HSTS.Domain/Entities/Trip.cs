@@ -31,11 +31,6 @@ namespace HSTS.Domain.Entities
 
         public TripStatus Status { get; set; } = TripStatus.Planned;
 
-        [MaxLength(10)]
-        public string? JoinCode { get; set; }
-
-        public bool IsJoinCodeActive { get; set; } = true;
-
         [NotMapped]
         public string? StartingLocation { get; set; }
 

@@ -276,6 +276,34 @@ namespace HSTS.Application.Itineraries.Queries
 
             var favoriteTagIds = request.UserFavoriteTagIds.ToHashSet();
 
+            // Expand parent tags to include all descendant (child/grandchild) tag IDs
+            if (favoriteTagIds.Count > 0)
+            {
+                var allTags = await _context.Tags
+                    .AsNoTracking()
+                    .Select(t => new { t.Id, t.ParentTagId })
+                    .ToListAsync(cancellationToken);
+
+                var childrenByParent = allTags
+                    .Where(t => t.ParentTagId.HasValue)
+                    .GroupBy(t => t.ParentTagId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Select(t => t.Id).ToList());
+
+                var queue = new Queue<int>(favoriteTagIds);
+                while (queue.Count > 0)
+                {
+                    var parentId = queue.Dequeue();
+                    if (childrenByParent.TryGetValue(parentId, out var children))
+                    {
+                        foreach (var childId in children)
+                        {
+                            if (favoriteTagIds.Add(childId))
+                                queue.Enqueue(childId);
+                        }
+                    }
+                }
+            }
+
             // Separate accommodations and restaurants BEFORE tag filtering so they aren't excluded by tag preferences
             var accommodations = hasHotelPreference
                 ? locations.Where(IsAccommodationType).ToList()
@@ -683,15 +711,27 @@ namespace HSTS.Application.Itineraries.Queries
                     var currentTime = calculatedStartTime;
                     // On the last day, tighten dayEndTime to before checkout so the greedy loop
                     // fills time with activities before lunch/checkout instead of extending to 22:00
-                    var dayEndTime = (globalDayIndex == totalDays - 1)
-                        ? date.ToDateTime(new TimeOnly(11, 30)) // Stop before lunch window on last day
-                        : date.ToDateTime(new TimeOnly(22, 00));
+                    DateTime dayEndTime;
+                    if (globalDayIndex == totalDays - 1)
+                    {
+                        if (totalDays == 1)
+                            dayEndTime = date.ToDateTime(new TimeOnly(20, 30)); // Single-day trip: full day
+                        else if (destAccommodation is null)
+                            dayEndTime = date.ToDateTime(new TimeOnly(17, 0));  // Multi-day last day, no hotel: explore until late afternoon then return
+                        else
+                            dayEndTime = date.ToDateTime(new TimeOnly(11, 30)); // Multi-day last day with hotel: stop before lunch/checkout
+                    }
+                    else
+                    {
+                        dayEndTime = date.ToDateTime(new TimeOnly(22, 00));
+                    }
                     GeoPoint currentPoint;
                     string? currentLocationName = null;
                     int currentLocationId = 0;
                     bool breakfastInserted = false;
                     bool lunchInserted = false;
                     bool dinnerInserted = false;
+                    bool checkInDeferred = false; // When true, hotel check-in is deferred to before lunch
 
 
                     // === Day 1: Outbound transfer -> Hub -> Hotel (if pref) -> Attractions ===
@@ -704,7 +744,7 @@ namespace HSTS.Application.Itineraries.Queries
 
                         if (isSameProvince)
                         {
-                            // User is in the same province - go directly to hotel or first attraction
+                            // User is in the same province - go directly to hotel or first activity
                             GeoPoint targetPoint;
                             int targetId;
                             string targetName = null!;
@@ -717,12 +757,200 @@ namespace HSTS.Application.Itineraries.Queries
                             }
                             else
                             {
+                                // No hotel: estimate arrival time to determine if we should go to breakfast first
+                                var estTransport = await BuildLocalTransportAsync(
+                                    userGeo, firstDestGeo, groupSize, transportModes, toMoney, cancellationToken);
+                                var estArrivalTime = AddMinutes(currentTime, estTransport.SelectedTravelTimeMinutes);
+                                var estArrivalTimeOnly = TimeOnly.FromDateTime(AddMinutes(estArrivalTime, BufferAfterLocalTransfer));
+
+                                if (!breakfastInserted && estArrivalTimeOnly >= BreakfastStart && estArrivalTimeOnly < BreakfastEnd)
+                                {
+                                    // Arrival in breakfast window: pick restaurant near destination, go directly there
+                                    var bfRestaurant = PickRestaurantNearby(destMealLocations, firstDestGeo, visitedLocationIds, visitedRestaurantIds, breakfastBudgetPerPerson, groupSize, request.TripSegment, out var bfAlternatives, toMoney, recentlyVisitedLocationIds);
+                                    var bfLoc = bfRestaurant?.Location;
+                                    if (bfLoc is not null)
+                                    {
+                                        targetPoint = GeoPoint.FromLocation(bfLoc);
+                                        targetId = bfLoc.Id;
+                                        targetName = bfLoc.Name;
+                                    }
+                                    else
+                                    {
+                                        targetPoint = firstDestGeo;
+                                        targetId = 0;
+                                        targetName = currentProvince.EnglishName!;
+                                    }
+
+                                    // Build travel from user to restaurant/destination
+                                    var directTransportBf = await BuildLocalTransportAsync(
+                                        userGeo, targetPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                    var directArrivalBf = AddMinutes(currentTime, directTransportBf.SelectedTravelTimeMinutes);
+
+                                    var directLegBf = new LocationToLocationTravelLegDto(
+                                        0, "Your Location", targetId, targetName,
+                                        TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(directArrivalBf),
+                                        directTransportBf.DistanceKm, null,
+                                        0, toMoney(0),
+                                        directTransportBf.TransportOptions);
+                                    timeline.Add(new ItineraryTimelineItemDto("travel",
+                                        "Local transfer",
+                                        TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(directArrivalBf),
+                                        0, new List<string>(),
+                                        null, null, null, "", 0,
+                                        LocationToLocationTravel: directLegBf));
+                                    dayTransportCost += directTransportBf.SelectedTotalCost;
+                                    currentTime = AddMinutes(directArrivalBf, BufferAfterLocalTransfer);
+                                    currentPoint = targetPoint;
+                                    currentLocationName = targetName;
+                                    currentLocationId = targetId;
+
+                                    // Inject breakfast immediately
+                                    if (bfLoc is not null)
+                                    {
+                                        var bfExtraCost = GetPerPersonPrice(bfLoc);
+                                        var bfGroupCost = bfExtraCost * groupSize;
+                                        var bfBudgetDeduction = bfGroupCost;
+                                        if (bfGroupCost > remainingMealBudget || (remainingDayBudget > 0 && bfGroupCost > remainingDayBudget))
+                                            bfBudgetDeduction = 0m;
+
+                                        var bfTagNames = GetTags(bfLoc);
+                                        var bfActualEnd = AddMinutes(currentTime, 45);
+                                        timeline.Add(new ItineraryTimelineItemDto("meal",
+                                            $"Breakfast at {bfLoc.Name}",
+                                            TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(bfActualEnd),
+                                            bfLoc.Id, bfTagNames,
+                                            toMoney(0), toMoney(bfExtraCost), toMoney(bfGroupCost), "Breakfast",
+                                            Math.Round((double)(bfLoc.Score ?? 0), 2),
+                                            Alternatives: bfAlternatives.Count > 0 ? bfAlternatives : null));
+                                        totalMealCost += bfBudgetDeduction > 0 ? bfGroupCost : 0m;
+                                        dayMealCost += bfBudgetDeduction > 0 ? bfGroupCost : 0m;
+                                        remainingDayBudget -= bfBudgetDeduction;
+                                        remainingMealBudget -= bfBudgetDeduction;
+                                        currentTime = AddMinutes(bfActualEnd, BufferAfterMeal);
+                                        breakfastInserted = true;
+                                        visitedRestaurantIds.Add(bfLoc.Id);
+                                    }
+
+                                    goto sameProvinceTransferDone;
+                                }
+                                else
+                                {
+                                    // Not breakfast time: go directly to first attraction, visit it, then continue
+                                    var firstAttr = destAttractions.FirstOrDefault()?.Location;
+                                    if (firstAttr is not null)
+                                    {
+                                        targetPoint = GeoPoint.FromLocation(firstAttr);
+                                        targetId = firstAttr.Id;
+                                        targetName = firstAttr.Name;
+                                    }
+                                    else
+                                    {
+                                        targetPoint = firstDestGeo;
+                                        targetId = 0;
+                                        targetName = currentProvince.EnglishName!;
+                                    }
+
+                                    var directTransportAttr = await BuildLocalTransportAsync(
+                                        userGeo, targetPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                    var directArrivalAttr = AddMinutes(currentTime, directTransportAttr.SelectedTravelTimeMinutes);
+
+                                    var directLegAttr = new LocationToLocationTravelLegDto(
+                                        0, "Your Location", targetId, targetName,
+                                        TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(directArrivalAttr),
+                                        directTransportAttr.DistanceKm, null,
+                                        0, toMoney(0),
+                                        directTransportAttr.TransportOptions);
+                                    timeline.Add(new ItineraryTimelineItemDto("travel",
+                                        "Local transfer",
+                                        TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(directArrivalAttr),
+                                        0, new List<string>(),
+                                        null, null, null, "", 0,
+                                        LocationToLocationTravel: directLegAttr));
+                                    dayTransportCost += directTransportAttr.SelectedTotalCost;
+                                    currentTime = AddMinutes(directArrivalAttr, BufferAfterLocalTransfer);
+                                    currentPoint = targetPoint;
+                                    currentLocationName = targetName;
+                                    currentLocationId = targetId;
+
+                                    // Force visit/shopping at arrival location
+                                    if (firstAttr is not null)
+                                    {
+                                        var stayMin = firstAttr.RecommendedDurationMinutes ?? DefaultStayMinutes;
+                                        var visitEnd = AddMinutes(currentTime, stayMin);
+                                        var ticket = firstAttr.TicketPrice;
+                                        var extra = EstimateExtraSpending(firstAttr, request.TripSegment, groupSize);
+                                        var evtType = (firstAttr.LocationTypeId == 5 ||
+                                            (firstAttr.LocationType != null && firstAttr.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
+                                            ? "shopping" : "visit";
+                                        var scored = dayAttractions.FirstOrDefault(x => x.Location.Id == firstAttr.Id);
+                                        timeline.Add(new ItineraryTimelineItemDto(evtType,
+                                            evtType == "shopping" ? $"Shopping at {firstAttr.Name}" : $"Visit {firstAttr.Name}",
+                                            TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(visitEnd),
+                                            firstAttr.Id, GetTags(firstAttr),
+                                            toMoney(ticket), toMoney(extra / groupSize),
+                                            toMoney((ticket * groupSize) + extra),
+                                            $"Score: {scored?.CompositeScore:F1}",
+                                            Math.Round((double)(firstAttr.Score ?? 0), 2),
+                                            firstAttr.Address, firstAttr.Telephone, GetMediaUrls(firstAttr)));
+                                        dayActivityCost += (ticket * groupSize) + extra;
+                                        remainingDayBudget -= (ticket * groupSize) + extra;
+                                        visitedLocationIds.Add(firstAttr.Id);
+                                        currentTime = AddMinutes(visitEnd, BufferAfterActivity);
+                                    }
+
+                                    goto sameProvinceTransferDone;
+                                }
+                            }
+
+                            var directTransport = await BuildLocalTransportAsync(
+                                userGeo, targetPoint, groupSize, transportModes, toMoney, cancellationToken);
+                            var directArrival = AddMinutes(currentTime, directTransport.SelectedTravelTimeMinutes);
+
+                            var directLeg = new LocationToLocationTravelLegDto(
+                                0, "Your Location", targetId, targetName,
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(directArrival),
+                                directTransport.DistanceKm, null,
+                                0, toMoney(0),
+                                directTransport.TransportOptions);
+                            timeline.Add(new ItineraryTimelineItemDto("travel",
+                                "Local transfer",
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(directArrival),
+                                0, new List<string>(),
+                                null, null, null, "", 0,
+                                LocationToLocationTravel: directLeg));
+                            dayTransportCost += directTransport.SelectedTotalCost;
+                            currentTime = AddMinutes(directArrival, BufferAfterLocalTransfer);
+                            currentPoint = targetPoint;
+                            currentLocationName = targetName;
+                            currentLocationId = targetId;
+
+                            sameProvinceTransferDone:;
+                        }
+                        else if (HasNoTransitHubSupport(intercityTransport))
+                        {
+                            // User is in a different province but NO transit hubs exist in DB
+                            // and API returned no hub-based data → fall back to a single direct local transfer
+                            GeoPoint targetPoint;
+                            int targetId;
+                            string targetName = null!;
+                            Location? arrivalAttraction = null;
+                            if (destAccommodation is not null)
+                            {
+                                // Go directly to hotel
+                                targetPoint = GeoPoint.FromLocation(destAccommodation);
+                                targetId = destAccommodation.Id;
+                                targetName = destAccommodation.Name;
+                            }
+                            else
+                            {
+                                // No hotel: go directly to first attraction and visit it
                                 var firstAttr = destAttractions.FirstOrDefault()?.Location;
                                 if (firstAttr is not null)
                                 {
                                     targetPoint = GeoPoint.FromLocation(firstAttr);
                                     targetId = firstAttr.Id;
                                     targetName = firstAttr.Name;
+                                    arrivalAttraction = firstAttr;
                                 }
                                 else
                                 {
@@ -753,10 +981,40 @@ namespace HSTS.Application.Itineraries.Queries
                             currentPoint = targetPoint;
                             currentLocationName = targetName;
                             currentLocationId = targetId;
+
+                            // Force visit/shopping at arrival attraction (when no hotel)
+                            if (arrivalAttraction is not null)
+                            {
+                                var stayMin = arrivalAttraction.RecommendedDurationMinutes ?? DefaultStayMinutes;
+                                var visitEnd = AddMinutes(currentTime, stayMin);
+                                var ticket = arrivalAttraction.TicketPrice;
+                                var extra = EstimateExtraSpending(arrivalAttraction, request.TripSegment, groupSize);
+                                var evtType = (arrivalAttraction.LocationTypeId == 5 ||
+                                    (arrivalAttraction.LocationType != null && arrivalAttraction.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
+                                    ? "shopping" : "visit";
+                                var scored = dayAttractions.FirstOrDefault(x => x.Location.Id == arrivalAttraction.Id);
+                                timeline.Add(new ItineraryTimelineItemDto(evtType,
+                                    evtType == "shopping" ? $"Shopping at {arrivalAttraction.Name}" : $"Visit {arrivalAttraction.Name}",
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(visitEnd),
+                                    arrivalAttraction.Id, GetTags(arrivalAttraction),
+                                    toMoney(ticket), toMoney(extra / groupSize),
+                                    toMoney((ticket * groupSize) + extra),
+                                    $"Score: {scored?.CompositeScore:F1}",
+                                    Math.Round((double)(arrivalAttraction.Score ?? 0), 2),
+                                    arrivalAttraction.Address, arrivalAttraction.Telephone, GetMediaUrls(arrivalAttraction)));
+                                dayActivityCost += (ticket * groupSize) + extra;
+                                remainingDayBudget -= (ticket * groupSize) + extra;
+                                visitedLocationIds.Add(arrivalAttraction.Id);
+                                currentTime = AddMinutes(visitEnd, BufferAfterActivity);
+                            }
+
+                            // Skip breakfast for intercity no-hub transfers — user just traveled a long distance,
+                            // suggesting a breakfast stop en route or immediately after is unreasonable
+                            breakfastInserted = true;
                         }
                         else
                         {
-                            // User is in a different province - use intercity transfer
+                            // User is in a different province - use intercity transfer with transit hubs
                             // 1. Travel from user location to departure transit hub
                             var startHubPoint = new GeoPoint("Hub", userProvince!.Latitude ?? 0, userProvince.Longitude ?? 0);
                             var toStartHubTransport = await BuildLocalTransportAsync(
@@ -850,41 +1108,77 @@ namespace HSTS.Application.Itineraries.Queries
                             }
                         }
 
-                        // === RULE 2: Day 1 — Hotel check-in FIRST, then meals (arrival → check-in → lunch) ===
-                        // Hotel check-in (if HotelPreference set)
+                        // === RULE 2: Day 1 — Hotel check-in ===
+                        // Early arrival (before 13:00): drop luggage at hotel first, then explore.
+                        // Actual check-in is deferred to ~14:00 (standard hotel check-in) via the greedy loop.
                         if (destAccommodation is not null)
                         {
-                            var checkInStart = Max(currentTime, date.ToDateTime(new TimeOnly(13, 0)));
-                            var checkInEnd = AddMinutes(checkInStart, 30);
-                            var accPerPerson = GetPerPersonPrice(destAccommodation);
-                            var accGroupCost = accPerPerson * groupSize;
-                            var accomAlts = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
-                            var checkInTagNames = GetTags(destAccommodation);
+                            var standardCheckInTime = date.ToDateTime(new TimeOnly(14, 0));
 
-                            // Get accommodation recommendations for this province
-                            var accomRecsForCheckIn = accommodationRecommendations
-                                .Where(r => {
-                                    var hotel = accommodations.FirstOrDefault(a => a.Id == r.LocationId);
-                                    return hotel is not null && hotel.District != null && hotel.District.ProvinceId.HasValue && hotel.District.ProvinceId.Value == currentProvince.Id;
-                                }).ToList();
+                            if (currentTime < standardCheckInTime)
+                            {
+                                // Early arrival: luggage storage at hotel, then go explore
+                                var luggageStart = currentTime;
+                                var luggageEnd = AddMinutes(luggageStart, 15);
+                                var accomAltsEarly = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
+                                var luggageTagNames = GetTags(destAccommodation);
 
-                            timeline.Add(new ItineraryTimelineItemDto("check-in",
-                                $"Check in at {destAccommodation.Name} - Drop off luggage",
-                                TimeOnly.FromDateTime(checkInStart), TimeOnly.FromDateTime(checkInEnd),
-                                destAccommodation.Id, checkInTagNames,
-                                toMoney(0), toMoney(0), toMoney(0), "Check in and drop off luggage",
-                                Math.Round((double)(destAccommodation.Score ?? 0), 2),
-                                destAccommodation.Address, destAccommodation.Telephone, GetMediaUrls(destAccommodation),
-                                Alternatives: accomAlts is { Count: > 0 } ? accomAlts : null,
-                                AccommodationRecommendations: accomRecsForCheckIn.Count > 0 ? accomRecsForCheckIn : null));
-                            currentTime = AddMinutes(checkInEnd, BufferAfterLocalTransfer);
-                            currentPoint = GeoPoint.FromLocation(destAccommodation);
-                            currentLocationName = destAccommodation.Name;
-                            currentLocationId = destAccommodation.Id;
+                                var accomRecsEarly = accommodationRecommendations
+                                    .Where(r => {
+                                        var hotel = accommodations.FirstOrDefault(a => a.Id == r.LocationId);
+                                        return hotel is not null && hotel.District != null && hotel.District.ProvinceId.HasValue && hotel.District.ProvinceId.Value == currentProvince.Id;
+                                    }).ToList();
+
+                                timeline.Add(new ItineraryTimelineItemDto("luggage-drop",
+                                    $"Drop luggage at {destAccommodation.Name}",
+                                    TimeOnly.FromDateTime(luggageStart), TimeOnly.FromDateTime(luggageEnd),
+                                    destAccommodation.Id, luggageTagNames,
+                                    toMoney(0), toMoney(0), toMoney(0), "Drop off luggage before check-in time, explore the area first",
+                                    Math.Round((double)(destAccommodation.Score ?? 0), 2),
+                                    destAccommodation.Address, destAccommodation.Telephone, GetMediaUrls(destAccommodation),
+                                    Alternatives: accomAltsEarly is { Count: > 0 } ? accomAltsEarly : null,
+                                    AccommodationRecommendations: accomRecsEarly.Count > 0 ? accomRecsEarly : null));
+                                currentTime = AddMinutes(luggageEnd, BufferAfterLocalTransfer);
+                                currentPoint = GeoPoint.FromLocation(destAccommodation);
+                                currentLocationName = destAccommodation.Name;
+                                currentLocationId = destAccommodation.Id;
+                                checkInDeferred = true;
+                            }
+                            else
+                            {
+                                // Arrival at 14:00+ → check in now
+                                var checkInStart = currentTime;
+                                var checkInEnd = AddMinutes(checkInStart, 30);
+                                var accomAlts = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
+                                var checkInTagNames = GetTags(destAccommodation);
+
+                                var accomRecsForCheckIn = accommodationRecommendations
+                                    .Where(r => {
+                                        var hotel = accommodations.FirstOrDefault(a => a.Id == r.LocationId);
+                                        return hotel is not null && hotel.District != null && hotel.District.ProvinceId.HasValue && hotel.District.ProvinceId.Value == currentProvince.Id;
+                                    }).ToList();
+
+                                timeline.Add(new ItineraryTimelineItemDto("check-in",
+                                    $"Check in at {destAccommodation.Name} - Drop off luggage",
+                                    TimeOnly.FromDateTime(checkInStart), TimeOnly.FromDateTime(checkInEnd),
+                                    destAccommodation.Id, checkInTagNames,
+                                    toMoney(0), toMoney(0), toMoney(0), "Check in and drop off luggage",
+                                    Math.Round((double)(destAccommodation.Score ?? 0), 2),
+                                    destAccommodation.Address, destAccommodation.Telephone, GetMediaUrls(destAccommodation),
+                                    Alternatives: accomAlts is { Count: > 0 } ? accomAlts : null,
+                                    AccommodationRecommendations: accomRecsForCheckIn.Count > 0 ? accomRecsForCheckIn : null));
+                                currentTime = AddMinutes(checkInEnd, BufferAfterLocalTransfer);
+                                currentPoint = GeoPoint.FromLocation(destAccommodation);
+                                currentLocationName = destAccommodation.Name;
+                                currentLocationId = destAccommodation.Id;
+                            }
                         }
 
-                        // === MEAL INJECTION AFTER HOTEL CHECK-IN (Rule 2: arrival → check-in → lunch) ===
-                        // If arrival time overlaps with meal window, suggest meal AFTER check-in
+                        // === MEAL INJECTION AFTER HOTEL CHECK-IN ===
+                        // Only inject meals here when check-in was done immediately (not deferred).
+                        // When deferred, the greedy loop handles breakfast + morning activities, then check-in before lunch.
+                        if (!checkInDeferred)
+                        {
                         var currentTimeOnly = TimeOnly.FromDateTime(currentTime);
 
                         // === LATE LUNCH / BRUNCH HANDLING ===
@@ -948,8 +1242,8 @@ namespace HSTS.Application.Itineraries.Queries
                                 toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), mealLabel,
                                 rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
                                 Alternatives: mealAlternatives.Count > 0 ? mealAlternatives : null));
-                            totalMealCost += mealGroupCost;
-                            dayMealCost += mealGroupCost;
+                            totalMealCost += mealBudgetDeduction > 0 ? mealGroupCost : 0m;
+                            dayMealCost += mealBudgetDeduction > 0 ? mealGroupCost : 0m;
                             remainingDayBudget -= mealBudgetDeduction;
                             remainingMealBudget -= mealBudgetDeduction;
                             currentTime = AddMinutes(mealEnd, BufferAfterMeal);
@@ -992,8 +1286,8 @@ namespace HSTS.Application.Itineraries.Queries
                                 toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), "Breakfast after check-in",
                                 rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
                                 Alternatives: breakfastAlternatives.Count > 0 ? breakfastAlternatives : null));
-                            totalMealCost += mealGroupCost;
-                            dayMealCost += mealGroupCost;
+                            totalMealCost += mealBudgetDeduction > 0 ? mealGroupCost : 0m;
+                            dayMealCost += mealBudgetDeduction > 0 ? mealGroupCost : 0m;
                             remainingDayBudget -= mealBudgetDeduction;
                             remainingMealBudget -= mealBudgetDeduction;
                             currentTime = date.ToDateTime(BreakfastEnd).AddMinutes(BufferAfterMeal);
@@ -1005,6 +1299,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 currentLocationId = rLoc.Id;
                             }
                         }
+                        } // end if (!checkInDeferred)
                     }
                     // === First day at new destination (inter-destination transfer) ===
                     else if (localDay == 0 && destIdx > 0)
@@ -1033,6 +1328,94 @@ namespace HSTS.Application.Itineraries.Queries
 
                         var segTransport = interDestTransports[destIdx - 1];
                         var segRecOpt = GetRecommendedOption(segTransport);
+
+                        if (HasNoTransitHubSupport(segTransport))
+                        {
+                            // No transit hubs available for this inter-destination segment
+                            // → fall back to a single direct local transfer
+                            GeoPoint segDirectTarget;
+                            int segDirectTargetId;
+                            string segDirectTargetName;
+                            if (destAccommodation is not null)
+                            {
+                                segDirectTarget = GeoPoint.FromLocation(destAccommodation);
+                                segDirectTargetId = destAccommodation.Id;
+                                segDirectTargetName = destAccommodation.Name;
+                            }
+                            else
+                            {
+                                // No hotel: go directly to first attraction and visit it
+                                var firstAttr = destAttractions.FirstOrDefault()?.Location;
+                                if (firstAttr is not null)
+                                {
+                                    segDirectTarget = GeoPoint.FromLocation(firstAttr);
+                                    segDirectTargetId = firstAttr.Id;
+                                    segDirectTargetName = firstAttr.Name;
+                                }
+                                else
+                                {
+                                    segDirectTarget = new GeoPoint(currentProvince.EnglishName!, currentProvince.Latitude ?? 0, currentProvince.Longitude ?? 0);
+                                    segDirectTargetId = 0;
+                                    segDirectTargetName = currentProvince.EnglishName!;
+                                }
+                            }
+
+                            var segDirectFrom = prevAccom is not null
+                                ? GeoPoint.FromLocation(prevAccom)
+                                : new GeoPoint(prevProvince.EnglishName!, prevProvince.Latitude ?? 0, prevProvince.Longitude ?? 0);
+                            var segDirectTransport = await BuildLocalTransportAsync(
+                                segDirectFrom, segDirectTarget, groupSize, transportModes, toMoney, cancellationToken);
+                            var segDirectArrival = AddMinutes(currentTime, segDirectTransport.SelectedTravelTimeMinutes);
+
+                            var segDirectLeg = new LocationToLocationTravelLegDto(
+                                prevAccom?.Id ?? 0, prevAccom?.Name ?? "Unknown", segDirectTargetId, segDirectTargetName,
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(segDirectArrival),
+                                segDirectTransport.DistanceKm, null,
+                                0, toMoney(0),
+                                segDirectTransport.TransportOptions);
+                            timeline.Add(new ItineraryTimelineItemDto("travel",
+                                "Local transfer",
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(segDirectArrival),
+                                0, new List<string>(),
+                                null, null, null, "", 0,
+                                LocationToLocationTravel: segDirectLeg));
+                            dayTransportCost += segDirectTransport.SelectedTotalCost;
+                            currentTime = AddMinutes(segDirectArrival, BufferAfterLocalTransfer);
+                            currentPoint = segDirectTarget;
+                            currentLocationName = segDirectTargetName;
+
+                            // Force visit/shopping at arrival attraction (when no hotel)
+                            if (destAccommodation is null && segDirectTargetId > 0)
+                            {
+                                var arrLoc = destAttractions.FirstOrDefault(x => x.Location.Id == segDirectTargetId);
+                                if (arrLoc is not null)
+                                {
+                                    var loc = arrLoc.Location;
+                                    var stayMin = loc.RecommendedDurationMinutes ?? DefaultStayMinutes;
+                                    var visitEnd = AddMinutes(currentTime, stayMin);
+                                    var ticket = loc.TicketPrice;
+                                    var extra = EstimateExtraSpending(loc, request.TripSegment, groupSize);
+                                    var evtType = (loc.LocationTypeId == 5 ||
+                                        (loc.LocationType != null && loc.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
+                                        ? "shopping" : "visit";
+                                    timeline.Add(new ItineraryTimelineItemDto(evtType,
+                                        evtType == "shopping" ? $"Shopping at {loc.Name}" : $"Visit {loc.Name}",
+                                        TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(visitEnd),
+                                        loc.Id, GetTags(loc),
+                                        toMoney(ticket), toMoney(extra / groupSize),
+                                        toMoney((ticket * groupSize) + extra),
+                                        $"Score: {arrLoc.CompositeScore:F1}",
+                                        Math.Round((double)(loc.Score ?? 0), 2),
+                                        loc.Address, loc.Telephone, GetMediaUrls(loc)));
+                                    dayActivityCost += (ticket * groupSize) + extra;
+                                    remainingDayBudget -= (ticket * groupSize) + extra;
+                                    visitedLocationIds.Add(loc.Id);
+                                    currentTime = AddMinutes(visitEnd, BufferAfterActivity);
+                                }
+                            }
+                        }
+                        else
+                        {
 
                         // Travel from hotel/current location to departure transit hub
                         {
@@ -1126,34 +1509,66 @@ namespace HSTS.Application.Itineraries.Queries
                             currentLocationName = segHubToTargetName;
                         }
 
+                        } // end else (has transit hub support)
+
                         if (destAccommodation is not null)
                         {
-                            var checkInStart = Max(currentTime, date.ToDateTime(new TimeOnly(11, 0)));
-                            var checkInEnd = AddMinutes(checkInStart, 30);
-                            var accPerPerson = GetPerPersonPrice(destAccommodation);
-                            var accGroupCost = accPerPerson * groupSize;
-                            var accomAlts2 = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
-                            var checkIn2TagNames = GetTags(destAccommodation);
-                            
-                            // Get accommodation recommendations for this province
-                            var accomRecsForCheckIn2 = accommodationRecommendations
-                                .Where(r => {
-                                    var hotel = accommodations.FirstOrDefault(a => a.Id == r.LocationId);
-                                    return hotel is not null && hotel.District != null && hotel.District.ProvinceId.HasValue && hotel.District.ProvinceId.Value == currentProvince.Id;
-                                }).ToList();
-                            
-                            timeline.Add(new ItineraryTimelineItemDto("check-in",
-                                $"Check in at {destAccommodation.Name} - Drop off luggage",
-                                TimeOnly.FromDateTime(checkInStart), TimeOnly.FromDateTime(checkInEnd),
-                                destAccommodation.Id, checkIn2TagNames,
-                                toMoney(0), toMoney(0), toMoney(0), "Check in and drop off luggage",
-                                Math.Round((double)(destAccommodation.Score ?? 0), 2),
-                                Alternatives: accomAlts2 is { Count: > 0 } ? accomAlts2 : null,
-                                AccommodationRecommendations: accomRecsForCheckIn2.Count > 0 ? accomRecsForCheckIn2 : null));
-                            currentTime = AddMinutes(checkInEnd, 10);
-                            currentPoint = GeoPoint.FromLocation(destAccommodation);
-                            currentLocationName = destAccommodation.Name;
-                            currentLocationId = destAccommodation.Id;
+                            var interDestCheckInThreshold = date.ToDateTime(new TimeOnly(14, 0));
+
+                            if (currentTime < interDestCheckInThreshold)
+                            {
+                                // Early arrival at new destination: luggage drop then explore
+                                var luggageStart2 = currentTime;
+                                var luggageEnd2 = AddMinutes(luggageStart2, 15);
+                                var accomAltsEarly2 = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
+                                var luggageTagNames2 = GetTags(destAccommodation);
+
+                                var accomRecsEarly2 = accommodationRecommendations
+                                    .Where(r => {
+                                        var hotel = accommodations.FirstOrDefault(a => a.Id == r.LocationId);
+                                        return hotel is not null && hotel.District != null && hotel.District.ProvinceId.HasValue && hotel.District.ProvinceId.Value == currentProvince.Id;
+                                    }).ToList();
+
+                                timeline.Add(new ItineraryTimelineItemDto("luggage-drop",
+                                    $"Drop luggage at {destAccommodation.Name}",
+                                    TimeOnly.FromDateTime(luggageStart2), TimeOnly.FromDateTime(luggageEnd2),
+                                    destAccommodation.Id, luggageTagNames2,
+                                    toMoney(0), toMoney(0), toMoney(0), "Drop off luggage before check-in time, explore the area first",
+                                    Math.Round((double)(destAccommodation.Score ?? 0), 2),
+                                    Alternatives: accomAltsEarly2 is { Count: > 0 } ? accomAltsEarly2 : null,
+                                    AccommodationRecommendations: accomRecsEarly2.Count > 0 ? accomRecsEarly2 : null));
+                                currentTime = AddMinutes(luggageEnd2, 10);
+                                currentPoint = GeoPoint.FromLocation(destAccommodation);
+                                currentLocationName = destAccommodation.Name;
+                                currentLocationId = destAccommodation.Id;
+                                checkInDeferred = true;
+                            }
+                            else
+                            {
+                                var checkInStart = currentTime;
+                                var checkInEnd = AddMinutes(checkInStart, 30);
+                                var accomAlts2 = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
+                                var checkIn2TagNames = GetTags(destAccommodation);
+                                
+                                var accomRecsForCheckIn2 = accommodationRecommendations
+                                    .Where(r => {
+                                        var hotel = accommodations.FirstOrDefault(a => a.Id == r.LocationId);
+                                        return hotel is not null && hotel.District != null && hotel.District.ProvinceId.HasValue && hotel.District.ProvinceId.Value == currentProvince.Id;
+                                    }).ToList();
+                                
+                                timeline.Add(new ItineraryTimelineItemDto("check-in",
+                                    $"Check in at {destAccommodation.Name}",
+                                    TimeOnly.FromDateTime(checkInStart), TimeOnly.FromDateTime(checkInEnd),
+                                    destAccommodation.Id, checkIn2TagNames,
+                                    toMoney(0), toMoney(0), toMoney(0), "Check in to room",
+                                    Math.Round((double)(destAccommodation.Score ?? 0), 2),
+                                    Alternatives: accomAlts2 is { Count: > 0 } ? accomAlts2 : null,
+                                    AccommodationRecommendations: accomRecsForCheckIn2.Count > 0 ? accomRecsForCheckIn2 : null));
+                                currentTime = AddMinutes(checkInEnd, 10);
+                                currentPoint = GeoPoint.FromLocation(destAccommodation);
+                                currentLocationName = destAccommodation.Name;
+                                currentLocationId = destAccommodation.Id;
+                            }
                         }
                     }
                     // === Normal day (same destination) ===
@@ -1252,8 +1667,8 @@ namespace HSTS.Application.Itineraries.Queries
                                     toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), "Breakfast",
                                     rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
                                     Alternatives: breakfastAlternatives.Count > 0 ? breakfastAlternatives : null));
-                                totalMealCost += mealGroupCost;
-                                dayMealCost += mealGroupCost;
+                                totalMealCost += mealBudgetDeduction > 0 ? mealGroupCost : 0m;
+                                dayMealCost += mealBudgetDeduction > 0 ? mealGroupCost : 0m;
                                 remainingDayBudget -= mealBudgetDeduction;
                                 remainingMealBudget -= mealBudgetDeduction;
                                 currentTime = AddMinutes(actualMealEnd, BufferAfterMeal);
@@ -1356,6 +1771,62 @@ namespace HSTS.Application.Itineraries.Queries
                             }
                         }
 
+                        // === DEFERRED HOTEL CHECK-IN: return to hotel at standard check-in time (14:00) ===
+                        if (checkInDeferred && destAccommodation is not null && currentTimeOnly >= new TimeOnly(14, 0))
+                        {
+                            // Travel to hotel from current location
+                            var hotelPoint = GeoPoint.FromLocation(destAccommodation);
+                            var toHotelTransport = await BuildLocalTransportAsync(
+                                currentPoint, hotelPoint, groupSize, transportModes, toMoney, cancellationToken);
+                            var toHotelArrival = AddMinutes(currentTime, toHotelTransport.SelectedTravelTimeMinutes);
+
+                            if (toHotelTransport.DistanceKm > 0.1)
+                            {
+                                var toHotelLeg = new LocationToLocationTravelLegDto(
+                                    currentLocationId, currentLocationName ?? "Unknown",
+                                    destAccommodation.Id, destAccommodation.Name,
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toHotelArrival),
+                                    toHotelTransport.DistanceKm, null,
+                                    0, toMoney(0),
+                                    toHotelTransport.TransportOptions);
+                                timeline.Add(new ItineraryTimelineItemDto("travel",
+                                    "Return to hotel",
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toHotelArrival),
+                                    0, new List<string>(),
+                                    null, null, null, "", 0,
+                                    LocationToLocationTravel: toHotelLeg));
+                                dayTransportCost += toHotelTransport.SelectedTotalCost;
+                                currentTime = AddMinutes(toHotelArrival, BufferAfterLocalTransfer);
+                            }
+
+                            var deferredCheckInStart = currentTime;
+                            var deferredCheckInEnd = AddMinutes(deferredCheckInStart, 30);
+                            var deferredAccomAlts = accommodationAlternativesByProvince.GetValueOrDefault(currentProvince.Id);
+                            var deferredCheckInTags = GetTags(destAccommodation);
+
+                            var deferredAccomRecs = accommodationRecommendations
+                                .Where(r => {
+                                    var hotel = accommodations.FirstOrDefault(a => a.Id == r.LocationId);
+                                    return hotel is not null && hotel.District != null && hotel.District.ProvinceId.HasValue && hotel.District.ProvinceId.Value == currentProvince.Id;
+                                }).ToList();
+
+                            timeline.Add(new ItineraryTimelineItemDto("check-in",
+                                $"Check in at {destAccommodation.Name}",
+                                TimeOnly.FromDateTime(deferredCheckInStart), TimeOnly.FromDateTime(deferredCheckInEnd),
+                                destAccommodation.Id, deferredCheckInTags,
+                                toMoney(0), toMoney(0), toMoney(0), "Check in to room",
+                                Math.Round((double)(destAccommodation.Score ?? 0), 2),
+                                destAccommodation.Address, destAccommodation.Telephone, GetMediaUrls(destAccommodation),
+                                Alternatives: deferredAccomAlts is { Count: > 0 } ? deferredAccomAlts : null,
+                                AccommodationRecommendations: deferredAccomRecs.Count > 0 ? deferredAccomRecs : null));
+                            currentTime = AddMinutes(deferredCheckInEnd, BufferAfterLocalTransfer);
+                            currentPoint = hotelPoint;
+                            currentLocationName = destAccommodation.Name;
+                            currentLocationId = destAccommodation.Id;
+                            checkInDeferred = false;
+                            continue;
+                        }
+
                         // Inject Lunch
                         if (!lunchInserted && currentTimeOnly >= LunchStart && currentTimeOnly < LunchEnd)
                         {
@@ -1413,8 +1884,8 @@ namespace HSTS.Application.Itineraries.Queries
                                     toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), "Lunch",
                                     rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
                                     Alternatives: lunchAlternatives.Count > 0 ? lunchAlternatives : null));
-                                totalMealCost += mealGroupCost;
-                                dayMealCost += mealGroupCost;
+                                totalMealCost += lunchBudgetDeduction > 0 ? mealGroupCost : 0m;
+                                dayMealCost += lunchBudgetDeduction > 0 ? mealGroupCost : 0m;
                                 remainingDayBudget -= lunchBudgetDeduction;
                                 remainingMealBudget -= lunchBudgetDeduction;
                                 currentTime = AddMinutes(actualMealEnd, BufferAfterMeal);
@@ -1486,8 +1957,8 @@ namespace HSTS.Application.Itineraries.Queries
                                     toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), "Dinner",
                                     rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
                                     Alternatives: dinnerAlternatives.Count > 0 ? dinnerAlternatives : null));
-                                totalMealCost += mealGroupCost;
-                                dayMealCost += mealGroupCost;
+                                totalMealCost += dinnerBudgetDeduction > 0 ? mealGroupCost : 0m;
+                                dayMealCost += dinnerBudgetDeduction > 0 ? mealGroupCost : 0m;
                                 remainingDayBudget -= dinnerBudgetDeduction;
                                 remainingMealBudget -= dinnerBudgetDeduction;
                                 currentTime = AddMinutes(actualMealEnd, BufferAfterMeal);
@@ -1611,9 +2082,10 @@ namespace HSTS.Application.Itineraries.Queries
                         currentTime = AddMinutes(activityEnd, BufferAfterActivity);
                     }
 
-                    // === RULE 1: Inject dinner BEFORE returning to accommodation (skip on last day) ===
+                    // === RULE 1: Inject dinner BEFORE returning to accommodation (skip on multi-day last day) ===
                     // Dinner is placed in the evening window (17:30-20:30) using actual current time
-                    if (!dinnerInserted && globalDayIndex != totalDays - 1)
+                    // Single-day trips always get dinner since there's no early departure
+                    if (!dinnerInserted && (globalDayIndex != totalDays - 1 || totalDays == 1))
                     {
                         var currentTimeOnlyForDinner = TimeOnly.FromDateTime(currentTime);
                         // Check if we're in or before the dinner window
@@ -1648,8 +2120,8 @@ namespace HSTS.Application.Itineraries.Queries
                                 toMoney(0), toMoney(mealExtraCost), toMoney(mealGroupCost), "Dinner",
                                 rLoc is not null ? Math.Round((double)(rLoc.Score ?? 0), 2) : 0,
                                 Alternatives: lateDinnerAlts.Count > 0 ? lateDinnerAlts : null));
-                            totalMealCost += mealGroupCost;
-                            dayMealCost += mealGroupCost;
+                            totalMealCost += lateDinnerBudgetDeduction > 0 ? mealGroupCost : 0m;
+                            dayMealCost += lateDinnerBudgetDeduction > 0 ? mealGroupCost : 0m;
                             remainingDayBudget -= lateDinnerBudgetDeduction;
                             remainingMealBudget -= lateDinnerBudgetDeduction;
                             currentTime = AddMinutes(dinnerActualEnd, BufferAfterMeal);
@@ -1666,7 +2138,8 @@ namespace HSTS.Application.Itineraries.Queries
 
                     // === RULE 3: Post-dinner activities before returning to accommodation ===
                     // Try to insert a lightweight activity after dinner before hotel return (must end before 22:00)
-                    if (dinnerInserted && globalDayIndex != totalDays - 1)
+                    // Single-day trips can also have post-dinner activities
+                    if (dinnerInserted && (globalDayIndex != totalDays - 1 || totalDays == 1))
                     {
                         var postDinnerEndTime = date.ToDateTime(PostDinnerActivityEnd);
                         while (currentTime < postDinnerEndTime.AddMinutes(-60)) // Need at least 60 min for activity
@@ -1996,8 +2469,8 @@ namespace HSTS.Application.Itineraries.Queries
                                 toMoney(0), toMoney(ldMealExtraCost), toMoney(ldMealGroupCost), "Farewell lunch before departure",
                                 ldRLoc is not null ? Math.Round((double)(ldRLoc.Score ?? 0), 2) : 0,
                                 Alternatives: lastDayLunchAlts.Count > 0 ? lastDayLunchAlts : null));
-                            totalMealCost += ldMealGroupCost;
-                            dayMealCost += ldMealGroupCost;
+                            totalMealCost += ldLunchBudgetDeduction > 0 ? ldMealGroupCost : 0m;
+                            dayMealCost += ldLunchBudgetDeduction > 0 ? ldMealGroupCost : 0m;
                             remainingDayBudget -= ldLunchBudgetDeduction;
                             remainingMealBudget -= ldLunchBudgetDeduction;
                             currentTime = AddMinutes(ldLunchEnd, BufferAfterMeal);
@@ -2062,48 +2535,188 @@ namespace HSTS.Application.Itineraries.Queries
                             currentLocationId = destAccommodation.Id;
                         }
 
-                        var retRecOpt = GetRecommendedOption(returnTransport);
-
-                        // Travel from current location to departure transit hub
+                        // === Post-checkout activities: fill afternoon if return trip is short ===
+                        // When user's home is close (same province or no transit hub), checkout at ~12:20
+                        // would leave the whole afternoon empty. Add activities until a reasonable departure time.
+                        if (destAccommodation is not null)
                         {
-                            var departureHubPoint = new GeoPoint("Hub", currentProvince.Latitude ?? 0, currentProvince.Longitude ?? 0);
-                            var toHubTransport = await BuildLocalTransportAsync(
-                                currentPoint, departureHubPoint, groupSize, transportModes, toMoney, cancellationToken);
-                            var toHubArrival = AddMinutes(currentTime, toHubTransport.SelectedTravelTimeMinutes);
+                            var isShortReturn = userProvinceId == currentProvince.Id || HasNoTransitHubSupport(returnTransport);
+                            if (isShortReturn)
+                            {
+                                // Estimate return travel time to decide how much free time we have
+                                var estReturnTransport = await BuildLocalTransportAsync(
+                                    currentPoint, userGeo, groupSize, transportModes, toMoney, cancellationToken);
+                                var estReturnMinutes = estReturnTransport.SelectedTravelTimeMinutes;
+                                // Target: arrive home by ~17:00-18:00, so departure = 17:00 - travel time
+                                var latestDepartureTime = date.ToDateTime(new TimeOnly(17, 0)).AddMinutes(-estReturnMinutes);
+                                var postCheckoutEndTime = latestDepartureTime.AddMinutes(-30); // buffer before departure
 
-                            var toHubLeg = new LocationToTransitHubTravelLegDto(
-                                0, currentLocationName ?? "Unknown", retRecOpt.FromTransitHubId, retRecOpt.FromTransitHubName ?? "",
-                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toHubArrival),
-                                toHubTransport.DistanceKm, null,
-                                0, toMoney(0),
-                                toHubTransport.TransportOptions);
-                            timeline.Add(new ItineraryTimelineItemDto("travel",
-                                "Transfer to station / airport",
-                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toHubArrival),
-                                0, new List<string>(),
-                                null, null, null, "", 0,
-                                LocationToTransitHubTravel: toHubLeg));
-                            dayTransportCost += toHubTransport.SelectedTotalCost;
-                            currentTime = AddMinutes(toHubArrival, 10);
+                                if (postCheckoutEndTime > currentTime.AddHours(1)) // need at least 1h of free time
+                                {
+                                    while (currentTime < postCheckoutEndTime.AddHours(-1))
+                                    {
+                                        var pcAvailable = dayAttractions.Where(x => !visitedLocationIds.Contains(x.Location.Id)).ToList();
+                                        if (pcAvailable.Count == 0) break;
+
+                                        var pcNext = PickNextAttractionRandomized(
+                                            pcAvailable, currentPoint, remainingDayBudget,
+                                            currentTime, postCheckoutEndTime, groupSize, date.DayOfWeek, request.TripSegment,
+                                            recentlyVisitedLocationIds, out _);
+                                        if (pcNext is null) break;
+
+                                        var pcNextPoint = GeoPoint.FromLocation(pcNext.Location);
+                                        var pcLocalTransport = await BuildLocalTransportAsync(
+                                            currentPoint, pcNextPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                        var pcArrival = AddMinutes(currentTime, pcLocalTransport.SelectedTravelTimeMinutes);
+                                        var pcStay = pcNext.Location.RecommendedDurationMinutes ?? DefaultStayMinutes;
+                                        var pcEnd = AddMinutes(pcArrival, pcStay);
+                                        if (pcEnd > postCheckoutEndTime) break;
+
+                                        if (!IsOpenAtTime(pcNext.Location, date.DayOfWeek, TimeOnly.FromDateTime(pcArrival)))
+                                        {
+                                            visitedLocationIds.Add(pcNext.Location.Id);
+                                            continue;
+                                        }
+
+                                        var pcTicket = pcNext.Location.TicketPrice;
+                                        var pcExtra = EstimateExtraSpending(pcNext.Location, request.TripSegment, groupSize);
+
+                                        var pcLeg = new LocationToLocationTravelLegDto(
+                                            currentLocationId, currentLocationName ?? "Unknown",
+                                            pcNext.Location.Id, pcNext.Location.Name,
+                                            TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(pcArrival),
+                                            pcLocalTransport.DistanceKm, null, 0, toMoney(0),
+                                            pcLocalTransport.TransportOptions);
+                                        timeline.Add(new ItineraryTimelineItemDto("travel",
+                                            "Local transfer",
+                                            TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(pcArrival),
+                                            0, new List<string>(), null, null, null, "", 0,
+                                            LocationToLocationTravel: pcLeg));
+
+                                        var pcEventType = (pcNext.Location.LocationTypeId == 5 ||
+                                            (pcNext.Location.LocationType != null &&
+                                             pcNext.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
+                                            ? "shopping" : "visit";
+                                        var pcTags = GetTags(pcNext.Location);
+                                        timeline.Add(new ItineraryTimelineItemDto(pcEventType,
+                                            pcEventType == "shopping" ? $"Shopping at {pcNext.Location.Name}" : $"Visit {pcNext.Location.Name}",
+                                            TimeOnly.FromDateTime(pcArrival), TimeOnly.FromDateTime(pcEnd),
+                                            pcNext.Location.Id, pcTags,
+                                            toMoney(pcTicket), toMoney(pcExtra / groupSize),
+                                            toMoney((pcTicket * groupSize) + pcExtra),
+                                            $"Score: {pcNext.CompositeScore:F1}",
+                                            Math.Round((double)(pcNext.Location.Score ?? 0), 2),
+                                            pcNext.Location.Address, pcNext.Location.Telephone, GetMediaUrls(pcNext.Location)));
+
+                                        dayTransportCost += pcLocalTransport.SelectedTotalCost;
+                                        dayActivityCost += (pcTicket * groupSize) + pcExtra;
+                                        remainingDayBudget -= (pcTicket * groupSize) + pcExtra + pcLocalTransport.SelectedTotalCost;
+                                        visitedLocationIds.Add(pcNext.Location.Id);
+                                        currentPoint = pcNextPoint;
+                                        currentLocationName = pcNext.Location.Name;
+                                        currentLocationId = pcNext.Location.Id;
+                                        currentTime = AddMinutes(pcEnd, BufferAfterActivity);
+                                    }
+                                }
+                            }
                         }
 
-                        var returnDeparture = Max(currentTime, date.ToDateTime(new TimeOnly(17, 0)));
-                        var returnArrival = AddMinutes(returnDeparture, retRecOpt.EstimatedTravelMinutes);
+                        // Return transport: intercity (different province) or direct local (same province)
+                        if (userProvinceId != currentProvince.Id && !HasNoTransitHubSupport(returnTransport))
+                        {
+                            var retRecOpt = GetRecommendedOption(returnTransport);
 
-                        var returnLeg = new ProvinceToProvinceTravelLegDto(
-                            returnTransport.FromProvinceId, returnTransport.FromProvinceName,
-                            returnTransport.ToProvinceId, returnTransport.ToProvinceName,
-                            TimeOnly.FromDateTime(returnDeparture), TimeOnly.FromDateTime(returnArrival),
-                            returnTransport.DistanceKm, null,
-                            0, toMoney(0),
-                            returnTransport.TransportOptions);
-                        timeline.Add(new ItineraryTimelineItemDto("travel",
-                            "Intercity transfer",
-                            TimeOnly.FromDateTime(returnDeparture), TimeOnly.FromDateTime(returnArrival),
-                            0, new List<string>(),
-                            null, null, null, "", 0,
-                            ProvinceToProvinceTravel: returnLeg));
-                        dayTransportCost += retRecOpt.EstimatedTotalCost.BaseAmount;
+                            // Travel from current location to departure transit hub
+                            {
+                                var departureHubPoint = new GeoPoint("Hub", currentProvince.Latitude ?? 0, currentProvince.Longitude ?? 0);
+                                var toHubTransport = await BuildLocalTransportAsync(
+                                    currentPoint, departureHubPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                var toHubArrival = AddMinutes(currentTime, toHubTransport.SelectedTravelTimeMinutes);
+
+                                var toHubLeg = new LocationToTransitHubTravelLegDto(
+                                    0, currentLocationName ?? "Unknown", retRecOpt.FromTransitHubId, retRecOpt.FromTransitHubName ?? "",
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toHubArrival),
+                                    toHubTransport.DistanceKm, null,
+                                    0, toMoney(0),
+                                    toHubTransport.TransportOptions);
+                                timeline.Add(new ItineraryTimelineItemDto("travel",
+                                    "Transfer to station / airport",
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toHubArrival),
+                                    0, new List<string>(),
+                                    null, null, null, "", 0,
+                                    LocationToTransitHubTravel: toHubLeg));
+                                dayTransportCost += toHubTransport.SelectedTotalCost;
+                                currentTime = AddMinutes(toHubArrival, 10);
+                            }
+
+                            var returnDeparture = Max(currentTime, date.ToDateTime(new TimeOnly(17, 0)));
+                            var returnArrival = AddMinutes(returnDeparture, retRecOpt.EstimatedTravelMinutes);
+
+                            var returnLeg = new ProvinceToProvinceTravelLegDto(
+                                returnTransport.FromProvinceId, returnTransport.FromProvinceName,
+                                returnTransport.ToProvinceId, returnTransport.ToProvinceName,
+                                TimeOnly.FromDateTime(returnDeparture), TimeOnly.FromDateTime(returnArrival),
+                                returnTransport.DistanceKm, null,
+                                0, toMoney(0),
+                                returnTransport.TransportOptions);
+                            timeline.Add(new ItineraryTimelineItemDto("travel",
+                                "Intercity transfer",
+                                TimeOnly.FromDateTime(returnDeparture), TimeOnly.FromDateTime(returnArrival),
+                                0, new List<string>(),
+                                null, null, null, "", 0,
+                                ProvinceToProvinceTravel: returnLeg));
+                            dayTransportCost += retRecOpt.EstimatedTotalCost.BaseAmount;
+                            currentTime = AddMinutes(returnArrival, BufferAfterIntercityArrival);
+
+                            // Local transfer from arrival hub to user's location
+                            {
+                                var arrivalHub = transitHubs.FirstOrDefault(h => h.Id == retRecOpt.ToTransitHubId);
+                                var hubPoint = arrivalHub is not null
+                                    ? new GeoPoint("Arrival Hub", arrivalHub.Latitude, arrivalHub.Longitude)
+                                    : userGeo; // fallback if hub not found
+
+                                var fromHubTransport = await BuildLocalTransportAsync(
+                                    hubPoint, userGeo, groupSize, transportModes, toMoney, cancellationToken);
+                                var fromHubArrival = AddMinutes(currentTime, fromHubTransport.SelectedTravelTimeMinutes);
+
+                                var fromHubLeg = new TransitHubToLocationTravelLegDto(
+                                    retRecOpt.ToTransitHubId, retRecOpt.ToTransitHubName ?? "Arrival Station",
+                                    0, "Your Location",
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(fromHubArrival),
+                                    fromHubTransport.DistanceKm, null,
+                                    0, toMoney(0),
+                                    fromHubTransport.TransportOptions);
+                                timeline.Add(new ItineraryTimelineItemDto("travel",
+                                    "Local transfer to your location",
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(fromHubArrival),
+                                    0, new List<string>(),
+                                    null, null, null, "", 0,
+                                    TransitHubToLocationTravel: fromHubLeg));
+                                dayTransportCost += fromHubTransport.SelectedTotalCost;
+                            }
+                        }
+                        else
+                        {
+                            // Same province OR no transit hub support: direct local transport back to user's location
+                            var directReturnTransport = await BuildLocalTransportAsync(
+                                currentPoint, userGeo, groupSize, transportModes, toMoney, cancellationToken);
+                            var directReturnArrival = AddMinutes(currentTime, directReturnTransport.SelectedTravelTimeMinutes);
+
+                            var directReturnLeg = new LocationToLocationTravelLegDto(
+                                currentLocationId, currentLocationName ?? "Unknown",
+                                0, "Your Location",
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(directReturnArrival),
+                                directReturnTransport.DistanceKm, null,
+                                0, toMoney(0),
+                                directReturnTransport.TransportOptions);
+                            timeline.Add(new ItineraryTimelineItemDto("travel",
+                                "Local transfer to your location",
+                                TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(directReturnArrival),
+                                0, new List<string>(),
+                                null, null, null, "", 0,
+                                LocationToLocationTravel: directReturnLeg));
+                            dayTransportCost += directReturnTransport.SelectedTotalCost;
+                        }
                     }
 
                     // === RULE 10: Fallback — ensure at least one non-transport activity per day ===
@@ -2239,15 +2852,15 @@ namespace HSTS.Application.Itineraries.Queries
             days = ReFilterAllDaysAlternatives(days, allMainLocationIdsInTrip);
 
             // STAGE 7: Budget Validation & Output Assembly
-            var budgetTracked = totalTransportCost + totalAccommodationCost + totalActivityCost;
+            var estimatedTotal = totalTransportCost + totalAccommodationCost + totalMealCost + totalActivityCost;
 
             // Remaining budget must be >= 0 (cannot exceed usable budget)
-            if (budgetTracked > usableBudget)
+            if (estimatedTotal > usableBudget)
             {
-                var deficit = budgetTracked - usableBudget;
+                var deficit = estimatedTotal - usableBudget;
                 var suggestions = new List<string>
                 {
-                    $"Estimated cost ({budgetTracked:N0} VND) exceeds usable budget ({usableBudget:N0} VND) by {deficit:N0} VND.",
+                    $"Estimated cost ({estimatedTotal:N0} VND) exceeds usable budget ({usableBudget:N0} VND) by {deficit:N0} VND.",
                     "Suggestions: increase your budget, reduce the number of destinations/days, choose cheaper accommodations, or remove expensive locations."
                 };
                 return Error.Validation(
@@ -2255,7 +2868,7 @@ namespace HSTS.Application.Itineraries.Queries
                     string.Join(" ", suggestions));
             }
 
-            var estimatedTotal = totalTransportCost + totalAccommodationCost + totalMealCost + totalActivityCost;
+            var remainingBudget = Math.Max(0m, usableBudget - estimatedTotal);
 
             var budgetSummary = new BudgetSummaryDto(
                 toMoney(request.TotalBudget),
@@ -2266,7 +2879,7 @@ namespace HSTS.Application.Itineraries.Queries
                 toMoney(totalMealCost),
                 toMoney(totalActivityCost),
                 toMoney(estimatedTotal),
-                toMoney(usableBudget - estimatedTotal));
+                toMoney(remainingBudget));
 
             notes.Add(request.IsContingencyNeeded 
                 ? $"Contingency fund: {contingencyFund:N0} VND ({contingencyPercent * 100:F0}%)."
@@ -3453,6 +4066,15 @@ namespace HSTS.Application.Itineraries.Queries
                 .FirstOrDefault();
             return !string.IsNullOrWhiteSpace(name) ? name : province.Name;
         }
+
+        /// <summary>
+        /// Returns true when the intercity transport has NO real transit-hub support
+        /// (all options have null FromTransitHubId and null ToTransitHubId).
+        /// When true, the caller should fall back to a single direct local transfer
+        /// instead of generating the 3-segment hub-based transfer.
+        /// </summary>
+        private static bool HasNoTransitHubSupport(IntercityTransportDto transport) =>
+            transport.TransportOptions.All(o => !o.FromTransitHubId.HasValue && !o.ToTransitHubId.HasValue);
 
         private static bool IsAccommodationType(Location location)
         {

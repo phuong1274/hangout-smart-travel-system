@@ -64,6 +64,12 @@ namespace HSTS.Application.Invitations.Commands
             if (isMember)
                 return Error.Validation("Invitation.AlreadyMember", "User is already a member of this trip.");
 
+            // Check group size limit
+            var currentMemberCount = await _context.TripMembers
+                .CountAsync(tm => tm.TripId == request.TripId && !tm.IsDeleted, ct);
+            if (currentMemberCount >= trip.GroupSize)
+                return Error.Validation("Trip.GroupFull", $"This trip has reached its maximum group size of {trip.GroupSize} members.");
+
             // Check for existing pending invitation
             var hasPending = await _context.TripInvitations
                 .AnyAsync(ti => ti.TripId == request.TripId
@@ -192,6 +198,12 @@ namespace HSTS.Application.Invitations.Commands
                 await _context.SaveChangesAsync(ct);
                 return Result.Success;
             }
+
+            // Check group size limit before adding member
+            var currentMemberCount = await _context.TripMembers
+                .CountAsync(tm => tm.TripId == invitation.TripId && !tm.IsDeleted, ct);
+            if (currentMemberCount >= invitation.Trip.GroupSize)
+                return Error.Validation("Trip.GroupFull", $"This trip has reached its maximum group size of {invitation.Trip.GroupSize} members.");
 
             // Add as member
             var tripMember = new TripMember

@@ -321,6 +321,13 @@ const pickBestMoney = (...candidates) => {
   return positive || valid[0];
 };
 
+const pickFirstMoney = (...candidates) => {
+  for (const candidate of candidates) {
+    if (getMoneyAmount(candidate) != null) return candidate;
+  }
+  return null;
+};
+
 const getTransportOptions = (travelDetail) => {
   const options = travelDetail?.transportOptions || travelDetail?.TransportOptions || [];
   return Array.isArray(options) ? options : [];
@@ -367,17 +374,18 @@ const getTravelDurationMinutes = (travelDetail) => {
 
 const getTravelGroupCost = (itemCostForGroup, travelDetail) => {
   const recommended = getRecommendedTransportOption(travelDetail);
-  return pickBestMoney(
+  const cost = pickFirstMoney(
     itemCostForGroup,
-    travelDetail?.costForGroup,
-    travelDetail?.CostForGroup,
     travelDetail?.selectedTotalCost,
     travelDetail?.SelectedTotalCost,
+    travelDetail?.costForGroup,
+    travelDetail?.CostForGroup,
     recommended?.costForGroup,
     recommended?.CostForGroup,
     recommended?.estimatedTotalCost,
     recommended?.EstimatedTotalCost,
   );
+  return normalizeMoney(cost, 'VND');
 };
 
 const formatMinutesAsHourMinute = (minutes) => {
@@ -743,31 +751,79 @@ const updateBudgetSummaryFromDays = (draftItinerary) => {
   const currencyCode = pickFirstText(draftItinerary?.currencyCode, draftItinerary?.CurrencyCode) || 'VND';
   const totalBreakdown = days.reduce((acc, day) => {
     const timeline = getDayTimeline(day, currencyCode);
-    const dayBreakdown = getTimelineCostBreakdown(timeline);
+    const dayBreakdown = getTimelineDetailedCostBreakdown(timeline);
     acc.meal += dayBreakdown.meal;
-    acc.other += dayBreakdown.other;
+    acc.transport += dayBreakdown.transport;
+    acc.activity += dayBreakdown.activity;
     return acc;
-  }, { meal: 0, other: 0 });
+  }, { meal: 0, transport: 0, activity: 0 });
 
-  const estimatedTotal = totalBreakdown.meal + totalBreakdown.other;
+  const accommodationFallback = days.reduce((sum, day) => {
+    const accommodations = day?.accommodationRecommendations || day?.AccommodationRecommendations || [];
+    const safeList = Array.isArray(accommodations) ? accommodations : [];
+    const selected = safeList[0];
+    if (!selected) return sum;
+
+    const estimated = normalizeMoney(
+      selected.pricePerNight
+      || selected.PricePerNight
+      || selected.estimatedCost
+      || selected.EstimatedCost,
+      currencyCode,
+    );
+
+    return sum + (estimated?.amount || 0);
+  }, 0);
+
+  const estimatedAccommodationAmount = Math.round(
+    getMoneyAmount(summary?.estimatedAccommodationCost || summary?.EstimatedAccommodationCost)
+    ?? accommodationFallback
+  );
+  const estimatedTransportAmount = Math.round(totalBreakdown.transport);
+  const estimatedActivityAmount = Math.round(
+    getMoneyAmount(summary?.estimatedActivityCost || summary?.EstimatedActivityCost)
+    ?? totalBreakdown.activity
+  );
+  const estimatedMealAmount = Math.round(
+    getMoneyAmount(
+      summary?.estimatedMealCost
+      || summary?.EstimatedMealCost
+      || summary?.mealCost
+      || summary?.MealCost
+    )
+    ?? totalBreakdown.meal
+  );
+  const estimatedOtherAmount = estimatedTransportAmount + estimatedActivityAmount;
+  const estimatedTotal = estimatedAccommodationAmount + estimatedTransportAmount + estimatedActivityAmount + estimatedMealAmount;
 
   const estimatedMoney = { amount: Math.round(estimatedTotal), currency: currencyCode };
-  const mealMoney = { amount: Math.round(totalBreakdown.meal), currency: currencyCode };
-  const otherMoney = { amount: Math.round(totalBreakdown.other), currency: currencyCode };
+  const accommodationMoney = { amount: estimatedAccommodationAmount, currency: currencyCode };
+  const transportMoney = { amount: estimatedTransportAmount, currency: currencyCode };
+  const activityMoney = { amount: estimatedActivityAmount, currency: currencyCode };
+  const mealMoney = { amount: estimatedMealAmount, currency: currencyCode };
+  const otherMoney = { amount: estimatedOtherAmount, currency: currencyCode };
   const usable = normalizeMoney(summary?.usableBudget || summary?.UsableBudget, currencyCode);
   const remainingMoney = usable
     ? { amount: Math.round(usable.amount - estimatedMoney.amount), currency: usable.currency || currencyCode }
     : null;
 
-  if ('estimatedTotalCost' in summary) summary.estimatedTotalCost = estimatedMoney;
-  if ('EstimatedTotalCost' in summary) summary.EstimatedTotalCost = estimatedMoney;
+  summary.estimatedAccommodationCost = accommodationMoney;
+  summary.EstimatedAccommodationCost = accommodationMoney;
+  summary.estimatedTransportCost = transportMoney;
+  summary.EstimatedTransportCost = transportMoney;
+  summary.estimatedActivityCost = activityMoney;
+  summary.EstimatedActivityCost = activityMoney;
+  summary.estimatedMealCost = mealMoney;
+  summary.EstimatedMealCost = mealMoney;
+  summary.estimatedTotalCost = estimatedMoney;
+  summary.EstimatedTotalCost = estimatedMoney;
   summary.mealCost = mealMoney;
   summary.MealCost = mealMoney;
   summary.otherCost = otherMoney;
   summary.OtherCost = otherMoney;
   if (remainingMoney) {
-    if ('remainingBudget' in summary) summary.remainingBudget = remainingMoney;
-    if ('RemainingBudget' in summary) summary.RemainingBudget = remainingMoney;
+    summary.remainingBudget = remainingMoney;
+    summary.RemainingBudget = remainingMoney;
   }
 };
 
@@ -1301,7 +1357,7 @@ const ItineraryResultPage = () => {
     setProvinceLocationSearch('');
   }, []);
 
-  const handleSelectTransportOption = useCallback((dayIndex, timelineIndex, optionIndex) => {
+  const handleSelectTransportOption = useCallback(async (dayIndex, timelineIndex, optionIndex) => {
     if (!itinerary) return;
 
     const days = itinerary.days || itinerary.Days || [];
@@ -1336,85 +1392,22 @@ const ItineraryResultPage = () => {
         return;
       }
 
-      const startTime = pickFirstText(travelItem?.startTime, travelItem?.StartTime);
-      const currentEndTime = pickFirstText(travelItem?.endTime, travelItem?.EndTime);
-      const currentMinutesFromClock = (() => {
-        const start = toMinutesOfDay(startTime);
-        const end = toMinutesOfDay(currentEndTime);
+      const isIntercitySegment = String(travelDetailKey || '').toLowerCase().includes('provincetoprovincetravel');
+      const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+      const groupSizeValue = Number(draft?.groupSize ?? draft?.GroupSize);
+      const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0 ? Math.round(groupSizeValue) : 1;
+
+      const getDurationMinutesFromClock = (startText, endText) => {
+        const start = toMinutesOfDay(startText);
+        const end = toMinutesOfDay(endText);
         if (start == null || end == null) return null;
         return end >= start ? end - start : (end + 1440) - start;
-      })();
-
-      const selectedMinutesRaw = toFiniteNumber(
-        selectedOption?.estimatedTravelMinutes ?? selectedOption?.EstimatedTravelMinutes,
-      );
-      const selectedMinutes = selectedMinutesRaw != null && selectedMinutesRaw > 0
-        ? Math.round(selectedMinutesRaw)
-        : (getTravelDurationMinutes(travelDetail) || getTimelineDurationMinutes(travelItem));
-      const currentMinutes = currentMinutesFromClock != null
-        ? currentMinutesFromClock
-        : (getTravelDurationMinutes(travelDetail) || selectedMinutes);
-
-      const newEndTime = addMinutesToTime(startTime, selectedMinutes);
-      const deltaMinutes = selectedMinutes - currentMinutes;
-
-      const selectedMethod = pickFirstText(
-        selectedOption?.method,
-        selectedOption?.Method,
-        travelDetail?.selectedMethod,
-        travelDetail?.SelectedMethod,
-      ) || 'Transport';
-      const selectedCost = pickBestMoney(
-        selectedOption?.costForGroup,
-        selectedOption?.CostForGroup,
-        selectedOption?.estimatedTotalCost,
-        selectedOption?.EstimatedTotalCost,
-        travelDetail?.selectedTotalCost,
-        travelDetail?.SelectedTotalCost,
-      );
-
-      const normalizedOptions = options.map((option, idx) => ({
-        ...option,
-        recommended: idx === optionIndex,
-        Recommended: idx === optionIndex,
-      }));
-
-      const updatedTravelDetail = {
-        ...travelDetail,
-        selectedMethod: selectedMethod,
-        SelectedMethod: selectedMethod,
-        selectedTravelTimeMinutes: selectedMinutes,
-        SelectedTravelTimeMinutes: selectedMinutes,
-        selectedTotalCost: selectedCost,
-        SelectedTotalCost: selectedCost,
-        departureTime: pickFirstText(travelDetail?.departureTime, travelDetail?.DepartureTime, startTime),
-        DepartureTime: pickFirstText(travelDetail?.departureTime, travelDetail?.DepartureTime, startTime),
-        arrivalTime: newEndTime,
-        ArrivalTime: newEndTime,
       };
 
-      if ('transportOptions' in travelDetail) {
-        updatedTravelDetail.transportOptions = normalizedOptions;
-      }
-      if ('TransportOptions' in travelDetail) {
-        updatedTravelDetail.TransportOptions = normalizedOptions;
-      }
-      if (!('transportOptions' in travelDetail) && !('TransportOptions' in travelDetail)) {
-        updatedTravelDetail.transportOptions = normalizedOptions;
-      }
+      const shiftFollowingTimelineItems = (fromIndex, deltaMinutes) => {
+        if (!deltaMinutes) return;
 
-      const updatedTravelItem = {
-        ...travelItem,
-        endTime: newEndTime,
-        EndTime: newEndTime,
-        costForGroup: selectedCost,
-        CostForGroup: selectedCost,
-      };
-      updatedTravelItem[travelDetailKey] = updatedTravelDetail;
-      timeline[timelineIndex] = updatedTravelItem;
-
-      if (deltaMinutes !== 0) {
-        for (let index = timelineIndex + 1; index < timeline.length; index += 1) {
+        for (let index = fromIndex + 1; index < timeline.length; index += 1) {
           const next = { ...timeline[index] };
           const itemStart = pickFirstText(next?.startTime, next?.StartTime);
           const itemEnd = pickFirstText(next?.endTime, next?.EndTime);
@@ -1450,15 +1443,460 @@ const ItineraryResultPage = () => {
 
           timeline[index] = next;
         }
+      };
+
+      const resolveEndpointParams = (detail, side) => {
+        const isFrom = side === 'from';
+        const locationId = toPositiveIntOrNull(
+          isFrom
+            ? (detail?.fromLocationId ?? detail?.FromLocationId)
+            : (detail?.toLocationId ?? detail?.ToLocationId)
+        );
+        const transitHubId = toPositiveIntOrNull(
+          isFrom
+            ? (detail?.fromTransitHubId ?? detail?.FromTransitHubId)
+            : (detail?.toTransitHubId ?? detail?.ToTransitHubId)
+        );
+        const customHub = toCustomGeoPayload(
+          isFrom
+            ? (detail?.customFromTransitHub || detail?.CustomFromTransitHub)
+            : (detail?.customToTransitHub || detail?.CustomToTransitHub)
+        );
+
+        if (isFrom) {
+          if (locationId) return { fromLocationId: locationId };
+          if (transitHubId) return { fromTransitHubId: transitHubId };
+          if (customHub) return { fromLat: customHub.latitude, fromLng: customHub.longitude };
+          return {};
+        }
+
+        if (locationId) return { toLocationId: locationId };
+        if (transitHubId) return { toTransitHubId: transitHubId };
+        if (customHub) return { toLat: customHub.latitude, toLng: customHub.longitude };
+        return {};
+      };
+
+      const applyEndpointToTravelDetail = (detail, endpointPatch = {}) => {
+        const nextDetail = { ...detail };
+
+        if ('fromTransitHubId' in endpointPatch) {
+          nextDetail.fromTransitHubId = endpointPatch.fromTransitHubId;
+          nextDetail.FromTransitHubId = endpointPatch.fromTransitHubId;
+        }
+        if ('toTransitHubId' in endpointPatch) {
+          nextDetail.toTransitHubId = endpointPatch.toTransitHubId;
+          nextDetail.ToTransitHubId = endpointPatch.toTransitHubId;
+        }
+        if ('fromTransitHubName' in endpointPatch) {
+          nextDetail.fromTransitHubName = endpointPatch.fromTransitHubName;
+          nextDetail.FromTransitHubName = endpointPatch.fromTransitHubName;
+        }
+        if ('toTransitHubName' in endpointPatch) {
+          nextDetail.toTransitHubName = endpointPatch.toTransitHubName;
+          nextDetail.ToTransitHubName = endpointPatch.toTransitHubName;
+        }
+
+        return nextDetail;
+      };
+
+      const applyTravelLegAtIndex = (targetIndex, travelLeg, endpointPatch = {}) => {
+        const targetItem = timeline[targetIndex];
+        if (!targetItem || !isTravelEvent(targetItem)) return false;
+
+        const [targetDetailKey, targetDetail] = getTravelDetailEntry(targetItem);
+        if (!targetDetailKey || !targetDetail) return false;
+
+        const startTimeText = pickFirstText(targetItem?.startTime, targetItem?.StartTime);
+        const currentEndText = pickFirstText(targetItem?.endTime, targetItem?.EndTime);
+        const currentMinutesFromClock = getDurationMinutesFromClock(startTimeText, currentEndText);
+
+        const incomingOptions = getTransportOptions(travelLeg);
+        const recommendedIncoming = getRecommendedTransportOption(travelLeg);
+        const nextMinutesRaw = toFiniteNumber(
+          travelLeg?.selectedTravelTimeMinutes
+          ?? travelLeg?.SelectedTravelTimeMinutes
+          ?? recommendedIncoming?.estimatedTravelMinutes
+          ?? recommendedIncoming?.EstimatedTravelMinutes
+        );
+        const nextMinutes = nextMinutesRaw != null && nextMinutesRaw > 0
+          ? Math.round(nextMinutesRaw)
+          : (getTravelDurationMinutes(targetDetail) || getTimelineDurationMinutes(targetItem));
+        const currentMinutes = currentMinutesFromClock != null
+          ? currentMinutesFromClock
+          : (getTravelDurationMinutes(targetDetail) || nextMinutes);
+
+        const nextEndTime = pickFirstText(
+          travelLeg?.arrivalTime,
+          travelLeg?.ArrivalTime,
+          addMinutesToTime(startTimeText, nextMinutes),
+        );
+        const deltaMinutes = nextMinutes - currentMinutes;
+
+        const nextMethod = pickFirstText(
+          travelLeg?.selectedMethod,
+          travelLeg?.SelectedMethod,
+          recommendedIncoming?.method,
+          recommendedIncoming?.Method,
+          targetDetail?.selectedMethod,
+          targetDetail?.SelectedMethod,
+        ) || 'Transport';
+
+        const nextCost = normalizeMoney(pickFirstMoney(
+          travelLeg?.selectedTotalCost,
+          travelLeg?.SelectedTotalCost,
+          recommendedIncoming?.costForGroup,
+          recommendedIncoming?.CostForGroup,
+          recommendedIncoming?.estimatedTotalCost,
+          recommendedIncoming?.EstimatedTotalCost,
+        ), currencyCode);
+
+        const nextTransportModeId = toPositiveIntOrNull(
+          travelLeg?.selectedTransportModeId
+          ?? travelLeg?.SelectedTransportModeId
+          ?? recommendedIncoming?.transportModeId
+          ?? recommendedIncoming?.TransportModeId
+          ?? recommendedIncoming?.modeId
+          ?? recommendedIncoming?.ModeId
+        );
+
+        const normalizedIncomingOptions = incomingOptions.length > 0
+          ? incomingOptions.map((option) => {
+            const optionRecommended = Boolean(option?.recommended ?? option?.Recommended);
+            return {
+              ...option,
+              recommended: optionRecommended,
+              Recommended: optionRecommended,
+            };
+          })
+          : getTransportOptions(targetDetail);
+
+        let nextDetail = {
+          ...targetDetail,
+          ...travelLeg,
+          selectedMethod: nextMethod,
+          SelectedMethod: nextMethod,
+          selectedTransportModeId: nextTransportModeId,
+          SelectedTransportModeId: nextTransportModeId,
+          selectedTravelTimeMinutes: nextMinutes,
+          SelectedTravelTimeMinutes: nextMinutes,
+          costForGroup: nextCost,
+          CostForGroup: nextCost,
+          selectedTotalCost: nextCost,
+          SelectedTotalCost: nextCost,
+          departureTime: startTimeText,
+          DepartureTime: startTimeText,
+          arrivalTime: nextEndTime,
+          ArrivalTime: nextEndTime,
+        };
+
+        nextDetail = applyEndpointToTravelDetail(nextDetail, endpointPatch);
+
+        if (Array.isArray(normalizedIncomingOptions) && normalizedIncomingOptions.length > 0) {
+          if ('transportOptions' in nextDetail) nextDetail.transportOptions = normalizedIncomingOptions;
+          if ('TransportOptions' in nextDetail) nextDetail.TransportOptions = normalizedIncomingOptions;
+          if (!('transportOptions' in nextDetail) && !('TransportOptions' in nextDetail)) {
+            nextDetail.transportOptions = normalizedIncomingOptions;
+          }
+        }
+
+        const nextItem = {
+          ...targetItem,
+          endTime: nextEndTime,
+          EndTime: nextEndTime,
+          ticketCost: null,
+          TicketCost: null,
+          costForGroup: nextCost,
+          CostForGroup: nextCost,
+        };
+        nextItem[targetDetailKey] = nextDetail;
+        timeline[targetIndex] = nextItem;
+
+        if (deltaMinutes !== 0) {
+          shiftFollowingTimelineItems(targetIndex, deltaMinutes);
+        }
+
+        return true;
+      };
+
+      const findNearestTravelIndex = (startIndex, direction, predicate) => {
+        const step = direction === 'backward' ? -1 : 1;
+        for (
+          let cursor = startIndex + step;
+          cursor >= 0 && cursor < timeline.length;
+          cursor += step
+        ) {
+          const item = timeline[cursor];
+          if (!item || !isTravelEvent(item)) continue;
+          const [detailKey, detail] = getTravelDetailEntry(item);
+          if (!detailKey || !detail) continue;
+          if (predicate(detailKey, detail)) return cursor;
+        }
+        return -1;
+      };
+
+      const reestimateLocalTravelAtIndex = async (targetIndex, endpointPatch, endpointRequestPatch) => {
+        if (targetIndex < 0) return false;
+
+        const targetItem = timeline[targetIndex];
+        const [targetDetailKey, targetDetail] = getTravelDetailEntry(targetItem);
+        if (!targetDetailKey || !targetDetail) return false;
+
+        const hasEndpointOverride = Object.values(endpointRequestPatch || {}).some((value) => value != null);
+        if (!hasEndpointOverride) {
+          const nextItem = { ...targetItem };
+          nextItem[targetDetailKey] = applyEndpointToTravelDetail(targetDetail, endpointPatch);
+          timeline[targetIndex] = nextItem;
+          return false;
+        }
+
+        const startTimeText = pickFirstText(targetItem?.startTime, targetItem?.StartTime);
+        const baseFrom = resolveEndpointParams(targetDetail, 'from');
+        const baseTo = resolveEndpointParams(targetDetail, 'to');
+
+        const estimateRequest = {
+          ...baseFrom,
+          ...baseTo,
+          ...endpointRequestPatch,
+          groupSize,
+          departureTime: startTimeText,
+          currencyCode,
+        };
+
+        const hasFrom = Boolean(
+          estimateRequest.fromLocationId
+          || estimateRequest.fromTransitHubId
+          || (estimateRequest.fromLat != null && estimateRequest.fromLng != null)
+        );
+        const hasTo = Boolean(
+          estimateRequest.toLocationId
+          || estimateRequest.toTransitHubId
+          || (estimateRequest.toLat != null && estimateRequest.toLng != null)
+        );
+
+        if (!hasFrom || !hasTo) {
+          const nextItem = { ...targetItem };
+          nextItem[targetDetailKey] = applyEndpointToTravelDetail(targetDetail, endpointPatch);
+          timeline[targetIndex] = nextItem;
+          return false;
+        }
+
+        try {
+          const travelLeg = await estimateLocalTravelApi(estimateRequest);
+          return applyTravelLegAtIndex(targetIndex, travelLeg || {}, endpointPatch);
+        } catch {
+          const nextItem = { ...targetItem };
+          nextItem[targetDetailKey] = applyEndpointToTravelDetail(targetDetail, endpointPatch);
+          timeline[targetIndex] = nextItem;
+          return false;
+        }
+      };
+
+      const selectedMethod = pickFirstText(
+        selectedOption?.method,
+        selectedOption?.Method,
+        travelDetail?.selectedMethod,
+        travelDetail?.SelectedMethod,
+      ) || 'Transport';
+      const selectedCost = normalizeMoney(pickFirstMoney(
+        selectedOption?.costForGroup,
+        selectedOption?.CostForGroup,
+        selectedOption?.estimatedTotalCost,
+        selectedOption?.EstimatedTotalCost,
+      ), currencyCode);
+
+      const selectedTransportModeId = toPositiveIntOrNull(
+        selectedOption?.transportModeId
+        ?? selectedOption?.TransportModeId
+        ?? selectedOption?.modeId
+        ?? selectedOption?.ModeId
+      );
+
+      const selectedFromTransitHubId = toPositiveIntOrNull(
+        selectedOption?.fromTransitHubId
+        ?? selectedOption?.FromTransitHubId
+      );
+      const selectedToTransitHubId = toPositiveIntOrNull(
+        selectedOption?.toTransitHubId
+        ?? selectedOption?.ToTransitHubId
+      );
+      const selectedFromTransitHubName = pickFirstText(
+        selectedOption?.fromTransitHubName,
+        selectedOption?.FromTransitHubName,
+      );
+      const selectedToTransitHubName = pickFirstText(
+        selectedOption?.toTransitHubName,
+        selectedOption?.ToTransitHubName,
+      );
+
+      const previousLocalTravelIndex = isIntercitySegment
+        ? findNearestTravelIndex(
+            timelineIndex,
+            'backward',
+            (detailKey) => String(detailKey).toLowerCase().includes('locationtotransithubtravel')
+          )
+        : -1;
+      const nextLocalTravelIndex = isIntercitySegment
+        ? findNearestTravelIndex(
+            timelineIndex,
+            'forward',
+            (detailKey) => String(detailKey).toLowerCase().includes('transithubtolocationtravel')
+          )
+        : -1;
+
+      if (previousLocalTravelIndex >= 0) {
+        await reestimateLocalTravelAtIndex(
+          previousLocalTravelIndex,
+          {
+            toTransitHubId: selectedFromTransitHubId,
+            toTransitHubName: selectedFromTransitHubName,
+          },
+          selectedFromTransitHubId
+            ? { toTransitHubId: selectedFromTransitHubId, toLocationId: undefined, toLat: undefined, toLng: undefined }
+            : {}
+        );
+      }
+
+      const currentTravelItem = timeline[timelineIndex];
+      const [currentTravelDetailKey, currentTravelDetail] = getTravelDetailEntry(currentTravelItem);
+      if (!currentTravelItem || !currentTravelDetailKey || !currentTravelDetail) {
+        message.warning('Travel detail is missing on this segment.');
+        return;
+      }
+
+      const currentStartTime = pickFirstText(currentTravelItem?.startTime, currentTravelItem?.StartTime);
+      const currentEndTime = pickFirstText(currentTravelItem?.endTime, currentTravelItem?.EndTime);
+      const currentMinutesFromClock = getDurationMinutesFromClock(currentStartTime, currentEndTime);
+
+      const selectedMinutesRaw = toFiniteNumber(
+        selectedOption?.estimatedTravelMinutes ?? selectedOption?.EstimatedTravelMinutes,
+      );
+      const selectedMinutes = selectedMinutesRaw != null && selectedMinutesRaw > 0
+        ? Math.round(selectedMinutesRaw)
+        : (getTravelDurationMinutes(currentTravelDetail) || getTimelineDurationMinutes(currentTravelItem));
+      const currentMinutes = currentMinutesFromClock != null
+        ? currentMinutesFromClock
+        : (getTravelDurationMinutes(currentTravelDetail) || selectedMinutes);
+
+      const newEndTime = addMinutesToTime(currentStartTime, selectedMinutes);
+      const deltaMinutes = selectedMinutes - currentMinutes;
+
+      const normalizedOptions = options.map((option, idx) => ({
+        ...option,
+        recommended: idx === optionIndex,
+        Recommended: idx === optionIndex,
+      }));
+
+      const updatedTravelDetail = {
+        ...currentTravelDetail,
+        selectedMethod: selectedMethod,
+        SelectedMethod: selectedMethod,
+        selectedTransportModeId: selectedTransportModeId,
+        SelectedTransportModeId: selectedTransportModeId,
+        selectedTravelTimeMinutes: selectedMinutes,
+        SelectedTravelTimeMinutes: selectedMinutes,
+        costForGroup: selectedCost,
+        CostForGroup: selectedCost,
+        selectedTotalCost: selectedCost,
+        SelectedTotalCost: selectedCost,
+        fromTransitHubId: selectedFromTransitHubId,
+        FromTransitHubId: selectedFromTransitHubId,
+        toTransitHubId: selectedToTransitHubId,
+        ToTransitHubId: selectedToTransitHubId,
+        fromTransitHubName: selectedFromTransitHubName || currentTravelDetail?.fromTransitHubName || currentTravelDetail?.FromTransitHubName,
+        FromTransitHubName: selectedFromTransitHubName || currentTravelDetail?.FromTransitHubName || currentTravelDetail?.fromTransitHubName,
+        toTransitHubName: selectedToTransitHubName || currentTravelDetail?.toTransitHubName || currentTravelDetail?.ToTransitHubName,
+        ToTransitHubName: selectedToTransitHubName || currentTravelDetail?.ToTransitHubName || currentTravelDetail?.toTransitHubName,
+        departureTime: pickFirstText(currentTravelDetail?.departureTime, currentTravelDetail?.DepartureTime, currentStartTime),
+        DepartureTime: pickFirstText(currentTravelDetail?.departureTime, currentTravelDetail?.DepartureTime, currentStartTime),
+        arrivalTime: newEndTime,
+        ArrivalTime: newEndTime,
+      };
+
+      if ('transportOptions' in currentTravelDetail) {
+        updatedTravelDetail.transportOptions = normalizedOptions;
+      }
+      if ('TransportOptions' in currentTravelDetail) {
+        updatedTravelDetail.TransportOptions = normalizedOptions;
+      }
+      if (!('transportOptions' in currentTravelDetail) && !('TransportOptions' in currentTravelDetail)) {
+        updatedTravelDetail.transportOptions = normalizedOptions;
+      }
+
+      const updatedTravelItem = {
+        ...currentTravelItem,
+        endTime: newEndTime,
+        EndTime: newEndTime,
+        ticketCost: null,
+        TicketCost: null,
+        costForGroup: selectedCost,
+        CostForGroup: selectedCost,
+      };
+      updatedTravelItem[currentTravelDetailKey] = updatedTravelDetail;
+      timeline[timelineIndex] = updatedTravelItem;
+
+      if (deltaMinutes !== 0) {
+        shiftFollowingTimelineItems(timelineIndex, deltaMinutes);
+      }
+
+      if (nextLocalTravelIndex >= 0) {
+        await reestimateLocalTravelAtIndex(
+          nextLocalTravelIndex,
+          {
+            fromTransitHubId: selectedToTransitHubId,
+            fromTransitHubName: selectedToTransitHubName,
+          },
+          selectedToTransitHubId
+            ? { fromTransitHubId: selectedToTransitHubId, fromLocationId: undefined, fromLat: undefined, fromLng: undefined }
+            : {}
+        );
+      }
+
+      // Canonicalize every travel item's cost fields after timeline mutations
+      // so repeated transport changes always replace old values instead of stacking stale data.
+      for (let idx = 0; idx < timeline.length; idx += 1) {
+        const item = timeline[idx];
+        if (!item || !isTravelEvent(item)) continue;
+
+        const [detailKey, detail] = getTravelDetailEntry(item);
+        if (!detailKey || !detail) continue;
+
+        const recommended = getRecommendedTransportOption(detail);
+        const canonicalCost = normalizeMoney(pickFirstMoney(
+          detail?.selectedTotalCost,
+          detail?.SelectedTotalCost,
+          detail?.costForGroup,
+          detail?.CostForGroup,
+          item?.costForGroup,
+          item?.CostForGroup,
+          recommended?.costForGroup,
+          recommended?.CostForGroup,
+          recommended?.estimatedTotalCost,
+          recommended?.EstimatedTotalCost,
+        ), currencyCode);
+
+        const nextDetail = {
+          ...detail,
+          selectedTotalCost: canonicalCost,
+          SelectedTotalCost: canonicalCost,
+          costForGroup: canonicalCost,
+          CostForGroup: canonicalCost,
+        };
+
+        timeline[idx] = {
+          ...item,
+          ticketCost: null,
+          TicketCost: null,
+          costForGroup: canonicalCost,
+          CostForGroup: canonicalCost,
+          [detailKey]: nextDetail,
+        };
       }
 
       day[timelineKey] = timeline;
-
-      const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
       updateDayEstimatedCost(day, timelineKey, currencyCode);
       updateBudgetSummaryFromDays(draft);
       updateItinerary(draft);
-      message.success('Main transport option updated.');
+      message.success('Transport option and related segments updated.');
     } catch {
       message.error('Unable to update transport option.');
     } finally {
@@ -1699,10 +2137,26 @@ const ItineraryResultPage = () => {
   }, 0), [days, tripCurrencyCode]);
 
   const totalBudgetValue = getMoneyAmount(budgetSummary?.totalBudget || budgetSummary?.TotalBudget) || 0;
-  const estimatedTotalValue = getMoneyAmount(budgetSummary?.estimatedTotalCost || budgetSummary?.EstimatedTotalCost)
-    ?? (timelineCostBreakdown.meal + timelineCostBreakdown.other);
+  const estimatedTotalValue = Math.round(
+    getMoneyAmount(budgetSummary?.estimatedTotalCost || budgetSummary?.EstimatedTotalCost)
+    ?? (accommodationCostFallback + timelineCostBreakdown.meal + timelineCostBreakdown.other)
+  );
+  const usableBudgetValue = getMoneyAmount(budgetSummary?.usableBudget || budgetSummary?.UsableBudget) || 0;
   const mealCostMoney = {
-    amount: Math.round(getMoneyAmount(budgetSummary?.mealCost || budgetSummary?.MealCost) ?? timelineCostBreakdown.meal),
+    amount: Math.round(
+      getMoneyAmount(
+        budgetSummary?.estimatedMealCost
+        || budgetSummary?.EstimatedMealCost
+        || budgetSummary?.mealCost
+        || budgetSummary?.MealCost
+      )
+      ?? timelineCostBreakdown.meal
+    ),
+    currency: tripCurrencyCode,
+  };
+  const summaryRemainingValue = getMoneyAmount(budgetSummary?.remainingBudget || budgetSummary?.RemainingBudget);
+  const remainingBudgetMoney = {
+    amount: Math.round(summaryRemainingValue ?? (usableBudgetValue - estimatedTotalValue)),
     currency: tripCurrencyCode,
   };
   const budgetUsedPercent = totalBudgetValue > 0 ? Math.round((estimatedTotalValue / totalBudgetValue) * 100) : 0;
@@ -1736,7 +2190,7 @@ const ItineraryResultPage = () => {
       {
         key: 'remainingBudget',
         label: 'Remaining',
-        value: formatMoney(budgetSummary.remainingBudget || budgetSummary.RemainingBudget),
+        value: formatMoney(remainingBudgetMoney),
         className: styles.budgetRemainingValue,
       },
     ]
@@ -2377,8 +2831,17 @@ const ItineraryResultPage = () => {
                                   const travelMinutes = getTravelDurationMinutes(travelDetail);
                                   const travelDistanceKm = toFiniteNumber(travelDetail?.distanceKm ?? travelDetail?.DistanceKm);
                                   const travelCostForGroup = getTravelGroupCost(costForGroup, travelDetail);
-                                  const fromText = getTravelPointName(travelDetail, true) || 'Previous Location';
+                                  const selectedTransportOption = getRecommendedTransportOption(travelDetail);
+                                  const fromText = pickFirstText(
+                                    selectedTransportOption?.fromTransitHubName,
+                                    selectedTransportOption?.FromTransitHubName,
+                                    travelDetail?.fromTransitHubName,
+                                    travelDetail?.FromTransitHubName,
+                                    getTravelPointName(travelDetail, true),
+                                  ) || 'Previous Location';
                                   const toText = pickFirstText(
+                                    selectedTransportOption?.toTransitHubName,
+                                    selectedTransportOption?.ToTransitHubName,
                                     travelDetail?.toTransitHubName,
                                     travelDetail?.ToTransitHubName,
                                     getTravelPointName(travelDetail, false),

@@ -377,8 +377,7 @@ namespace HSTS.Application.Trips.Commands
                     GroupSize = req.GroupSize,
                     Currency = req.CurrencyCode,
                     Status = TripStatus.Planned,
-                    JoinCode = await GenerateUniqueJoinCodeAsync(cancellationToken),
-                    IsJoinCodeActive = true,
+
                 };
 
                 // 8. Save Trip trước để có Id
@@ -544,17 +543,5 @@ namespace HSTS.Application.Trips.Commands
             }
         }
 
-        private async Task<string> GenerateUniqueJoinCodeAsync(CancellationToken ct)
-        {
-            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-            var random = new Random();
-            string code;
-            do
-            {
-                code = new string(Enumerable.Range(0, 8).Select(_ => chars[random.Next(chars.Length)]).ToArray());
-            }
-            while (await _context.Trips.AnyAsync(t => t.JoinCode == code, ct));
-            return code;
-        }
     }
 }
