@@ -63,16 +63,21 @@ export const getLocationsByDistrictIdsApi = ({ districtIds, pageIndex = 1, pageS
 };
 
 // Lookup all locations of a province via new endpoint: GET /api/locations?provinceId=...
-export const getLocationsByProvinceApi = async ({ provinceId, searchTerm, pageSize = 200, pageIndex = 1 }) => {
+export const getLocationsByProvinceApi = async ({ provinceId, searchTerm, pageSize = 200, pageIndex = 1, locationTypeId }) => {
   const targetProvinceId = Number(provinceId);
   if (!Number.isFinite(targetProvinceId) || targetProvinceId <= 0) {
     return { items: [], totalCount: 0 };
   }
 
+  const targetLocationTypeId = Number(locationTypeId);
+
   const response = await apiClient.get('/api/locations', {
     params: {
       provinceId: targetProvinceId,
       searchTerm,
+      locationTypeIds: Number.isFinite(targetLocationTypeId) && targetLocationTypeId > 0
+        ? targetLocationTypeId
+        : undefined,
       pageIndex,
       pageSize,
     },

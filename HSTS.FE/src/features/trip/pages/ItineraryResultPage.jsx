@@ -24,6 +24,7 @@ import {
   getProvincesApi,
   estimateLocalTravelApi,
   getLocationsByProvinceApi,
+  getLocationTypesApi,
   saveTripApi,
 } from '../api';
 import LocationDetailModal from '../components/LocationDetailModal';
@@ -963,6 +964,9 @@ const ItineraryResultPage = () => {
   const [provinceLocationLoading, setProvinceLocationLoading] = useState(false);
   const [selectedProvinceLocationId, setSelectedProvinceLocationId] = useState(null);
   const [provinceLocationSearch, setProvinceLocationSearch] = useState('');
+  const [addBetweenLocationTypeOptions, setAddBetweenLocationTypeOptions] = useState([]);
+  const [addBetweenLocationTypeLoading, setAddBetweenLocationTypeLoading] = useState(false);
+  const [selectedAddBetweenLocationTypeId, setSelectedAddBetweenLocationTypeId] = useState(null);
   const [editTimelineModal, setEditTimelineModal] = useState({
     open: false,
     dayIndex: null,
@@ -1202,8 +1206,14 @@ const ItineraryResultPage = () => {
     return draftItinerary;
   }, []);
 
-  const loadProvinceLocations = useCallback(async (provinceId, dayIndex, searchTerm = '') => {
+  const loadProvinceLocations = useCallback(async (provinceId, dayIndex, searchTerm = '', locationTypeId = null) => {
     if (!itinerary) return;
+
+    const normalizedLocationTypeId = Number(locationTypeId);
+    if (!Number.isFinite(normalizedLocationTypeId) || normalizedLocationTypeId <= 0) {
+      setProvinceLocationOptions([]);
+      return;
+    }
 
     setProvinceLocationLoading(true);
     try {
@@ -1221,6 +1231,7 @@ const ItineraryResultPage = () => {
         provinceId,
         countryId: 'VN',
         searchTerm: searchTerm || undefined,
+        locationTypeId: normalizedLocationTypeId,
         pageSize: 300,
       });
 
@@ -1250,6 +1261,39 @@ const ItineraryResultPage = () => {
       setProvinceLocationLoading(false);
     }
   }, [itinerary]);
+
+  const loadAddBetweenLocationTypes = useCallback(async () => {
+    setAddBetweenLocationTypeLoading(true);
+    try {
+      const response = await getLocationTypesApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.items || response?.Items || [];
+
+      const options = items
+        .map((locationType) => {
+          const id = Number(locationType?.id ?? locationType?.Id);
+          if (!Number.isFinite(id) || id <= 0) return null;
+
+          const name = pickFirstText(
+            locationType?.name,
+            locationType?.Name,
+            locationType?.englishName,
+            locationType?.EnglishName,
+          ) || `Location Type #${id}`;
+
+          return { id, name };
+        })
+        .filter(Boolean);
+
+      setAddBetweenLocationTypeOptions(options);
+    } catch {
+      setAddBetweenLocationTypeOptions([]);
+      message.error('Unable to load location types.');
+    } finally {
+      setAddBetweenLocationTypeLoading(false);
+    }
+  }, []);
 
   const handleReplaceAlternative = useCallback(async (dayIndex, timelineIndex, alternative, sourceEventType) => {
     if (!itinerary) return;
@@ -1377,17 +1421,48 @@ const ItineraryResultPage = () => {
 
     setSelectedProvinceLocationId(null);
     setProvinceLocationSearch('');
+    setSelectedAddBetweenLocationTypeId(null);
+    setProvinceLocationOptions([]);
     setAddBetweenModal({ open: true, dayIndex, insertAfterIndex, provinceId: normalizedProvinceId });
     setRecalculatingDayNumber(dayNum);
-    await loadProvinceLocations(normalizedProvinceId, dayIndex, '');
+    await loadAddBetweenLocationTypes();
     setRecalculatingDayNumber(null);
-  }, [itinerary, loadProvinceLocations]);
+  }, [itinerary, loadAddBetweenLocationTypes]);
+
+  const handleChangeAddBetweenLocationType = useCallback(async (value) => {
+    const locationTypeId = Number(value);
+
+    setSelectedAddBetweenLocationTypeId(Number.isFinite(locationTypeId) && locationTypeId > 0
+      ? locationTypeId
+      : null);
+    setSelectedProvinceLocationId(null);
+    setProvinceLocationSearch('');
+
+    if (!addBetweenModal?.open || !Number.isFinite(Number(addBetweenModal?.provinceId))) {
+      setProvinceLocationOptions([]);
+      return;
+    }
+
+    if (!Number.isFinite(locationTypeId) || locationTypeId <= 0) {
+      setProvinceLocationOptions([]);
+      return;
+    }
+
+    await loadProvinceLocations(addBetweenModal.provinceId, addBetweenModal.dayIndex, '', locationTypeId);
+  }, [addBetweenModal, loadProvinceLocations]);
 
   const handleSearchProvinceLocations = useCallback(async (searchTerm) => {
     if (!addBetweenModal?.open || !Number.isFinite(Number(addBetweenModal?.provinceId))) return;
+    const locationTypeId = Number(selectedAddBetweenLocationTypeId);
+    if (!Number.isFinite(locationTypeId) || locationTypeId <= 0) return;
     setProvinceLocationSearch(searchTerm);
-    await loadProvinceLocations(addBetweenModal.provinceId, addBetweenModal.dayIndex, searchTerm);
-  }, [addBetweenModal, loadProvinceLocations]);
+    await loadProvinceLocations(
+      addBetweenModal.provinceId,
+      addBetweenModal.dayIndex,
+      searchTerm,
+      locationTypeId,
+    );
+  }, [addBetweenModal, loadProvinceLocations, selectedAddBetweenLocationTypeId]);
 
   const handleConfirmAddBetween = useCallback(async () => {
     if (!itinerary) return;
@@ -1397,6 +1472,10 @@ const ItineraryResultPage = () => {
     const locationId = Number(selectedProvinceLocationId);
 
     if (!Number.isFinite(dayIndex) || !Number.isFinite(insertAfterIndex)) return;
+    if (!Number.isFinite(Number(selectedAddBetweenLocationTypeId)) || Number(selectedAddBetweenLocationTypeId) <= 0) {
+      message.warning('Please select a location type first.');
+      return;
+    }
     if (!Number.isFinite(locationId) || locationId <= 0) {
       message.warning('Please select a location to add.');
       return;
@@ -1454,6 +1533,7 @@ const ItineraryResultPage = () => {
       setProvinceLocationOptions([]);
       setSelectedProvinceLocationId(null);
       setProvinceLocationSearch('');
+      setSelectedAddBetweenLocationTypeId(null);
     } catch {
       message.error('Unable to add location.');
     } finally {
@@ -1462,6 +1542,7 @@ const ItineraryResultPage = () => {
   }, [
     itinerary,
     addBetweenModal,
+    selectedAddBetweenLocationTypeId,
     selectedProvinceLocationId,
     provinceLocationOptions,
     recalculateDayTimeline,
@@ -1473,6 +1554,7 @@ const ItineraryResultPage = () => {
     setProvinceLocationOptions([]);
     setSelectedProvinceLocationId(null);
     setProvinceLocationSearch('');
+    setSelectedAddBetweenLocationTypeId(null);
   }, []);
 
   const loadEditTimelineLocations = useCallback(async (provinceId, searchTerm = '', ensureOption = null) => {
@@ -3593,29 +3675,55 @@ const ItineraryResultPage = () => {
           onOk={handleConfirmAddBetween}
           okText="Add To Timeline"
           cancelText="Cancel"
-          okButtonProps={{ disabled: !selectedProvinceLocationId, loading: provinceLocationLoading }}
+          okButtonProps={{
+            disabled: !selectedAddBetweenLocationTypeId || !selectedProvinceLocationId,
+            loading: provinceLocationLoading || addBetweenLocationTypeLoading,
+          }}
         >
           <div className={styles.addBetweenModalBody}>
             <Text type="secondary" className={styles.addBetweenHint}>
-              Select a location in the same province. The system will recalculate route distance, duration, and costs.
+              Select location type first, then choose a location in the same province. The system will recalculate route distance, duration, and costs.
             </Text>
 
+            <span className={styles.editTimelineLabel}>Location Type</span>
             <Select
               showSearch
               allowClear
               className={styles.addBetweenSelect}
-              placeholder="Search location in this province"
+              placeholder="Select location type"
+              value={selectedAddBetweenLocationTypeId}
+              onChange={handleChangeAddBetweenLocationType}
+              loading={addBetweenLocationTypeLoading}
+              optionFilterProp="label"
+              options={addBetweenLocationTypeOptions.map((locationType) => ({
+                label: locationType.name,
+                value: locationType.id,
+              }))}
+              notFoundContent={addBetweenLocationTypeLoading ? <Spin size="small" /> : 'No location types'}
+            />
+
+            <span className={styles.editTimelineLabel}>Location</span>
+            <Select
+              showSearch
+              allowClear
+              className={styles.addBetweenSelect}
+              placeholder={selectedAddBetweenLocationTypeId
+                ? 'Search location in this province'
+                : 'Select location type first'}
               searchValue={provinceLocationSearch}
               value={selectedProvinceLocationId}
               onChange={(value) => setSelectedProvinceLocationId(value ?? null)}
               onSearch={handleSearchProvinceLocations}
               filterOption={false}
               loading={provinceLocationLoading}
+              disabled={!selectedAddBetweenLocationTypeId}
               options={provinceLocationOptions.map((location) => ({
                 label: location.address ? `${location.name} - ${location.address}` : location.name,
                 value: location.id,
               }))}
-              notFoundContent={provinceLocationLoading ? <Spin size="small" /> : 'No available locations'}
+              notFoundContent={provinceLocationLoading
+                ? <Spin size="small" />
+                : (selectedAddBetweenLocationTypeId ? 'No available locations' : 'Select location type first')}
             />
           </div>
         </Modal>
