@@ -34,6 +34,7 @@ const PublicLocationFilterBar = ({
       minRating: initialValues?.minRating || 0,
       minBudget: initialValues?.minBudget,
       maxBudget: initialValues?.maxBudget,
+      maxDurationMinutes: initialValues?.maxDurationMinutes,
     });
   }, [form, initialValues]);
 
@@ -47,6 +48,7 @@ const PublicLocationFilterBar = ({
       minRating: values.minRating || 0,
       minBudget: values.minBudget,
       maxBudget: values.maxBudget,
+      maxDurationMinutes: values.maxDurationMinutes,
     });
   };
 
@@ -60,6 +62,7 @@ const PublicLocationFilterBar = ({
       minRating: 0,
       minBudget: undefined,
       maxBudget: undefined,
+      maxDurationMinutes: undefined,
     };
     form.setFieldsValue(emptyValues);
     onApply?.(emptyValues);
@@ -104,13 +107,26 @@ const PublicLocationFilterBar = ({
           <InputNumber min={0} style={{ width: '100%' }} placeholder="Max" />
         </Form.Item>
 
+        <Form.Item label="Max Duration" name="maxDurationMinutes" style={{ minWidth: 180, marginBottom: 0 }}>
+          <Select
+            placeholder="Any duration"
+            allowClear
+            options={[
+              { value: 60, label: 'Up to 1 hour' },
+              { value: 120, label: 'Up to 2 hours' },
+              { value: 240, label: 'Up to 4 hours' },
+              { value: 480, label: 'Up to 8 hours' },
+            ]}
+          />
+        </Form.Item>
+
         <Space>
           <Button type="primary" htmlType="submit" loading={loading}>Apply</Button>
           <Button onClick={handleReset} disabled={loading}>Reset</Button>
         </Space>
       </Space>
       <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-        Discover locations by destination, district, category, interests, keyword, rating, and budget.
+        Discover locations by destination, district, category, interests, keyword, rating, budget, and duration.
       </Text>
     </Form>
   );

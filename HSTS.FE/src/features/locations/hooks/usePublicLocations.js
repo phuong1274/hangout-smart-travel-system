@@ -73,6 +73,7 @@ export const usePublicLocations = (initialFilters = {}) => {
         minRating: filters.minRating || undefined,
         minBudget: filters.minBudget || undefined,
         maxBudget: filters.maxBudget || undefined,
+        maxDurationMinutes: filters.maxDurationMinutes || undefined,
       };
 
       const response = await getPublicLocationsApi(params);
@@ -83,7 +84,7 @@ export const usePublicLocations = (initialFilters = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [filters.destinationId, filters.districtId, filters.locationTypeId, filters.keyword, filters.tagIds, filters.minRating, filters.minBudget, filters.maxBudget, pageIndex, pageSize, setTotal]);
+  }, [filters.destinationId, filters.districtId, filters.locationTypeId, filters.keyword, filters.tagIds, filters.minRating, filters.minBudget, filters.maxBudget, filters.maxDurationMinutes, pageIndex, pageSize, setTotal]);
 
   useEffect(() => {
     fetchLocations();

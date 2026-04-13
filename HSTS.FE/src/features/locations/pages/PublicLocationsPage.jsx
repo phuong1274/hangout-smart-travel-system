@@ -19,6 +19,7 @@ const PublicLocationsPage = () => {
     minRating: Number(searchParams.get('minRating') || 0),
     minBudget: searchParams.get('minBudget') ? Number(searchParams.get('minBudget')) : undefined,
     maxBudget: searchParams.get('maxBudget') ? Number(searchParams.get('maxBudget')) : undefined,
+    maxDurationMinutes: searchParams.get('maxDurationMinutes') ? Number(searchParams.get('maxDurationMinutes')) : undefined,
   }), [searchParams]);
 
   const {
@@ -48,6 +49,7 @@ const PublicLocationsPage = () => {
     if (nextFilters.minRating) params.set('minRating', String(nextFilters.minRating));
     if (nextFilters.minBudget != null) params.set('minBudget', String(nextFilters.minBudget));
     if (nextFilters.maxBudget != null) params.set('maxBudget', String(nextFilters.maxBudget));
+    if (nextFilters.maxDurationMinutes != null) params.set('maxDurationMinutes', String(nextFilters.maxDurationMinutes));
     setSearchParams(params);
   };
 

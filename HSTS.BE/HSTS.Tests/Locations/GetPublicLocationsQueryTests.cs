@@ -32,7 +32,8 @@ public class GetPublicLocationsQueryTests
             IsDeleted = false,
             Score = 4.8m,
             PriceMinUsd = 120m,
-            PriceMaxUsd = 180m
+            PriceMaxUsd = 180m,
+            RecommendedDurationMinutes = 90
         };
         temple.LocationMedias.Add(new LocationMedia { Id = 1, LocationId = 1, Link = "img-1", IsDeleted = false });
         temple.LocationTags.Add(new LocationTag { LocationId = 1, TagId = 100, Tag = new Tag { Id = 100, Name = "Culture", Level = 1 } });
@@ -53,7 +54,8 @@ public class GetPublicLocationsQueryTests
             IsDeleted = false,
             Score = 4.2m,
             PriceMinUsd = 250m,
-            PriceMaxUsd = 350m
+            PriceMaxUsd = 350m,
+            RecommendedDurationMinutes = 240
         };
 
         var beach = new Location
@@ -72,7 +74,8 @@ public class GetPublicLocationsQueryTests
             IsDeleted = false,
             Score = 4.9m,
             PriceMinUsd = 400m,
-            PriceMaxUsd = 600m
+            PriceMaxUsd = 600m,
+            RecommendedDurationMinutes = 300
         };
 
         var ctx = MockDbContextFactory.Create()
@@ -84,7 +87,7 @@ public class GetPublicLocationsQueryTests
             .Build();
 
         var handler = new GetPublicLocationsQueryHandler(ctx.Object);
-        var result = await handler.Handle(new GetPublicLocationsQuery(hanoi.Id, baDinh.Id, 1, new List<int> { 100 }, "Tem", 4.5m, 100m, 200m, 1, 10), default);
+        var result = await handler.Handle(new GetPublicLocationsQuery(hanoi.Id, baDinh.Id, 1, new List<int> { 100 }, "Tem", 4.5m, 100m, 200m, 120, 1, 10), default);
 
         result.IsError.Should().BeFalse();
         result.Value.TotalCount.Should().Be(1);
