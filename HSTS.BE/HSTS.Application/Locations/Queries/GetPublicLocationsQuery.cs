@@ -12,6 +12,7 @@ public record GetPublicLocationsQuery(
     int? DestinationId = null,
     int? DistrictId = null,
     int? LocationTypeId = null,
+    List<int>? TagIds = null,
     string? Keyword = null,
     decimal? MinRating = null,
     decimal? MinBudget = null,
@@ -50,6 +51,8 @@ public class GetPublicLocationsQueryHandler : IRequestHandler<GetPublicLocations
             .AsNoTracking()
             .Include(x => x.District)
             .ThenInclude(x => x!.Province)
+            .Include(x => x.LocationTags)
+            .ThenInclude(x => x.Tag)
             .Include(x => x.LocationMedias)
             .Where(x => !x.IsDeleted
                 && x.Status == LocationStatus.Active
@@ -71,6 +74,11 @@ public class GetPublicLocationsQueryHandler : IRequestHandler<GetPublicLocations
         if (request.LocationTypeId.HasValue)
         {
             query = query.Where(x => x.LocationTypeId == request.LocationTypeId.Value);
+        }
+
+        if (request.TagIds != null && request.TagIds.Count > 0)
+        {
+            query = query.Where(x => x.LocationTags.Any(lt => request.TagIds.Contains(lt.TagId)));
         }
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))

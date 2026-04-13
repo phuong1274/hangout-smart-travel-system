@@ -35,6 +35,7 @@ public class GetPublicLocationsQueryTests
             PriceMaxUsd = 180m
         };
         temple.LocationMedias.Add(new LocationMedia { Id = 1, LocationId = 1, Link = "img-1", IsDeleted = false });
+        temple.LocationTags.Add(new LocationTag { LocationId = 1, TagId = 100, Tag = new Tag { Id = 100, Name = "Culture", Level = 1 } });
 
         var museum = new Location
         {
@@ -83,7 +84,7 @@ public class GetPublicLocationsQueryTests
             .Build();
 
         var handler = new GetPublicLocationsQueryHandler(ctx.Object);
-        var result = await handler.Handle(new GetPublicLocationsQuery(hanoi.Id, baDinh.Id, 1, "Tem", 4.5m, 100m, 200m, 1, 10), default);
+        var result = await handler.Handle(new GetPublicLocationsQuery(hanoi.Id, baDinh.Id, 1, new List<int> { 100 }, "Tem", 4.5m, 100m, 200m, 1, 10), default);
 
         result.IsError.Should().BeFalse();
         result.Value.TotalCount.Should().Be(1);

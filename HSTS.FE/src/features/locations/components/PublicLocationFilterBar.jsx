@@ -15,12 +15,14 @@ const PublicLocationFilterBar = ({
   destinations = [],
   districts = [],
   locationTypes = [],
+  tags = [],
 }) => {
   const [form] = Form.useForm();
 
   const destinationOptions = useMemo(() => destinations.map(normalizeOption).filter((item) => item.value), [destinations]);
   const districtOptions = useMemo(() => districts.map(normalizeOption).filter((item) => item.value), [districts]);
   const locationTypeOptions = useMemo(() => locationTypes.map(normalizeOption).filter((item) => item.value), [locationTypes]);
+  const tagOptions = useMemo(() => tags.map(normalizeOption).filter((item) => item.value), [tags]);
 
   useEffect(() => {
     form.setFieldsValue({
@@ -28,6 +30,7 @@ const PublicLocationFilterBar = ({
       districtId: initialValues?.districtId ? String(initialValues.districtId) : undefined,
       locationTypeId: initialValues?.locationTypeId ? String(initialValues.locationTypeId) : undefined,
       keyword: initialValues?.keyword || '',
+      tagIds: Array.isArray(initialValues?.tagIds) ? initialValues.tagIds.map(String) : [],
       minRating: initialValues?.minRating || 0,
       minBudget: initialValues?.minBudget,
       maxBudget: initialValues?.maxBudget,
@@ -40,6 +43,7 @@ const PublicLocationFilterBar = ({
       districtId: values.districtId ? Number(values.districtId) : undefined,
       locationTypeId: values.locationTypeId ? Number(values.locationTypeId) : undefined,
       keyword: values.keyword?.trim() || '',
+      tagIds: Array.isArray(values.tagIds) ? values.tagIds.map(Number) : [],
       minRating: values.minRating || 0,
       minBudget: values.minBudget,
       maxBudget: values.maxBudget,
@@ -52,6 +56,7 @@ const PublicLocationFilterBar = ({
       districtId: undefined,
       locationTypeId: undefined,
       keyword: '',
+      tagIds: [],
       minRating: 0,
       minBudget: undefined,
       maxBudget: undefined,
@@ -83,6 +88,10 @@ const PublicLocationFilterBar = ({
           <Input placeholder="Search by name, description, area..." allowClear />
         </Form.Item>
 
+        <Form.Item label="Interests" name="tagIds" style={{ minWidth: 260, marginBottom: 0 }}>
+          <Select mode="multiple" placeholder="Select interests" options={tagOptions} allowClear showSearch optionFilterProp="label" maxTagCount="responsive" />
+        </Form.Item>
+
         <Form.Item label="Minimum Rating" name="minRating" style={{ minWidth: 180, marginBottom: 0 }}>
           <Rate allowHalf />
         </Form.Item>
@@ -101,7 +110,7 @@ const PublicLocationFilterBar = ({
         </Space>
       </Space>
       <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-        Discover locations by destination, district, category, keyword, rating, and budget.
+        Discover locations by destination, district, category, interests, keyword, rating, and budget.
       </Text>
     </Form>
   );

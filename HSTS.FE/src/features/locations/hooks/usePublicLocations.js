@@ -3,6 +3,7 @@ import { usePagination } from '@/hooks/usePagination';
 import {
   getAllLocationTypesApi,
   getAllProvincesApi,
+  getAllTagsApi,
   getDistrictsByProvinceApi,
   getPublicLocationsApi,
 } from '../api';
@@ -15,20 +16,25 @@ export const usePublicLocations = (initialFilters = {}) => {
   const [destinations, setDestinations] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [locationTypes, setLocationTypes] = useState([]);
+  const [tags, setTags] = useState([]);
 
   useEffect(() => {
     const loadFilterOptions = async () => {
       try {
-        const [provincesRes, locationTypesRes] = await Promise.all([
+        const [provincesRes, locationTypesRes, tagsRes] = await Promise.all([
           getAllProvincesApi(),
           getAllLocationTypesApi(),
+          getAllTagsApi(),
         ]);
 
+        const allTags = Array.isArray(tagsRes) ? tagsRes : tagsRes?.items || tagsRes?.Items || [];
         setDestinations(Array.isArray(provincesRes) ? provincesRes : provincesRes?.items || provincesRes?.Items || []);
         setLocationTypes(Array.isArray(locationTypesRes) ? locationTypesRes : locationTypesRes?.items || locationTypesRes?.Items || []);
+        setTags(allTags.filter((tag) => !tag?.parentTagId && !tag?.ParentTagId));
       } catch {
         setDestinations([]);
         setLocationTypes([]);
+        setTags([]);
       }
     };
 
@@ -63,6 +69,7 @@ export const usePublicLocations = (initialFilters = {}) => {
         districtId: filters.districtId || undefined,
         locationTypeId: filters.locationTypeId || undefined,
         keyword: filters.keyword || undefined,
+        tagIds: filters.tagIds?.length ? filters.tagIds : undefined,
         minRating: filters.minRating || undefined,
         minBudget: filters.minBudget || undefined,
         maxBudget: filters.maxBudget || undefined,
@@ -76,7 +83,7 @@ export const usePublicLocations = (initialFilters = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [filters.destinationId, filters.districtId, filters.locationTypeId, filters.keyword, filters.minRating, filters.minBudget, filters.maxBudget, pageIndex, pageSize, setTotal]);
+  }, [filters.destinationId, filters.districtId, filters.locationTypeId, filters.keyword, filters.tagIds, filters.minRating, filters.minBudget, filters.maxBudget, pageIndex, pageSize, setTotal]);
 
   useEffect(() => {
     fetchLocations();
@@ -95,6 +102,7 @@ export const usePublicLocations = (initialFilters = {}) => {
     destinations,
     districts,
     locationTypes,
+    tags,
     handleTableChange,
     handleFilterChange,
     fetchLocations,
