@@ -628,6 +628,29 @@ const TripDetailPage = () => {
                                           </span>
                                         )}
                                       </div>
+                                      {totalExpenses > 0 && (() => {
+                                        const variance = totalExpenses - estimatedCost;
+                                        const budgetPercent = estimatedCost > 0 ? (totalExpenses / estimatedCost) * 100 : 0;
+                                        const isOverBudget = variance > 0;
+                                        const statusColor = isOverBudget ? '#ff4d4f' : '#52c41a';
+                                        const statusText = isOverBudget ? 'Over Budget' : 'Under Budget';
+                                        return (
+                                          <div style={{ marginTop: 4 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                                              <Text type="secondary" style={{ fontSize: 11 }}>Budget Usage</Text>
+                                              <Text strong style={{ color: statusColor, fontSize: 11 }}>{statusText} ({budgetPercent.toFixed(1)}%)</Text>
+                                            </div>
+                                            <Progress
+                                              percent={Math.min(budgetPercent, 100)}
+                                              strokeColor={statusColor}
+                                              status={budgetPercent > 100 ? 'exception' : 'normal'}
+                                              showInfo={false}
+                                              size="small"
+                                              style={{ marginBottom: 4 }}
+                                            />
+                                          </div>
+                                        );
+                                      })()}
 
                                       {/* Individual expense logs */}
                                       {activityExpensesList.length > 0 && (
