@@ -543,7 +543,7 @@ namespace HSTS.Application.Itineraries.Queries
                     var (hotel, recommendations) = SelectAndScoreAccommodation(
                         provHotels, provAttractions, groupSize,
                         usableBudget / totalDays, request.HotelPreference!, prov,
-                        toMoney, maxPerPersonPerNight, recentlyVisitedLocationIds);
+                        toMoney, maxPerPersonPerNight, recentlyVisitedLocationIds, favoriteTagIds);
 
                     accommodationRecommendations.AddRange(recommendations);
                     if (hotel is not null)
@@ -766,7 +766,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 if (!breakfastInserted && estArrivalTimeOnly >= BreakfastStart && estArrivalTimeOnly < BreakfastEnd)
                                 {
                                     // Arrival in breakfast window: pick restaurant near destination, go directly there
-                                    var bfRestaurant = PickRestaurantNearby(destMealLocations, firstDestGeo, visitedLocationIds, visitedRestaurantIds, breakfastBudgetPerPerson, groupSize, request.TripSegment, out var bfAlternatives, toMoney, recentlyVisitedLocationIds);
+                                    var bfRestaurant = PickRestaurantNearby(destMealLocations, firstDestGeo, visitedLocationIds, visitedRestaurantIds, breakfastBudgetPerPerson, groupSize, request.TripSegment, out var bfAlternatives, toMoney, recentlyVisitedLocationIds, favoriteTagIds);
                                     var bfLoc = bfRestaurant?.Location;
                                     if (bfLoc is not null)
                                     {
@@ -1220,7 +1220,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 ? (lunchBudgetPerPerson + dinnerBudgetPerPerson)
                                 : lunchBudgetPerPerson;
 
-                            var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, mealBudget, groupSize, request.TripSegment, out var mealAlternatives, toMoney, recentlyVisitedLocationIds);
+                            var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, mealBudget, groupSize, request.TripSegment, out var mealAlternatives, toMoney, recentlyVisitedLocationIds, favoriteTagIds);
                             var rLoc = restaurant?.Location;
                             var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
                             var mealGroupCost = mealExtraCost * groupSize;
@@ -1266,7 +1266,7 @@ namespace HSTS.Application.Itineraries.Queries
                         // Check for breakfast overlap (arrival before 08:30)
                         else if (!breakfastInserted && currentTimeOnly >= BreakfastStart && currentTimeOnly < BreakfastEnd)
                         {
-                            var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, breakfastBudgetPerPerson, groupSize, request.TripSegment, out var breakfastAlternatives, toMoney, recentlyVisitedLocationIds);
+                            var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, breakfastBudgetPerPerson, groupSize, request.TripSegment, out var breakfastAlternatives, toMoney, recentlyVisitedLocationIds, favoriteTagIds);
                             var rLoc = restaurant?.Location;
                             var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
                             var mealGroupCost = mealExtraCost * groupSize;
@@ -1619,7 +1619,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 var breakfastPerPersonBudget = remainingMealBudget > 0
                                     ? (breakfastBudgetPerPerson + (remainingMealBudget / Math.Max(1, totalDays - globalDayIndex)))
                                     : breakfastBudgetPerPerson;
-                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, breakfastPerPersonBudget, groupSize, request.TripSegment, out var breakfastAlternatives, toMoney, recentlyVisitedLocationIds);
+                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, breakfastPerPersonBudget, groupSize, request.TripSegment, out var breakfastAlternatives, toMoney, recentlyVisitedLocationIds, favoriteTagIds);
                                 var rLoc = restaurant?.Location;
 
                                 // Local transport to restaurant
@@ -1837,7 +1837,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 var lunchPerPersonBudget = remainingMealBudget > 0
                                     ? (lunchBudgetPerPerson + (remainingMealBudget / Math.Max(1, totalDays - globalDayIndex)))
                                     : lunchBudgetPerPerson;
-                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, lunchPerPersonBudget, groupSize, request.TripSegment, out var lunchAlternatives, toMoney, recentlyVisitedLocationIds);
+                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, lunchPerPersonBudget, groupSize, request.TripSegment, out var lunchAlternatives, toMoney, recentlyVisitedLocationIds, favoriteTagIds);
                                 var rLoc = restaurant?.Location;
 
                                 // Local transport to restaurant
@@ -1910,7 +1910,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 var dinnerPerPersonBudget = remainingMealBudget > 0
                                     ? (dinnerBudgetPerPerson + (remainingMealBudget / Math.Max(1, totalDays - globalDayIndex)))
                                     : dinnerBudgetPerPerson;
-                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, dinnerPerPersonBudget, groupSize, request.TripSegment, out var dinnerAlternatives, toMoney, recentlyVisitedLocationIds);
+                                var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, dinnerPerPersonBudget, groupSize, request.TripSegment, out var dinnerAlternatives, toMoney, recentlyVisitedLocationIds, favoriteTagIds);
                                 var rLoc = restaurant?.Location;
 
                                 // Local transport to restaurant
@@ -2095,7 +2095,7 @@ namespace HSTS.Application.Itineraries.Queries
                             var dinnerPerPersonBudget = remainingMealBudget > 0
                                 ? (dinnerBudgetPerPerson + (remainingMealBudget / Math.Max(1, totalDays - globalDayIndex)))
                                 : dinnerBudgetPerPerson;
-                            var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, dinnerPerPersonBudget, groupSize, request.TripSegment, out var lateDinnerAlts, toMoney, recentlyVisitedLocationIds);
+                            var restaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, dinnerPerPersonBudget, groupSize, request.TripSegment, out var lateDinnerAlts, toMoney, recentlyVisitedLocationIds, favoriteTagIds);
                             var rLoc = restaurant?.Location;
                             var mealExtraCost = rLoc is not null ? GetPerPersonPrice(rLoc) : 0m;
                             var mealGroupCost = mealExtraCost * groupSize;
@@ -2412,7 +2412,7 @@ namespace HSTS.Application.Itineraries.Queries
                             var lunchPerPersonBudget = remainingMealBudget > 0
                                 ? (lunchBudgetPerPerson + (remainingMealBudget / Math.Max(1, totalDays - globalDayIndex)))
                                 : lunchBudgetPerPerson;
-                            var lastDayRestaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, lunchPerPersonBudget, groupSize, request.TripSegment, out var lastDayLunchAlts, toMoney, recentlyVisitedLocationIds);
+                            var lastDayRestaurant = PickRestaurantNearby(destMealLocations, currentPoint, visitedLocationIds, visitedRestaurantIds, lunchPerPersonBudget, groupSize, request.TripSegment, out var lastDayLunchAlts, toMoney, recentlyVisitedLocationIds, favoriteTagIds);
                             var ldRLoc = lastDayRestaurant?.Location;
 
                             // Local transport to farewell lunch restaurant
@@ -3030,7 +3030,7 @@ namespace HSTS.Application.Itineraries.Queries
             IList<ScoredLocation> attractions, GeoPoint currentPoint, HashSet<int> visitedIds,
             HashSet<int> visitedRestaurantIds, decimal maxAffordablePerPerson, int groupSize, string tripSegment,
             out List<AlternativeLocationDto> alternativeRestaurants, Func<decimal, MoneyDto> toMoney,
-            HashSet<int> recentlyVisitedLocationIds)
+            HashSet<int> recentlyVisitedLocationIds, HashSet<int> favoriteTagIds)
         {
             // Define price bounds per person based on trip segment for restaurant matching
             var (minPricePerPerson, maxPricePerPerson) = tripSegment switch
@@ -3099,7 +3099,7 @@ namespace HSTS.Application.Itineraries.Queries
             bool isBudgetVeryTight = maxAffordablePerPerson < 100_000m;
 
             // Score by combining distance (closer is better) and composite score (higher is better)
-            // Use weighted ratio: 40% score, 60% proximity
+            // Use weighted ratio: 30% score, 50% proximity, 20% tag match
             var scoredRestaurants = restaurants
                 .Select(x =>
                 {
@@ -3108,8 +3108,19 @@ namespace HSTS.Application.Itineraries.Queries
                     var travelMin = (int)Math.Ceiling((dist / DefaultSpeedKmh) * 60.0);
                     // Normalize: lower distance = higher proximity score (max 10)
                     var proximityScore = Math.Max(0.0, 10.0 - dist);
+
+                    // Tag match bonus: restaurants matching user's favorite tags get a significant boost
+                    double tagMatchScore = 0.0;
+                    if (favoriteTagIds.Count > 0)
+                    {
+                        int tagMatches = x.Location.Tags.Count(t => favoriteTagIds.Contains(t.Id));
+                        tagMatchScore = Math.Min(10.0, tagMatches * 5.0); // max 10, 5 points per matching tag
+                    }
+
                     // Composite score is already 0-10 scale
-                    var combinedScore = (x.CompositeScore * 0.4) + (proximityScore * 0.6);
+                    var combinedScore = favoriteTagIds.Count > 0
+                        ? (x.CompositeScore * 0.30) + (proximityScore * 0.50) + (tagMatchScore * 0.20)
+                        : (x.CompositeScore * 0.40) + (proximityScore * 0.60);
 
                     // When budget is very tight, factor in price (cheaper = better)
                     if (isBudgetVeryTight)
@@ -3485,7 +3496,7 @@ namespace HSTS.Application.Itineraries.Queries
                 IList<Location> hotels, IList<ScoredLocation> attractions,
                 int groupSize, decimal dailyBudget, string hotelPreference,
                 Province province, Func<decimal, MoneyDto> toMoney, decimal maxPerPersonPerNight,
-                HashSet<int> recentlyVisitedLocationIds)
+                HashSet<int> recentlyVisitedLocationIds, HashSet<int> favoriteTagIds)
         {
             if (hotels.Count == 0) return (null, new List<AccommodationRecommendationDto>());
 
@@ -3544,7 +3555,18 @@ namespace HSTS.Application.Itineraries.Queries
                 }
                 double groupScore = hotel.LocationAmenities.Count > 0 ? 70 : 50;
                 double amenitiesScore = Math.Min(100, hotel.LocationAmenities.Count * 15);
-                double totalScore = distanceScore * 0.25 + budgetScore * 0.35 + groupScore * 0.25 + amenitiesScore * 0.15;
+
+                // Tag match bonus: hotels matching user's favorite tags get a boost
+                double tagMatchScore = 0.0;
+                if (favoriteTagIds.Count > 0)
+                {
+                    int tagMatches = hotel.Tags.Count(t => favoriteTagIds.Contains(t.Id));
+                    tagMatchScore = Math.Min(100, tagMatches * 25.0); // 25 points per matching tag, max 100
+                }
+
+                double totalScore = favoriteTagIds.Count > 0
+                    ? distanceScore * 0.20 + budgetScore * 0.30 + groupScore * 0.20 + amenitiesScore * 0.10 + tagMatchScore * 0.20
+                    : distanceScore * 0.25 + budgetScore * 0.35 + groupScore * 0.25 + amenitiesScore * 0.15;
 
                 // Apply penalty for recently visited locations
                 bool isRecentlyVisited = recentlyVisitedLocationIds.Contains(hotel.Id);
