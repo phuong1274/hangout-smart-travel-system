@@ -1,7 +1,26 @@
 import React, { useEffect, useMemo } from 'react';
-import { Button, Form, Input, InputNumber, Rate, Select, Space, Typography } from 'antd';
+import { Button, Divider, Form, Input, InputNumber, Rate, Row, Col, Select, Space, Typography } from 'antd';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
+const fieldStyle = { marginBottom: 0 };
+const fullWidth = { width: '100%' };
+const DURATION_OPTIONS = [
+  { value: 60, label: 'Up to 1 hour' },
+  { value: 120, label: 'Up to 2 hours' },
+  { value: 240, label: 'Up to 4 hours' },
+  { value: 480, label: 'Up to 8 hours' },
+];
+const ratingMarks = {
+  0: 'Any',
+  4: '4.0+',
+  5: '5.0',
+};
+const budgetInputProps = { min: 0, style: fullWidth };
+const searchableSelectProps = { showSearch: true, optionFilterProp: 'label' };
+
+const SectionHeading = ({ children }) => (
+  <Title level={5} style={{ margin: 0 }}>{children}</Title>
+);
 
 const normalizeOption = (item) => ({
   value: String(item?.id ?? item?.Id ?? ''),
@@ -74,60 +93,70 @@ const PublicLocationFilterBar = ({
 
   return (
     <Form form={form} layout="vertical" onFinish={handleSubmit}>
-      <Space wrap size="middle" align="end" style={{ width: '100%' }}>
-        <Form.Item label="Destination" name="destinationId" style={{ minWidth: 220, marginBottom: 0 }}>
-          <Select placeholder="Select destination" options={destinationOptions} allowClear onChange={handleDestinationChange} showSearch optionFilterProp="label" />
-        </Form.Item>
+      <Space direction="vertical" size="large" style={fullWidth}>
+        <div>
+          <SectionHeading>Where do you want to explore?</SectionHeading>
+          <Text type="secondary">Start with place and category, then narrow by interests, rating, budget, and visit time.</Text>
+        </div>
 
-        <Form.Item label="District" name="districtId" style={{ minWidth: 220, marginBottom: 0 }}>
-          <Select placeholder="All districts" options={districtOptions} allowClear disabled={!form.getFieldValue('destinationId')} showSearch optionFilterProp="label" />
-        </Form.Item>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} md={12} lg={8}>
+            <Form.Item label="Destination" name="destinationId" style={fieldStyle}>
+              <Select placeholder="Select destination" options={destinationOptions} allowClear onChange={handleDestinationChange} {...searchableSelectProps} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12} lg={8}>
+            <Form.Item label="District" name="districtId" style={fieldStyle}>
+              <Select placeholder="All districts" options={districtOptions} allowClear disabled={!form.getFieldValue('destinationId')} {...searchableSelectProps} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12} lg={8}>
+            <Form.Item label="Category" name="locationTypeId" style={fieldStyle}>
+              <Select placeholder="All categories" options={locationTypeOptions} allowClear {...searchableSelectProps} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12} lg={12}>
+            <Form.Item label="Keyword" name="keyword" style={fieldStyle}>
+              <Input placeholder="Search by name, description, area..." allowClear />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12} lg={12}>
+            <Form.Item label="Interests" name="tagIds" style={fieldStyle}>
+              <Select mode="multiple" placeholder="Select interests" options={tagOptions} allowClear maxTagCount="responsive" {...searchableSelectProps} />
+            </Form.Item>
+          </Col>
+        </Row>
 
-        <Form.Item label="Category" name="locationTypeId" style={{ minWidth: 220, marginBottom: 0 }}>
-          <Select placeholder="All categories" options={locationTypeOptions} allowClear showSearch optionFilterProp="label" />
-        </Form.Item>
+        <Divider style={{ margin: 0 }} />
 
-        <Form.Item label="Keyword" name="keyword" style={{ minWidth: 260, marginBottom: 0 }}>
-          <Input placeholder="Search by name, description, area..." allowClear />
-        </Form.Item>
+        <Row gutter={[16, 16]} align="bottom">
+          <Col xs={24} md={12} lg={8}>
+            <Form.Item label="Minimum Rating" name="minRating" style={fieldStyle}>
+              <Rate allowHalf />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12} lg={4}>
+            <Form.Item label="Budget From (USD)" name="minBudget" style={fieldStyle}>
+              <InputNumber placeholder="Min" {...budgetInputProps} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12} lg={4}>
+            <Form.Item label="Budget To (USD)" name="maxBudget" style={fieldStyle}>
+              <InputNumber placeholder="Max" {...budgetInputProps} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12} lg={8}>
+            <Form.Item label="Max Duration" name="maxDurationMinutes" style={fieldStyle}>
+              <Select placeholder="Any duration" allowClear options={DURATION_OPTIONS} />
+            </Form.Item>
+          </Col>
+        </Row>
 
-        <Form.Item label="Interests" name="tagIds" style={{ minWidth: 260, marginBottom: 0 }}>
-          <Select mode="multiple" placeholder="Select interests" options={tagOptions} allowClear showSearch optionFilterProp="label" maxTagCount="responsive" />
-        </Form.Item>
-
-        <Form.Item label="Minimum Rating" name="minRating" style={{ minWidth: 180, marginBottom: 0 }}>
-          <Rate allowHalf />
-        </Form.Item>
-
-        <Form.Item label="Budget From (USD)" name="minBudget" style={{ minWidth: 160, marginBottom: 0 }}>
-          <InputNumber min={0} style={{ width: '100%' }} placeholder="Min" />
-        </Form.Item>
-
-        <Form.Item label="Budget To (USD)" name="maxBudget" style={{ minWidth: 160, marginBottom: 0 }}>
-          <InputNumber min={0} style={{ width: '100%' }} placeholder="Max" />
-        </Form.Item>
-
-        <Form.Item label="Max Duration" name="maxDurationMinutes" style={{ minWidth: 180, marginBottom: 0 }}>
-          <Select
-            placeholder="Any duration"
-            allowClear
-            options={[
-              { value: 60, label: 'Up to 1 hour' },
-              { value: 120, label: 'Up to 2 hours' },
-              { value: 240, label: 'Up to 4 hours' },
-              { value: 480, label: 'Up to 8 hours' },
-            ]}
-          />
-        </Form.Item>
-
-        <Space>
+        <Space wrap>
           <Button type="primary" htmlType="submit" loading={loading}>Apply</Button>
           <Button onClick={handleReset} disabled={loading}>Reset</Button>
         </Space>
       </Space>
-      <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-        Discover locations by destination, district, category, interests, keyword, rating, budget, and duration.
-      </Text>
     </Form>
   );
 };
