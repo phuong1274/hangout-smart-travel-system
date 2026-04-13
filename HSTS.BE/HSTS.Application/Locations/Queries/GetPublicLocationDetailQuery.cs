@@ -34,7 +34,16 @@ public class GetPublicLocationDetailQueryHandler : IRequestHandler<GetPublicLoca
             .AsNoTracking()
             .Include(x => x.District)
             .ThenInclude(x => x!.Province)
+            .Include(x => x.LocationType)
             .Include(x => x.LocationMedias)
+            .Include(x => x.LocationTags)
+            .ThenInclude(x => x.Tag)
+            .Include(x => x.LocationAmenities)
+            .ThenInclude(x => x.Amenity)
+            .Include(x => x.OpeningHours)
+            .Include(x => x.Seasons)
+            .Include(x => x.Closures)
+            .Include(x => x.SocialLinks)
             .FirstOrDefaultAsync(x => x.Id == request.Id
                 && !x.IsDeleted
                 && x.Status == LocationStatus.Active
@@ -74,6 +83,39 @@ public class GetPublicLocationDetailQueryHandler : IRequestHandler<GetPublicLoca
             location.Description,
             averageRating,
             reviewCount,
-            imageUrls);
+            imageUrls,
+            location.LocationType is null ? null : location.LocationType.ToPublicLocationTypeDto(),
+            location.LocationTags
+                .Where(tag => !tag.IsDeleted && tag.Tag != null && !tag.Tag.IsDeleted)
+                .Select(tag => tag.Tag!.ToPublicTagDto())
+                .ToList(),
+            location.LocationAmenities
+                .Where(amenity => !amenity.IsDeleted && amenity.Amenity != null && !amenity.Amenity.IsDeleted)
+                .Select(amenity => amenity.Amenity!.ToPublicAmenityDto())
+                .ToList(),
+            location.OpeningHours
+                .Where(hour => !hour.IsDeleted)
+                .OrderBy(hour => hour.DayOfWeek)
+                .Select(hour => new PublicOpeningHourDto(hour.DayOfWeek, hour.OpenTime, hour.CloseTime, hour.Note))
+                .ToList(),
+            location.Seasons
+                .Where(season => !season.IsDeleted)
+                .Select(season => new PublicSeasonDto(season.Description, season.Months))
+                .ToList(),
+            location.PriceMinUsd,
+            location.PriceMaxUsd,
+            location.TicketPrice,
+            location.RecommendedDurationMinutes,
+            location.MinimumAge,
+            location.Latitude,
+            location.Longitude,
+            location.Telephone,
+            location.Email,
+            location.SourceUrl,
+            location.GetEffectiveStatus().ToString(),
+            location.SocialLinks
+                .Where(link => !link.IsDeleted)
+                .Select(link => new PublicSocialLinkDto(link.Platform.ToString(), link.Url))
+                .ToList());
     }
 }

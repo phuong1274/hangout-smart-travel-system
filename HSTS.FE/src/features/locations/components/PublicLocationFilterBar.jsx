@@ -1,26 +1,17 @@
 import React, { useEffect, useMemo } from 'react';
-import { Button, Divider, Form, Input, InputNumber, Rate, Row, Col, Select, Space, Typography } from 'antd';
+import { Button, Form, Input, InputNumber, Rate, Row, Col, Select, Space, Tag, Typography } from 'antd';
 
-const { Text, Title } = Typography;
+const { Paragraph, Text, Title } = Typography;
 const fieldStyle = { marginBottom: 0 };
 const fullWidth = { width: '100%' };
 const DURATION_OPTIONS = [
-  { value: 60, label: 'Up to 1 hour' },
-  { value: 120, label: 'Up to 2 hours' },
-  { value: 240, label: 'Up to 4 hours' },
-  { value: 480, label: 'Up to 8 hours' },
+  { value: 60, label: 'Quick stop · under 1 hour' },
+  { value: 120, label: 'Half-day mood · under 2 hours' },
+  { value: 240, label: 'Slow explore · under 4 hours' },
+  { value: 480, label: 'Day anchor · under 8 hours' },
 ];
-const ratingMarks = {
-  0: 'Any',
-  4: '4.0+',
-  5: '5.0',
-};
 const budgetInputProps = { min: 0, style: fullWidth };
 const searchableSelectProps = { showSearch: true, optionFilterProp: 'label' };
-
-const SectionHeading = ({ children }) => (
-  <Title level={5} style={{ margin: 0 }}>{children}</Title>
-);
 
 const normalizeOption = (item) => ({
   value: String(item?.id ?? item?.Id ?? ''),
@@ -30,9 +21,11 @@ const normalizeOption = (item) => ({
 const PublicLocationFilterBar = ({
   initialValues,
   onApply,
+  onPreviewChange,
   loading = false,
   destinations = [],
   districts = [],
+  districtsLoading = false,
   locationTypes = [],
   tags = [],
 }) => {
@@ -87,74 +80,131 @@ const PublicLocationFilterBar = ({
     onApply?.(emptyValues);
   };
 
-  const handleDestinationChange = () => {
+  const handleDestinationChange = (value) => {
     form.setFieldValue('districtId', undefined);
+
+    const currentValues = form.getFieldsValue();
+    onPreviewChange?.({
+      destinationId: value ? Number(value) : undefined,
+      districtId: undefined,
+      locationTypeId: currentValues.locationTypeId ? Number(currentValues.locationTypeId) : undefined,
+      keyword: currentValues.keyword?.trim() || '',
+      tagIds: Array.isArray(currentValues.tagIds) ? currentValues.tagIds.map(Number) : [],
+      minRating: currentValues.minRating || 0,
+      minBudget: currentValues.minBudget,
+      maxBudget: currentValues.maxBudget,
+      maxDurationMinutes: currentValues.maxDurationMinutes,
+    });
+  };
+
+  const handleDistrictFocus = () => {
+    const currentValues = form.getFieldsValue();
+    if (!currentValues.destinationId) return;
+
+    onPreviewChange?.({
+      destinationId: Number(currentValues.destinationId),
+      districtId: currentValues.districtId ? Number(currentValues.districtId) : undefined,
+      locationTypeId: currentValues.locationTypeId ? Number(currentValues.locationTypeId) : undefined,
+      keyword: currentValues.keyword?.trim() || '',
+      tagIds: Array.isArray(currentValues.tagIds) ? currentValues.tagIds.map(Number) : [],
+      minRating: currentValues.minRating || 0,
+      minBudget: currentValues.minBudget,
+      maxBudget: currentValues.maxBudget,
+      maxDurationMinutes: currentValues.maxDurationMinutes,
+    });
   };
 
   return (
     <Form form={form} layout="vertical" onFinish={handleSubmit}>
       <Space direction="vertical" size="large" style={fullWidth}>
-        <div>
-          <SectionHeading>Where do you want to explore?</SectionHeading>
-          <Text type="secondary">Start with place and category, then narrow by interests, rating, budget, and visit time.</Text>
+        <div className="explore-filter-hero">
+          <Tag color="gold" style={{ borderRadius: 999, paddingInline: 12, paddingBlock: 4, marginBottom: 12 }}>
+            Discover faster
+          </Tag>
+          <Title level={4} style={{ marginBottom: 8 }}>Find places that actually fit the day you want</Title>
+          <Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 760 }}>
+            Start with one search, then trim the results with just the filters that matter most.
+          </Paragraph>
         </div>
 
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={12} lg={8}>
-            <Form.Item label="Destination" name="destinationId" style={fieldStyle}>
-              <Select placeholder="Select destination" options={destinationOptions} allowClear onChange={handleDestinationChange} {...searchableSelectProps} />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12} lg={8}>
-            <Form.Item label="District" name="districtId" style={fieldStyle}>
-              <Select placeholder="All districts" options={districtOptions} allowClear disabled={!form.getFieldValue('destinationId')} {...searchableSelectProps} />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12} lg={8}>
-            <Form.Item label="Category" name="locationTypeId" style={fieldStyle}>
-              <Select placeholder="All categories" options={locationTypeOptions} allowClear {...searchableSelectProps} />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12} lg={12}>
-            <Form.Item label="Keyword" name="keyword" style={fieldStyle}>
-              <Input placeholder="Search by name, description, area..." allowClear />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12} lg={12}>
-            <Form.Item label="Interests" name="tagIds" style={fieldStyle}>
-              <Select mode="multiple" placeholder="Select interests" options={tagOptions} allowClear maxTagCount="responsive" {...searchableSelectProps} />
-            </Form.Item>
-          </Col>
-        </Row>
+        <div className="explore-search-shell">
+          <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>What are you in the mood for?</Text>
+          <Form.Item name="keyword" style={fieldStyle}>
+            <Input placeholder="Search places, neighborhoods, or vibes like temple, brunch, sunset, local market..." allowClear size="large" />
+          </Form.Item>
+        </div>
 
-        <Divider style={{ margin: 0 }} />
+        <div className="explore-refine-shell">
+          <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>Refine the shortlist</Text>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12} lg={6}>
+              <div className="explore-control-card">
+                <Form.Item label="Destination" name="destinationId" style={fieldStyle}>
+                  <Select placeholder="Anywhere" options={destinationOptions} allowClear onChange={handleDestinationChange} {...searchableSelectProps} />
+                </Form.Item>
+              </div>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <div className="explore-control-card">
+                <Form.Item label="District" name="districtId" style={fieldStyle}>
+                  <Select placeholder={districtsLoading ? 'Updating district options...' : 'Any district'} options={districtOptions} allowClear disabled={!form.getFieldValue('destinationId') || districtsLoading} loading={districtsLoading} onFocus={handleDistrictFocus} onDropdownVisibleChange={(open) => { if (open) handleDistrictFocus(); }} {...searchableSelectProps} />
+                </Form.Item>
+              </div>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <div className="explore-control-card">
+                <Form.Item label="Place type" name="locationTypeId" style={fieldStyle}>
+                  <Select placeholder="Any type" options={locationTypeOptions} allowClear {...searchableSelectProps} />
+                </Form.Item>
+              </div>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <div className="explore-control-card">
+                <Form.Item label="Travel vibe" name="tagIds" style={fieldStyle}>
+                  <Select mode="multiple" placeholder="Culture, food, hidden gems..." options={tagOptions} allowClear maxTagCount="responsive" {...searchableSelectProps} />
+                </Form.Item>
+              </div>
+            </Col>
+          </Row>
 
-        <Row gutter={[16, 16]} align="bottom">
-          <Col xs={24} md={12} lg={8}>
-            <Form.Item label="Minimum Rating" name="minRating" style={fieldStyle}>
-              <Rate allowHalf />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12} lg={4}>
-            <Form.Item label="Budget From (USD)" name="minBudget" style={fieldStyle}>
-              <InputNumber placeholder="Min" {...budgetInputProps} />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12} lg={4}>
-            <Form.Item label="Budget To (USD)" name="maxBudget" style={fieldStyle}>
-              <InputNumber placeholder="Max" {...budgetInputProps} />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12} lg={8}>
-            <Form.Item label="Max Duration" name="maxDurationMinutes" style={fieldStyle}>
-              <Select placeholder="Any duration" allowClear options={DURATION_OPTIONS} />
-            </Form.Item>
-          </Col>
-        </Row>
+          <Row gutter={[16, 16]} align="bottom" style={{ marginTop: 4 }}>
+            <Col xs={24} md={10} lg={8}>
+              <div className="explore-control-card">
+                <Form.Item label="Traveler rating" name="minRating" style={fieldStyle}>
+                  <Rate allowHalf />
+                </Form.Item>
+              </div>
+            </Col>
+            <Col xs={24} sm={12} md={7} lg={4}>
+              <div className="explore-control-card">
+                <Form.Item label="Min spend (USD)" name="minBudget" style={fieldStyle}>
+                  <InputNumber placeholder="No min" {...budgetInputProps} />
+                </Form.Item>
+              </div>
+            </Col>
+            <Col xs={24} sm={12} md={7} lg={4}>
+              <div className="explore-control-card">
+                <Form.Item label="Max spend (USD)" name="maxBudget" style={fieldStyle}>
+                  <InputNumber placeholder="No max" {...budgetInputProps} />
+                </Form.Item>
+              </div>
+            </Col>
+            <Col xs={24} md={10} lg={8}>
+              <div className="explore-control-card">
+                <Form.Item label="Visit length" name="maxDurationMinutes" style={fieldStyle}>
+                  <Select placeholder="Any pace" allowClear options={DURATION_OPTIONS} />
+                </Form.Item>
+              </div>
+            </Col>
+          </Row>
+        </div>
 
-        <Space wrap>
-          <Button type="primary" htmlType="submit" loading={loading}>Apply</Button>
-          <Button onClick={handleReset} disabled={loading}>Reset</Button>
+        <Space wrap size="middle" style={{ justifyContent: 'space-between', width: '100%' }}>
+          <Space wrap size="middle">
+            <Button type="primary" htmlType="submit" loading={loading} size="large">Show matching places</Button>
+            <Button onClick={handleReset} disabled={loading} size="large">Clear</Button>
+          </Space>
+          <Text type="secondary">Tip: start broad, then only add filters when the list feels too wide.</Text>
         </Space>
       </Space>
     </Form>

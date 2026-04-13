@@ -16,18 +16,21 @@ public class GetPublicLocationsQueryTests
         var baDinh = new District { Id = 101, Name = "Ba Dinh", ProvinceId = hanoi.Id, Province = hanoi };
         var haiChau = new District { Id = 201, Name = "Hai Chau", ProvinceId = danang.Id, Province = danang };
 
+        var culturalType = new LocationType { Id = 1, Name = "Cultural site" };
+
         var temple = new Location
         {
             Id = 1,
             Name = "Temple",
             Description = "historic",
-            Address = "A",
+            Address = "1 Temple Street",
             Latitude = 1,
             Longitude = 1,
-            TicketPrice = 0,
+            TicketPrice = 40m,
             DistrictId = baDinh.Id,
             District = baDinh,
             LocationTypeId = 1,
+            LocationType = culturalType,
             Status = LocationStatus.Active,
             IsDeleted = false,
             Score = 4.8m,
@@ -37,19 +40,32 @@ public class GetPublicLocationsQueryTests
         };
         temple.LocationMedias.Add(new LocationMedia { Id = 1, LocationId = 1, Link = "img-1", IsDeleted = false });
         temple.LocationTags.Add(new LocationTag { LocationId = 1, TagId = 100, Tag = new Tag { Id = 100, Name = "Culture", Level = 1 } });
+        temple.Closures.Add(new LocationClosure
+        {
+            Id = 10,
+            LocationId = 1,
+            StartDate = DateTime.UtcNow.Date.AddDays(-1),
+            EndDate = DateTime.UtcNow.Date.AddDays(1),
+            IsActive = true,
+            IsDeleted = false,
+            Reason = "Maintenance"
+        });
+
+        var museumType = new LocationType { Id = 2, Name = "Museum" };
 
         var museum = new Location
         {
             Id = 2,
             Name = "Museum",
             Description = "culture",
-            Address = "B",
+            Address = "2 Museum Street",
             Latitude = 1,
             Longitude = 1,
-            TicketPrice = 0,
+            TicketPrice = 30m,
             DistrictId = baDinh.Id,
             District = baDinh,
             LocationTypeId = 2,
+            LocationType = museumType,
             Status = LocationStatus.Active,
             IsDeleted = false,
             Score = 4.2m,
@@ -57,19 +73,21 @@ public class GetPublicLocationsQueryTests
             PriceMaxUsd = 350m,
             RecommendedDurationMinutes = 240
         };
+        museum.LocationTags.Add(new LocationTag { LocationId = 2, TagId = 101, Tag = new Tag { Id = 101, Name = "Indoor", Level = 1 } });
 
         var beach = new Location
         {
             Id = 3,
             Name = "Beach",
             Description = "sea",
-            Address = "C",
+            Address = "3 Beach Road",
             Latitude = 1,
             Longitude = 1,
             TicketPrice = 0,
             DistrictId = haiChau.Id,
             District = haiChau,
             LocationTypeId = 1,
+            LocationType = culturalType,
             Status = LocationStatus.Active,
             IsDeleted = false,
             Score = 4.9m,
@@ -96,7 +114,22 @@ public class GetPublicLocationsQueryTests
         card.Id.Should().Be(1);
         card.Destination.Should().Be("Ha Noi");
         card.District.Should().Be("Ba Dinh");
+        card.Address.Should().Be("1 Temple Street");
+        card.Description.Should().Be("historic");
+        card.AverageRating.Should().Be(4.8m);
         card.ReviewCount.Should().Be(2);
         card.ImageUrl.Should().Be("img-1");
+        card.LocationType.Should().NotBeNull();
+        card.LocationType!.Id.Should().Be(1);
+        card.LocationType.Name.Should().Be("Cultural site");
+        card.Tags.Should().ContainSingle();
+        card.Tags[0].Name.Should().Be("Culture");
+        card.PriceMinUsd.Should().Be(120m);
+        card.PriceMaxUsd.Should().Be(180m);
+        card.TicketPrice.Should().Be(40m);
+        card.RecommendedDurationMinutes.Should().Be(90);
+        card.Status.Should().Be(LocationStatus.TemporarilyClosed.ToString());
+        result.Value.PageIndex.Should().Be(1);
+        result.Value.PageSize.Should().Be(10);
     }
 }

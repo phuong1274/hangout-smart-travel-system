@@ -10,8 +10,8 @@ import SubmissionTable from '@/features/location-submissions/components/Submissi
 import LocationDetailView from '@/components/LocationDetailView';
 import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import { useNavigate } from 'react-router-dom';
-import { deleteLocationSubmissionApi, getSubmissionByIdApi, getLocationByIdApi } from '@/features/location-submissions/api';
-import { deleteLocationApi } from '../api';
+import { deleteLocationSubmissionApi, getSubmissionByIdApi } from '@/features/location-submissions/api';
+import { deleteLocationApi, getLocationByIdApi } from '../api';
 import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
 import { PAGINATION } from '@/config/constants';
 import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';

@@ -106,9 +106,18 @@ public class GetHomeDiscoveryQueryHandler : IRequestHandler<GetHomeDiscoveryQuer
                 x.Name,
                 x.Destination,
                 x.District,
+                string.Empty,
+                null,
                 x.Score,
                 reviewCounts.GetValueOrDefault(x.Id),
-                x.ImageUrl))
+                x.ImageUrl,
+                null,
+                [],
+                null,
+                null,
+                null,
+                null,
+                LocationStatus.Active.ToString()))
             .ToList();
 
         return new HomeDiscoveryDto(featuredDestinations, popularLocationDtos);

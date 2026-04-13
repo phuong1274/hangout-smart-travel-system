@@ -53,9 +53,11 @@ public class GetPublicLocationsQueryHandler : IRequestHandler<GetPublicLocations
             .AsNoTracking()
             .Include(x => x.District)
             .ThenInclude(x => x!.Province)
+            .Include(x => x.LocationType)
             .Include(x => x.LocationTags)
             .ThenInclude(x => x.Tag)
             .Include(x => x.LocationMedias)
+            .Include(x => x.Closures)
             .Where(x => !x.IsDeleted
                 && x.Status == LocationStatus.Active
                 && x.District != null
@@ -137,15 +139,27 @@ public class GetPublicLocationsQueryHandler : IRequestHandler<GetPublicLocations
                 x.Name,
                 x.District!.Province!.Name,
                 x.District!.Name,
+                x.Address,
+                x.Description,
                 x.Score,
                 reviewCounts.GetValueOrDefault(x.Id),
                 x.LocationMedias
                     .Where(m => !m.IsDeleted)
                     .OrderBy(m => m.Id)
                     .Select(m => m.Link)
-                    .FirstOrDefault()))
+                    .FirstOrDefault(),
+                x.LocationType is null ? null : x.LocationType.ToPublicLocationTypeDto(),
+                x.LocationTags
+                    .Where(tag => !tag.IsDeleted && tag.Tag != null && !tag.Tag.IsDeleted)
+                    .Select(tag => tag.Tag!.ToPublicTagDto())
+                    .ToList(),
+                x.PriceMinUsd,
+                x.PriceMaxUsd,
+                x.TicketPrice,
+                x.RecommendedDurationMinutes,
+                x.GetEffectiveStatus().ToString()))
             .ToList();
 
-        return new PublicLocationPagedResponse(items, totalCount);
+        return new PublicLocationPagedResponse(items, totalCount, request.PageIndex, request.PageSize);
     }
 }

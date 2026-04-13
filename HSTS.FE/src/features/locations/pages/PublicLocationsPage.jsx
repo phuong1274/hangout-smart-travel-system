@@ -4,6 +4,10 @@ import { useSearchParams } from 'react-router-dom';
 import PublicLocationFilterBar from '../components/PublicLocationFilterBar';
 import PublicLocationGrid from '../components/PublicLocationGrid';
 import { usePublicLocations } from '../hooks/usePublicLocations';
+import {
+  buildExploreLocationSearchParams,
+  normalizeExploreFiltersForDestinationChange,
+} from './publicLocationsSearchParams';
 import styles from '../styles/LocationsPage.module.css';
 
 const { Paragraph, Text, Title } = Typography;
@@ -23,6 +27,11 @@ const PublicLocationsPage = () => {
     maxDurationMinutes: searchParams.get('maxDurationMinutes') ? Number(searchParams.get('maxDurationMinutes')) : undefined,
   }), [searchParams]);
 
+  const initialPagination = useMemo(() => ({
+    pageIndex: searchParams.get('page') ? Number(searchParams.get('page')) : 1,
+    pageSize: searchParams.get('pageSize') ? Number(searchParams.get('pageSize')) : 10,
+  }), [searchParams]);
+
   const {
     data,
     loading,
@@ -30,37 +39,56 @@ const PublicLocationsPage = () => {
     filters,
     destinations,
     districts,
+    districtsLoading,
     locationTypes,
     tags,
     activeFilterCount,
-    handleTableChange,
+    updatePagination,
     handleFilterChange,
-  } = usePublicLocations(initialFilters);
+  } = usePublicLocations(initialFilters, initialPagination);
 
-  const applyFilters = (nextFilters) => {
-    handleFilterChange(nextFilters);
-
-    const params = new URLSearchParams();
-    if (nextFilters.destinationId) params.set('destinationId', String(nextFilters.destinationId));
-    if (nextFilters.districtId) params.set('districtId', String(nextFilters.districtId));
-    if (nextFilters.locationTypeId) params.set('locationTypeId', String(nextFilters.locationTypeId));
-    if (nextFilters.keyword) params.set('keyword', nextFilters.keyword);
-    if (Array.isArray(nextFilters.tagIds)) {
-      nextFilters.tagIds.forEach((tagId) => params.append('tagIds', String(tagId)));
-    }
-    if (nextFilters.minRating) params.set('minRating', String(nextFilters.minRating));
-    if (nextFilters.minBudget != null) params.set('minBudget', String(nextFilters.minBudget));
-    if (nextFilters.maxBudget != null) params.set('maxBudget', String(nextFilters.maxBudget));
-    if (nextFilters.maxDurationMinutes != null) params.set('maxDurationMinutes', String(nextFilters.maxDurationMinutes));
+  const syncSearchParams = (nextFilters, nextPagination = {}) => {
+    const params = buildExploreLocationSearchParams(nextFilters, nextPagination);
     setSearchParams(params);
   };
 
+  const handleFilterPreview = (nextFilters) => {
+    const currentDestinationId = filters.destinationId;
+    const destinationChanged = currentDestinationId !== nextFilters.destinationId;
+    const normalizedFilters = destinationChanged
+      ? normalizeExploreFiltersForDestinationChange(nextFilters, nextFilters.destinationId)
+      : nextFilters;
+
+    handleFilterChange(normalizedFilters);
+    syncSearchParams(normalizedFilters, { pageIndex: 1, pageSize: pagination.pageSize });
+  };
+
+  const applyFilters = (nextFilters) => {
+    const currentDestinationId = filters.destinationId;
+    const destinationChanged = currentDestinationId !== nextFilters.destinationId;
+    const normalizedFilters = destinationChanged
+      ? normalizeExploreFiltersForDestinationChange(nextFilters, nextFilters.destinationId)
+      : nextFilters;
+
+    handleFilterChange(normalizedFilters);
+    syncSearchParams(normalizedFilters, { pageIndex: 1, pageSize: pagination.pageSize });
+  };
+
+  const handlePaginationChange = (current, pageSize) => {
+    updatePagination({ current, pageSize });
+    syncSearchParams(filters, { pageIndex: current, pageSize });
+  };
+
+
+  const resolveOptionName = (items, id) => items.find((item) => Number(item?.id ?? item?.Id) === Number(id))?.name
+    || items.find((item) => Number(item?.id ?? item?.Id) === Number(id))?.Name;
+
   const activeFilterChips = [
-    filters.destinationId ? destinations.find((item) => Number(item?.id ?? item?.Id) === Number(filters.destinationId))?.name || destinations.find((item) => Number(item?.id ?? item?.Id) === Number(filters.destinationId))?.Name : null,
-    filters.districtId ? districts.find((item) => Number(item?.id ?? item?.Id) === Number(filters.districtId))?.name || districts.find((item) => Number(item?.id ?? item?.Id) === Number(filters.districtId))?.Name : null,
-    filters.locationTypeId ? locationTypes.find((item) => Number(item?.id ?? item?.Id) === Number(filters.locationTypeId))?.name || locationTypes.find((item) => Number(item?.id ?? item?.Id) === Number(filters.locationTypeId))?.Name : null,
+    filters.destinationId ? resolveOptionName(destinations, filters.destinationId) : null,
+    filters.districtId ? resolveOptionName(districts, filters.districtId) : null,
+    filters.locationTypeId ? resolveOptionName(locationTypes, filters.locationTypeId) : null,
     ...(Array.isArray(filters.tagIds)
-      ? filters.tagIds.map((tagId) => tags.find((item) => Number(item?.id ?? item?.Id) === Number(tagId))?.name || tags.find((item) => Number(item?.id ?? item?.Id) === Number(tagId))?.Name).filter(Boolean)
+      ? filters.tagIds.map((tagId) => resolveOptionName(tags, tagId)).filter(Boolean)
       : []),
     filters.minRating ? `${filters.minRating}+ rating` : null,
     filters.minBudget != null || filters.maxBudget != null ? `$${filters.minBudget ?? 0} - $${filters.maxBudget ?? 'Any'}` : null,
@@ -73,29 +101,36 @@ const PublicLocationsPage = () => {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div className={styles.pageHeader}>
             <div>
+              <Tag color="gold" className={styles.filterChip}>Trip discovery</Tag>
               <Title level={2} className={styles.pageTitle}>Explore Locations</Title>
               <Paragraph className={styles.pageSubtitle}>
-                Refine destinations, interests, budget, and time to discover places that fit your trip style.
+                Discover places with a stronger sense of fit, then shortlist the ones worth turning into a real day plan.
               </Paragraph>
             </div>
           </div>
 
-          <Card className={styles.mainCard}>
+          <Card className={styles.mainCard} style={{ marginBottom: 8 }}>
             <PublicLocationFilterBar
               initialValues={filters}
               destinations={destinations}
               districts={districts}
+              districtsLoading={districtsLoading}
               locationTypes={locationTypes}
               tags={tags}
               onApply={applyFilters}
+              onPreviewChange={handleFilterPreview}
               loading={loading}
             />
           </Card>
 
           <div className={styles.resultsSummary}>
             <div>
-              <Text className={styles.resultCount}>{pagination.total} locations found</Text>
-              <Text className={styles.resultHint}>{activeFilterCount > 0 ? `Using ${activeFilterCount} active filters` : 'Showing all available matches'}</Text>
+              <Text className={styles.resultCount}>{pagination.total} places worth a look</Text>
+              <Text className={styles.resultHint}>
+                {activeFilterCount > 0
+                  ? `Trimmed with ${activeFilterCount} smart filter${activeFilterCount > 1 ? 's' : ''} so you can compare faster`
+                  : 'A wide-open view of places you can shortlist for the day'}
+              </Text>
             </div>
             {activeFilterChips.length > 0 ? (
               <div className={styles.chipsRow}>
@@ -106,14 +141,20 @@ const PublicLocationsPage = () => {
             ) : null}
           </div>
 
-          <PublicLocationGrid data={data} loading={loading} />
+          <Paragraph className={styles.pageSubtitle} style={{ marginTop: -8 }}>
+            Compare the vibe, time commitment, and typical spend at a glance before opening the full profile.
+          </Paragraph>
+
+          <Card className={styles.mainCard}>
+            <PublicLocationGrid data={data} loading={loading} />
+          </Card>
 
           <div className={styles.paginationWrap}>
             <Pagination
               current={pagination.current}
               pageSize={pagination.pageSize}
               total={pagination.total}
-              onChange={(current, pageSize) => handleTableChange({ current, pageSize })}
+              onChange={handlePaginationChange}
               showSizeChanger
             />
           </div>
