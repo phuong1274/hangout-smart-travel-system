@@ -412,9 +412,6 @@ namespace HSTS.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("longtext");
 
-                    b.Property<int>("CreatedById")
-                        .HasColumnType("int");
-
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)");
@@ -446,8 +443,6 @@ namespace HSTS.Infrastructure.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
 
                     b.HasIndex("TripActivityId");
 
@@ -2657,19 +2652,11 @@ namespace HSTS.Infrastructure.Migrations
 
             modelBuilder.Entity("HSTS.Domain.Entities.Expense", b =>
                 {
-                    b.HasOne("HSTS.Domain.Entities.TripMember", "CreatedByMember")
-                        .WithMany()
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("HSTS.Domain.Entities.TripActivity", "TripActivity")
                         .WithMany()
                         .HasForeignKey("TripActivityId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("CreatedByMember");
 
                     b.Navigation("TripActivity");
                 });

@@ -222,10 +222,6 @@ namespace HSTS.API.Controllers
 
             return Ok(new { message = "Trip was saved successfully!!!", tripId = result.Value });
         }
-    }
-
-    public record UpdateTripActivityStatusRequest(TripActivityStatus? Status = null);
-    public record BatchUpdateActivityStatusRequest(List<int> ActivityIdsToComplete, int ActivityIdToStart);
 
         [HttpPut("{id}/save")]
         public async Task<IActionResult> UpdateSavedTrip(int id, [FromBody] SaveTripRequest request, CancellationToken ct)
@@ -246,8 +242,8 @@ namespace HSTS.API.Controllers
 
             return Ok(new { message = "Trip was updated successfully!!!", tripId = result.Value });
         }
-
     }
 
     public record UpdateTripActivityStatusRequest(TripActivityStatus? Status = null);
+    public record BatchUpdateActivityStatusRequest(List<int> ActivityIdsToComplete, int ActivityIdToStart);
 }
