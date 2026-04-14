@@ -452,9 +452,10 @@ const TripDetailPage = () => {
   );
   const totalEstimated = summary?.estimatedTotalCost || 0;
   const variance = totalActual - totalEstimated;
-  const budgetPercent = totalEstimated > 0 ? (totalActual / totalEstimated) * 100 : 0;
-  const budgetStatusColor = variance > 0 ? '#ff4d4f' : variance < 0 ? '#52c41a' : '#1890ff';
-  const budgetStatusText = variance > 0 ? 'Over Budget' : variance < 0 ? 'Under Budget' : 'On Budget';
+  const hasBudget = totalEstimated > 0;
+  const budgetPercent = hasBudget ? (totalActual / totalEstimated) * 100 : 0;
+  const budgetStatusColor = !hasBudget ? '#1890ff' : (variance > 0 ? '#ff4d4f' : variance < 0 ? '#52c41a' : '#1890ff');
+  const budgetStatusText = !hasBudget ? 'No Budget Set' : (variance > 0 ? 'Over Budget' : variance < 0 ? 'Under Budget' : 'On Budget');
 
   // Category budget vs actual
   const categoryData = [];
@@ -625,12 +626,16 @@ const TripDetailPage = () => {
             <div style={{ marginTop: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <Text type="secondary">Budget Usage</Text>
-                <Text strong style={{ color: budgetStatusColor }}>{budgetStatusText} ({budgetPercent.toFixed(1)}%)</Text>
+                {hasBudget ? (
+                  <Text strong style={{ color: budgetStatusColor }}>{budgetStatusText} ({budgetPercent.toFixed(1)}%)</Text>
+                ) : (
+                  <Text strong style={{ color: budgetStatusColor }}>{budgetStatusText}</Text>
+                )}
               </div>
               <Progress
-                percent={Math.min(budgetPercent, 100)}
+                percent={hasBudget ? Math.min(budgetPercent, 100) : 0}
                 strokeColor={budgetStatusColor}
-                status={budgetPercent > 100 ? 'exception' : 'normal'}
+                status={hasBudget && budgetPercent > 100 ? 'exception' : 'normal'}
                 showInfo={false}
               />
             </div>
@@ -727,6 +732,7 @@ const TripDetailPage = () => {
                                   <div className={styles.timelineTitle}>
                                     {locationName || activity.title}
                                   </div>
+                                  {/* Show budget info if budget exists */}
                                   {budget && (
                                     <div style={{ marginTop: 6 }}>
                                       <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
@@ -740,8 +746,16 @@ const TripDetailPage = () => {
                                         )}
                                       </div>
                                       {totalExpenses > 0 && (() => {
+                                        const hasBudget = estimatedCost > 0;
+                                        if (!hasBudget) {
+                                          return (
+                                            <div style={{ marginTop: 4 }}>
+                                              <Text strong style={{ color: '#1890ff', fontSize: 11 }}>No Budget Set</Text>
+                                            </div>
+                                          );
+                                        }
                                         const variance = totalExpenses - estimatedCost;
-                                        const budgetPercent = estimatedCost > 0 ? (totalExpenses / estimatedCost) * 100 : 0;
+                                        const budgetPercent = (totalExpenses / estimatedCost) * 100;
                                         const isOverBudget = variance > 0;
                                         const statusColor = isOverBudget ? '#ff4d4f' : '#52c41a';
                                         const statusText = isOverBudget ? 'Over Budget' : 'Under Budget';
@@ -762,9 +776,24 @@ const TripDetailPage = () => {
                                           </div>
                                         );
                                       })()}
+                                    </div>
+                                  )}
+                                  {/* Show spent amount even without budget */}
+                                  {!budget && totalExpenses > 0 && (
+                                    <div style={{ marginTop: 6 }}>
+                                      <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
+                                        <span>
+                                          Spent: <strong>{formatMoney(totalExpenses, currency)}</strong>
+                                        </span>
+                                      </div>
+                                      <div style={{ marginTop: 4 }}>
+                                        <Text strong style={{ color: '#1890ff', fontSize: 11 }}>No Budget Set</Text>
+                                      </div>
+                                    </div>
+                                  )}
 
-                                      {/* Individual expense logs */}
-                                      {activityExpensesList.length > 0 && (
+                                  {/* Individual expense logs */}
+                                  {activityExpensesList.length > 0 && (
                                         <div style={{ marginTop: 6, background: '#fafafa', borderRadius: 6, padding: '6px 8px' }}>
                                           {activityExpensesList.map(exp => (
                                             <div
@@ -830,8 +859,7 @@ const TripDetailPage = () => {
                                           </div>
                                         </div>
                                       )}
-                                    </div>
-                                  )}
+
                                   {amenities.length > 0 && (
                                     <div className={styles.timelineAmenities}>
                                       {amenities.slice(0, 5).map((amenity, amenityIdx) => (
