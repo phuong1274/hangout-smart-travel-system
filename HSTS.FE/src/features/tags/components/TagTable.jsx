@@ -31,8 +31,8 @@ const TagTable = ({ data, loading, pagination, onTableChange, onEdit, onDelete, 
       key: 'parentTagName',
       width: '30%',
       render: (parentTagName, record) => (
-        record.level > 1 ? (
-          <span className={styles.parentName}>{parentTagName || 'N/A'}</span>
+        parentTagName ? (
+          <span className={styles.parentName}>{parentTagName}</span>
         ) : (
           <span className={styles.emptyDash}>—</span>
         )

@@ -6,8 +6,9 @@ namespace HSTS.Application.Expenses
         string Title,
         string? Description,
         decimal TotalAmount,
-        int CreatedById,
         string CreatedByName,
-        DateTime CreatedAt
+        DateTime CreatedAt,
+        string? UpdatedByName,
+        DateTime? UpdatedAt
     );
 }

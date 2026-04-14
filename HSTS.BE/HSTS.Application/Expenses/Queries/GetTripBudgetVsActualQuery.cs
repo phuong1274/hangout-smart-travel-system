@@ -49,7 +49,7 @@ namespace HSTS.Application.Expenses.Queries
             var expenses = await _expenseRepository.Query()
                 .Include(e => e.TripActivity)
                     .ThenInclude(a => a.TripDay)
-                .Where(e => e.TripActivity.TripDay.TripId == request.TripId)
+                .Where(e => e.TripActivity.TripDay.TripId == request.TripId && !e.IsDeleted)
                 .ToListAsync(cancellationToken);
 
             // Group expenses by activity

@@ -20,16 +20,15 @@ namespace HSTS.Application.Tags.Queries
 
         public async Task<ErrorOr<TagPagedResponse>> Handle(GetTagsPagingQuery request, CancellationToken ct)
         {
-            var query = _repository.Query();
-
-            query = query.Where(t => !t.IsDeleted);
+            var query = _repository.Query()
+                .Include(t => t.ParentTag)
+                .Where(t => !t.IsDeleted);
 
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
                 query = query.Where(t => t.Name.Contains(request.SearchTerm));
             }
 
-            // Filter by date range (CreatedAt)
             if (request.FromDate.HasValue)
             {
                 query = query.Where(t => t.CreatedAt >= request.FromDate.Value);

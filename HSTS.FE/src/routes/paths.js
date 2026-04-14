@@ -26,6 +26,9 @@ export const PATHS = {
   TRIPS_LIST: '/my-trips',
   TRIP_DETAIL: '/trips/:id',
   ACCEPT_INVITATION: '/invitations/accept',
+  TRANSPORT_MODES: '/transport-modes',
+  TRANSIT_HUBS: '/transit-hubs',
+  LOCAL_TRANSPORT_METRICS: '/local-transport-metrics',
   UNAUTHORIZED: '/403',
   NOT_FOUND: '*',
 };

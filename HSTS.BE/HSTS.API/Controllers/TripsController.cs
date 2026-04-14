@@ -8,24 +8,35 @@ using HSTS.Application.TripActivities.Commands;
 using HSTS.Domain.Enums;
 using HSTS.API.Common;
 using HSTS.Application.Trips.Dtos;
+using HSTS.Application.Interfaces;
 
 namespace HSTS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class TripsController : ControllerBase
     {
         private readonly ISender _mediator;
+        private readonly ICurrentUserService _currentUserService;
 
-        public TripsController(ISender mediator)
+        public TripsController(ISender mediator, ICurrentUserService currentUserService)
         {
             _mediator = mediator;
+            _currentUserService = currentUserService;
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTrip(int id, CancellationToken ct)
         {
-            var query = new GetTripByIdQuery(id);
+            var currentUserId = _currentUserService.UserId;
+            
+            if (currentUserId == 0)
+            {
+                return Unauthorized("User not authenticated.");
+            }
+
+            var query = new GetTripByIdQuery(id, currentUserId);
             var result = await _mediator.Send(query, ct);
 
             if (result.IsError)
@@ -33,6 +44,7 @@ namespace HSTS.API.Controllers
                 return result.FirstError.Type switch
                 {
                     ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Forbidden => StatusCode(403, result.FirstError.Description),
                     _ => Problem(result.FirstError.Description)
                 };
             }
@@ -43,7 +55,14 @@ namespace HSTS.API.Controllers
         [HttpGet("{id}/detail")]
         public async Task<IActionResult> GetTripDetail(int id, CancellationToken ct)
         {
-            var query = new GetTripDetailQuery(id);
+            var currentUserId = _currentUserService.UserId;
+            
+            if (currentUserId == 0)
+            {
+                return Unauthorized("User not authenticated.");
+            }
+
+            var query = new GetTripDetailQuery(id, currentUserId);
             var result = await _mediator.Send(query, ct);
 
             if (result.IsError)
@@ -51,6 +70,7 @@ namespace HSTS.API.Controllers
                 return result.FirstError.Type switch
                 {
                     ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Forbidden => StatusCode(403, result.FirstError.Description),
                     _ => Problem(result.FirstError.Description)
                 };
             }
@@ -157,6 +177,33 @@ namespace HSTS.API.Controllers
             return Ok(result.Value);
         }
 
+        /// <summary>
+        /// Batch update: complete all previous activities and start a new one atomically.
+        /// </summary>
+        [HttpPost("activities/batch-status")]
+        public async Task<IActionResult> BatchUpdateActivityStatus(
+            [FromBody] BatchUpdateActivityStatusRequest request,
+            CancellationToken ct)
+        {
+            var command = new BatchUpdateActivityStatusCommand(
+                request.ActivityIdsToComplete,
+                request.ActivityIdToStart
+            );
+            var result = await _mediator.Send(command, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(result.Value);
+        }
+
         [HttpPost("save")]
         public async Task<IActionResult> SaveTrip([FromBody] SaveTripRequest request, CancellationToken ct)
         {
@@ -199,4 +246,5 @@ namespace HSTS.API.Controllers
     }
 
     public record UpdateTripActivityStatusRequest(TripActivityStatus? Status = null);
+    public record BatchUpdateActivityStatusRequest(List<int> ActivityIdsToComplete, int ActivityIdToStart);
 }

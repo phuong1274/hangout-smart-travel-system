@@ -18,10 +18,8 @@ namespace HSTS.Domain.Entities
         [Column("TripId")]
         public int TripId { get; set; }
 
-        [Required]
         [Column("UserId")]
-        public int UserId { get; set; }
-
+        public int? UserId { get; set; }
         [Required]
         [Column("Role")]
         public TripRole Role { get; set; }
@@ -31,6 +29,6 @@ namespace HSTS.Domain.Entities
 
         // Navigation properties
         public Trip Trip { get; set; } = null!;
-        public User User { get; set; } = null!;
+        public User? User { get; set; }
     }
 }
