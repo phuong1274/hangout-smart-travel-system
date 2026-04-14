@@ -3501,7 +3501,7 @@ const ItineraryResultPage = () => {
   };
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#FF6B6B', colorTextBase: '#1A535C', colorInfo: '#4ECDC4', colorSuccess: '#4ECDC4', colorWarning: '#FFE66D', colorError: '#FF6B6B', borderRadius: 16, fontFamily: "'Plus Jakarta Sans', sans-serif" } }}>
+    <ConfigProvider theme={{ token: { colorPrimary: '#F4CB8C', colorTextBase: '#1A535C', colorInfo: '#4ECDC4', colorSuccess: '#4ECDC4', colorWarning: '#FFE66D', colorError: '#FF6B6B', borderRadius: 16, fontFamily: "'Plus Jakarta Sans', sans-serif" } }}>
       <div className={styles.itineraryPage}>
         <div className={planColumnClass}>
           <div className={styles.container}>
