@@ -30,10 +30,7 @@ const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-sub
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/ReportedReviewsPage'));
 
-const TransportModesPage = lazy(() => import('@/features/transport-modes/pages/TransportModesPage'));
-const TransitHubsPage = lazy(() => import('@/features/transit-hubs/pages/TransitHubsPage'));
-const LocalTransportMetricsPage = lazy(() => import('@/features/local-transport-metrics/pages/LocalTransportMetricsPage'));
-const TransportationManagementPage = lazy(() => import('@/features/transportation-management/pages/TransportationManagementPage'));
+const TransportManagementPage = lazy(() => import('@/features/transportation/pages/TransportManagementPage'));
 
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
 const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
@@ -76,8 +73,6 @@ export const router = createBrowserRouter([
       }
     ]
   },
-
-  // Public Routes (Feature pages - for testing/demo)
   {
     path: PATHS.DESTINATIONS.replace('/', ''),
     element: <SuspenseWrapper><DestinationsPage /></SuspenseWrapper>
@@ -106,8 +101,6 @@ export const router = createBrowserRouter([
     path: 'invitations/accept',
     element: <SuspenseWrapper><AcceptInvitationPage /></SuspenseWrapper>
   },
-
-  // Protected Routes (Admin/Authenticated users)
   {
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
@@ -204,10 +197,10 @@ export const router = createBrowserRouter([
             ]
           },
           {
-            path: PATHS.TRANSPORTATION_MANAGEMENT,
+            path: PATHS.TRANSPORTATION,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
             children: [
-              { index: true, element: <TransportationManagementPage /> },
+              { index: true, element: <TransportManagementPage /> },
             ]
           },
           {
