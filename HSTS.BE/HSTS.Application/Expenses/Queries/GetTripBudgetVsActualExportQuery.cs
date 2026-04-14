@@ -67,29 +67,53 @@ namespace HSTS.Application.Expenses.Queries
 
             var currency = trip.Currency;
 
-            // Get all budgets with activity info
+            // Get all budgets with activity info using projection to avoid NULL casting issues
             var budgets = await _budgetRepository.Query()
-                .Include(b => b.TripActivity)
-                    .ThenInclude(a => a.TripDay)
                 .Where(b => b.TripActivity.TripDay.TripId == request.TripId)
+                .Select(b => new
+                {
+                    b.Id,
+                    b.TripActivityId,
+                    b.EstimateCost,
+                    DayNumber = b.TripActivity.TripDay.DayNumber,
+                    ActivityTitle = b.TripActivity.Title ?? "Unknown",
+                    StartTime = b.TripActivity.StartTime
+                })
                 .ToListAsync(cancellationToken);
 
-            // Get all expenses with activity info
-            var expenses = await _expenseRepository.Query()
-                .Include(e => e.TripActivity)
-                    .ThenInclude(a => a.TripDay)
+            // Get all expenses with activity info using projection
+            var expensesData = await _expenseRepository.Query()
                 .Where(e => e.TripActivity.TripDay.TripId == request.TripId && !e.IsDeleted)
                 .OrderBy(e => e.CreatedAt)
+                .Select(e => new
+                {
+                    e.Id,
+                    e.TripActivityId,
+                    e.Title,
+                    e.Description,
+                    e.TotalAmount,
+                    e.CreatedBy,
+                    e.CreatedAt,
+                    DayNumber = e.TripActivity.TripDay.DayNumber,
+                    ActivityTitle = e.TripActivity.Title ?? "Unknown"
+                })
                 .ToListAsync(cancellationToken);
 
             // Collect user IDs for name resolution
-            var userIds = expenses
-                .Where(e => !string.IsNullOrEmpty(e.CreatedBy))
-                .Select(e => e.CreatedBy!)
-                .Where(id => int.TryParse(id, out _))
-                .Select(int.Parse)
+            var allCreatedBy = expensesData
+                .Select(e => e.CreatedBy)
                 .Distinct()
                 .ToList();
+
+            var userIds = new List<int>();
+            foreach (var createdById in allCreatedBy)
+            {
+                if (!string.IsNullOrEmpty(createdById) && int.TryParse(createdById, out int userId))
+                {
+                    userIds.Add(userId);
+                }
+            }
+            userIds = userIds.Distinct().ToList();
 
             var userNames = new Dictionary<string, string>();
             if (userIds.Count > 0)
@@ -100,34 +124,62 @@ namespace HSTS.Application.Expenses.Queries
                     .ToListAsync(cancellationToken);
 
                 foreach (var u in users)
-                    userNames[u.Id.ToString()] = u.FullName;
+                    userNames[u.Id.ToString()] = u.FullName ?? "Unknown";
             }
 
             // Build activity-level export data
-            var activities = budgets
-                .OrderBy(b => b.TripActivity.TripDay.DayNumber)
-                .ThenBy(b => b.TripActivity.StartTime)
+            // First, get all activities with budgets
+            var budgetedActivities = budgets
+                .OrderBy(b => b.DayNumber)
+                .ThenBy(b => b.StartTime)
                 .Select(b =>
                 {
-                    var activityExpenses = expenses
+                    var activityExpenses = expensesData
                         .Where(e => e.TripActivityId == b.TripActivityId)
                         .Select(e => new ActivityExpenseLogDto(
                             e.Title,
                             e.Description,
                             e.TotalAmount,
-                            e.CreatedBy != null && userNames.TryGetValue(e.CreatedBy, out var name) ? name : e.CreatedBy ?? "Unknown",
+                            !string.IsNullOrEmpty(e.CreatedBy) && userNames.TryGetValue(e.CreatedBy, out var name) ? name : "Unknown",
                             e.CreatedAt
                         ))
                         .ToList();
 
                     return new ActivityBudgetExportDto(
-                        b.TripActivity.TripDay.DayNumber,
-                        b.TripActivity.Title,
+                        b.DayNumber,
+                        b.ActivityTitle,
                         b.EstimateCost,
                         activityExpenses.Sum(x => x.Amount),
                         activityExpenses
                     );
                 })
+                .ToList();
+
+            // Find activities with expenses but no budget
+            var budgetedActivityIds = budgets.Select(b => b.TripActivityId).ToHashSet();
+            var unbudgetedActivities = expensesData
+                .Where(e => !budgetedActivityIds.Contains(e.TripActivityId))
+                .GroupBy(e => new { e.TripActivityId, e.ActivityTitle, e.DayNumber })
+                .Select(g => new ActivityBudgetExportDto(
+                    g.Key.DayNumber,
+                    g.Key.ActivityTitle,
+                    0m, // Budget = 0 for unbudgeted activities
+                    g.Sum(e => e.TotalAmount),
+                    g.OrderBy(e => e.CreatedAt)
+                        .Select(e => new ActivityExpenseLogDto(
+                            e.Title,
+                            e.Description,
+                            e.TotalAmount,
+                            !string.IsNullOrEmpty(e.CreatedBy) && userNames.TryGetValue(e.CreatedBy, out var name) ? name : "Unknown",
+                            e.CreatedAt
+                        ))
+                        .ToList()
+                ))
+                .ToList();
+
+            // Combine and sort by day number
+            var activities = budgetedActivities.Concat(unbudgetedActivities)
+                .OrderBy(a => a.DayNumber)
                 .ToList();
 
             var totalBudget = trip.TripSummary?.TotalBudget ?? 0m;
