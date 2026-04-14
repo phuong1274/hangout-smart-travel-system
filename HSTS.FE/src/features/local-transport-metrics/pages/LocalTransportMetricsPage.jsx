@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Button, Select, message } from 'antd';
+import { Card, Typography, Button, Select, message, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import { useLocalTransportMetrics } from '../hooks/useLocalTransportMetrics';
@@ -8,6 +8,7 @@ import LocalTransportMetricsForm from '../components/LocalTransportMetricsForm';
 import DetailModal from '@/components/UI/DetailModal/DetailModal';
 import { deleteLocalTransportMetricApi, getLocalTransportMetricByIdApi } from '../api';
 import { getTransportModesApi } from '@/features/transport-modes/api';
+import styles from '../styles/LocalTransportMetricsPage.module.css';
 
 const { Title } = Typography;
 
@@ -43,7 +44,7 @@ const LocalTransportMetricsPage = () => {
       const detail = await getLocalTransportMetricByIdApi(record.transportationId);
       setViewing(detail);
       setDetailOpen(true);
-    } catch {
+    } catch (error) {
       message.error('Failed to load details');
     }
   };
@@ -53,50 +54,61 @@ const LocalTransportMetricsPage = () => {
       await deleteLocalTransportMetricApi(record.transportationId);
       message.success('Deleted successfully');
       fetchMetrics();
-    } catch {
-      // Handled by global interceptor
+    } catch (error) {
     }
   };
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2} style={{ color: '#1A535C', marginBottom: 24 }}>
-        Local Transport Metrics Management
-      </Title>
+    <div className={styles.appWrapper}>
+      <div className={styles.content}>
+        <div className={styles.floatingCircle1}></div>
+        <div className={styles.floatingCircle2}></div>
 
-      <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
-          <Select
-            allowClear
-            placeholder="Filter by Transport Mode"
-            style={{ width: 220 }}
-            showSearch
-            optionFilterProp="label"
-            options={transportModes.map(t => ({ value: t.id, label: t.name }))}
-            onChange={handleTransportationFilter}
-          />
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-            Add Metrics
-          </Button>
-        </div>
+        <Space direction="vertical" size="large" className={styles.mainContainer}>
+          <div className={styles.pageHeader}>
+            <Title level={2} className={styles.mainHeading}>Local Transport Metrics Management</Title>
+          </div>
 
-        <LocalTransportMetricsTable
-          data={data}
-          loading={loading}
-          onEdit={handleEdit}
-          onView={handleView}
-          onDelete={handleDelete}
-        />
+          <Card className={styles.dataCard} bordered={false}>
+            <div className={styles.toolbarWrapper}>
+              <div className={styles.searchSection}>
+                <div className={styles.filterGroup}>
+                  <Select
+                    allowClear
+                    placeholder="Filter by Transport Mode"
+                    className={styles.filterSelect}
+                    popupClassName={styles.filterDropdown}
+                    showSearch
+                    optionFilterProp="label"
+                    options={transportModes.map(t => ({ value: t.id, label: t.name }))}
+                    onChange={handleTransportationFilter}
+                  />
+                </div>
+              </div>
+              <Button className={styles.ctaBtn} icon={<PlusOutlined />} onClick={handleCreate}>
+                Add Metrics
+              </Button>
+            </div>
 
-        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-          <AppPagination
-            current={pagination?.current}
-            pageSize={pagination?.pageSize}
-            total={pagination?.total}
-            onChange={(page, pageSize) => handleTableChange({ current: page, pageSize })}
-          />
-        </div>
-      </Card>
+            <LocalTransportMetricsTable
+              data={data}
+              loading={loading}
+              onEdit={handleEdit}
+              onView={handleView}
+              onDelete={handleDelete}
+            />
+
+            <div className={styles.paginationWrapper}>
+              <AppPagination
+                current={pagination?.current}
+                pageSize={pagination?.pageSize}
+                total={pagination?.total}
+                onChange={(page, pageSize) => handleTableChange({ current: page, pageSize })}
+              />
+            </div>
+          </Card>
+        </Space>
+      </div>
 
       <LocalTransportMetricsForm
         open={formOpen}

@@ -1,0 +1,108 @@
+.modalTitle {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
+    font-size: 24px;
+    color: #1A535C;
+  }
+  
+  .formContainer {
+    margin-top: 24px;
+  }
+  
+  :global(.ant-form-item-label > label) {
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-weight: 500 !important;
+    color: #1A535C !important;
+  }
+  
+  .inputField,
+  .selectField :global(.ant-select-selector) {
+    border-radius: 8px !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  
+  .inputField:focus,
+  .inputField:hover,
+  :global(.ant-input-number-focused),
+  .selectField:hover :global(.ant-select-selector),
+  .selectField :global(.ant-select-focused .ant-select-selector) {
+    border-color: #4ECDC4 !important;
+    box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.15) !important;
+  }
+  
+  .modalSubmitBtn {
+    background-color: #FFE66D !important;
+    color: #1A535C !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    min-height: 44px;
+    padding: 0 24px !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  
+  .modalSubmitBtn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 24px rgba(255, 230, 109, 0.4);
+  }
+  
+  .modalCancelBtn {
+    border-radius: 9999px !important;
+    border: 1px solid #E0E0E0 !important;
+    color: #1A535C !important;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 500 !important;
+    min-height: 44px;
+    padding: 0 24px !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  
+  .modalCancelBtn:hover {
+    background-color: #F7F9F9 !important;
+    color: #FF6B6B !important;
+    border-color: #FF6B6B !important;
+  }
+  
+  :global(.ant-modal-content) {
+    border-radius: 20px !important;
+    padding: 32px !important;
+  }
+  
+  .tropicalModal :global(.ant-modal-header) {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 24px !important;
+  }
+  
+  @media (max-width: 767px) {
+    .tropicalModal :global(.ant-modal) {
+      margin: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      top: auto !important;
+      bottom: 0 !important;
+      padding-bottom: 0 !important;
+    }
+    
+    .tropicalModal :global(.ant-modal-content) {
+      border-radius: 24px 24px 0 0 !important;
+      padding: 24px 16px !important;
+    }
+  
+    .tropicalModal :global(.ant-modal-footer) {
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 12px;
+    }
+  
+    .tropicalModal :global(.ant-modal-footer .ant-btn) {
+      width: 100%;
+      margin: 0 !important;
+    }
+  }
