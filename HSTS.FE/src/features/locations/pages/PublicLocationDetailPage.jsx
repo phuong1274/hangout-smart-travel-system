@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Button, Card, Divider, List, Rate, Skeleton, Space, Tag, Typography } from 'antd';
+import { Button, Card, Divider, List, Modal, Rate, Skeleton, Space, Tag, Typography } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { buildCreateTripPath, PATHS } from '@/routes/paths';
 import { ROLES } from '@/config/constants';
@@ -72,18 +72,10 @@ const FactCard = ({ label, value }) => (
   </div>
 );
 
-const Gallery = ({ images = [], name }) => {
+const GalleryMosaic = ({ images = [], name }) => {
   const safeImages = images.filter(Boolean);
   const [activeIndex, setActiveIndex] = useState(0);
-  const activeImage = safeImages[activeIndex];
-
-  const handlePrevious = () => {
-    setActiveIndex((current) => (current === 0 ? safeImages.length - 1 : current - 1));
-  };
-
-  const handleNext = () => {
-    setActiveIndex((current) => (current === safeImages.length - 1 ? 0 : current + 1));
-  };
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   if (safeImages.length === 0) {
     return (
@@ -93,39 +85,123 @@ const Gallery = ({ images = [], name }) => {
     );
   }
 
+  const getImageAtOffset = (offset) => safeImages[(activeIndex + offset) % safeImages.length];
+  const leadImage = getImageAtOffset(0);
+  const sideTopImage = getImageAtOffset(1);
+  const sideBottomImage = getImageAtOffset(2);
+  const hasMorePhotos = safeImages.length > 3;
+  const remainingCount = Math.max(safeImages.length - 3, 0);
+  const hasMultipleImages = safeImages.length > 1;
+
+  const handlePrevious = () => {
+    setActiveIndex((current) => (current === 0 ? safeImages.length - 1 : current - 1));
+  };
+
+  const handleNext = () => {
+    setActiveIndex((current) => (current === safeImages.length - 1 ? 0 : current + 1));
+  };
+
+  const openPreviewAt = (index) => {
+    setActiveIndex(index);
+    setIsPreviewOpen(true);
+  };
+
   return (
-    <div className={styles.galleryShell}>
-      <div className={styles.heroImageWrap}>
-        <img src={activeImage} alt={name} className={styles.heroImage} />
-        {safeImages.length > 1 ? (
-          <>
-            <button type="button" className={`${styles.galleryNav} ${styles.galleryNavLeft}`} onClick={handlePrevious} aria-label="Show previous photo">
+    <>
+      <div className={styles.galleryShell}>
+        <div className={styles.galleryGrid}>
+          <button
+            type="button"
+            className={`${styles.galleryTile} ${styles.galleryTileLead}`}
+            onClick={() => openPreviewAt(activeIndex)}
+            aria-label={`Open full-size photo ${activeIndex + 1}`}
+          >
+            <img src={leadImage} alt={name} className={styles.galleryImage} />
+            <span className={styles.galleryBadge}>{activeIndex + 1} / {safeImages.length}</span>
+          </button>
+
+          {hasMultipleImages ? (
+            <div className={styles.galleryColumn}>
+              <button
+                type="button"
+                className={`${styles.galleryTile} ${styles.galleryTileSide}`}
+                onClick={() => openPreviewAt((activeIndex + 1) % safeImages.length)}
+                aria-label="Open alternate photo"
+              >
+                <img src={sideTopImage} alt={`${name} alternate view`} className={styles.galleryImage} />
+              </button>
+
+              <button
+                type="button"
+                className={`${styles.galleryTile} ${styles.galleryTileSide}`}
+                onClick={() => openPreviewAt((activeIndex + 2) % safeImages.length)}
+                aria-label={hasMorePhotos ? `View more photos of ${name}` : 'Open another photo'}
+              >
+                <img src={sideBottomImage} alt={`${name} additional view`} className={styles.galleryImage} />
+                {hasMorePhotos ? <span className={styles.morePhotosOverlay}>+{remainingCount} more photos</span> : null}
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        {hasMultipleImages ? (
+          <div className={styles.galleryControls}>
+            <Text className={styles.galleryHint}>Open any image to browse the full gallery with previous and next controls.</Text>
+            <Button type="text" className={styles.galleryViewAllButton} onClick={() => setIsPreviewOpen(true)}>
+              View all photos
+            </Button>
+          </div>
+        ) : (
+          <div className={styles.galleryControls}>
+            <Button type="text" className={styles.galleryViewAllButton} onClick={() => setIsPreviewOpen(true)}>
+              Open full-size photo
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <Modal
+        open={isPreviewOpen}
+        footer={null}
+        onCancel={() => setIsPreviewOpen(false)}
+        centered
+        width="min(1100px, calc(100vw - 32px))"
+        className={styles.galleryPreviewModal}
+        title={`${name} · Photo ${activeIndex + 1} of ${safeImages.length}`}
+      >
+        <div className={styles.previewStage}>
+          {hasMultipleImages ? (
+            <button type="button" className={`${styles.previewNav} ${styles.previewNavLeft}`} onClick={handlePrevious} aria-label="Show previous preview photo">
               ‹
             </button>
-            <button type="button" className={`${styles.galleryNav} ${styles.galleryNavRight}`} onClick={handleNext} aria-label="Show next photo">
+          ) : null}
+
+          <img src={safeImages[activeIndex]} alt={`${name} full-size view ${activeIndex + 1}`} className={styles.previewImage} />
+
+          {hasMultipleImages ? (
+            <button type="button" className={`${styles.previewNav} ${styles.previewNavRight}`} onClick={handleNext} aria-label="Show next preview photo">
               ›
             </button>
-            <span className={styles.galleryCount}>{activeIndex + 1} / {safeImages.length}</span>
-          </>
-        ) : null}
-      </div>
-      {safeImages.length > 1 ? (
-        <div className={styles.thumbnailRow}>
-          {safeImages.slice(0, 5).map((image, index) => (
-            <button
-              key={`${image}-${index}`}
-              type="button"
-              className={`${styles.thumbnailButton} ${index === activeIndex ? styles.thumbnailButtonActive : ''}`}
-              onClick={() => setActiveIndex(index)}
-              aria-label={`Show photo ${index + 1}`}
-            >
-              <img src={image} alt={`${name} view ${index + 1}`} className={styles.thumbnailImage} />
-            </button>
-          ))}
-          {safeImages.length > 5 ? <div className={styles.morePhotos}>+{safeImages.length - 5} more</div> : null}
+          ) : null}
         </div>
-      ) : null}
-    </div>
+
+        {hasMultipleImages ? (
+          <div className={styles.previewThumbnailRow}>
+            {safeImages.map((image, index) => (
+              <button
+                key={`${image}-${index}`}
+                type="button"
+                className={`${styles.previewThumbnailButton} ${index === activeIndex ? styles.previewThumbnailButtonActive : ''}`}
+                onClick={() => setActiveIndex(index)}
+                aria-label={`Show preview photo ${index + 1}`}
+              >
+                <img src={image} alt={`${name} thumbnail ${index + 1}`} className={styles.previewThumbnailImage} />
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </Modal>
+    </>
   );
 };
 
@@ -196,58 +272,38 @@ const PublicLocationDetailPage = () => {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Link to={PATHS.PUBLIC_LOCATIONS} className={styles.backLink}>Back to discovery</Link>
 
-          <Card className={styles.heroCard}>
-            <div className={styles.heroGrid}>
-              <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                <Gallery images={imageUrls} name={name} />
+          <div className={styles.heroIntro}>
+            <div className={styles.heroIntroCopy}>
+              <span className={styles.eyebrow}>Trip-ready location profile</span>
+              <Title level={1} className={styles.title}>{name}</Title>
+              <Text className={styles.supportingLine}>{[district, destination].filter(Boolean).join(', ') || 'Destination pick'}</Text>
+            </div>
 
-                <div>
-                  <span className={styles.eyebrow}>Trip-ready location profile</span>
-                  <Title level={1} className={styles.title}>{name}</Title>
-                  <Text className={styles.supportingLine}>{[district, destination].filter(Boolean).join(', ') || 'Destination pick'}</Text>
-                </div>
+            <div className={styles.heroUtilityRow}>
+              <div className={styles.ratingRow}>
+                <Rate allowHalf disabled value={normalizeRating(averageRating)} />
+                <Text strong>{Number(averageRating || 0).toFixed(1)}</Text>
+                <Text type="secondary">
+                  {reviewCount > 0 ? `${reviewCount} traveler review${reviewCount > 1 ? 's' : ''}` : 'Fresh pick waiting for first reviews'}
+                </Text>
+              </div>
 
-                <div className={styles.metaStrip}>
-                  {district ? <Tag>{district}</Tag> : null}
-                  {destination ? <Tag color="blue">{destination}</Tag> : null}
-                  {locationTypeName ? <Tag color="gold">{locationTypeName}</Tag> : null}
-                  <Tag color={formatStatusTone(status)}>{formatStatusLabel(status)}</Tag>
-                  <Tag>{formatMinimumAge(minimumAge)}</Tag>
-                </div>
-
-                <div className={styles.ratingRow}>
-                  <Rate allowHalf disabled value={normalizeRating(averageRating)} />
-                  <Text strong>{Number(averageRating || 0).toFixed(1)}</Text>
-                  <Text type="secondary">
-                    {reviewCount > 0 ? `${reviewCount} traveler review${reviewCount > 1 ? 's' : ''}` : 'Fresh pick waiting for first reviews'}
-                  </Text>
-                </div>
-
-                <Paragraph className={styles.summary}>
-                  Use this snapshot to see whether the stop fits your pace, budget, and travel style before locking it into your itinerary.
-                </Paragraph>
-              </Space>
-
-              <div className={styles.heroAside}>
-                <Title level={4} className={styles.heroAsideTitle}>Planning cues at a glance</Title>
-                <Paragraph className={styles.heroAsideText}>
-                  Check timing, comfort, and official details here before deciding whether this stop earns a place in your route.
-                </Paragraph>
-
-                <div className={styles.quickFacts}>
-                  <FactCard label="Typical spend" value={formatBudget(priceMinUsd, priceMaxUsd, ticketPrice)} />
-                  <FactCard label="Suggested stay" value={formatDuration(recommendedDurationMinutes)} />
-                  <FactCard label="Who it suits" value={formatMinimumAge(minimumAge)} />
-                  <FactCard label="Map reference" value={formatCoordinates(latitude, longitude)} />
-                </div>
-
-                {showCta ? (
-                  <Button type="primary" className={styles.primaryCta} onClick={() => navigate(ctaPath)}>
-                    {ctaLabel}
-                  </Button>
-                ) : null}
+              <div className={styles.metaStrip}>
+                {district ? <Tag>{district}</Tag> : null}
+                {destination ? <Tag color="blue">{destination}</Tag> : null}
+                {locationTypeName ? <Tag color="gold">{locationTypeName}</Tag> : null}
+                <Tag color={formatStatusTone(status)}>{formatStatusLabel(status)}</Tag>
+                <Tag>{formatMinimumAge(minimumAge)}</Tag>
               </div>
             </div>
+
+            <Paragraph className={styles.summary}>
+              Use this snapshot to see whether the stop fits your pace, budget, and travel style before locking it into your itinerary.
+            </Paragraph>
+          </div>
+
+          <Card className={styles.heroCard}>
+            <GalleryMosaic images={imageUrls} name={name} />
           </Card>
 
           <div className={styles.bodyGrid}>
@@ -290,18 +346,36 @@ const PublicLocationDetailPage = () => {
                   </div>
                 </DetailSection>
               ) : null}
+
+              {tags.length > 0 ? (
+                <DetailSection eyebrow="Travel vibe" title="Tags and fit">
+                  <div className={styles.tagCluster}>
+                    {tags.map((tag) => {
+                      const tagId = tag?.id ?? tag?.Id ?? tag?.name ?? tag?.Name;
+                      const tagName = tag?.name || tag?.Name;
+                      return tagName ? <Tag key={tagId}>{tagName}</Tag> : null;
+                    })}
+                  </div>
+                </DetailSection>
+              ) : null}
             </Space>
 
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
-              <DetailSection eyebrow="Travel vibe" title="Tags and fit">
-                <div className={styles.tagCluster}>
-                  {tags.map((tag) => {
-                    const tagId = tag?.id ?? tag?.Id ?? tag?.name ?? tag?.Name;
-                    const tagName = tag?.name || tag?.Name;
-                    return tagName ? <Tag key={tagId}>{tagName}</Tag> : null;
-                  })}
+              <Card className={styles.infoRailCard}>
+                <span className={styles.sectionEyebrow}>Plan your stop</span>
+                <Title level={4} className={styles.sectionTitle}>Quick planning facts</Title>
+                <div className={styles.quickFactsRail}>
+                  <FactCard label="Typical spend" value={formatBudget(priceMinUsd, priceMaxUsd, ticketPrice)} />
+                  <FactCard label="Suggested stay" value={formatDuration(recommendedDurationMinutes)} />
+                  <FactCard label="Who it suits" value={formatMinimumAge(minimumAge)} />
+                  <FactCard label="Map reference" value={formatCoordinates(latitude, longitude)} />
                 </div>
-              </DetailSection>
+                {showCta ? (
+                  <Button type="primary" className={styles.primaryCta} onClick={() => navigate(ctaPath)}>
+                    {ctaLabel}
+                  </Button>
+                ) : null}
+              </Card>
 
               {amenities.length > 0 ? (
                 <DetailSection eyebrow="Comfort" title="Comfort highlights">
