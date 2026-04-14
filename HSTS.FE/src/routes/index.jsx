@@ -33,6 +33,7 @@ const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/Reported
 const TransportModesPage = lazy(() => import('@/features/transport-modes/pages/TransportModesPage'));
 const TransitHubsPage = lazy(() => import('@/features/transit-hubs/pages/TransitHubsPage'));
 const LocalTransportMetricsPage = lazy(() => import('@/features/local-transport-metrics/pages/LocalTransportMetricsPage'));
+const TransportationManagementPage = lazy(() => import('@/features/transportation-management/pages/TransportationManagementPage'));
 
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
 const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
@@ -203,24 +204,10 @@ export const router = createBrowserRouter([
             ]
           },
           {
-            path: PATHS.TRANSPORT_MODES,
+            path: PATHS.TRANSPORTATION_MANAGEMENT,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
             children: [
-              { index: true, element: <TransportModesPage /> },
-            ]
-          },
-          {
-            path: PATHS.TRANSIT_HUBS,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
-            children: [
-              { index: true, element: <TransitHubsPage /> },
-            ]
-          },
-          {
-            path: PATHS.LOCAL_TRANSPORT_METRICS,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
-            children: [
-              { index: true, element: <LocalTransportMetricsPage /> },
+              { index: true, element: <TransportationManagementPage /> },
             ]
           },
           {
