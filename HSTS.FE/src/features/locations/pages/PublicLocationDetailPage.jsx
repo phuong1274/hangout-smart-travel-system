@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button, Card, Divider, List, Rate, Skeleton, Space, Tag, Typography } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { buildCreateTripPath, PATHS } from '@/routes/paths';
@@ -18,12 +18,8 @@ const normalizeRating = (value) => {
 };
 
 const formatBudget = (minPrice, maxPrice, ticketPrice) => {
-  if (minPrice != null || maxPrice != null) {
-    return `$${minPrice ?? 0} - $${maxPrice ?? 'Any'} USD`;
-  }
-  if (ticketPrice != null) {
-    return `$${ticketPrice} USD`;
-  }
+  if (minPrice != null || maxPrice != null) return `$${minPrice ?? 0} - $${maxPrice ?? 'Any'} USD`;
+  if (ticketPrice != null) return `$${ticketPrice} USD`;
   return 'Budget details coming soon';
 };
 
@@ -76,6 +72,63 @@ const FactCard = ({ label, value }) => (
   </div>
 );
 
+const Gallery = ({ images = [], name }) => {
+  const safeImages = images.filter(Boolean);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeImage = safeImages[activeIndex];
+
+  const handlePrevious = () => {
+    setActiveIndex((current) => (current === 0 ? safeImages.length - 1 : current - 1));
+  };
+
+  const handleNext = () => {
+    setActiveIndex((current) => (current === safeImages.length - 1 ? 0 : current + 1));
+  };
+
+  if (safeImages.length === 0) {
+    return (
+      <div className={styles.galleryFallback}>
+        <Text type="secondary">Photo gallery coming soon</Text>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.galleryShell}>
+      <div className={styles.heroImageWrap}>
+        <img src={activeImage} alt={name} className={styles.heroImage} />
+        {safeImages.length > 1 ? (
+          <>
+            <button type="button" className={`${styles.galleryNav} ${styles.galleryNavLeft}`} onClick={handlePrevious} aria-label="Show previous photo">
+              ‹
+            </button>
+            <button type="button" className={`${styles.galleryNav} ${styles.galleryNavRight}`} onClick={handleNext} aria-label="Show next photo">
+              ›
+            </button>
+            <span className={styles.galleryCount}>{activeIndex + 1} / {safeImages.length}</span>
+          </>
+        ) : null}
+      </div>
+      {safeImages.length > 1 ? (
+        <div className={styles.thumbnailRow}>
+          {safeImages.slice(0, 5).map((image, index) => (
+            <button
+              key={`${image}-${index}`}
+              type="button"
+              className={`${styles.thumbnailButton} ${index === activeIndex ? styles.thumbnailButtonActive : ''}`}
+              onClick={() => setActiveIndex(index)}
+              aria-label={`Show photo ${index + 1}`}
+            >
+              <img src={image} alt={`${name} view ${index + 1}`} className={styles.thumbnailImage} />
+            </button>
+          ))}
+          {safeImages.length > 5 ? <div className={styles.morePhotos}>+{safeImages.length - 5} more</div> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 const PublicLocationDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -108,6 +161,11 @@ const PublicLocationDetailPage = () => {
   const openingHours = Array.isArray(data?.openingHours) ? data.openingHours : Array.isArray(data?.OpeningHours) ? data.OpeningHours : [];
   const seasons = Array.isArray(data?.seasons) ? data.seasons : Array.isArray(data?.Seasons) ? data.Seasons : [];
   const socialLinks = Array.isArray(data?.socialLinks) ? data.socialLinks : Array.isArray(data?.SocialLinks) ? data.SocialLinks : [];
+  const imageUrls = useMemo(() => {
+    if (Array.isArray(data?.imageUrls)) return data.imageUrls.filter(Boolean);
+    if (Array.isArray(data?.ImageUrls)) return data.ImageUrls.filter(Boolean);
+    return [];
+  }, [data]);
 
   const isGuest = !isAuthenticated;
   const isTraveler = String(user?.role || '').toUpperCase() === ROLES.TRAVELER;
@@ -141,6 +199,8 @@ const PublicLocationDetailPage = () => {
           <Card className={styles.heroCard}>
             <div className={styles.heroGrid}>
               <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                <Gallery images={imageUrls} name={name} />
+
                 <div>
                   <span className={styles.eyebrow}>Trip-ready location profile</span>
                   <Title level={1} className={styles.title}>{name}</Title>
@@ -166,13 +226,6 @@ const PublicLocationDetailPage = () => {
                 <Paragraph className={styles.summary}>
                   Use this snapshot to see whether the stop fits your pace, budget, and travel style before locking it into your itinerary.
                 </Paragraph>
-
-                <div className={styles.quickFacts}>
-                  <FactCard label="Typical spend" value={formatBudget(priceMinUsd, priceMaxUsd, ticketPrice)} />
-                  <FactCard label="Suggested stay" value={formatDuration(recommendedDurationMinutes)} />
-                  <FactCard label="Who it suits" value={formatMinimumAge(minimumAge)} />
-                  <FactCard label="Map reference" value={formatCoordinates(latitude, longitude)} />
-                </div>
               </Space>
 
               <div className={styles.heroAside}>
@@ -180,6 +233,14 @@ const PublicLocationDetailPage = () => {
                 <Paragraph className={styles.heroAsideText}>
                   Check timing, comfort, and official details here before deciding whether this stop earns a place in your route.
                 </Paragraph>
+
+                <div className={styles.quickFacts}>
+                  <FactCard label="Typical spend" value={formatBudget(priceMinUsd, priceMaxUsd, ticketPrice)} />
+                  <FactCard label="Suggested stay" value={formatDuration(recommendedDurationMinutes)} />
+                  <FactCard label="Who it suits" value={formatMinimumAge(minimumAge)} />
+                  <FactCard label="Map reference" value={formatCoordinates(latitude, longitude)} />
+                </div>
+
                 {showCta ? (
                   <Button type="primary" className={styles.primaryCta} onClick={() => navigate(ctaPath)}>
                     {ctaLabel}
