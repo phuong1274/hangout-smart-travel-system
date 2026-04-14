@@ -4,7 +4,7 @@ import { EnvironmentOutlined, SearchOutlined } from '@ant-design/icons';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { createTransitHubApi, updateTransitHubApi } from '../api';
+import { createTransitHubApi, updateTransitHubApi } from '../../transit-hubs/api';
 import styles from '../styles/TransitHubForm.module.css';
 
 delete L.Icon.Default.prototype._getIconUrl;

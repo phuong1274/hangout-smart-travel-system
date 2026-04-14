@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, InputNumber, Select } from 'antd';
-import { createLocalTransportMetricApi, updateLocalTransportMetricApi } from '../api';
+import { createLocalTransportMetricApi, updateLocalTransportMetricApi } from '../../local-transport-metrics/api';
 import styles from '../styles/LocalTransportMetricsForm.module.css';
 
 const LocalTransportMetricsForm = ({ open, metric, onClose, onSuccess, transportModes }) => {
