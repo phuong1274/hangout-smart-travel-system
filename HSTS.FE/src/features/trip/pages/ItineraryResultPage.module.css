@@ -1084,8 +1084,49 @@
 .addBetweenModalBody {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   padding-top: 16px;
+}
+
+.addBetweenSplitLayout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.addBetweenPanel {
+  background: #FFFFFF;
+  border: 1px solid rgba(26, 83, 92, 0.14);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.addBetweenPanelTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1A535C;
+  letter-spacing: 0.2px;
+}
+
+.addBetweenPanelHint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(26, 83, 92, 0.7);
+}
+
+.addBetweenPrimaryAction {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.addBetweenFooterActions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .addBetweenHint {
@@ -1133,12 +1174,16 @@
   border-bottom: 1px solid rgba(26, 83, 92, 0.08);
 }
 
+.customLocationMapCard :global(.ant-card-head-title) {
+  white-space: normal;
+}
+
 .customLocationMapCard :global(.ant-card-body) {
   padding: 16px 24px 20px;
 }
 
 .customLocationMapHeader {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   color: #1A535C;
   line-height: 1.2;
@@ -1179,6 +1224,7 @@
 
 .customLocationAddButton {
   align-self: flex-start;
+  margin-top: 4px;
 }
 
 .editTimelineModalBody {
@@ -1203,6 +1249,20 @@
 
 .editTimelineInput {
   width: 100%;
+}
+
+@media (max-width: 991px) {
+  .addBetweenSplitLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .addBetweenPanel {
+    height: auto;
+  }
+
+  .addBetweenPrimaryAction {
+    margin-top: 6px;
+  }
 }
 
 @media (min-width: 768px) {
