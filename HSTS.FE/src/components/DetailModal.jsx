@@ -58,7 +58,7 @@ const DetailModal = ({ open, onClose, data, type }) => {
             
             <Descriptions.Item label="Ticket Price">
               <DollarOutlined style={{ color: '#52c41a' }} />{' '}
-              {data.ticketPrice ? `$${data.ticketPrice.toFixed(2)}` : 'Free'}
+              {data.ticketPrice ? `${data.ticketPrice.toFixed(2)}` : 'Free'}
             </Descriptions.Item>
             
             <Descriptions.Item label="Price Range" span={2}>

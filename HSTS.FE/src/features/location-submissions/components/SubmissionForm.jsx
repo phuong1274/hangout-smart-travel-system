@@ -575,11 +575,9 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
                 >
                   <InputNumber
                     style={{ width: '100%' }}
-                    placeholder="0.00"
+                    placeholder="0"
                     min={0}
-                    step={0.01}
-                    prefix="$"
-                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    step={1}
                   />
                 </Form.Item>
               </Col>

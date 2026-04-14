@@ -181,7 +181,7 @@ const LocationDetailView = ({ data, options = {} }) => {
       {(ticketPrice !== null && ticketPrice !== undefined) && (
         <Descriptions.Item label="Ticket Price">
           <DollarOutlined style={{ color: '#52c41a' }} />{' '}
-          {ticketPrice > 0 ? `$${ticketPrice.toFixed(2)}` : 'Free'}
+          {ticketPrice > 0 ? `${ticketPrice.toFixed(2)}` : 'Free'}
         </Descriptions.Item>
       )}
 

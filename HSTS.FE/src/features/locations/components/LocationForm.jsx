@@ -420,7 +420,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             ]}
             style={{ width: '48%' }}
           >
-            <InputNumber style={{ width: '100%' }} step={0.01} prefix="$" placeholder="0.00" className={styles.customInput} />
+            <InputNumber style={{ width: '100%' }} step={1} min={0} placeholder="0" className={styles.customInput} />
           </Form.Item>
 
           <Form.Item

@@ -39,7 +39,7 @@ const DetailModal = ({ open, onClose, data, type }) => {
             
             <Descriptions.Item label="Ticket Price">
               <div className={styles.iconText}>
-                {data.ticketPrice ? `$${data.ticketPrice.toFixed(2)}` : 'Free'}
+                {data.ticketPrice ? `${data.ticketPrice.toFixed(2)}` : 'Free'}
               </div>
             </Descriptions.Item>
             
