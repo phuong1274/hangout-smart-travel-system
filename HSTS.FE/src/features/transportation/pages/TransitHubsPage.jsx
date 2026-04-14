@@ -7,8 +7,7 @@ import { useTransitHubs } from '../hooks/useTransportation';
 import TransitHubTable from '../components/TransitHubTable';
 import TransitHubForm from '../components/TransitHubForm';
 import DetailModal from '@/components/UI/DetailModal/DetailModal';
-import { deleteTransitHubApi, getTransitHubByIdApi, getTransitHubTypesApi } from '../api';
-import { getTransportModesApi } from '@/features/transport-modes/api';
+import { deleteTransitHubApi, getTransitHubByIdApi, getTransitHubTypesApi, getTransportModesApi } from '../api';
 import apiClient from '@/lib/axios';
 import styles from '../styles/TransitHubsPage.module.css';
 
