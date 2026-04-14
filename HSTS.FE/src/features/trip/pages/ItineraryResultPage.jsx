@@ -54,6 +54,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
+const DEFAULT_CUSTOM_LOCATION_CENTER_VIETNAM = [16.047079, 108.206230];
+
 const EVENT_BADGES = {
   travel: {
     badge: <NavigationArrow size={24} weight="bold" color="#D89A00" />,
@@ -1019,6 +1021,9 @@ const ItineraryResultPage = () => {
   const [provinceLocationLoading, setProvinceLocationLoading] = useState(false);
   const [selectedProvinceLocationId, setSelectedProvinceLocationId] = useState(null);
   const [provinceLocationSearch, setProvinceLocationSearch] = useState('');
+  const [addBetweenExistingStartTime, setAddBetweenExistingStartTime] = useState('');
+  const [addBetweenExistingEndTime, setAddBetweenExistingEndTime] = useState('');
+  const [addBetweenExistingCostAmount, setAddBetweenExistingCostAmount] = useState(0);
   const [addBetweenLocationTypeOptions, setAddBetweenLocationTypeOptions] = useState([]);
   const [addBetweenLocationTypeLoading, setAddBetweenLocationTypeLoading] = useState(false);
   const [selectedAddBetweenLocationTypeId, setSelectedAddBetweenLocationTypeId] = useState(null);
@@ -1065,7 +1070,7 @@ const ItineraryResultPage = () => {
     && customLocationLngValue <= 180;
   const customLocationMapCenter = hasCustomLocationCoordinates
     ? [customLocationLatValue, customLocationLngValue]
-    : [10.823099, 106.629664];
+    : DEFAULT_CUSTOM_LOCATION_CENTER_VIETNAM;
   const customLocationMapActiveKey = `${addBetweenModal?.open ? 'open' : 'closed'}-${addBetweenModal?.dayIndex ?? 'x'}-${addBetweenModal?.insertAfterIndex ?? 'x'}-${hasCustomLocationCoordinates ? 'picked' : 'empty'}`;
 
   useEffect(() => {
@@ -1157,6 +1162,85 @@ const ItineraryResultPage = () => {
     setAddBetweenCustomStartTime(normalizedStart.slice(0, 5));
     setAddBetweenCustomEndTime(defaultEnd.slice(0, 5));
     setAddBetweenCustomCostAmount(0);
+  }, []);
+
+  const resetAddBetweenExistingForm = useCallback((startTime = '08:00:00') => {
+    const normalizedStart = normalizeTimeOnly(startTime) || '08:00:00';
+    const defaultEnd = addMinutesToTime(normalizedStart, 90);
+
+    setAddBetweenExistingStartTime(normalizedStart.slice(0, 5));
+    setAddBetweenExistingEndTime(defaultEnd.slice(0, 5));
+    setAddBetweenExistingCostAmount(0);
+  }, []);
+
+  const updateBudgetSummaryForExistingAddFlow = useCallback((draftItinerary, dayTimelineBefore, dayTimelineAfter, addedLocationCost = 0) => {
+    if (!draftItinerary) return;
+
+    const getTravelCostSum = (timeline) => {
+      const safeTimeline = Array.isArray(timeline) ? timeline : [];
+      return safeTimeline.reduce((sum, currentItem) => {
+        if (!isTravelEvent(currentItem)) return sum;
+
+        const [detailKey, detail] = getTravelDetailEntry(currentItem);
+        const amount = getMoneyAmount(
+          currentItem?.costForGroup
+          ?? currentItem?.CostForGroup
+          ?? detail?.selectedTotalCost
+          ?? detail?.SelectedTotalCost
+          ?? detail?.costForGroup
+          ?? detail?.CostForGroup
+        );
+
+        return sum + (Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 0);
+      }, 0);
+    };
+
+    const normalizedAddedLocationCost = Math.max(0, Math.round(Number(addedLocationCost) || 0));
+    const beforeTravelCost = getTravelCostSum(dayTimelineBefore);
+    const afterTravelCost = getTravelCostSum(dayTimelineAfter);
+    const travelDelta = afterTravelCost - beforeTravelCost;
+
+    if (normalizedAddedLocationCost !== 0) {
+      updateBudgetSummaryForTimelineItemCostDelta(draftItinerary, 'visit', normalizedAddedLocationCost);
+    }
+    if (travelDelta !== 0) {
+      updateBudgetSummaryForTimelineItemCostDelta(draftItinerary, 'travel', travelDelta);
+    }
+  }, []);
+
+  const updateBudgetSummaryForCustomAddFlow = useCallback((draftItinerary, dayTimelineBefore, dayTimelineAfter, addedLocationCost = 0) => {
+    if (!draftItinerary) return;
+
+    const getTravelCostSum = (timeline) => {
+      const safeTimeline = Array.isArray(timeline) ? timeline : [];
+      return safeTimeline.reduce((sum, currentItem) => {
+        if (!isTravelEvent(currentItem)) return sum;
+
+        const [detailKey, detail] = getTravelDetailEntry(currentItem);
+        const amount = getMoneyAmount(
+          currentItem?.costForGroup
+          ?? currentItem?.CostForGroup
+          ?? detail?.selectedTotalCost
+          ?? detail?.SelectedTotalCost
+          ?? detail?.costForGroup
+          ?? detail?.CostForGroup
+        );
+
+        return sum + (Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 0);
+      }, 0);
+    };
+
+    const normalizedAddedLocationCost = Math.max(0, Math.round(Number(addedLocationCost) || 0));
+    const beforeTravelCost = getTravelCostSum(dayTimelineBefore);
+    const afterTravelCost = getTravelCostSum(dayTimelineAfter);
+    const travelDelta = afterTravelCost - beforeTravelCost;
+
+    if (normalizedAddedLocationCost !== 0) {
+      updateBudgetSummaryForTimelineItemCostDelta(draftItinerary, 'visit', normalizedAddedLocationCost);
+    }
+    if (travelDelta !== 0) {
+      updateBudgetSummaryForTimelineItemCostDelta(draftItinerary, 'travel', travelDelta);
+    }
   }, []);
 
   const recalculateDayTimeline = useCallback(async (draftItinerary, dayIndex, options = {}) => {
@@ -1526,12 +1610,13 @@ const ItineraryResultPage = () => {
     setProvinceLocationSearch('');
     setSelectedAddBetweenLocationTypeId(null);
     setProvinceLocationOptions([]);
+    resetAddBetweenExistingForm(defaultStartTime);
     resetAddBetweenCustomForm(defaultStartTime);
     setAddBetweenModal({ open: true, dayIndex, insertAfterIndex, provinceId: normalizedProvinceId });
     setRecalculatingDayNumber(dayNum);
     await loadAddBetweenLocationTypes();
     setRecalculatingDayNumber(null);
-  }, [itinerary, loadAddBetweenLocationTypes, resetAddBetweenCustomForm]);
+  }, [itinerary, loadAddBetweenLocationTypes, resetAddBetweenCustomForm, resetAddBetweenExistingForm]);
 
   const handlePickCustomLocationOnMap = useCallback((latitude, longitude) => {
     const safeLat = toFiniteNumber(latitude);
@@ -1612,6 +1697,23 @@ const ItineraryResultPage = () => {
       return;
     }
 
+    const normalizedStart = normalizeTimeOnly(addBetweenExistingStartTime);
+    const normalizedEnd = normalizeTimeOnly(addBetweenExistingEndTime);
+    if (!normalizedStart || !normalizedEnd) {
+      message.warning('Please provide valid start and end time.');
+      return;
+    }
+
+    const startMinutes = toMinutesOfDay(normalizedStart);
+    const endMinutes = toMinutesOfDay(normalizedEnd);
+    const durationMinutes = startMinutes != null && endMinutes != null
+      ? ((endMinutes - startMinutes + 1440) % 1440)
+      : 0;
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+      message.warning('End time must be after start time.');
+      return;
+    }
+
     const picked = provinceLocationOptions.find((item) => item.id === locationId);
     if (!picked) {
       message.warning('Selected location is not available anymore.');
@@ -1620,6 +1722,8 @@ const ItineraryResultPage = () => {
 
     const days = itinerary.days || itinerary.Days || [];
     const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+    const costAmount = Math.max(0, Math.round(Number(addBetweenExistingCostAmount) || 0));
     setRecalculatingDayNumber(dayNumber);
 
     try {
@@ -1631,23 +1735,35 @@ const ItineraryResultPage = () => {
 
       const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
       const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
-      const anchorItem = timeline[insertAfterIndex] || {};
-      const startTime = pickFirstText(anchorItem?.endTime, anchorItem?.EndTime, '08:00:00');
+      const dayTimelineBefore = [...timeline];
+      const summaryKey = draft?.budgetSummary ? 'budgetSummary' : 'BudgetSummary';
+      const summarySnapshot = clonePlainObject(draft?.[summaryKey] || null);
+      const groupCost = {
+        amount: costAmount,
+        currency: itineraryCurrency,
+      };
 
       const insertedItem = {
         eventType: 'visit',
         title: `Visit ${picked.name}`,
         locationName: picked.name,
-        startTime,
-        endTime: addMinutesToTime(startTime, getTimelineDurationMinutes(anchorItem)),
+        LocationName: picked.name,
+        startTime: normalizedStart,
+        StartTime: normalizedStart,
+        endTime: normalizedEnd,
+        EndTime: normalizedEnd,
         locationId: picked.id,
+        LocationId: picked.id,
         tagNames: picked.tagNames || [],
-        ticketCost: null,
+        ticketCost: groupCost,
+        TicketCost: groupCost,
         extraCostPerPerson: null,
-        costForGroup: null,
+        costForGroup: groupCost,
+        CostForGroup: groupCost,
         note: 'Inserted after selected location',
         score: picked.score ?? 0,
         address: picked.address || null,
+        Address: picked.address || null,
         telephone: picked.telephone || null,
         mediaUrls: picked.mediaUrls || [],
         alternatives: [],
@@ -1657,6 +1773,11 @@ const ItineraryResultPage = () => {
       day[timelineKey] = timeline;
 
       await recalculateDayTimeline(draft, dayIndex);
+      if (summarySnapshot) {
+        draft[summaryKey] = summarySnapshot;
+      }
+      const dayTimelineAfter = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      updateBudgetSummaryForExistingAddFlow(draft, dayTimelineBefore, dayTimelineAfter, costAmount);
       updateItinerary(draft);
       message.success('Location added and timeline recalculated.');
 
@@ -1665,6 +1786,7 @@ const ItineraryResultPage = () => {
       setSelectedProvinceLocationId(null);
       setProvinceLocationSearch('');
       setSelectedAddBetweenLocationTypeId(null);
+      resetAddBetweenExistingForm('08:00:00');
     } catch {
       message.error('Unable to add location.');
     } finally {
@@ -1675,8 +1797,13 @@ const ItineraryResultPage = () => {
     addBetweenModal,
     selectedAddBetweenLocationTypeId,
     selectedProvinceLocationId,
+    addBetweenExistingStartTime,
+    addBetweenExistingEndTime,
+    addBetweenExistingCostAmount,
     provinceLocationOptions,
     recalculateDayTimeline,
+    resetAddBetweenExistingForm,
+    updateBudgetSummaryForExistingAddFlow,
     updateItinerary,
   ]);
 
@@ -1733,6 +1860,9 @@ const ItineraryResultPage = () => {
 
       const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
       const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const dayTimelineBefore = [...timeline];
+      const summaryKey = draft?.budgetSummary ? 'budgetSummary' : 'BudgetSummary';
+      const summarySnapshot = clonePlainObject(draft?.[summaryKey] || null);
       const customLocationPayload = {
         name: customName,
         Name: customName,
@@ -1779,8 +1909,13 @@ const ItineraryResultPage = () => {
       timeline.splice(Math.min(timeline.length, insertAfterIndex + 1), 0, insertedItem);
       day[timelineKey] = timeline;
 
+      await recalculateDayTimeline(draft, dayIndex);
+      if (summarySnapshot) {
+        draft[summaryKey] = summarySnapshot;
+      }
+      const dayTimelineAfter = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
       updateDayEstimatedCost(day, timelineKey, itineraryCurrency);
-      updateBudgetSummaryFromDays(draft);
+      updateBudgetSummaryForCustomAddFlow(draft, dayTimelineBefore, dayTimelineAfter, costAmount);
       updateItinerary(draft);
       message.success('Custom location added to timeline.');
 
@@ -1789,6 +1924,7 @@ const ItineraryResultPage = () => {
       setSelectedProvinceLocationId(null);
       setProvinceLocationSearch('');
       setSelectedAddBetweenLocationTypeId(null);
+      resetAddBetweenExistingForm('08:00:00');
       resetAddBetweenCustomForm('08:00:00');
     } catch {
       message.error('Unable to add custom location.');
@@ -1806,7 +1942,9 @@ const ItineraryResultPage = () => {
     addBetweenCustomStartTime,
     addBetweenCustomEndTime,
     addBetweenCustomCostAmount,
+    resetAddBetweenExistingForm,
     resetAddBetweenCustomForm,
+    updateBudgetSummaryForCustomAddFlow,
     updateItinerary,
   ]);
 
@@ -1816,8 +1954,9 @@ const ItineraryResultPage = () => {
     setSelectedProvinceLocationId(null);
     setProvinceLocationSearch('');
     setSelectedAddBetweenLocationTypeId(null);
+    resetAddBetweenExistingForm('08:00:00');
     resetAddBetweenCustomForm('08:00:00');
-  }, [resetAddBetweenCustomForm]);
+  }, [resetAddBetweenCustomForm, resetAddBetweenExistingForm]);
 
   const loadEditTimelineLocations = useCallback(async (provinceId, searchTerm = '', ensureOption = null) => {
     const normalizedProvinceId = Number(provinceId);
@@ -2726,6 +2865,30 @@ const ItineraryResultPage = () => {
       const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
       const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
       const item = timeline[timelineIndex];
+      const removedEventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
+
+      const getStrictTravelCostAmount = (travelItem) => {
+        if (!travelItem || !isTravelEvent(travelItem)) return 0;
+        const [, travelDetail] = getTravelDetailEntry(travelItem);
+        const money =
+          travelItem?.costForGroup
+          ?? travelItem?.CostForGroup
+          ?? travelDetail?.selectedTotalCost
+          ?? travelDetail?.SelectedTotalCost
+          ?? travelDetail?.costForGroup
+          ?? travelDetail?.CostForGroup;
+        const amount = getMoneyAmount(money);
+        return Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 0;
+      };
+
+      const removedLocationCostAmount = Math.max(0, Math.round(
+        getMoneyAmount(
+          item?.costForGroup
+          ?? item?.CostForGroup
+          ?? item?.ticketCost
+          ?? item?.TicketCost
+        ) ?? 0
+      ));
 
       if (!item || !isEditableLocationEvent(item)) {
         message.warning('Only location events can be removed.');
@@ -2800,6 +2963,19 @@ const ItineraryResultPage = () => {
           travelLeg = null;
         }
 
+        const mergedTravelCostAmount = Math.max(0, Math.round(
+          getMoneyAmount(
+            travelLeg?.selectedTotalCost
+            ?? travelLeg?.SelectedTotalCost
+            ?? travelLeg?.costForGroup
+            ?? travelLeg?.CostForGroup
+          ) ?? 0
+        ));
+        const mergedTravelCostMoney = {
+          amount: mergedTravelCostAmount,
+          currency: currencyCode,
+        };
+
         const fromName = pickFirstText(
           travelLeg?.fromLocationName,
           travelLeg?.FromLocationName,
@@ -2833,9 +3009,14 @@ const ItineraryResultPage = () => {
               DepartureTime: departureTime,
               arrivalTime,
               ArrivalTime: arrivalTime,
+              selectedTotalCost: mergedTravelCostMoney,
+              SelectedTotalCost: mergedTravelCostMoney,
+              costForGroup: mergedTravelCostMoney,
+              CostForGroup: mergedTravelCostMoney,
             }
             : null,
-          costForGroup: travelLeg?.selectedTotalCost || travelLeg?.SelectedTotalCost || null,
+          costForGroup: mergedTravelCostMoney,
+          CostForGroup: mergedTravelCostMoney,
         };
       }
 
@@ -2854,11 +3035,29 @@ const ItineraryResultPage = () => {
         nextTimeline.splice(Math.max(0, Math.min(insertAt, nextTimeline.length)), 0, mergedTravelItem);
       }
 
+      const leftTravelCostAmount = leftTravelIndex >= 0
+        ? getStrictTravelCostAmount(timeline[leftTravelIndex])
+        : 0;
+      const rightTravelCostAmount = rightTravelIndex >= 0
+        ? getStrictTravelCostAmount(timeline[rightTravelIndex])
+        : 0;
+      const mergedTravelCostAmount = mergedTravelItem
+        ? getStrictTravelCostAmount(mergedTravelItem)
+        : 0;
+
+      const locationCostDelta = -removedLocationCostAmount;
+      const transportCostDelta = mergedTravelCostAmount - leftTravelCostAmount - rightTravelCostAmount;
+
       day[timelineKey] = nextTimeline;
 
       const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
       updateDayEstimatedCost(day, timelineKey, currencyCode);
-      updateBudgetSummaryFromDays(draft);
+      if (locationCostDelta !== 0) {
+        updateBudgetSummaryForTimelineItemCostDelta(draft, removedEventType, locationCostDelta);
+      }
+      if (transportCostDelta !== 0) {
+        updateBudgetSummaryForTimelineItemCostDelta(draft, 'travel', transportCostDelta);
+      }
       updateItinerary(draft);
       message.success('Location removed and adjacent locations were reconnected.');
     } catch {
@@ -3934,173 +4133,227 @@ const ItineraryResultPage = () => {
           title="Add Point"
           open={addBetweenModal.open}
           onCancel={handleCloseAddBetweenModal}
-          onOk={handleConfirmAddBetween}
-          okText="Add To Timeline"
-          cancelText="Cancel"
-          okButtonProps={{
-            disabled: !selectedAddBetweenLocationTypeId || !selectedProvinceLocationId,
-            loading: provinceLocationLoading || addBetweenLocationTypeLoading,
-          }}
+          width="min(1100px, 94vw)"
+          footer={null}
         >
           <div className={styles.addBetweenModalBody}>
             <Text type="secondary" className={styles.addBetweenHint}>
-              Select location type first, then choose a location in the same province. The system will recalculate route distance, duration, and costs.
+              Choose one flow below. Existing and custom flows are independent and will update timeline separately.
             </Text>
 
-            <span className={styles.editTimelineLabel}>Location Type</span>
-            <Select
-              showSearch
-              allowClear
-              className={styles.addBetweenSelect}
-              placeholder="Select location type"
-              value={selectedAddBetweenLocationTypeId}
-              onChange={handleChangeAddBetweenLocationType}
-              loading={addBetweenLocationTypeLoading}
-              optionFilterProp="label"
-              options={addBetweenLocationTypeOptions.map((locationType) => ({
-                label: locationType.name,
-                value: locationType.id,
-              }))}
-              notFoundContent={addBetweenLocationTypeLoading ? <Spin size="small" /> : 'No location types'}
-            />
+            <div className={styles.addBetweenSplitLayout}>
+              <div className={styles.addBetweenPanel}>
+                <span className={styles.addBetweenPanelTitle}>Existing Location</span>
+                <Text type="secondary" className={styles.addBetweenPanelHint}>
+                  Select location type, location, time and cost before adding to timeline.
+                </Text>
 
-            <span className={styles.editTimelineLabel}>Location</span>
-            <Select
-              showSearch
-              allowClear
-              className={styles.addBetweenSelect}
-              placeholder={selectedAddBetweenLocationTypeId
-                ? 'Search location in this province'
-                : 'Select location type first'}
-              searchValue={provinceLocationSearch}
-              value={selectedProvinceLocationId}
-              onChange={(value) => setSelectedProvinceLocationId(value ?? null)}
-              onSearch={handleSearchProvinceLocations}
-              filterOption={false}
-              loading={provinceLocationLoading}
-              disabled={!selectedAddBetweenLocationTypeId}
-              options={provinceLocationOptions.map((location) => ({
-                label: location.address ? `${location.name} - ${location.address}` : location.name,
-                value: location.id,
-              }))}
-              notFoundContent={provinceLocationLoading
-                ? <Spin size="small" />
-                : (selectedAddBetweenLocationTypeId ? 'No available locations' : 'Select location type first')}
-            />
-
-            <div className={styles.customLocationBlock}>
-              <span className={styles.customLocationTitle}>Custom Location</span>
-              <Text type="secondary" className={styles.customLocationHint}>
-                Add your own place by picking coordinates on map and entering custom timeline and cost.
-              </Text>
-
-              <div className={styles.editTimelineField}>
-                <span className={styles.editTimelineLabel}>Name</span>
-                <Input
-                  className={styles.editTimelineInput}
-                  placeholder="e.g. Secret sunset viewpoint"
-                  value={addBetweenCustomName}
-                  onChange={(event) => setAddBetweenCustomName(event?.target?.value || '')}
+                <span className={styles.editTimelineLabel}>Location Type</span>
+                <Select
+                  showSearch
+                  allowClear
+                  className={styles.addBetweenSelect}
+                  placeholder="Select location type"
+                  value={selectedAddBetweenLocationTypeId}
+                  onChange={handleChangeAddBetweenLocationType}
+                  loading={addBetweenLocationTypeLoading}
+                  optionFilterProp="label"
+                  options={addBetweenLocationTypeOptions.map((locationType) => ({
+                    label: locationType.name,
+                    value: locationType.id,
+                  }))}
+                  notFoundContent={addBetweenLocationTypeLoading ? <Spin size="small" /> : 'No location types'}
                 />
-              </div>
 
-              <div className={styles.editTimelineField}>
-                <span className={styles.editTimelineLabel}>Address (optional)</span>
-                <Input
-                  className={styles.editTimelineInput}
-                  placeholder="Address or short note"
-                  value={addBetweenCustomAddress}
-                  onChange={(event) => setAddBetweenCustomAddress(event?.target?.value || '')}
+                <span className={styles.editTimelineLabel}>Location</span>
+                <Select
+                  showSearch
+                  allowClear
+                  className={styles.addBetweenSelect}
+                  placeholder={selectedAddBetweenLocationTypeId
+                    ? 'Search location in this province'
+                    : 'Select location type first'}
+                  searchValue={provinceLocationSearch}
+                  value={selectedProvinceLocationId}
+                  onChange={(value) => setSelectedProvinceLocationId(value ?? null)}
+                  onSearch={handleSearchProvinceLocations}
+                  filterOption={false}
+                  loading={provinceLocationLoading}
+                  disabled={!selectedAddBetweenLocationTypeId}
+                  options={provinceLocationOptions.map((location) => ({
+                    label: location.address ? `${location.name} - ${location.address}` : location.name,
+                    value: location.id,
+                  }))}
+                  notFoundContent={provinceLocationLoading
+                    ? <Spin size="small" />
+                    : (selectedAddBetweenLocationTypeId ? 'No available locations' : 'Select location type first')}
                 />
-              </div>
 
-              <Card
-                className={styles.customLocationMapCard}
-                title={<span className={styles.customLocationMapHeader}>Where are you starting from?</span>}
-              >
-                <div className={styles.customLocationMapWrap}>
-                  <MapContainer
-                    center={customLocationMapCenter}
-                    zoom={hasCustomLocationCoordinates ? 14 : 12}
-                    style={{ width: '100%', height: 180, borderRadius: 12 }}
-                    scrollWheelZoom
-                  >
-                    <TileLayer
-                      attribution='&copy; OpenStreetMap contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                <div className={styles.customLocationTimelineGrid}>
+                  <div className={styles.editTimelineField}>
+                    <span className={styles.editTimelineLabel}>Start time</span>
+                    <Input
+                      type="time"
+                      className={styles.editTimelineInput}
+                      value={addBetweenExistingStartTime}
+                      onChange={(event) => setAddBetweenExistingStartTime(event?.target?.value || '')}
                     />
-                    {hasCustomLocationCoordinates && (
-                      <Marker position={[customLocationLatValue, customLocationLngValue]} />
-                    )}
-                    <CustomLocationMapClickHandler onPick={handlePickCustomLocationOnMap} />
-                    <CustomLocationMapInvalidate activeKey={customLocationMapActiveKey} />
-                  </MapContainer>
+                  </div>
+
+                  <div className={styles.editTimelineField}>
+                    <span className={styles.editTimelineLabel}>End time</span>
+                    <Input
+                      type="time"
+                      className={styles.editTimelineInput}
+                      value={addBetweenExistingEndTime}
+                      onChange={(event) => setAddBetweenExistingEndTime(event?.target?.value || '')}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Cost for group</span>
+                  <InputNumber
+                    className={styles.editTimelineInput}
+                    min={0}
+                    step={10000}
+                    precision={0}
+                    controls={false}
+                    value={addBetweenExistingCostAmount}
+                    onChange={(value) => setAddBetweenExistingCostAmount(value ?? 0)}
+                    addonAfter={tripCurrencyCode}
+                  />
                 </div>
 
                 <Button
-                  type="dashed"
-                  block
-                  className={styles.customLocationCurrentBtn}
-                  onClick={handleUseCurrentLocationForCustom}
-                  style={{ marginTop: 16, borderColor: '#4ECDC4', color: '#1A535C', backgroundColor: 'rgba(78, 205, 196, 0.1)' }}
+                  type="primary"
+                  className={styles.addBetweenPrimaryAction}
+                  onClick={handleConfirmAddBetween}
+                  disabled={!selectedAddBetweenLocationTypeId || !selectedProvinceLocationId}
+                  loading={provinceLocationLoading || addBetweenLocationTypeLoading}
                 >
-                  Use My Current Location
+                  Add To Timeline
                 </Button>
-              </Card>
+              </div>
 
-              {hasCustomLocationCoordinates && (
-                <span className={styles.customLocationCoordinates}>
-                  Picked: {customLocationLatValue.toFixed(6)}, {customLocationLngValue.toFixed(6)}
-                </span>
-              )}
-              <Text type="secondary" className={styles.customLocationHint}>
-                Click on map to pick location for custom point.
-              </Text>
+              <div className={styles.addBetweenPanel}>
+                <span className={styles.addBetweenPanelTitle}>Custom Location</span>
+                <Text type="secondary" className={styles.addBetweenPanelHint}>
+                  Pick your own point on map and define timeline and cost manually.
+                </Text>
 
-              <div className={styles.customLocationTimelineGrid}>
                 <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>Start time</span>
+                  <span className={styles.editTimelineLabel}>Name</span>
                   <Input
-                    type="time"
                     className={styles.editTimelineInput}
-                    value={addBetweenCustomStartTime}
-                    onChange={(event) => setAddBetweenCustomStartTime(event?.target?.value || '')}
+                    placeholder="e.g. Secret sunset viewpoint"
+                    value={addBetweenCustomName}
+                    onChange={(event) => setAddBetweenCustomName(event?.target?.value || '')}
                   />
                 </div>
 
                 <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>End time</span>
+                  <span className={styles.editTimelineLabel}>Address (optional)</span>
                   <Input
-                    type="time"
                     className={styles.editTimelineInput}
-                    value={addBetweenCustomEndTime}
-                    onChange={(event) => setAddBetweenCustomEndTime(event?.target?.value || '')}
+                    placeholder="Address or short note"
+                    value={addBetweenCustomAddress}
+                    onChange={(event) => setAddBetweenCustomAddress(event?.target?.value || '')}
                   />
                 </div>
-              </div>
 
-              <div className={styles.editTimelineField}>
-                <span className={styles.editTimelineLabel}>Cost for group</span>
-                <InputNumber
-                  className={styles.editTimelineInput}
-                  min={0}
-                  step={10000}
-                  precision={0}
-                  controls={false}
-                  value={addBetweenCustomCostAmount}
-                  onChange={(value) => setAddBetweenCustomCostAmount(value ?? 0)}
-                  addonAfter={tripCurrencyCode}
-                />
-              </div>
+                <Card
+                  className={styles.customLocationMapCard}
+                  title={<span className={styles.customLocationMapHeader}>Where are you starting from?</span>}
+                >
+                  <div className={styles.customLocationMapWrap}>
+                    <MapContainer
+                      center={customLocationMapCenter}
+                      zoom={hasCustomLocationCoordinates ? 14 : 12}
+                      style={{ width: '100%', height: 180, borderRadius: 12 }}
+                      scrollWheelZoom
+                    >
+                      <TileLayer
+                        attribution='&copy; OpenStreetMap contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      {hasCustomLocationCoordinates && (
+                        <Marker position={[customLocationLatValue, customLocationLngValue]} />
+                      )}
+                      <CustomLocationMapClickHandler onPick={handlePickCustomLocationOnMap} />
+                      <CustomLocationMapInvalidate activeKey={customLocationMapActiveKey} />
+                    </MapContainer>
+                  </div>
 
-              <Button
-                type="primary"
-                className={styles.customLocationAddButton}
-                loading={addingCustomLocation}
-                onClick={handleConfirmAddCustomLocation}
-              >
-                Add Custom Location
-              </Button>
+                  <Button
+                    type="dashed"
+                    block
+                    className={styles.customLocationCurrentBtn}
+                    onClick={handleUseCurrentLocationForCustom}
+                    style={{ marginTop: 16, borderColor: '#4ECDC4', color: '#1A535C', backgroundColor: 'rgba(78, 205, 196, 0.1)' }}
+                  >
+                    Use My Current Location
+                  </Button>
+                </Card>
+
+                {hasCustomLocationCoordinates && (
+                  <span className={styles.customLocationCoordinates}>
+                    Picked: {customLocationLatValue.toFixed(6)}, {customLocationLngValue.toFixed(6)}
+                  </span>
+                )}
+                <Text type="secondary" className={styles.customLocationHint}>
+                  Click on map to pick location for custom point.
+                </Text>
+
+                <div className={styles.customLocationTimelineGrid}>
+                  <div className={styles.editTimelineField}>
+                    <span className={styles.editTimelineLabel}>Start time</span>
+                    <Input
+                      type="time"
+                      className={styles.editTimelineInput}
+                      value={addBetweenCustomStartTime}
+                      onChange={(event) => setAddBetweenCustomStartTime(event?.target?.value || '')}
+                    />
+                  </div>
+
+                  <div className={styles.editTimelineField}>
+                    <span className={styles.editTimelineLabel}>End time</span>
+                    <Input
+                      type="time"
+                      className={styles.editTimelineInput}
+                      value={addBetweenCustomEndTime}
+                      onChange={(event) => setAddBetweenCustomEndTime(event?.target?.value || '')}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Cost for group</span>
+                  <InputNumber
+                    className={styles.editTimelineInput}
+                    min={0}
+                    step={10000}
+                    precision={0}
+                    controls={false}
+                    value={addBetweenCustomCostAmount}
+                    onChange={(value) => setAddBetweenCustomCostAmount(value ?? 0)}
+                    addonAfter={tripCurrencyCode}
+                  />
+                </div>
+
+                <Button
+                  type="primary"
+                  className={styles.customLocationAddButton}
+                  loading={addingCustomLocation}
+                  onClick={handleConfirmAddCustomLocation}
+                >
+                  Add Custom Location
+                </Button>
+              </div>
+            </div>
+
+            <div className={styles.addBetweenFooterActions}>
+              <Button onClick={handleCloseAddBetweenModal}>Close</Button>
             </div>
           </div>
         </Modal>
