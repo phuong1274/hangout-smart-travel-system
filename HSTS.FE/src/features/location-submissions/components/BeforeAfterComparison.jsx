@@ -324,15 +324,15 @@ const BeforeAfterComparison = ({ submission }) => {
 
         {renderField('Ticket Price', 'ticketPrice', getOldValue('ticketPrice'), getNewValue('ticketPrice'), (val) => {
           if (val === null || val === undefined) return 'None';
-          return val > 0 ? `$${Number(val).toFixed(2)}` : 'Free';
+          return val > 0 ? `${Number(val).toFixed(2)}` : 'Free';
         })}
-        {renderField('Min Price (USD)', 'priceMinUsd', getOldValue('priceMinUsd'), getNewValue('priceMinUsd'), (val) => {
+        {renderField('Min Price', 'priceMinUsd', getOldValue('priceMinUsd'), getNewValue('priceMinUsd'), (val) => {
           if (val === null || val === undefined) return 'None';
-          return `$${Number(val).toFixed(2)}`;
+          return val > 0 ? `${Number(val).toFixed(2)}` : 'Free';
         })}
-        {renderField('Max Price (USD)', 'priceMaxUsd', getOldValue('priceMaxUsd'), getNewValue('priceMaxUsd'), (val) => {
+        {renderField('Max Price', 'priceMaxUsd', getOldValue('priceMaxUsd'), getNewValue('priceMaxUsd'), (val) => {
           if (val === null || val === undefined) return 'None';
-          return `$${Number(val).toFixed(2)}`;
+          return `${Number(val).toFixed(2)}`;
         })}
 
         {renderField('Minimum Age', 'minimumAge', getOldValue('minimumAge'), getNewValue('minimumAge'), (val) => {

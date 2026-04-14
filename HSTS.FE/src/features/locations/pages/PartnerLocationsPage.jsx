@@ -280,10 +280,10 @@ const PartnerLocationsPage = () => {
         width: 100,
         render: (_, record) => (
           <div style={{ fontSize: 12, color: '#1A535C' }}>
-            {record.ticketPrice > 0 && <div style={{ fontWeight: 600 }}>${record.ticketPrice.toFixed(2)}</div>}
+            {record.ticketPrice > 0 && <div style={{ fontWeight: 600 }}>{record.ticketPrice.toFixed(2)}</div>}
             {(record.priceMinUsd || record.priceMaxUsd) && (
               <div style={{ fontSize: 11 }}>
-                ${record.priceMinUsd?.toFixed(2) || '0'} - ${record.priceMaxUsd?.toFixed(2) || '0'}
+                {record.priceMinUsd?.toFixed(2) || '0'} - {record.priceMaxUsd?.toFixed(2) || '0'}
               </div>
             )}
           </div>

@@ -439,20 +439,20 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         <Space direction="horizontal" style={{ width: '100%' }} size="large" className={styles.spaceRow}>
           <Form.Item
             name="priceMinUsd"
-            label={<span className={styles.formLabel}>Min Price (USD)</span>}
+            label={<span className={styles.formLabel}>Min Price</span>}
             rules={[{ min: 0, type: 'number', message: 'Min price must be >= 0' }]}
             style={{ width: '48%' }}
           >
-            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" className={styles.customInput} />
+            <InputNumber style={{ width: '100%' }} step={1} min={0} placeholder="0" className={styles.customInput} />
           </Form.Item>
 
           <Form.Item
             name="priceMaxUsd"
-            label={<span className={styles.formLabel}>Max Price (USD)</span>}
+            label={<span className={styles.formLabel}>Max Price</span>}
             rules={[{ min: 0, type: 'number', message: 'Max price must be >= 0' }]}
             style={{ width: '48%' }}
           >
-            <InputNumber style={{ width: '100%' }} step={0.01} min={0} prefix="$" placeholder="0.00" className={styles.customInput} />
+            <InputNumber style={{ width: '100%' }} step={1} min={0} placeholder="0" className={styles.customInput} />
           </Form.Item>
         </Space>
 

@@ -607,7 +607,7 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
               <Col span={12}>
                 <Form.Item
                   name="priceMinUsd"
-                  label={<span className={styles.formLabel}>Min Price (USD)</span>}
+                  label={<span className={styles.formLabel}>Min Price</span>}
                   rules={[
                     { type: 'number', min: 0, message: 'Price must be 0 or positive' }
                   ]}
@@ -616,16 +616,14 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
                     style={{ width: '100%' }}
                     placeholder="e.g., 10"
                     min={0}
-                    step={0.01}
-                    prefix="$"
-                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    step={1}
                   />
                 </Form.Item>
               </Col>
               <Col span={12}>
                 <Form.Item
                   name="priceMaxUsd"
-                  label={<span className={styles.formLabel}>Max Price (USD)</span>}
+                  label={<span className={styles.formLabel}>Max Price</span>}
                   rules={[
                     { type: 'number', min: 0, message: 'Price must be 0 or positive' }
                   ]}
@@ -634,9 +632,7 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
                     style={{ width: '100%' }}
                     placeholder="e.g., 100"
                     min={0}
-                    step={0.01}
-                    prefix="$"
-                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    step={1}
                   />
                 </Form.Item>
               </Col>

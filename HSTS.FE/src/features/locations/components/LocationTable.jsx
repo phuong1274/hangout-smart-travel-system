@@ -65,11 +65,11 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       width: 120,
       render: (_, record) => (
         <div className={styles.bodyText}>
-          {record.ticketPrice > 0 && <div className={styles.priceHighlight}>${record.ticketPrice.toFixed(2)}</div>}
+          {record.ticketPrice > 0 && <div className={styles.priceHighlight}>{record.ticketPrice.toFixed(2)}</div>}
           {record.priceRange && <Tag className={styles.customTagInfo}>{record.priceRange}</Tag>}
           {(record.priceMinUsd || record.priceMaxUsd) && (
             <div className={styles.subText}>
-              ${record.priceMinUsd?.toFixed(2) || '0'} - ${record.priceMaxUsd?.toFixed(2) || '0'}
+              {record.priceMinUsd?.toFixed(2) || '0'} - {record.priceMaxUsd?.toFixed(2) || '0'}
             </div>
           )}
         </div>
