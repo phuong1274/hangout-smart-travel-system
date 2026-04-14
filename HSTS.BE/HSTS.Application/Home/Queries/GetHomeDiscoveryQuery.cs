@@ -120,6 +120,31 @@ public class GetHomeDiscoveryQueryHandler : IRequestHandler<GetHomeDiscoveryQuer
                 LocationStatus.Active.ToString()))
             .ToList();
 
-        return new HomeDiscoveryDto(featuredDestinations, popularLocationDtos);
+        var tripCount = await _context.Trips
+            .AsNoTracking()
+            .CountAsync(x => !x.IsDeleted, cancellationToken);
+
+        var socialProof = new HomeSocialProofDto(
+            "Current discovery coverage",
+            "A quick view of how much destination and location data is currently available to support trip planning.",
+            [
+                new HomeSocialProofStatDto(
+                    "destinations",
+                    "Destinations available",
+                    featuredDestinations.Count,
+                    "Browse province-level starting points before choosing where to focus."),
+                new HomeSocialProofStatDto(
+                    "locations",
+                    "Locations to compare",
+                    await visibleLocationsQuery.CountAsync(cancellationToken),
+                    "See how many places are currently available to review and shortlist."),
+                new HomeSocialProofStatDto(
+                    "plannedTrips",
+                    "Trips planned",
+                    tripCount,
+                    "Track how many itineraries have already been created in the platform.")
+            ]);
+
+        return new HomeDiscoveryDto(featuredDestinations, popularLocationDtos, socialProof);
     }
 }

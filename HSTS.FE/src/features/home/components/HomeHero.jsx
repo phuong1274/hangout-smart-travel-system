@@ -43,19 +43,19 @@ const HomeHero = ({ hero, heroHighlight }) => {
         </div>
 
         <Card className={styles.heroSpotlight}>
-          <Text className={styles.spotlightEyebrow}>This week’s shortcut</Text>
-          <Title level={3} className={styles.spotlightTitle}>Move from inspiration to itinerary in one scroll</Title>
+          <Text className={styles.spotlightEyebrow}>From discovery to itinerary</Text>
+          <Title level={3} className={styles.spotlightTitle}>See the strongest options first, then plan with more confidence</Title>
           <Paragraph className={styles.spotlightDescription}>
-            Pick a destination, scan the strongest places, and jump into planning once the shortlist feels right.
+            Compare destinations, scan standout places, and move into planning once the route starts to feel obvious.
           </Paragraph>
           <div className={styles.spotlightStats}>
             <div>
-              <span className={styles.spotlightValue}>Top picks</span>
-              <span className={styles.spotlightLabel}>curated from live discovery data</span>
+              <span className={styles.spotlightValue}>Curated picks</span>
+              <span className={styles.spotlightLabel}>so you start with places worth considering</span>
             </div>
             <div>
-              <span className={styles.spotlightValue}>Faster planning</span>
-              <span className={styles.spotlightLabel}>because you decide with context first</span>
+              <span className={styles.spotlightValue}>Cleaner handoff</span>
+              <span className={styles.spotlightLabel}>from browsing to itinerary building</span>
             </div>
           </div>
         </Card>

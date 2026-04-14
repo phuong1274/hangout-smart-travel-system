@@ -38,5 +38,18 @@ public class GetHomeDiscoveryQueryTests
         result.Value.FeaturedDestinations.First().Name.Should().Be("Ha Noi");
         result.Value.PopularLocations.Should().NotBeEmpty();
         result.Value.PopularLocations.First().Name.Should().Be("Temple");
+        result.Value.SocialProof.Should().NotBeNull();
+        result.Value.SocialProof.Stats.Should().HaveCount(3);
+        result.Value.SocialProof.Stats[0].Value.Should().Be(2);
+        result.Value.SocialProof.Stats[1].Value.Should().Be(3);
+        result.Value.SocialProof.Stats[2].Value.Should().Be(0);
+        result.Value.SocialProof.Stats[0].Label.Should().Be("Destinations available");
+        result.Value.SocialProof.Stats[1].Label.Should().Be("Locations to compare");
+        result.Value.SocialProof.Stats[2].Label.Should().Be("Trips planned");
+        result.Value.SocialProof.Title.Should().NotBeNullOrWhiteSpace();
+        result.Value.SocialProof.Description.Should().NotBeNullOrWhiteSpace();
+        result.Value.SocialProof.HasRealData.Should().BeTrue();
+        result.Value.SocialProof.Stats.All(x => x.HasRealValue).Should().BeTrue();
+        result.Value.SocialProof.Stats.All(x => !string.IsNullOrWhiteSpace(x.SupportCopy)).Should().BeTrue();
     }
 }

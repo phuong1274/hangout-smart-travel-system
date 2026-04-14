@@ -27,50 +27,34 @@ const normalizeDestinations = (payload) => {
   return raw.map(normalizeDestination);
 };
 
-const DEFAULT_SOCIAL_PROOF_STATS = [
-  {
-    key: 'destinations',
-    label: 'Destinations available',
-    value: 0,
-    supportCopy: 'Compare province-level options before you commit to one plan.',
-  },
-  {
-    key: 'locations',
-    label: 'Locations to compare',
-    value: 0,
-    supportCopy: 'Use ratings and budget context to shortlist places faster.',
-  },
-  {
-    key: 'plannedTrips',
-    label: 'Trips planned',
-    value: 0,
-    supportCopy: 'See that discovery insights are turning into real itineraries.',
-  },
-];
-
-const normalizeStatItem = (item = {}, fallback = {}) => {
-  const numericValue = Number(item.value ?? item.count ?? fallback.value ?? 0);
+const normalizeStatItem = (item = {}) => {
+  const numericValue = Number(item.value ?? item.count ?? 0);
 
   return {
-    key: item.key || fallback.key || item.label || 'metric',
-    label: item.label || fallback.label || 'Metric',
+    key: item.key || item.label || 'metric',
+    label: item.label || 'Metric',
     value: Number.isFinite(numericValue) ? numericValue : 0,
     supportCopy:
-      item.supportCopy || item.description || item.context || fallback.supportCopy || 'Supports better trip discovery and planning.',
+      item.supportCopy || item.description || item.context || 'Supports better trip discovery and planning.',
+    hasRealValue: item.hasRealValue !== false,
   };
 };
 
-const normalizeSocialProof = (socialProof = {}) => {
-  const incomingStats = Array.isArray(socialProof?.stats) ? socialProof.stats : [];
+const normalizeSocialProof = (socialProof) => {
+  const incomingStats = Array.isArray(socialProof?.stats) ? socialProof.stats.map(normalizeStatItem) : [];
+  const hasRealData = Boolean(socialProof?.hasRealData) && incomingStats.length > 0;
 
-  const stats = DEFAULT_SOCIAL_PROOF_STATS.map((fallback, index) => normalizeStatItem(incomingStats[index], fallback));
+  if (!hasRealData) {
+    return null;
+  }
 
   return {
-    title: socialProof?.title || 'Why these numbers matter for your planning decisions',
+    title: socialProof?.title || 'Current discovery coverage',
     description:
       socialProof?.description ||
-      'These live metrics show how much discovery depth and planning momentum you can use right now.',
-    stats,
+      'A quick view of how much destination and location data is currently available to support trip planning.',
+    stats: incomingStats,
+    hasRealData,
   };
 };
 
@@ -86,7 +70,7 @@ const FALLBACK_DISCOVERY = {
     title: 'Ready to turn discovery into a real itinerary?',
     description: 'Use what you discovered to start planning with destination context prefilled.',
   },
-  socialProof: normalizeSocialProof(),
+  socialProof: null,
 };
 
 export const useHomeDiscovery = () => {

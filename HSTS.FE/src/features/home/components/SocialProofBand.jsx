@@ -5,11 +5,15 @@ import styles from '@/features/home/styles/Home.module.css';
 const { Paragraph, Title } = Typography;
 
 const SocialProofBand = ({ socialProof }) => {
-  const title = socialProof?.title || 'Why these numbers matter for your planning decisions';
+  const title = socialProof?.title || 'Current discovery coverage';
   const description =
     socialProof?.description ||
-    'These live metrics show how much discovery depth and planning momentum you can use right now.';
+    'A quick view of how much destination and location data is currently available to support trip planning.';
   const stats = Array.isArray(socialProof?.stats) ? socialProof.stats : [];
+
+  if (!socialProof?.hasRealData || stats.length === 0) {
+    return null;
+  }
 
   return (
     <section className={styles.socialProofSection}>

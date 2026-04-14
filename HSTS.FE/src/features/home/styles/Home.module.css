@@ -43,6 +43,22 @@
   margin-bottom: clamp(28px, 4vw, 52px);
 }
 
+.destHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.destDescription {
+  margin: 12px 0 0 !important;
+  color: rgba(26, 83, 92, 0.82) !important;
+  max-width: 720px;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
 .destSubTitle {
   display: inline-flex;
   align-items: center;
@@ -92,6 +108,7 @@
 }
 
 .destCard {
+  position: relative;
   border-radius: 24px !important;
   overflow: hidden;
   border: 1px solid rgba(26, 83, 92, 0.06) !important;
@@ -99,6 +116,11 @@
   box-shadow: 0 14px 32px rgba(26, 83, 92, 0.08) !important;
   transition: all 0.35s ease !important;
   height: 100%;
+}
+
+.destCardLead {
+  background: linear-gradient(135deg, rgba(255, 248, 233, 0.96), rgba(243, 251, 249, 0.95)) !important;
+  box-shadow: 0 22px 42px rgba(26, 83, 92, 0.12) !important;
 }
 
 .destCard:hover {
@@ -110,6 +132,24 @@
   padding: 28px !important;
 }
 
+.destCardAccent {
+  width: 72px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #FF6B6B, #FFE66D);
+  margin-bottom: 18px;
+}
+
+.destCardEyebrow {
+  display: inline-flex;
+  margin-bottom: 10px;
+  color: #2A7A74;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .cardTitle {
   font-family: 'Cormorant Garamond', serif;
   font-weight: 700;
@@ -118,6 +158,205 @@
   display: block;
   margin-bottom: 12px;
   line-height: 1;
+}
+
+.destCardDescription {
+  margin: 0 0 18px !important;
+  color: rgba(26, 83, 92, 0.76) !important;
+  max-width: 34ch;
+  line-height: 1.65 !important;
+}
+
+.destCardLead .cardTitle {
+  font-size: clamp(34px, 4vw, 46px);
+}
+
+.destCardLead .cardMetaValue {
+  color: #173d44;
+}
+
+.destCardLead .destPrimaryAction {
+  background-color: #173d44 !important;
+  border-color: #173d44 !important;
+}
+
+.destCardLead .destPrimaryAction:hover {
+  background-color: #12323a !important;
+  border-color: #12323a !important;
+}
+
+.destCardLead .destSecondaryAction {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.destSection {
+  position: relative;
+}
+
+.destSection::before {
+  content: '';
+  display: block;
+  width: min(100%, 1120px);
+  height: 1px;
+  margin: 0 auto 28px;
+  background: linear-gradient(90deg, rgba(26, 83, 92, 0), rgba(26, 83, 92, 0.14), rgba(26, 83, 92, 0));
+}
+
+.popularSection {
+  position: relative;
+}
+
+.popularSection::before {
+  content: '';
+  display: block;
+  width: min(100%, 1120px);
+  height: 1px;
+  margin: 0 auto 28px;
+  background: linear-gradient(90deg, rgba(26, 83, 92, 0), rgba(26, 83, 92, 0.12), rgba(26, 83, 92, 0));
+}
+
+.popularHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.popularHeader > div {
+  max-width: 760px;
+}
+
+.popularTitle {
+  max-width: 16ch;
+}
+
+.popularAction {
+  margin-top: 8px;
+}
+
+.popularSection :global(.ant-col):first-child [class*='card'],
+.popularSection :global(.ant-col):first-child [class*='PublicLocationCard'] {
+  box-shadow: none;
+}
+
+.popularSection :global(.ant-col):first-child {
+  position: relative;
+}
+
+.popularSection :global(.ant-col):first-child::before {
+  content: 'Strong first pick';
+  position: absolute;
+  top: 14px;
+  left: 22px;
+  z-index: 2;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(23, 61, 68, 0.86);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.popularSection :global(.ant-col):first-child > * {
+  position: relative;
+  z-index: 1;
+}
+
+.popularHeader .popularAction {
+  min-width: 168px;
+}
+
+.popularDescription,
+.socialProofDescription,
+.planningDescription {
+  margin: 12px 0 0 !important;
+  color: rgba(26, 83, 92, 0.82) !important;
+  max-width: 760px;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.cardMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.cardMetaValue {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  color: #1A535C;
+}
+
+.cardMetaLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(26, 83, 92, 0.7);
+}
+
+.destActions {
+  width: 100%;
+}
+
+.destLinkFull {
+  display: block;
+  width: 100%;
+}
+
+.destPrimaryAction,
+.destSecondaryAction,
+.popularAction {
+  min-height: 46px;
+  border-radius: 999px !important;
+  font-weight: 600 !important;
+}
+
+.destPrimaryAction {
+  background-color: #1A535C !important;
+  border-color: #1A535C !important;
+}
+
+.destPrimaryAction:hover {
+  background-color: #16474f !important;
+  border-color: #16474f !important;
+}
+
+.destSecondaryAction,
+.popularAction {
+  color: #1A535C !important;
+  border-color: rgba(26, 83, 92, 0.25) !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+}
+
+.destSecondaryAction:hover,
+.popularAction:hover {
+  color: #1A535C !important;
+  border-color: #1A535C !important;
+}
+
+.popularHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.popularDescription,
+.socialProofDescription,
+.planningDescription {
+  margin: 12px 0 0 !important;
+  color: rgba(26, 83, 92, 0.82) !important;
+  max-width: 760px;
+  font-size: 15px;
+  line-height: 1.7;
 }
 
 .cardMeta {
@@ -274,6 +513,10 @@
   .socialProofHeader {
     align-items: flex-start;
     text-align: left;
+  }
+
+  .destHeaderRow {
+    align-items: stretch;
   }
 
   .cardTitle {
