@@ -10,11 +10,25 @@ import PhoneNumberModal from '../components/PhoneNumberModal';
 
 const { Title, Text } = Typography;
 
+const STATUS_MAP = {
+  0: 'Planned',
+  1: 'InProgress',
+  2: 'Completed',
+  3: 'Cancelled',
+};
+
 const statusColors = {
   Planned: 'blue',
   InProgress: 'green',
   Completed: 'default',
   Cancelled: 'red',
+};
+
+const getStatusLabel = (status) => {
+  if (typeof status === 'number') {
+    return STATUS_MAP[status] || 'Planned';
+  }
+  return status || 'Planned';
 };
 
 const TripsPage = () => {
@@ -120,13 +134,12 @@ const TripsPage = () => {
       dataIndex: 'status',
       key: 'status',
       width: 120,
-      render: (status) => (
-        <Tag color={statusColors[status] || 'default'}>
-          {status || 'Planned'}
-        </Tag>
-      ),
+      render: (status) => {
+        const label = getStatusLabel(status);
+        return <Tag color={statusColors[label] || 'default'}>{label}</Tag>;
+      },
       filters: Object.keys(statusColors).map((s) => ({ text: s, value: s })),
-      onFilter: (value, record) => (record.status || 'Planned') === value,
+      onFilter: (value, record) => getStatusLabel(record.status) === value,
     },
     {
       title: 'Actions',
