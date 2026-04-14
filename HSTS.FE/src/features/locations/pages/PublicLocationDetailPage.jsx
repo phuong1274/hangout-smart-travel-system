@@ -1,10 +1,11 @@
 import React from 'react';
-import { Button, Card, Descriptions, Divider, List, Rate, Skeleton, Space, Tag, Typography } from 'antd';
+import { Button, Card, Divider, List, Rate, Skeleton, Space, Tag, Typography } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { buildCreateTripPath, PATHS } from '@/routes/paths';
 import { ROLES } from '@/config/constants';
 import { useAuthStore } from '@/store/authStore';
 import { usePublicLocationDetail } from '../hooks/usePublicLocationDetail';
+import styles from '../styles/PublicLocationDetailPage.module.css';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -60,6 +61,21 @@ const formatCoordinates = (latitude, longitude) => {
   return `${latitude}, ${longitude}`;
 };
 
+const DetailSection = ({ eyebrow, title, children }) => (
+  <Card className={styles.sectionCard}>
+    <span className={styles.sectionEyebrow}>{eyebrow}</span>
+    <Title level={4} className={styles.sectionTitle}>{title}</Title>
+    {children}
+  </Card>
+);
+
+const FactCard = ({ label, value }) => (
+  <div className={styles.factCard}>
+    <span className={styles.factLabel}>{label}</span>
+    <span className={styles.factValue}>{value}</span>
+  </div>
+);
+
 const PublicLocationDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -108,158 +124,181 @@ const PublicLocationDetailPage = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: '24px 32px' }}>
-        <Skeleton active paragraph={{ rows: 10 }} />
+      <div className={styles.page}>
+        <div className={styles.container}>
+          <Skeleton active paragraph={{ rows: 12 }} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '24px 32px' }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Link to={PATHS.PUBLIC_LOCATIONS}>Back to discovery</Link>
+    <div className={styles.page}>
+      <div className={styles.container}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Link to={PATHS.PUBLIC_LOCATIONS} className={styles.backLink}>Back to discovery</Link>
 
-        <Card>
-          <Space direction="vertical" size={14} style={{ width: '100%' }}>
-            <Space direction="vertical" size={6} style={{ width: '100%' }}>
-              <Text type="secondary">Trip-ready location profile</Text>
-              <Title level={2} style={{ marginBottom: 0 }}>{name}</Title>
-              <Text type="secondary">
-                {[district, destination].filter(Boolean).join(', ') || 'Destination pick'}
-              </Text>
-            </Space>
-
-            <Space wrap>
-              {district ? <Tag>{district}</Tag> : null}
-              {destination ? <Tag color="blue">{destination}</Tag> : null}
-              {locationTypeName ? <Tag color="gold">{locationTypeName}</Tag> : null}
-              <Tag color={formatStatusTone(status)}>{formatStatusLabel(status)}</Tag>
-              <Tag>{formatMinimumAge(minimumAge)}</Tag>
-            </Space>
-
-            <Space align="center" size={8}>
-              <Rate allowHalf disabled value={normalizeRating(averageRating)} />
-              <Text strong>{Number(averageRating || 0).toFixed(1)}</Text>
-              <Text type="secondary">
-                {reviewCount > 0 ? `${reviewCount} traveler review${reviewCount > 1 ? 's' : ''}` : 'Fresh pick waiting for first reviews'}
-              </Text>
-            </Space>
-
-            <Paragraph style={{ marginBottom: 0 }}>
-              Use this snapshot to see whether the stop fits your pace, budget, and travel style before locking it into your itinerary.
-            </Paragraph>
-
-            <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="Where it sits">{address}</Descriptions.Item>
-              <Descriptions.Item label="Typical spend">{formatBudget(priceMinUsd, priceMaxUsd, ticketPrice)}</Descriptions.Item>
-              <Descriptions.Item label="Suggested stay">{formatDuration(recommendedDurationMinutes)}</Descriptions.Item>
-              <Descriptions.Item label="Who it suits">{formatMinimumAge(minimumAge)}</Descriptions.Item>
-              <Descriptions.Item label="Map reference">{formatCoordinates(latitude, longitude)}</Descriptions.Item>
-              <Descriptions.Item label="Call ahead">{telephone || 'Contact number not listed'}</Descriptions.Item>
-              <Descriptions.Item label="Email contact">{email || 'Email not listed'}</Descriptions.Item>
-              <Descriptions.Item label="Official details">
-                {sourceUrl ? <a href={sourceUrl} target="_blank" rel="noreferrer">See official details</a> : 'No official source added'}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <div>
-              <Text strong>Why it stands out</Text>
-              <Paragraph style={{ marginTop: 8, marginBottom: 0 }}>{description}</Paragraph>
-            </div>
-
-            {tags.length > 0 ? (
-              <div>
-                <Text strong>Travel vibes</Text>
-                <div style={{ marginTop: 8 }}>
-                  <Space wrap>
-                    {tags.map((tag) => {
-                      const tagId = tag?.id ?? tag?.Id ?? tag?.name ?? tag?.Name;
-                      const tagName = tag?.name || tag?.Name;
-                      return tagName ? <Tag key={tagId}>{tagName}</Tag> : null;
-                    })}
-                  </Space>
+          <Card className={styles.heroCard}>
+            <div className={styles.heroGrid}>
+              <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                <div>
+                  <span className={styles.eyebrow}>Trip-ready location profile</span>
+                  <Title level={1} className={styles.title}>{name}</Title>
+                  <Text className={styles.supportingLine}>{[district, destination].filter(Boolean).join(', ') || 'Destination pick'}</Text>
                 </div>
-              </div>
-            ) : null}
 
-            {amenities.length > 0 ? (
-              <div>
-                <Text strong>Comfort highlights</Text>
-                <div style={{ marginTop: 8 }}>
-                  <Space wrap>
+                <div className={styles.metaStrip}>
+                  {district ? <Tag>{district}</Tag> : null}
+                  {destination ? <Tag color="blue">{destination}</Tag> : null}
+                  {locationTypeName ? <Tag color="gold">{locationTypeName}</Tag> : null}
+                  <Tag color={formatStatusTone(status)}>{formatStatusLabel(status)}</Tag>
+                  <Tag>{formatMinimumAge(minimumAge)}</Tag>
+                </div>
+
+                <div className={styles.ratingRow}>
+                  <Rate allowHalf disabled value={normalizeRating(averageRating)} />
+                  <Text strong>{Number(averageRating || 0).toFixed(1)}</Text>
+                  <Text type="secondary">
+                    {reviewCount > 0 ? `${reviewCount} traveler review${reviewCount > 1 ? 's' : ''}` : 'Fresh pick waiting for first reviews'}
+                  </Text>
+                </div>
+
+                <Paragraph className={styles.summary}>
+                  Use this snapshot to see whether the stop fits your pace, budget, and travel style before locking it into your itinerary.
+                </Paragraph>
+
+                <div className={styles.quickFacts}>
+                  <FactCard label="Typical spend" value={formatBudget(priceMinUsd, priceMaxUsd, ticketPrice)} />
+                  <FactCard label="Suggested stay" value={formatDuration(recommendedDurationMinutes)} />
+                  <FactCard label="Who it suits" value={formatMinimumAge(minimumAge)} />
+                  <FactCard label="Map reference" value={formatCoordinates(latitude, longitude)} />
+                </div>
+              </Space>
+
+              <div className={styles.heroAside}>
+                <Title level={4} className={styles.heroAsideTitle}>Planning cues at a glance</Title>
+                <Paragraph className={styles.heroAsideText}>
+                  Check timing, comfort, and official details here before deciding whether this stop earns a place in your route.
+                </Paragraph>
+                {showCta ? (
+                  <Button type="primary" className={styles.primaryCta} onClick={() => navigate(ctaPath)}>
+                    {ctaLabel}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </Card>
+
+          <div className={styles.bodyGrid}>
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              <DetailSection eyebrow="Story" title="Why it stands out">
+                <Paragraph style={{ marginBottom: 0 }}>{description}</Paragraph>
+              </DetailSection>
+
+              {openingHours.length > 0 ? (
+                <DetailSection eyebrow="Timing" title="Best time to go">
+                  <div className={styles.listBlock}>
+                    <List
+                      size="small"
+                      dataSource={openingHours}
+                      renderItem={(item) => (
+                        <List.Item>
+                          <Text>
+                            {item?.dayOfWeek || item?.DayOfWeek}: {formatTime(item?.openTime || item?.OpenTime)} - {formatTime(item?.closeTime || item?.CloseTime)}
+                            {(item?.note || item?.Note) ? ` (${item?.note || item?.Note})` : ''}
+                          </Text>
+                        </List.Item>
+                      )}
+                    />
+                  </div>
+                </DetailSection>
+              ) : null}
+
+              {seasons.length > 0 ? (
+                <DetailSection eyebrow="Seasonality" title="Seasonal notes">
+                  <div className={styles.listBlock}>
+                    <List
+                      size="small"
+                      dataSource={seasons}
+                      renderItem={(item) => (
+                        <List.Item>
+                          <Text>{item?.description || item?.Description} ({item?.months || item?.Months})</Text>
+                        </List.Item>
+                      )}
+                    />
+                  </div>
+                </DetailSection>
+              ) : null}
+            </Space>
+
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              <DetailSection eyebrow="Travel vibe" title="Tags and fit">
+                <div className={styles.tagCluster}>
+                  {tags.map((tag) => {
+                    const tagId = tag?.id ?? tag?.Id ?? tag?.name ?? tag?.Name;
+                    const tagName = tag?.name || tag?.Name;
+                    return tagName ? <Tag key={tagId}>{tagName}</Tag> : null;
+                  })}
+                </div>
+              </DetailSection>
+
+              {amenities.length > 0 ? (
+                <DetailSection eyebrow="Comfort" title="Comfort highlights">
+                  <div className={styles.tagCluster}>
                     {amenities.map((amenity) => {
                       const amenityId = amenity?.id ?? amenity?.Id ?? amenity?.name ?? amenity?.Name;
                       const amenityName = amenity?.name || amenity?.Name;
                       return amenityName ? <Tag key={amenityId}>{amenityName}</Tag> : null;
                     })}
-                  </Space>
-                </div>
-              </div>
-            ) : null}
+                  </div>
+                </DetailSection>
+              ) : null}
 
-            {openingHours.length > 0 ? (
-              <>
-                <Divider style={{ margin: 0 }} />
-                <div>
-                  <Text strong>Best time to go</Text>
-                  <List
-                    size="small"
-                    dataSource={openingHours}
-                    renderItem={(item) => (
-                      <List.Item>
-                        <Text>
-                          {item?.dayOfWeek || item?.DayOfWeek}: {formatTime(item?.openTime || item?.OpenTime)} - {formatTime(item?.closeTime || item?.CloseTime)}
-                          {(item?.note || item?.Note) ? ` (${item?.note || item?.Note})` : ''}
-                        </Text>
-                      </List.Item>
-                    )}
-                  />
-                </div>
-              </>
-            ) : null}
+              <DetailSection eyebrow="Contact" title="Useful details before you go">
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <div>
+                    <Text strong>Where it sits</Text>
+                    <Paragraph style={{ marginBottom: 0 }}>{address}</Paragraph>
+                  </div>
+                  <Divider style={{ margin: 0 }} />
+                  <div>
+                    <Text strong>Call ahead</Text>
+                    <Paragraph style={{ marginBottom: 0 }}>{telephone || 'Contact number not listed'}</Paragraph>
+                  </div>
+                  <Divider style={{ margin: 0 }} />
+                  <div>
+                    <Text strong>Email contact</Text>
+                    <Paragraph style={{ marginBottom: 0 }}>{email || 'Email not listed'}</Paragraph>
+                  </div>
+                  <Divider style={{ margin: 0 }} />
+                  <div>
+                    <Text strong>Official details</Text>
+                    <Paragraph style={{ marginBottom: 0 }}>
+                      {sourceUrl ? <a href={sourceUrl} target="_blank" rel="noreferrer">See official details</a> : 'No official source added'}
+                    </Paragraph>
+                  </div>
+                </Space>
+              </DetailSection>
 
-            {seasons.length > 0 ? (
-              <div>
-                <Text strong>Seasonal notes</Text>
-                <List
-                  size="small"
-                  dataSource={seasons}
-                  renderItem={(item) => (
-                    <List.Item>
-                      <Text>{item?.description || item?.Description} ({item?.months || item?.Months})</Text>
-                    </List.Item>
-                  )}
-                />
-              </div>
-            ) : null}
-
-            {socialLinks.length > 0 ? (
-              <div>
-                <Text strong>Official links</Text>
-                <List
-                  size="small"
-                  dataSource={socialLinks}
-                  renderItem={(item) => (
-                    <List.Item>
-                      <a href={item?.url || item?.Url} target="_blank" rel="noreferrer">{item?.platform || item?.Platform}</a>
-                    </List.Item>
-                  )}
-                />
-              </div>
-            ) : null}
-
-            {showCta && (
-              <Button
-                type="primary"
-                onClick={() => navigate(ctaPath)}
-                style={{ width: 'fit-content' }}
-              >
-                {ctaLabel}
-              </Button>
-            )}
-          </Space>
-        </Card>
-      </Space>
+              {socialLinks.length > 0 ? (
+                <DetailSection eyebrow="Official channels" title="Useful links">
+                  <div className={styles.listBlock}>
+                    <List
+                      size="small"
+                      dataSource={socialLinks}
+                      renderItem={(item) => (
+                        <List.Item>
+                          <a href={item?.url || item?.Url} target="_blank" rel="noreferrer">{item?.platform || item?.Platform}</a>
+                        </List.Item>
+                      )}
+                    />
+                  </div>
+                </DetailSection>
+              ) : null}
+            </Space>
+          </div>
+        </Space>
+      </div>
     </div>
   );
 };
