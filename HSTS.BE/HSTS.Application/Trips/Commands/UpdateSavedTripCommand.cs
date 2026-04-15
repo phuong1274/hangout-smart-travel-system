@@ -78,10 +78,8 @@ namespace HSTS.Application.Trips.Commands
                         .NotEmpty().WithMessage("Activity title is required.")
                         .MaximumLength(500).WithMessage("Activity title must not exceed 500 characters.");
 
-                    act.RuleFor(a => a.StartTime)
-                        .LessThan(a => a.EndTime)
-                        .WithMessage("Start time must be before end time.")
-                        .When(a => a.StartTime.HasValue && a.EndTime.HasValue);
+                    // Note: StartTime > EndTime is allowed for overnight activities
+                    // (e.g. intercity travel 17:47 -> 01:43 next day)
 
                     act.RuleFor(a => a.LocationId)
                         .GreaterThan(0).WithMessage("LocationId must be greater than 0.")

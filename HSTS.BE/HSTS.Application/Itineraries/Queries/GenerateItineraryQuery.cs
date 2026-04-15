@@ -623,6 +623,11 @@ namespace HSTS.Application.Itineraries.Queries
             decimal rolloverBudget = 0m;
             int globalDayIndex = 0;
 
+            // Track last visited location across days (for no-hotel multi-day trips)
+            GeoPoint? prevDayLastPoint = null;
+            string? prevDayLastLocationName = null;
+            int prevDayLastLocationId = 0;
+
             for (int destIdx = 0; destIdx < orderedDestinations.Count; destIdx++)
             {
                 var currentProvince = orderedDestinations[destIdx];
@@ -1574,11 +1579,25 @@ namespace HSTS.Application.Itineraries.Queries
                     // === Normal day (same destination) ===
                     else
                     {
-                        currentPoint = destAccommodation is not null
-                            ? GeoPoint.FromLocation(destAccommodation)
-                            : new GeoPoint(currentProvince.EnglishName!, currentProvince.Latitude ?? 0, currentProvince.Longitude ?? 0);
-                        currentLocationName = destAccommodation?.Name;
-                        currentLocationId = destAccommodation?.Id ?? 0;
+                        if (destAccommodation is not null)
+                        {
+                            currentPoint = GeoPoint.FromLocation(destAccommodation);
+                            currentLocationName = destAccommodation.Name;
+                            currentLocationId = destAccommodation.Id;
+                        }
+                        else if (prevDayLastPoint is not null)
+                        {
+                            // No hotel: start from where the user ended the previous day
+                            currentPoint = prevDayLastPoint;
+                            currentLocationName = prevDayLastLocationName;
+                            currentLocationId = prevDayLastLocationId;
+                        }
+                        else
+                        {
+                            currentPoint = new GeoPoint(currentProvince.EnglishName!, currentProvince.Latitude ?? 0, currentProvince.Longitude ?? 0);
+                            currentLocationName = null;
+                            currentLocationId = 0;
+                        }
                         bool isAccomLastDayOfTrip = (globalDayIndex == totalDays - 1);
                         bool isAccomLastDayAtThisDest = (localDay == daysInDest - 1);
                         bool willAccomMoveToNewDestTomorrow = isAccomLastDayAtThisDest && (destIdx < orderedDestinations.Count - 1);
@@ -2831,10 +2850,15 @@ namespace HSTS.Application.Itineraries.Queries
                         dayTitle = $"Day {dayNumber} - {currentProvince.EnglishName}";
                     }
 
+                    // Save last location for next day's starting point (no-hotel trips)
+                    prevDayLastPoint = currentPoint;
+                    prevDayLastLocationName = currentLocationName;
+                    prevDayLastLocationId = currentLocationId;
+
                     days.Add(new ItineraryDayDto(dayNumber, dayTitle, date,
                         currentProvince.Id, weatherSummary,
                         toMoney(daySpent),
-                        timeline.OrderBy(x => x.StartTime).ToList()));
+                        timeline));
 
                     globalDayIndex++;
                 }
