@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
-import { Card, Typography, Button, Select, message, Space } from 'antd';
+import { Card, Button, Select, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import SearchFilter from '@/components/UI/SearchFilter/SearchFilter';
 import AppPagination from '@/components/UI/AppPagination/AppPagination';
-import { useTransportModes } from '../hooks/useTransportModes';
+import { useTransportModes } from '../hooks/useTransportation';
 import TransportModeTable from '../components/TransportModeTable';
 import TransportModeForm from '../components/TransportModeForm';
 import DetailModal from '@/components/UI/DetailModal/DetailModal';
 import { deleteTransportModeApi, getTransportModeByIdApi } from '../api';
 import styles from '../styles/TransportModesPage.module.css';
-
-const { Title } = Typography;
 
 const CATEGORY_OPTIONS = [
   { value: 1, label: 'Dynamic Local' },
@@ -53,59 +51,47 @@ const TransportModesPage = () => {
       await deleteTransportModeApi(record.id);
       message.success('Deleted successfully');
       fetchTransportModes();
-    } catch (error) {
-    }
+    } catch (error) {}
   };
 
   return (
-    <div className={styles.appWrapper}>
-      <div className={styles.content}>
-        <div className={styles.floatingCircle1}></div>
-        <div className={styles.floatingCircle2}></div>
-
-        <Space direction="vertical" size="large" className={styles.mainContainer}>
-          <div className={styles.pageHeader}>
-            <Title level={2} className={styles.mainHeading}>Transport Mode Management</Title>
-          </div>
-
-          <Card className={styles.dataCard} bordered={false}>
-            <div className={styles.toolbarWrapper}>
-              <div className={styles.searchSection}>
-                <div style={{ display: 'flex', gap: 12, width: '100%' }}>
-                  <SearchFilter onSearch={handleSearch} loading={loading} placeholder="Search transport modes..." />
-                  <Select
-                    allowClear
-                    placeholder="Filter by category"
-                    style={{ width: 180 }}
-                    options={CATEGORY_OPTIONS}
-                    onChange={handleCategoryFilterChange}
-                  />
-                </div>
-              </div>
-              <Button className={styles.ctaBtn} icon={<PlusOutlined />} onClick={handleCreate}>
-                Add Transport Mode
-              </Button>
-            </div>
-
-            <TransportModeTable
-              data={data}
-              loading={loading}
-              onEdit={handleEdit}
-              onView={handleView}
-              onDelete={handleDelete}
-            />
-
-            <div className={styles.paginationWrapper}>
-              <AppPagination
-                current={pagination?.current}
-                pageSize={pagination?.pageSize}
-                total={pagination?.total}
-                onChange={(page, pageSize) => handleTableChange({ current: page, pageSize })}
+    <>
+      <Card className={styles.dataCard} bordered={false}>
+        <div className={styles.toolbarWrapper}>
+          <div className={styles.searchSection}>
+            <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+              <SearchFilter onSearch={handleSearch} loading={loading} placeholder="Search transport modes..." />
+              <Select
+                allowClear
+                placeholder="Filter by category"
+                style={{ width: 180 }}
+                options={CATEGORY_OPTIONS}
+                onChange={handleCategoryFilterChange}
               />
             </div>
-          </Card>
-        </Space>
-      </div>
+          </div>
+          <Button className={styles.ctaBtn} icon={<PlusOutlined />} onClick={handleCreate}>
+            Add Transport Mode
+          </Button>
+        </div>
+
+        <TransportModeTable
+          data={data}
+          loading={loading}
+          onEdit={handleEdit}
+          onView={handleView}
+          onDelete={handleDelete}
+        />
+
+        <div className={styles.paginationWrapper}>
+          <AppPagination
+            current={pagination?.current}
+            pageSize={pagination?.pageSize}
+            total={pagination?.total}
+            onChange={(page, pageSize) => handleTableChange({ current: page, pageSize })}
+          />
+        </div>
+      </Card>
 
       <TransportModeForm
         open={formOpen}
@@ -120,7 +106,7 @@ const TransportModesPage = () => {
         data={viewing}
         type="transportMode"
       />
-    </div>
+    </>
   );
 };
 

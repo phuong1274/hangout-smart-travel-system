@@ -31,20 +31,29 @@ namespace HSTS.Application.Trips.Dtos
         TimeOnly? EndTime,
         int? LocationId,
         int Status,
-        TripActivityBudgetDto? Budget
+        TripActivityBudgetDto? Budget,
+        TripTransportDto? Transport
     );
 
     public record TripTransportDto(
         int Id,
         int? TransportModeId,
+        string? TransportModeName,
         decimal DistanceKm,
         int TravelTimeMinutes,
+        string? YourLocationName,
         int? FromLocationId,
+        string? FromLocationName,
         int? ToLocationId,
+        string? ToLocationName,
         int? FromTransitHubId,
+        string? FromTransitHubName,
         int? ToTransitHubId,
+        string? ToTransitHubName,
         int? CustomFromTransitHubId,
-        int? CustomToTransitHubId
+        string? CustomFromTransitHubName,
+        int? CustomToTransitHubId,
+        string? CustomToTransitHubName
     );
 
     public record TripActivityBudgetDto(

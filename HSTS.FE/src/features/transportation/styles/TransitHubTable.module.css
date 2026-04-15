@@ -22,7 +22,7 @@
   }
   
   .tropicalTable :global(.ant-table-tbody > tr:hover > td) {
-    background-color: rgba(78, 205, 196, 0.05) !important;
+    background-color: #F6FCFC !important;
   }
   
   .codeTag {

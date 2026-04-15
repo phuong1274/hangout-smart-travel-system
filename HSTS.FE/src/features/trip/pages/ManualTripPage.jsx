@@ -360,14 +360,8 @@ const ManualTripPage = () => {
         const startTime = normalizeTimeString(activity.startTime);
         const endTime = normalizeTimeString(activity.endTime);
 
-        if (startTime && endTime) {
-          const startMoment = dayjs(startTime, 'HH:mm:ss');
-          const endMoment = dayjs(endTime, 'HH:mm:ss');
-          if (!startMoment.isBefore(endMoment)) {
-            message.error(`Day ${dayIndex + 1}, destination ${activityIndex + 1}: start time must be before end time.`);
-            return;
-          }
-        }
+        // Note: startTime > endTime is valid for overnight activities
+        // (e.g. intercity travel 17:47 -> 01:43 next day)
       }
     }
 

@@ -39,8 +39,8 @@ export const getAllLocationTypesApi = () => {
   return apiClient.get('/api/LocationTypes').then(res => res.data);
 };
 
-export const getAllAmenitiesApi = () => {
-  return apiClient.get('/api/Amenities').then(res => res.data);
+export const getAllAmenitiesApi = (params) => {
+  return apiClient.get('/api/Amenities', { params }).then(res => res.data);
 };
 
 export const getAllTagsApi = (params) => {

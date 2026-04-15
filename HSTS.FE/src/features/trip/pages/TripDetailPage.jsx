@@ -731,7 +731,30 @@ const TripDetailPage = () => {
                                 <div className={styles.timelineContent}>
                                   <div className={styles.timelineTitle}>
                                     {locationName || activity.title}
+                                    {eventType === 'Travel' && activity.transport && (
+                                      <span style={{ fontSize: 12, fontWeight: 400, color: '#666', marginLeft: 8 }}>
+                                        ({activity.transport.transportModeName || 'Transport'} • {formatMinutesAsHourMinute(activity.transport.travelTimeMinutes)})
+                                      </span>
+                                    )}
                                   </div>
+
+                                  {/* Show Route for Travel */}
+                                  {eventType === 'Travel' && activity.transport && (
+                                    <div style={{ marginTop: 4, fontSize: 13, color: '#434343', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <Text strong style={{ fontSize: 13 }}>
+                                        {activity.transport.customFromTransitHubName || 
+                                         activity.transport.fromTransitHubName || 
+                                         activity.transport.fromLocationName || 
+                                         activity.transport.yourLocationName || 'Start'}
+                                      </Text>
+                                      <span style={{ color: '#bfbfbf', margin: '0 4px' }}>➔</span>
+                                      <Text strong style={{ fontSize: 13 }}>
+                                        {activity.transport.customToTransitHubName || 
+                                         activity.transport.toTransitHubName || 
+                                         activity.transport.toLocationName || 'Destination'}
+                                      </Text>
+                                    </div>
+                                  )}
                                   {/* Show budget info if budget exists */}
                                   {budget && (
                                     <div style={{ marginTop: 6 }}>
@@ -931,6 +954,16 @@ const TripDetailPage = () => {
                                         onClick={() => setLocationModal({ open: true, locationId })}
                                       >
                                         View Details
+                                      </Button>
+                                    )}
+                                    {eventType === 'Travel' && activity.transport && (
+                                      <Button
+                                        type="link"
+                                        size="small"
+                                        style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                                        onClick={() => setTransportModal({ open: true, data: activity.transport })}
+                                      >
+                                        View Transport
                                       </Button>
                                     )}
                                     <Tooltip title={activityStatus === 0 ? 'Start the activity before logging expenses' : ''}>

@@ -104,7 +104,7 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
           getAllTagsApi({ pageSize: 9999 }),
           getAllDistrictsApi(),
           getAllLocationTypesApi(),
-          getAllAmenitiesApi()
+          getAllAmenitiesApi({ pageSize: 9999 })
         ]);
 
         const allTags = Array.isArray(allTagsRes) ? allTagsRes : (allTagsRes?.items || []);

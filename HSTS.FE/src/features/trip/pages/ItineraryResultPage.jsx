@@ -3357,8 +3357,8 @@ const ItineraryResultPage = () => {
 
     const startIso = toIsoDateTimeString(startDate);
     const endIso = toIsoDateTimeString(endDate, startDate);
-    if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
-      message.error('End date must be after start date to save this trip.');
+    if (new Date(endIso).getTime() < new Date(startIso).getTime()) {
+      message.error('End date must be on or after start date to save this trip.');
       return;
     }
 

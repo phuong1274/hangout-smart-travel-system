@@ -21,7 +21,7 @@ const BeforeAfterComparison = ({ submission }) => {
       try {
         const [tagsRes, amenitiesRes, typesRes, districtsRes] = await Promise.all([
           getAllTagsApi({ pageSize: 9999 }),
-          getAllAmenitiesApi(),
+          getAllAmenitiesApi({ pageSize: 9999 }),
           getAllLocationTypesApi(),
           getAllDistrictsApi()
         ]);
