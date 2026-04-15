@@ -71,7 +71,36 @@ namespace HSTS.Application.Trips.Queries
                 .Include(t => t.TripDays)
                     .ThenInclude(td => td.Activities)
                         .ThenInclude(a => a.Budget)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.TransportMode)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.FromLocation)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.ToLocation)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.FromTransitHub)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.ToTransitHub)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.CustomFromTransitHub)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.CustomToTransitHub)
                 .Include(t => t.TripMembers)
+                    .ThenInclude(tm => tm.User)
                 .FirstOrDefaultAsync(t => t.Id == request.TripId, cancellationToken);
 
             if (trip == null)
@@ -103,6 +132,26 @@ namespace HSTS.Application.Trips.Queries
                                 a.Budget.EstimateCost,
                                 a.Budget.Title,
                                 a.Budget.Description
+                            ) : null,
+                            a.Transport != null ? new TripTransportDto(
+                                a.Transport.Id,
+                                a.Transport.TransportModeId,
+                                a.Transport.TransportMode?.Name,
+                                a.Transport.DistanceKm,
+                                a.Transport.TravelTimeMinutes,
+                                a.Transport.YourLocationName,
+                                a.Transport.FromLocationId,
+                                a.Transport.FromLocation?.Name,
+                                a.Transport.ToLocationId,
+                                a.Transport.ToLocation?.Name,
+                                a.Transport.FromTransitHubId,
+                                a.Transport.FromTransitHub?.Name,
+                                a.Transport.ToTransitHubId,
+                                a.Transport.ToTransitHub?.Name,
+                                a.Transport.CustomFromTransitHubId,
+                                a.Transport.CustomFromTransitHub?.Name,
+                                a.Transport.CustomToTransitHubId,
+                                a.Transport.CustomToTransitHub?.Name
                             ) : null
                         ))
                         .ToList()
