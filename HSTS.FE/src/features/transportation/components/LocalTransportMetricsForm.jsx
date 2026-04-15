@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, InputNumber, Select } from 'antd';
 import { createLocalTransportMetricApi, updateLocalTransportMetricApi } from '../api';
+import styles from '../styles/LocalTransportMetricsForm.module.css';
 
 const LocalTransportMetricsForm = ({ open, metric, onClose, onSuccess, transportModes }) => {
   const [form] = Form.useForm();
@@ -31,8 +32,7 @@ const LocalTransportMetricsForm = ({ open, metric, onClose, onSuccess, transport
       }
       onSuccess();
       onClose();
-    } catch {
-      // Handled by global interceptor
+    } catch (error) {
     } finally {
       setLoading(false);
     }
@@ -40,15 +40,18 @@ const LocalTransportMetricsForm = ({ open, metric, onClose, onSuccess, transport
 
   return (
     <Modal
-      title={isEdit ? 'Edit Local Transport Metrics' : 'Create Local Transport Metrics'}
+      title={<span className={styles.modalTitle}>{isEdit ? 'Edit Local Transport Metrics' : 'Create Local Transport Metrics'}</span>}
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
       confirmLoading={loading}
       destroyOnClose
+      className={styles.tropicalModal}
+      okButtonProps={{ className: styles.modalSubmitBtn }}
+      cancelButtonProps={{ className: styles.modalCancelBtn }}
       okText={isEdit ? 'Update' : 'Create'}
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      <Form form={form} layout="vertical" onFinish={handleSubmit} className={styles.formContainer}>
         <Form.Item
           name="transportationId"
           label="Transport Mode"
@@ -59,6 +62,7 @@ const LocalTransportMetricsForm = ({ open, metric, onClose, onSuccess, transport
             placeholder="Select transport mode"
             optionFilterProp="label"
             disabled={isEdit}
+            className={styles.selectField}
             options={(transportModes || []).map(t => ({ value: t.id, label: t.name }))}
           />
         </Form.Item>
@@ -68,7 +72,7 @@ const LocalTransportMetricsForm = ({ open, metric, onClose, onSuccess, transport
           label="Cost per Km"
           rules={[{ required: true, message: 'Please enter cost per km' }]}
         >
-          <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="e.g., 5000" />
+          <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="e.g., 5000" className={styles.inputField} />
         </Form.Item>
 
         <Form.Item
@@ -76,14 +80,14 @@ const LocalTransportMetricsForm = ({ open, metric, onClose, onSuccess, transport
           label="Speed (km/h)"
           rules={[{ required: true, message: 'Please enter speed' }]}
         >
-          <InputNumber min={0.1} step={0.1} style={{ width: '100%' }} placeholder="e.g., 30" />
+          <InputNumber min={0.1} step={0.1} style={{ width: '100%' }} placeholder="e.g., 30" className={styles.inputField} />
         </Form.Item>
 
         <Form.Item
           name="maxRecommendedDistance"
           label="Max Recommended Distance (km)"
         >
-          <InputNumber min={0} step={1} style={{ width: '100%' }} placeholder="Leave empty for unlimited" />
+          <InputNumber min={0} step={1} style={{ width: '100%' }} placeholder="Leave empty for unlimited" className={styles.inputField} />
         </Form.Item>
       </Form>
     </Modal>

@@ -288,7 +288,7 @@ const LocationDetailModal = ({ open, locationId, currencyCode = 'VND', onClose }
       open={open}
       onClose={onClose}
       placement="right"
-      width={700}
+      width={490}
       mask={false}
       destroyOnClose
       style={{ boxShadow: '-8px 0 24px rgba(26, 83, 92, 0.08)' }}

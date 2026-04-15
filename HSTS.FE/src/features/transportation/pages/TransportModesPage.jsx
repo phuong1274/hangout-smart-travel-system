@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-import { Card, Typography, Button, Select, message } from 'antd';
+import { Card, Button, Select, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import SearchFilter from '@/components/UI/SearchFilter/SearchFilter';
 import AppPagination from '@/components/UI/AppPagination/AppPagination';
-import { useTransportModes } from '../hooks/useTransportModes';
+import { useTransportModes } from '../hooks/useTransportation';
 import TransportModeTable from '../components/TransportModeTable';
 import TransportModeForm from '../components/TransportModeForm';
 import DetailModal from '@/components/UI/DetailModal/DetailModal';
 import { deleteTransportModeApi, getTransportModeByIdApi } from '../api';
-
-const { Title } = Typography;
+import styles from '../styles/TransportModesPage.module.css';
 
 const CATEGORY_OPTIONS = [
   { value: 1, label: 'Dynamic Local' },
@@ -42,7 +41,7 @@ const TransportModesPage = () => {
       const detail = await getTransportModeByIdApi(record.id);
       setViewing(detail);
       setDetailOpen(true);
-    } catch {
+    } catch (error) {
       message.error('Failed to load details');
     }
   };
@@ -52,30 +51,26 @@ const TransportModesPage = () => {
       await deleteTransportModeApi(record.id);
       message.success('Deleted successfully');
       fetchTransportModes();
-    } catch {
-      // Handled by global interceptor
-    }
+    } catch (error) {}
   };
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2} style={{ color: '#1A535C', marginBottom: 24 }}>
-        Transport Mode Management
-      </Title>
-
-      <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <SearchFilter onSearch={handleSearch} loading={loading} placeholder="Search transport modes..." />
-            <Select
-              allowClear
-              placeholder="Filter by category"
-              style={{ width: 180 }}
-              options={CATEGORY_OPTIONS}
-              onChange={handleCategoryFilterChange}
-            />
+    <>
+      <Card className={styles.dataCard} bordered={false}>
+        <div className={styles.toolbarWrapper}>
+          <div className={styles.searchSection}>
+            <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+              <SearchFilter onSearch={handleSearch} loading={loading} placeholder="Search transport modes..." />
+              <Select
+                allowClear
+                placeholder="Filter by category"
+                style={{ width: 180 }}
+                options={CATEGORY_OPTIONS}
+                onChange={handleCategoryFilterChange}
+              />
+            </div>
           </div>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+          <Button className={styles.ctaBtn} icon={<PlusOutlined />} onClick={handleCreate}>
             Add Transport Mode
           </Button>
         </div>
@@ -88,7 +83,7 @@ const TransportModesPage = () => {
           onDelete={handleDelete}
         />
 
-        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+        <div className={styles.paginationWrapper}>
           <AppPagination
             current={pagination?.current}
             pageSize={pagination?.pageSize}
@@ -111,7 +106,7 @@ const TransportModesPage = () => {
         data={viewing}
         type="transportMode"
       />
-    </div>
+    </>
   );
 };
 

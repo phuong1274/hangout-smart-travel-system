@@ -89,7 +89,7 @@ namespace HSTS.Application.Trips.Queries
                     td.WeatherSummary,
                     td.EstimateCost,
                     td.Activities
-                        .OrderBy(a => a.StartTime)
+                        .OrderBy(a => a.Id)
                         .Select(a => new TripActivityDto(
                             a.Id,
                             a.Type.ToString(),

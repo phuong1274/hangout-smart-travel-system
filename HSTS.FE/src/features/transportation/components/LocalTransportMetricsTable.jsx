@@ -1,6 +1,7 @@
 import React from 'react';
 import { Table, Button, Space, Popconfirm, Tooltip } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import styles from '../styles/LocalTransportMetricsTable.module.css';
 
 const LocalTransportMetricsTable = ({ data, loading, onEdit, onView, onDelete }) => {
   const columns = [
@@ -41,12 +42,12 @@ const LocalTransportMetricsTable = ({ data, loading, onEdit, onView, onDelete })
       width: 150,
       fixed: 'right',
       render: (_, record) => (
-        <Space size="small">
+        <Space size="middle" className={styles.actionSpace}>
           <Tooltip title="View">
-            <Button type="link" icon={<EyeOutlined />} onClick={() => onView(record)} />
+            <Button type="text" className={styles.actionIconView} icon={<EyeOutlined />} onClick={() => onView(record)} />
           </Tooltip>
           <Tooltip title="Edit">
-            <Button type="link" icon={<EditOutlined />} onClick={() => onEdit(record)} />
+            <Button type="text" className={styles.actionIconEdit} icon={<EditOutlined />} onClick={() => onEdit(record)} />
           </Tooltip>
           <Popconfirm
             title="Delete Metrics"
@@ -54,9 +55,11 @@ const LocalTransportMetricsTable = ({ data, loading, onEdit, onView, onDelete })
             onConfirm={() => onDelete(record)}
             okText="Yes"
             cancelText="No"
+            okButtonProps={{ className: styles.popConfirmOk }}
+            cancelButtonProps={{ className: styles.popConfirmCancel }}
           >
             <Tooltip title="Delete">
-              <Button type="link" danger icon={<DeleteOutlined />} />
+              <Button type="text" className={styles.actionIconDelete} icon={<DeleteOutlined />} />
             </Tooltip>
           </Popconfirm>
         </Space>
@@ -65,14 +68,20 @@ const LocalTransportMetricsTable = ({ data, loading, onEdit, onView, onDelete })
   ];
 
   return (
-    <Table
-      columns={columns}
-      dataSource={data}
-      loading={loading}
-      rowKey="transportationId"
-      scroll={{ x: 'max-content' }}
-      pagination={false}
-    />
+    <div className={styles.tableWrapper}>
+      <Table
+        className={styles.tropicalTable}
+        columns={columns}
+        dataSource={data}
+        loading={{
+          spinning: loading,
+          indicator: <div className={styles.skeletonLoader}></div>
+        }}
+        rowKey="transportationId"
+        scroll={{ x: 'max-content' }}
+        pagination={false}
+      />
+    </div>
   );
 };
 

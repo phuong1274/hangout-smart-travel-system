@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Button, Space, AutoComplete, message, Row, Col } from 'antd';
+import { Modal, Form, Input, Select, Button, Space, AutoComplete, message, Row, Col } from 'antd';
 import { EnvironmentOutlined, SearchOutlined } from '@ant-design/icons';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { createTransitHubApi, updateTransitHubApi } from '../api';
+import styles from '../styles/TransitHubForm.module.css';
 
-// Fix default marker icon
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -25,7 +25,7 @@ const MapPositionUpdater = ({ lat, lng }) => {
   useEffect(() => {
     if (isFirst.current) { isFirst.current = false; return; }
     if (!map || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    try { map.panTo([lat, lng]); } catch { /* ignore */ }
+    try { map.panTo([lat, lng]); } catch (error) {}
   }, [lat, lng, map]);
   return null;
 };
@@ -100,7 +100,7 @@ const TransitHubForm = ({ open, transitHub, onClose, onSuccess, districts, trans
           lat: parseFloat(item.lat),
           lon: parseFloat(item.lon),
         })));
-      } catch { setSearchOptions([]); }
+      } catch (error) { setSearchOptions([]); }
     }, 400);
   };
 
@@ -138,8 +138,7 @@ const TransitHubForm = ({ open, transitHub, onClose, onSuccess, districts, trans
       }
       onSuccess();
       onClose();
-    } catch {
-      // Handled by global interceptor
+    } catch (error) {
     } finally {
       setLoading(false);
     }
@@ -148,10 +147,12 @@ const TransitHubForm = ({ open, transitHub, onClose, onSuccess, districts, trans
   return (
     <Modal
       title={
-        <Space>
-          <EnvironmentOutlined />
-          {isEdit ? 'Edit Transit Hub' : 'Create Transit Hub'}
-        </Space>
+        <span className={styles.modalTitle}>
+          <Space>
+            <EnvironmentOutlined />
+            {isEdit ? 'Edit Transit Hub' : 'Create Transit Hub'}
+          </Space>
+        </span>
       }
       open={open}
       onCancel={onClose}
@@ -159,49 +160,55 @@ const TransitHubForm = ({ open, transitHub, onClose, onSuccess, districts, trans
       confirmLoading={loading}
       destroyOnClose
       width={900}
+      className={styles.tropicalModal}
+      okButtonProps={{ className: styles.modalSubmitBtn }}
+      cancelButtonProps={{ className: styles.modalCancelBtn }}
       okText={isEdit ? 'Update' : 'Create'}
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      <Form form={form} layout="vertical" onFinish={handleSubmit} className={styles.formContainer}>
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item name="code" label="Code" rules={[{ required: true, message: 'Please enter code' }]}>
-              <Input placeholder="e.g., SGN, HAN" />
+              <Input placeholder="e.g., SGN, HAN" className={styles.inputField} />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Please enter name' }]}>
-              <Input placeholder="e.g., Tan Son Nhat Airport" />
+              <Input placeholder="e.g., Tan Son Nhat Airport" className={styles.inputField} />
             </Form.Item>
           </Col>
         </Row>
 
         <Row gutter={16}>
-          <Col span={8}>
+          <Col xs={24} sm={8}>
             <Form.Item name="districtId" label="District" rules={[{ required: true, message: 'Please select district' }]}>
               <Select
                 showSearch
                 placeholder="Select district"
                 optionFilterProp="label"
+                className={styles.selectField}
                 options={(districts || []).map(d => ({ value: d.id, label: d.name }))}
               />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={8}>
             <Form.Item name="transportationId" label="Transport Mode" rules={[{ required: true, message: 'Please select transport mode' }]}>
               <Select
                 showSearch
                 placeholder="Select transport mode"
                 optionFilterProp="label"
+                className={styles.selectField}
                 options={(transportModes || []).map(t => ({ value: t.id, label: t.name }))}
               />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={8}>
             <Form.Item name="transitHubTypeId" label="Hub Type" rules={[{ required: true, message: 'Please select hub type' }]}>
               <Select
                 showSearch
                 placeholder="Select hub type"
                 optionFilterProp="label"
+                className={styles.selectField}
                 options={(transitHubTypes || []).map(t => ({ value: t.id, label: t.name }))}
               />
             </Form.Item>
@@ -209,28 +216,25 @@ const TransitHubForm = ({ open, transitHub, onClose, onSuccess, districts, trans
         </Row>
       </Form>
 
-      {/* Map Section */}
-      <div style={{ marginTop: 8, marginBottom: 8 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8, color: '#1A535C' }}>
-          Pick Location on Map
-        </div>
-        <Space.Compact style={{ width: '100%', marginBottom: 12 }}>
+      <div className={styles.mapSection}>
+        <div className={styles.mapLabel}>Pick Location on Map</div>
+        <Space.Compact className={styles.mapSearchGroup}>
           <AutoComplete
-            style={{ flex: 1 }}
+            className={styles.mapAutoComplete}
             options={searchOptions}
             value={searchValue}
             onSearch={handleSearchPlace}
             onSelect={handleSelectPlace}
             placeholder="Search for a place..."
           >
-            <Input prefix={<SearchOutlined />} />
+            <Input prefix={<SearchOutlined />} className={styles.inputField} style={{ borderRight: 'none', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} />
           </AutoComplete>
-          <Button onClick={handleUseCurrentLocation} icon={<EnvironmentOutlined />}>
+          <Button className={styles.locationBtn} onClick={handleUseCurrentLocation} icon={<EnvironmentOutlined />}>
             My Location
           </Button>
         </Space.Compact>
 
-        <div style={{ borderRadius: 8, border: '1px solid #d9d9d9', overflow: 'hidden', marginBottom: 12 }}>
+        <div className={styles.mapContainerWrapper}>
           {open && (
             <MapContainer
               center={centerPosition}
@@ -260,7 +264,7 @@ const TransitHubForm = ({ open, transitHub, onClose, onSuccess, districts, trans
           )}
         </div>
 
-        <div style={{ padding: 10, background: '#f5f5f5', borderRadius: 6, display: 'flex', gap: 24 }}>
+        <div className={styles.coordinateDisplay}>
           <div><strong>Latitude:</strong> {safeLat.toFixed(6)}</div>
           <div><strong>Longitude:</strong> {safeLng.toFixed(6)}</div>
         </div>

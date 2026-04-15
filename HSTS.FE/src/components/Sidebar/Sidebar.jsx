@@ -17,9 +17,7 @@ import {
   AuditOutlined,
   UnorderedListOutlined,
   CalendarOutlined,
-  CarOutlined,
-  NodeIndexOutlined,
-  DashboardOutlined as SpeedOutlined,
+  CarOutlined
 } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/features/auth/hooks/useAuth';
@@ -124,24 +122,10 @@ const Sidebar = () => {
       hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
     },
     {
-      key: PATHS.TRANSPORT_MODES,
+      key: PATHS.TRANSPORTATION,
       icon: <CarOutlined />,
-      label: 'Transport Modes',
-      onClick: () => navigate(PATHS.TRANSPORT_MODES),
-      hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
-    },
-    {
-      key: PATHS.TRANSIT_HUBS,
-      icon: <NodeIndexOutlined />,
-      label: 'Transit Hubs',
-      onClick: () => navigate(PATHS.TRANSIT_HUBS),
-      hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
-    },
-    {
-      key: PATHS.LOCAL_TRANSPORT_METRICS,
-      icon: <SpeedOutlined />,
-      label: 'Transport Metrics',
-      onClick: () => navigate(PATHS.LOCAL_TRANSPORT_METRICS),
+      label: 'Transportation',
+      onClick: () => navigate(PATHS.TRANSPORTATION),
       hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
     },
   ].filter((item) => !item.hidden);

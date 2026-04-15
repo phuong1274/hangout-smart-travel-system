@@ -57,7 +57,7 @@ const AccommodationDetailModal = ({ open, data, onClose }) => {
       open={open}
       onClose={onClose}
       placement="right"
-      width={600}
+      width={490}
       mask={false}
       destroyOnClose
       style={{ boxShadow: '-8px 0 24px rgba(26, 83, 92, 0.08)' }}
