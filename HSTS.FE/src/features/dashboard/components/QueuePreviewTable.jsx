@@ -23,7 +23,12 @@ const QueuePreviewTable = ({ title, items, columns, onViewAll, emptyText }) => {
       ) : (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={<Text type="secondary">{emptyText}</Text>}
+          description={
+            <div>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>Queue is clear</div>
+              <Text type="secondary">{emptyText}</Text>
+            </div>
+          }
         />
       )}
     </Card>

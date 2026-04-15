@@ -58,6 +58,12 @@ const TrendPanel = ({ title, points = [] }) => {
   }, [points]);
 
   const activePoint = chart && activeIndex !== null ? chart.dots[activeIndex] : null;
+  const tooltipStyle = activePoint
+    ? {
+        left: Math.min(Math.max(activePoint.x - 52, 12), CHART.width - 124),
+        top: Math.max(activePoint.y - 64, 8),
+      }
+    : null;
 
   return (
     <Card
@@ -76,13 +82,14 @@ const TrendPanel = ({ title, points = [] }) => {
               <div
                 style={{
                   position: 'absolute',
-                  top: 0,
-                  right: 0,
+                  ...tooltipStyle,
                   background: '#0f172a',
                   color: '#fff',
                   borderRadius: 12,
                   padding: '8px 12px',
                   boxShadow: '0 10px 24px rgba(15, 23, 42, 0.2)',
+                  minWidth: 104,
+                  pointerEvents: 'none',
                 }}
               >
                 <div style={{ fontSize: 12, opacity: 0.75 }}>{activePoint.label}</div>
