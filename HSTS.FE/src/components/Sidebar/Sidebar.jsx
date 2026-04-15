@@ -17,6 +17,7 @@ import {
   AuditOutlined,
   UnorderedListOutlined,
   CalendarOutlined,
+  CarOutlined,
   CarOutlined
 } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
@@ -122,8 +123,11 @@ const Sidebar = () => {
       hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
     },
     {
+      key: PATHS.TRANSPORTATION_MANAGEMENT,
       key: PATHS.TRANSPORTATION,
       icon: <CarOutlined />,
+      label: 'Transportation',
+      onClick: () => navigate(PATHS.TRANSPORTATION_MANAGEMENT),
       label: 'Transportation',
       onClick: () => navigate(PATHS.TRANSPORTATION),
       hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
