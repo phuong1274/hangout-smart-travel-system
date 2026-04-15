@@ -60,9 +60,9 @@ export const fetchReferenceData = async (forceRefresh = false) => {
   try {
     // Fetch all data in parallel - single call for all tags
     const [allTagsRes, locationTypesRes, amenitiesRes] = await Promise.all([
-      getAllTagsApi(),
+      getAllTagsApi({ pageSize: 9999 }),
       getAllLocationTypesApi(),
-      getAllAmenitiesApi()
+      getAllAmenitiesApi({ pageSize: 9999 })
     ]);
 
     // Extract items from paginated responses

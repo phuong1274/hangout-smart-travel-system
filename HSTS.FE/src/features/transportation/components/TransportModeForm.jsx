@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, Select } from 'antd';
-import { createTransportModeApi, updateTransportModeApi } from '../../transport-modes/api';
+import { createTransportModeApi, updateTransportModeApi } from '../api';
 import styles from '../styles/TransportModeForm.module.css';
 
 const CATEGORY_OPTIONS = [

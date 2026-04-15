@@ -43,6 +43,8 @@ import {
   Star,
   Clock
 } from '@phosphor-icons/react';
+import { useAuthStore } from '@/store/authStore';
+import { PATHS } from '@/routes/paths';
 import styles from './ItineraryResultPage.module.css';
 
 const { Title, Text } = Typography;
@@ -724,17 +726,37 @@ const normalizeTimeOnly = (value) => {
 
 const toIsoDateTimeString = (value, fallbackValue) => {
   const raw = value ?? fallbackValue;
-  if (!raw) return new Date().toISOString();
-
+  
+  // If it's already YYYY-MM-DD format, keep it as-is (no timezone conversion)
   if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    return new Date(`${raw}T00:00:00`).toISOString();
+    return raw;
   }
 
-  const parsed = new Date(raw);
-  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  // For other inputs, parse and return as YYYY-MM-DD without timezone conversion
+  let targetDate = null;
+  
+  if (typeof raw === 'string') {
+    targetDate = new Date(raw);
+  } else if (raw instanceof Date) {
+    targetDate = raw;
+  } else {
+    targetDate = new Date(raw);
+  }
 
-  const fallback = new Date(fallbackValue || Date.now());
-  return !Number.isNaN(fallback.getTime()) ? fallback.toISOString() : new Date().toISOString();
+  if (!Number.isNaN(targetDate.getTime())) {
+    // Format as YYYY-MM-DD using local date (no UTC conversion)
+    const year = targetDate.getFullYear();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // Fallback to today
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const toCustomGeoPayload = (value) => {
@@ -1005,6 +1027,7 @@ const CustomLocationMapInvalidate = ({ activeKey }) => {
 
 const ItineraryResultPage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
   const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
   const [savingTrip, setSavingTrip] = useState(false);
   const [provinceNameById, setProvinceNameById] = useState(new Map());
@@ -3203,6 +3226,17 @@ const ItineraryResultPage = () => {
   const handleSaveTrip = async () => {
     if (!itinerary || savingTrip) return;
 
+    if (!isAuthenticated) {
+      updateItinerary(itinerary);
+      try {
+        sessionStorage.setItem('post-login-redirect', PATHS.ITINERARY);
+      } catch {
+      }
+      message.info('Please sign in to save this trip.');
+      navigate(`${PATHS.AUTH.LOGIN}?redirect=${encodeURIComponent(PATHS.ITINERARY)}`);
+      return;
+    }
+
     if (!Array.isArray(days) || days.length === 0) {
       message.error('Trip must include at least one day before saving.');
       return;
@@ -3323,8 +3357,8 @@ const ItineraryResultPage = () => {
 
     const startIso = toIsoDateTimeString(startDate);
     const endIso = toIsoDateTimeString(endDate, startDate);
-    if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
-      message.error('End date must be after start date to save this trip.');
+    if (new Date(endIso).getTime() < new Date(startIso).getTime()) {
+      message.error('End date must be on or after start date to save this trip.');
       return;
     }
 
@@ -3467,10 +3501,12 @@ const ItineraryResultPage = () => {
     setSavingTrip(true);
     try {
       const result = await saveTripApi(payload);
-      const savedTripId = Number(result?.tripId ?? result?.TripId);
+      const savedTripId = Number(result?.tripId ?? result?.TripId ?? result?.id ?? result?.Id);
       message.success('Trip saved successfully.');
       if (Number.isFinite(savedTripId) && savedTripId > 0) {
         navigate(`/trips/${savedTripId}`);
+      } else {
+        message.warning('Trip saved, but cannot open trip details automatically.');
       }
     } catch (error) {
       const responseData = error?.response?.data;

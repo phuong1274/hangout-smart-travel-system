@@ -6,11 +6,37 @@ import { useAuthStore } from '@/store/authStore';
 import { ROLES } from '@/config/constants';
 import { PATHS } from '@/routes/paths';
 
+const POST_LOGIN_REDIRECT_KEY = 'post-login-redirect';
+
 const getRedirectPath = (roles) => {
   if (roles.includes(ROLES.ADMIN)) return '/users';
   if (roles.includes(ROLES.CONTENT_MODERATOR)) return '/';
   if (roles.includes(ROLES.PARTNER)) return '/';
   return '/';
+};
+
+const isSafeInternalRedirect = (path) => {
+  if (!path || typeof path !== 'string') return false;
+  if (!path.startsWith('/')) return false;
+  if (path.startsWith('//')) return false;
+  return true;
+};
+
+const getPostLoginRedirect = (searchParams) => {
+  const redirectFromQuery = searchParams.get('redirect');
+
+  let redirectFromSession = null;
+  try {
+    redirectFromSession = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
+    if (redirectFromSession) {
+      sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+    }
+  } catch {
+    redirectFromSession = null;
+  }
+
+  const redirect = redirectFromQuery || redirectFromSession;
+  return isSafeInternalRedirect(redirect) ? redirect : null;
 };
 
 export const useLogin = () => {
@@ -32,7 +58,7 @@ export const useLogin = () => {
         hasGoogleLinked: res.data.hasGoogleLinked,
       });
       message.success('Login successful!');
-      const redirect = searchParams.get('redirect');
+      const redirect = getPostLoginRedirect(searchParams);
       navigate(redirect || getRedirectPath(res.data.roles));
     } catch (err) {
       const code = err?.response?.data?.code;
@@ -217,7 +243,7 @@ export const useGoogleLogin = () => {
         hasGoogleLinked: res.data.hasGoogleLinked,
       });
       message.success('Login successful!');
-      const redirect = searchParams.get('redirect');
+      const redirect = getPostLoginRedirect(searchParams);
       navigate(redirect || getRedirectPath(res.data.roles));
     } catch {
       // handled by interceptor

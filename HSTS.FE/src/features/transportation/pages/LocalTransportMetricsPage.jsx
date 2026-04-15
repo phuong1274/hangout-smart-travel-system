@@ -7,7 +7,7 @@ import LocalTransportMetricsTable from '../components/LocalTransportMetricsTable
 import LocalTransportMetricsForm from '../components/LocalTransportMetricsForm';
 import DetailModal from '@/components/UI/DetailModal/DetailModal';
 import { deleteLocalTransportMetricApi, getLocalTransportMetricByIdApi } from '../api';
-import { getTransportModesApi } from '@/features/transport-modes/api';
+import { getTransportModesApi } from '../api';
 import styles from '../styles/LocalTransportMetricsPage.module.css';
 
 const LocalTransportMetricsPage = () => {

@@ -141,9 +141,24 @@ export const getTripDetailApi = (id) => {
   return apiClient.get(`/api/trips/${id}/detail`).then(res => res.data);
 };
 
+// Get trip by id (for manual trip builder)
+export const getTripByIdApi = (id) => {
+  return apiClient.get(`/api/trips/${id}`).then(res => res.data);
+};
+
 // Get trips list by user id
 export const getTripsApi = (userId) => {
   return apiClient.get(`/api/trips/profile/${userId}`).then(res => res.data);
+};
+
+// Create a new trip (returns created trip with id)
+export const createTripApi = (data) => {
+  return apiClient.post('/api/trips', data).then(res => res.data);
+};
+
+// Update and save manual trip
+export const updateSavedTripApi = (tripId, data) => {
+  return apiClient.put(`/api/trips/${tripId}/save`, data).then(res => res.data);
 };
 
 // Delete trip by id

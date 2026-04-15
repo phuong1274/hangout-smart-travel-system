@@ -181,15 +181,14 @@ const LocationDetailView = ({ data, options = {} }) => {
       {(ticketPrice !== null && ticketPrice !== undefined) && (
         <Descriptions.Item label="Ticket Price">
           <DollarOutlined style={{ color: '#52c41a' }} />{' '}
-          {ticketPrice > 0 ? `$${ticketPrice.toFixed(2)}` : 'Free'}
+          {ticketPrice > 0 ? `${ticketPrice.toFixed(2)}` : 'Free'}
         </Descriptions.Item>
       )}
 
       {(priceMinUsd || priceMaxUsd) && (
         <Descriptions.Item label="Price Range" span={2}>
           <Space>
-            <DollarOutlined />
-            ${priceMinUsd?.toFixed(2) || '0'} - ${priceMaxUsd?.toFixed(2) || '0'}
+            {priceMinUsd?.toFixed(2) || '0'} - {priceMaxUsd?.toFixed(2) || '0'}
           </Space>
         </Descriptions.Item>
       )}

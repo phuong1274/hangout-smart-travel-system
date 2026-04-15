@@ -47,6 +47,23 @@ apiClient.interceptors.request.use(
 
 let isRefreshing = false;
 let failedQueue = [];
+const POST_LOGIN_REDIRECT_KEY = 'post-login-redirect';
+
+const getLoginRedirectUrl = () => {
+  const authRootPath = '/auth';
+  const loginPath = '/auth/login';
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+  if (!window.location.pathname.startsWith(authRootPath)) {
+    try {
+      sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, currentPath);
+    } catch {
+    }
+    return `${loginPath}?redirect=${encodeURIComponent(currentPath)}`;
+  }
+
+  return loginPath;
+};
 
 const processQueue = (error) => {
   failedQueue.forEach((promise) => {
@@ -72,7 +89,7 @@ apiClient.interceptors.response.use(
     if (response?.status === 401 && !config._retry) {
       if (config.url?.includes('/api/auth/refresh-token')) {
         localStorage.removeItem('auth-storage');
-        window.location.href = '/auth/login';
+        window.location.href = getLoginRedirectUrl();
         return Promise.reject(error);
       }
 
@@ -92,7 +109,7 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError);
         localStorage.removeItem('auth-storage');
-        window.location.href = '/auth/login';
+        window.location.href = getLoginRedirectUrl();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

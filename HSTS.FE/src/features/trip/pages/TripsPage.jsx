@@ -5,7 +5,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTrips } from '../hooks/useTrips';
 import { getMyInvitationsApi, respondInvitationApi } from '../api';
 import { PATHS } from '@/routes/paths';
-import { useAuthStore } from '@/store/authStore';
 import PhoneNumberModal from '../components/PhoneNumberModal';
 
 const { Title, Text } = Typography;
@@ -34,7 +33,6 @@ const getStatusLabel = (status) => {
 const TripsPage = () => {
   const navigate = useNavigate();
   const { data: trips, loading, handleDelete, refetch: refetchTrips } = useTrips();
-  const { user } = useAuthStore();
 
   // Invitations state
   const [invitations, setInvitations] = useState([]);
@@ -92,6 +90,10 @@ const TripsPage = () => {
       await handleRespondInvitation(pendingAction.payload.invitationId, true);
     }
     setPendingAction(null);
+  };
+
+  const handleCreateTripClick = () => {
+    navigate(PATHS.CREATE_TRIP_MANUAL_SETUP);
   };
 
   const columns = [
@@ -267,7 +269,7 @@ const TripsPage = () => {
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => navigate(PATHS.CREATE_TRIP)}
+              onClick={handleCreateTripClick}
             >
               Create Trip
             </Button>
@@ -283,6 +285,7 @@ const TripsPage = () => {
         onCancel={() => { setPhoneModalOpen(false); setPendingAction(null); }}
         onSuccess={handlePhoneNumberSuccess}
       />
+
     </ConfigProvider>
   );
 };
