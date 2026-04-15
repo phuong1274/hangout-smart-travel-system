@@ -39,6 +39,8 @@ const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage')
 const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
 const TripDetailPage = lazy(() => import('@/features/trip/pages/TripDetailPage'));
 const TripsPage = lazy(() => import('@/features/trip/pages/TripsPage'));
+const ManualTripSetupPage = lazy(() => import('@/features/trip/pages/ManualTripSetupPage'));
+const ManualTripPage = lazy(() => import('@/features/trip/pages/ManualTripPage'));
 const AcceptInvitationPage = lazy(() => import('@/features/trip/pages/AcceptInvitationPage'));
 
 const DashboardOverview = () => (
@@ -103,6 +105,14 @@ export const router = createBrowserRouter([
     element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
   },
   {
+    path: PATHS.CREATE_TRIP_MANUAL_SETUP.replace('/', ''),
+    element: <SuspenseWrapper><ManualTripSetupPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.CREATE_TRIP_MANUAL_BUILDER.replace('/', ''),
+    element: <SuspenseWrapper><ManualTripPage /></SuspenseWrapper>
+  },
+  {
     path: 'invitations/accept',
     element: <SuspenseWrapper><AcceptInvitationPage /></SuspenseWrapper>
   },
@@ -129,6 +139,14 @@ export const router = createBrowserRouter([
           {
             path: PATHS.TRIPS_LIST,
             element: <TripsPage />
+          },
+          {
+            path: PATHS.CREATE_TRIP_MANUAL_SETUP,
+            element: <ManualTripSetupPage />
+          },
+          {
+            path: PATHS.CREATE_TRIP_MANUAL_BUILDER,
+            element: <ManualTripPage />
           },
           {
             path: PATHS.ITINERARY,

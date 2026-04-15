@@ -23,6 +23,8 @@ export const PATHS = {
   PROFILE: '/profile',
   PARTNER_LOCATIONS: '/partner/locations',
   CREATE_TRIP: '/create-trip',
+  CREATE_TRIP_MANUAL_SETUP: '/manual-trip/setup',
+  CREATE_TRIP_MANUAL_BUILDER: '/manual-trip/builder',
   TRIPS_LIST: '/my-trips',
   TRIP_DETAIL: '/trips/:id',
   ACCEPT_INVITATION: '/invitations/accept',

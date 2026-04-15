@@ -11,6 +11,7 @@ import {
   InputNumber,
   Row,
   Space,
+  Spin,
   TimePicker,
   Typography,
   message,
@@ -29,11 +30,6 @@ const createClientId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toSt
 const toNumberOrDefault = (value, fallback = 0) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
-};
-
-const toPositiveInteger = (value, fallback = 0) => {
-  const numeric = Math.round(toNumberOrDefault(value, fallback));
-  return numeric > 0 ? numeric : fallback;
 };
 
 const normalizeTimeString = (value) => {
@@ -57,8 +53,6 @@ const toTimePickerValue = (value) => {
 };
 
 const toIsoDateTimeString = (value) => {
-  // Return date as YYYY-MM-DD string to avoid timezone conversion
-  // This prevents the 1-day shift that occurs with .toISOString()
   const parsed = dayjs(value);
   if (!parsed.isValid()) {
     return dayjs().format('YYYY-MM-DD');
@@ -93,21 +87,22 @@ const normalizeTripInfo = (raw) => {
   const endDate = raw.endDate || raw.EndDate || null;
 
   return {
-    tripName: String(raw.tripName || raw.TripName || '').trim(),
-    description: raw.description || raw.Description || null,
-    startDate,
-    endDate,
-    groupSize: toPositiveInteger(raw.groupSize || raw.GroupSize, 1),
-    currencyCode: String(raw.currencyCode || raw.currency || raw.Currency || 'VND').toUpperCase(),
+    id: raw.id || raw.Id || null,
+    tripName: String(raw.tripName || raw.TripName || 'Untitled Trip').trim(),
+    description: String(raw.description || raw.Description || '').trim(),
+    startDate: startDate ? dayjs(startDate).format('YYYY-MM-DD') : null,
+    endDate: endDate ? dayjs(endDate).format('YYYY-MM-DD') : null,
+    groupSize: Math.max(1, Math.round(toNumberOrDefault(raw.groupSize || raw.GroupSize, 1))),
+    currencyCode: String(raw.currency || raw.currencyCode || raw.Currency || raw.CurrencyCode || 'VND').trim() || 'VND',
   };
 };
 
-const normalizeDraftDays = (draftDays) => {
-  if (!Array.isArray(draftDays)) return [];
+const normalizeDraftDays = (rawDays) => {
+  if (!Array.isArray(rawDays) || rawDays.length === 0) return [];
 
-  return draftDays.map((day, dayIndex) => ({
+  return rawDays.map((day, dayIndex) => ({
     id: day.id || createClientId(`day-${dayIndex}`),
-    date: day.date || dayjs().format('YYYY-MM-DD'),
+    date: day.date ? dayjs(day.date).format('YYYY-MM-DD') : dayjs().add(dayIndex, 'day').format('YYYY-MM-DD'),
     dayTitle: String(day.dayTitle || `Day ${dayIndex + 1}`).trim(),
     estimatedCost: Math.max(0, toNumberOrDefault(day.estimatedCost, 0)),
     activities: Array.isArray(day.activities) && day.activities.length > 0
@@ -145,7 +140,7 @@ const saveDraftToStorage = (tripId, payload) => {
   try {
     localStorage.setItem(getDraftStorageKey(tripId), JSON.stringify(payload));
   } catch {
-    // Ignore storage write failures in private mode/quota limits.
+    // Ignore storage write failures.
   }
 };
 
@@ -203,10 +198,6 @@ const ManualTripPage = () => {
             message.error('Cannot load base trip information.');
           }
         }
-      }
-
-      if (resolvedTripInfo && resolvedDays.length === 0) {
-        resolvedDays = [];
       }
 
       if (!cancelled) {
@@ -320,7 +311,7 @@ const ManualTripPage = () => {
 
   const handleSaveManualTrip = async () => {
     if (!tripId || !tripInfo) {
-      message.error('Missing trip context. Please create a trip from My Trips first.');
+      message.error('Missing trip context. Please create a trip from Manual Trip Setup first.');
       return;
     }
 
@@ -464,250 +455,235 @@ const ManualTripPage = () => {
   return (
     <div className={styles.pageShell}>
       <div className={styles.pageContent}>
-        <Card bordered={false} className={styles.headerCard}>
-          <Title level={2} className={styles.pageTitle}>Manual Trip Builder</Title>
-          <Text className={styles.pageSubtitle}>
-            Build your itinerary manually with the same planning style as itinerary result.
-          </Text>
-        </Card>
-
         {!tripId && (
           <Alert
             type="warning"
             showIcon
             message="Trip not found"
-            description="Please go to My Trips and create a new trip from the Create Trip modal first."
+            description="Please start from Manual Trip Setup to create a trip first."
           />
         )}
 
-        {tripId && tripInfo && (
-          <Card bordered={false} className={styles.overviewCard} title="Trip Overview">
-            <Row gutter={[16, 16]}>
-              <Col xs={24} md={12}>
-                <Text strong>Trip Name:</Text>
-                <div>{tripInfo.tripName || '-'}</div>
-              </Col>
-              <Col xs={24} md={12}>
-                <Text strong>Group Size:</Text>
-                <div>{tripInfo.groupSize}</div>
-              </Col>
-              <Col xs={24} md={12}>
-                <Text strong>Start Date:</Text>
-                <div>{tripInfo.startDate ? dayjs(tripInfo.startDate).format('YYYY-MM-DD') : '-'}</div>
-              </Col>
-              <Col xs={24} md={12}>
-                <Text strong>End Date:</Text>
-                <div>{tripInfo.endDate ? dayjs(tripInfo.endDate).format('YYYY-MM-DD') : '-'}</div>
-              </Col>
-              <Col xs={24} md={12}>
-                <Text strong>Currency:</Text>
-                <div>{tripInfo.currencyCode || 'VND'}</div>
-              </Col>
-              <Col xs={24} md={12}>
-                <Text strong>Description:</Text>
-                <div>{tripInfo.description || '-'}</div>
-              </Col>
-            </Row>
+        {loadingTrip && (
+          <Card bordered={false} style={{ borderRadius: 16 }}>
+            <Spin tip="Loading trip information..." style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }} />
           </Card>
         )}
 
         {tripId && tripInfo && (
-          <Card
-            bordered={false}
-            className={styles.builderCard}
-            title="Step 2: Manual Day and Activity Builder"
-            extra={<Text type="secondary">PUT /api/Trips/{tripId}/save</Text>}
-          >
-            <Alert
-              type="success"
-              showIcon
-              message={`Trip ID: ${tripId}`}
-              description="Add day and destinations. Draft is auto-saved locally until you click Save Manual Trip."
-              className={styles.tripAlert}
-            />
+          <>
+            <Card bordered={false} className={styles.headerCard}>
+              <Row justify="space-between" align="middle" gutter={[16, 16]}>
+                <Col flex="auto">
+                  <Title level={3} style={{ color: 'white', margin: 0 }}>
+                    {tripInfo.tripName}
+                  </Title>
+                  <Text style={{ color: 'rgba(255,255,255,0.86)' }}>
+                    {tripInfo.startDate || 'TBD'} to {tripInfo.endDate || 'TBD'} • {tripInfo.groupSize} people
+                  </Text>
+                </Col>
+                <Col>
+                  <div style={{ textAlign: 'right' }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>ESTIMATED TOTAL</Text>
+                    <div style={{ fontSize: '28px', fontWeight: 'bold', color: 'white' }}>
+                      {Math.round(totalActivityBudget).toLocaleString()} {tripInfo.currencyCode}
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+            </Card>
 
-            <div className={styles.budgetStrip}>
-              <span><strong>Total Planned Budget:</strong> {Math.round(totalPlannedBudget).toLocaleString()} {tripInfo.currencyCode}</span>
-              <Divider type="vertical" />
-              <span><strong>Total Activity Cost:</strong> {Math.round(totalActivityBudget).toLocaleString()} {tripInfo.currencyCode}</span>
-            </div>
+            <Card bordered={false} className={styles.builderCard}>
+              <Title level={3} style={{ marginTop: 0, marginBottom: 2 }}>Manual Day & Location Builder</Title>
+              <Text type="secondary">Add each day and each destination manually, then save to trip detail.</Text>
 
-            {!manualDays.length && (
-              <Empty
-                description="No day added yet"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                className={styles.emptyState}
-              >
-                <Button type="primary" icon={<PlusOutlined />} onClick={addDay}>
-                  Add First Day
-                </Button>
-              </Empty>
-            )}
-
-            {manualDays.length > 0 && (
-            <Space direction="vertical" size="middle" className={styles.dayList}>
-              {manualDays.map((day, dayIndex) => (
-                <Card
-                  key={day.id}
-                  size="small"
-                  className={styles.dayCard}
-                  title={`Day ${dayIndex + 1}`}
-                  extra={(
-                    <Button
-                      danger
-                      type="text"
-                      icon={<DeleteOutlined />}
-                      onClick={() => removeDay(day.id)}
-                      disabled={manualDays.length <= 1}
-                    >
-                      Remove Day
-                    </Button>
-                  )}
+              {!manualDays.length && (
+                <Empty
+                  description="No day added yet"
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  style={{ marginTop: 40, marginBottom: 40 }}
                 >
-                  <Row gutter={[12, 12]}>
-                    <Col xs={24} md={8}>
-                      <Text>Date</Text>
-                      <DatePicker
-                        style={{ width: '100%', marginTop: 6 }}
-                        value={day.date ? dayjs(day.date) : null}
-                        disabledDate={dayDateDisabled}
-                        onChange={(value) => updateDayField(day.id, 'date', value ? value.format('YYYY-MM-DD') : '')}
-                      />
-                    </Col>
-                    <Col xs={24} md={8}>
-                      <Text>Day Title</Text>
-                      <Input
-                        style={{ marginTop: 6 }}
-                        value={day.dayTitle}
-                        onChange={(event) => updateDayField(day.id, 'dayTitle', event.target.value)}
-                      />
-                    </Col>
-                    <Col xs={24} md={8}>
-                      <Text>Estimated Cost</Text>
-                      <InputNumber
-                        style={{ width: '100%', marginTop: 6 }}
-                        min={0}
-                        value={day.estimatedCost}
-                        onChange={(value) => updateDayField(day.id, 'estimatedCost', Math.max(0, toNumberOrDefault(value, 0)))}
-                      />
-                    </Col>
-                  </Row>
+                  <Button type="primary" icon={<PlusOutlined />} onClick={addDay}>
+                    Add First Day
+                  </Button>
+                </Empty>
+              )}
 
-                  <Divider orientation="left" className={styles.destinationDivider}>Destinations</Divider>
-
-                  <Space direction="vertical" size="middle" className={styles.activityList}>
-                    {(day.activities || []).map((activity, activityIndex) => (
-                      <Card
-                        key={activity.id}
-                        size="small"
-                        type="inner"
-                        className={styles.activityCard}
-                        title={`Destination ${activityIndex + 1}`}
-                        extra={(
-                          <Button
-                            danger
-                            type="text"
-                            icon={<DeleteOutlined />}
-                            onClick={() => removeActivity(day.id, activity.id)}
-                            disabled={(day.activities || []).length <= 1}
-                          >
-                            Remove
-                          </Button>
-                        )}
-                      >
-                        <Row gutter={[12, 12]}>
-                          <Col xs={24} md={12}>
-                            <Text>Destination Name</Text>
-                            <Input
-                              style={{ marginTop: 6 }}
-                              value={activity.destinationName}
-                              onChange={(event) => updateActivityField(day.id, activity.id, 'destinationName', event.target.value)}
-                            />
-                          </Col>
-                          <Col xs={24} md={12}>
-                            <Text>Activity Title</Text>
-                            <Input
-                              style={{ marginTop: 6 }}
-                              value={activity.title}
-                              onChange={(event) => updateActivityField(day.id, activity.id, 'title', event.target.value)}
-                            />
-                          </Col>
-
-                          <Col xs={24} md={12}>
-                            <Text>Address</Text>
-                            <Input
-                              style={{ marginTop: 6 }}
-                              value={activity.address}
-                              onChange={(event) => updateActivityField(day.id, activity.id, 'address', event.target.value)}
-                            />
-                          </Col>
-                          <Col xs={24} md={12}>
-                            <Text>Estimated Cost</Text>
-                            <InputNumber
-                              style={{ width: '100%', marginTop: 6 }}
-                              min={0}
-                              value={activity.estimatedCost}
-                              onChange={(value) => updateActivityField(day.id, activity.id, 'estimatedCost', Math.max(0, toNumberOrDefault(value, 0)))}
-                            />
-                          </Col>
-
-                          <Col xs={24} md={6}>
-                            <Text>Start Time</Text>
-                            <TimePicker
-                              style={{ width: '100%', marginTop: 6 }}
-                              format="HH:mm"
-                              value={toTimePickerValue(activity.startTime)}
-                              onChange={(value) => updateActivityField(day.id, activity.id, 'startTime', value ? value.format('HH:mm:ss') : null)}
-                            />
-                          </Col>
-                          <Col xs={24} md={6}>
-                            <Text>End Time</Text>
-                            <TimePicker
-                              style={{ width: '100%', marginTop: 6 }}
-                              format="HH:mm"
-                              value={toTimePickerValue(activity.endTime)}
-                              onChange={(value) => updateActivityField(day.id, activity.id, 'endTime', value ? value.format('HH:mm:ss') : null)}
-                            />
-                          </Col>
-                          <Col xs={24} md={6}>
-                            <Text>Latitude</Text>
-                            <InputNumber
-                              style={{ width: '100%', marginTop: 6 }}
-                              value={activity.latitude}
-                              min={-90}
-                              max={90}
-                              onChange={(value) => updateActivityField(day.id, activity.id, 'latitude', value == null ? null : toNumberOrDefault(value, 0))}
-                            />
-                          </Col>
-                          <Col xs={24} md={6}>
-                            <Text>Longitude</Text>
-                            <InputNumber
-                              style={{ width: '100%', marginTop: 6 }}
-                              value={activity.longitude}
-                              min={-180}
-                              max={180}
-                              onChange={(value) => updateActivityField(day.id, activity.id, 'longitude', value == null ? null : toNumberOrDefault(value, 0))}
-                            />
-                          </Col>
-                        </Row>
-                      </Card>
-                    ))}
-
-                    <Button
-                      type="dashed"
-                      icon={<PlusOutlined />}
-                      onClick={() => addActivity(day.id)}
+              {manualDays.length > 0 && (
+                <Space direction="vertical" size="large" style={{ width: '100%', marginTop: 20 }}>
+                  {manualDays.map((day, dayIndex) => (
+                    <Card
+                      key={day.id}
+                      size="small"
+                      className={styles.dayCard}
+                      title={`Day ${dayIndex + 1}`}
+                      extra={(
+                        <Button
+                          danger
+                          type="text"
+                          icon={<DeleteOutlined />}
+                          onClick={() => removeDay(day.id)}
+                          disabled={manualDays.length <= 1}
+                        >
+                          Remove Day
+                        </Button>
+                      )}
                     >
-                      Add Destination
-                    </Button>
-                  </Space>
-                </Card>
-              ))}
-            </Space>
-            )}
+                      <Row gutter={[12, 12]}>
+                        <Col xs={24} md={8}>
+                          <Text>Date</Text>
+                          <DatePicker
+                            style={{ width: '100%', marginTop: 6 }}
+                            value={day.date ? dayjs(day.date) : null}
+                            disabledDate={dayDateDisabled}
+                            onChange={(value) => updateDayField(day.id, 'date', value ? value.format('YYYY-MM-DD') : '')}
+                          />
+                        </Col>
+                        <Col xs={24} md={8}>
+                          <Text>Day Title</Text>
+                          <Input
+                            style={{ marginTop: 6 }}
+                            value={day.dayTitle}
+                            onChange={(event) => updateDayField(day.id, 'dayTitle', event.target.value)}
+                          />
+                        </Col>
+                        <Col xs={24} md={8}>
+                          <Text>Estimated Cost</Text>
+                          <InputNumber
+                            style={{ width: '100%', marginTop: 6 }}
+                            min={0}
+                            value={day.estimatedCost}
+                            onChange={(value) => updateDayField(day.id, 'estimatedCost', Math.max(0, toNumberOrDefault(value, 0)))}
+                          />
+                        </Col>
+                      </Row>
 
-            <div className={styles.footerActions}>
-              <Button icon={<PlusOutlined />} onClick={addDay}>Add Day</Button>
+                      <Divider orientation="left" className={styles.destinationDivider}>Destinations</Divider>
+
+                      <Space direction="vertical" size="middle" className={styles.activityList}>
+                        {(day.activities || []).map((activity, activityIndex) => (
+                          <Card
+                            key={activity.id}
+                            size="small"
+                            type="inner"
+                            className={styles.activityCard}
+                            title={`Destination ${activityIndex + 1}`}
+                            extra={(
+                              <Button
+                                danger
+                                type="text"
+                                icon={<DeleteOutlined />}
+                                onClick={() => removeActivity(day.id, activity.id)}
+                                disabled={(day.activities || []).length <= 1}
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          >
+                            <Row gutter={[12, 12]}>
+                              <Col xs={24} md={12}>
+                                <Text>Destination Name</Text>
+                                <Input
+                                  style={{ marginTop: 6 }}
+                                  value={activity.destinationName}
+                                  onChange={(event) => updateActivityField(day.id, activity.id, 'destinationName', event.target.value)}
+                                />
+                              </Col>
+                              <Col xs={24} md={12}>
+                                <Text>Activity Title</Text>
+                                <Input
+                                  style={{ marginTop: 6 }}
+                                  value={activity.title}
+                                  onChange={(event) => updateActivityField(day.id, activity.id, 'title', event.target.value)}
+                                />
+                              </Col>
+
+                              <Col xs={24} md={12}>
+                                <Text>Address</Text>
+                                <Input
+                                  style={{ marginTop: 6 }}
+                                  value={activity.address}
+                                  onChange={(event) => updateActivityField(day.id, activity.id, 'address', event.target.value)}
+                                />
+                              </Col>
+                              <Col xs={24} md={12}>
+                                <Text>Estimated Cost</Text>
+                                <InputNumber
+                                  style={{ width: '100%', marginTop: 6 }}
+                                  min={0}
+                                  value={activity.estimatedCost}
+                                  onChange={(value) => updateActivityField(day.id, activity.id, 'estimatedCost', Math.max(0, toNumberOrDefault(value, 0)))}
+                                />
+                              </Col>
+
+                              <Col xs={24} md={6}>
+                                <Text>Start Time</Text>
+                                <TimePicker
+                                  style={{ width: '100%', marginTop: 6 }}
+                                  format="HH:mm"
+                                  value={toTimePickerValue(activity.startTime)}
+                                  onChange={(value) => updateActivityField(day.id, activity.id, 'startTime', value ? value.format('HH:mm:ss') : null)}
+                                />
+                              </Col>
+                              <Col xs={24} md={6}>
+                                <Text>End Time</Text>
+                                <TimePicker
+                                  style={{ width: '100%', marginTop: 6 }}
+                                  format="HH:mm"
+                                  value={toTimePickerValue(activity.endTime)}
+                                  onChange={(value) => updateActivityField(day.id, activity.id, 'endTime', value ? value.format('HH:mm:ss') : null)}
+                                />
+                              </Col>
+                              <Col xs={24} md={6}>
+                                <Text>Latitude</Text>
+                                <InputNumber
+                                  style={{ width: '100%', marginTop: 6 }}
+                                  value={activity.latitude}
+                                  min={-90}
+                                  max={90}
+                                  onChange={(value) => updateActivityField(day.id, activity.id, 'latitude', value == null ? null : toNumberOrDefault(value, 0))}
+                                />
+                              </Col>
+                              <Col xs={24} md={6}>
+                                <Text>Longitude</Text>
+                                <InputNumber
+                                  style={{ width: '100%', marginTop: 6 }}
+                                  value={activity.longitude}
+                                  min={-180}
+                                  max={180}
+                                  onChange={(value) => updateActivityField(day.id, activity.id, 'longitude', value == null ? null : toNumberOrDefault(value, 0))}
+                                />
+                              </Col>
+                            </Row>
+                          </Card>
+                        ))}
+
+                        <Button
+                          type="dashed"
+                          icon={<PlusOutlined />}
+                          onClick={() => addActivity(day.id)}
+                        >
+                          Add Destination
+                        </Button>
+                      </Space>
+                    </Card>
+                  ))}
+                </Space>
+              )}
+
+              {manualDays.length > 0 && (
+                <Space direction="vertical" style={{ width: '100%', marginTop: 24 }}>
+                  <Button type="dashed" icon={<PlusOutlined />} block onClick={addDay}>
+                    Add Day
+                  </Button>
+                </Space>
+              )}
+            </Card>
+
+            <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'flex-end' }}>
+              <Button icon={<PlusOutlined />} onClick={addDay}>
+                Add Day
+              </Button>
               <Button
                 type="primary"
                 icon={<SaveOutlined />}
@@ -717,15 +693,7 @@ const ManualTripPage = () => {
                 Save Manual Trip
               </Button>
             </div>
-          </Card>
-        )}
-
-        {loadingTrip && (
-          <Card bordered={false} className={styles.loadingCard}>
-            <Space>
-              <Text>Loading trip information...</Text>
-            </Space>
-          </Card>
+          </>
         )}
       </div>
     </div>
