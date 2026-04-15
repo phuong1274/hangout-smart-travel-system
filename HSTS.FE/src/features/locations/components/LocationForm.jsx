@@ -53,7 +53,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
           getAllTagsApi({ pageSize: 9999 }),
           getAllDistrictsApi(),
           getAllLocationTypesApi(),
-          getAllAmenitiesApi()
+          getAllAmenitiesApi({ pageSize: 9999 })
         ]);
 
         const allTags = Array.isArray(allTagsRes) ? allTagsRes : (allTagsRes?.items || []);
@@ -598,6 +598,8 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
             mode="multiple"
             labelInValue
             placeholder="Select amenities"
+            showSearch
+            optionFilterProp="children"
             style={{ width: '100%' }}
             maxTagCount="responsive"
             className={styles.customInput}
