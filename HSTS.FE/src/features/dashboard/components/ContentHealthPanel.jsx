@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, List, Typography } from 'antd';
+import { Card, List, Tag, Typography } from 'antd';
 
 const { Text } = Typography;
 
@@ -11,7 +11,12 @@ const ContentHealthPanel = ({ insights }) => {
   ];
 
   return (
-    <Card title="Content Health">
+    <Card
+      bordered={false}
+      title="Content Health"
+      extra={<Tag color="cyan">Insight</Tag>}
+      style={{ borderRadius: 20, boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)' }}
+    >
       <List
         dataSource={items}
         renderItem={(item) => (
