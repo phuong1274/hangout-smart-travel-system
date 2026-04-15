@@ -33,8 +33,8 @@ namespace HSTS.Application.Trips.Commands
 
             RuleFor(x => x.Request.EndDate)
                 .NotEmpty().WithMessage("End date is required.")
-                .GreaterThan(x => x.Request.StartDate)
-                .WithMessage("End date must be after start date.");
+                .GreaterThanOrEqualTo(x => x.Request.StartDate)
+                .WithMessage("End date must be on or after start date.");
 
             RuleFor(x => x.Request.GroupSize)
                 .GreaterThan(0).WithMessage("Group size must be greater than 0.")
