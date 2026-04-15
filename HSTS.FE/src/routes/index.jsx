@@ -30,15 +30,14 @@ const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-sub
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/ReportedReviewsPage'));
 
-const TransportModesPage = lazy(() => import('@/features/transport-modes/pages/TransportModesPage'));
-const TransitHubsPage = lazy(() => import('@/features/transit-hubs/pages/TransitHubsPage'));
-const LocalTransportMetricsPage = lazy(() => import('@/features/local-transport-metrics/pages/LocalTransportMetricsPage'));
-const TransportationManagementPage = lazy(() => import('@/features/transportation-management/pages/TransportationManagementPage'));
+const TransportManagementPage = lazy(() => import('@/features/transportation/pages/TransportManagementPage'));
 
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
 const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
 const TripDetailPage = lazy(() => import('@/features/trip/pages/TripDetailPage'));
 const TripsPage = lazy(() => import('@/features/trip/pages/TripsPage'));
+const ManualTripSetupPage = lazy(() => import('@/features/trip/pages/ManualTripSetupPage'));
+const ManualTripPage = lazy(() => import('@/features/trip/pages/ManualTripPage'));
 const AcceptInvitationPage = lazy(() => import('@/features/trip/pages/AcceptInvitationPage'));
 
 const DashboardOverview = () => (
@@ -101,6 +100,14 @@ export const router = createBrowserRouter([
     element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
   },
   {
+    path: PATHS.CREATE_TRIP_MANUAL_SETUP.replace('/', ''),
+    element: <SuspenseWrapper><ManualTripSetupPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.CREATE_TRIP_MANUAL_BUILDER.replace('/', ''),
+    element: <SuspenseWrapper><ManualTripPage /></SuspenseWrapper>
+  },
+  {
     path: 'invitations/accept',
     element: <SuspenseWrapper><AcceptInvitationPage /></SuspenseWrapper>
   },
@@ -125,6 +132,14 @@ export const router = createBrowserRouter([
           {
             path: PATHS.TRIPS_LIST,
             element: <TripsPage />
+          },
+          {
+            path: PATHS.CREATE_TRIP_MANUAL_SETUP,
+            element: <ManualTripSetupPage />
+          },
+          {
+            path: PATHS.CREATE_TRIP_MANUAL_BUILDER,
+            element: <ManualTripPage />
           },
           {
             path: PATHS.ITINERARY,
@@ -200,10 +215,10 @@ export const router = createBrowserRouter([
             ]
           },
           {
-            path: PATHS.TRANSPORTATION_MANAGEMENT,
+            path: PATHS.TRANSPORTATION,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
             children: [
-              { index: true, element: <TransportationManagementPage /> },
+              { index: true, element: <TransportManagementPage /> },
             ]
           },
           {
