@@ -25,7 +25,13 @@ public class GetAdminDashboardSummaryQueryHandler : IRequestHandler<GetAdminDash
 
     public async Task<ErrorOr<AdminDashboardSummaryDto>> Handle(GetAdminDashboardSummaryQuery request, CancellationToken cancellationToken)
     {
-        var totalDestinations = await _context.Locations
+        var totalUsers = await _context.Users.AsNoTracking().CountAsync(x => !x.IsDeleted, cancellationToken);
+        var activeAccounts = await _context.Accounts.AsNoTracking().CountAsync(x => !x.IsDeleted && x.Status == AccountStatus.Active, cancellationToken);
+        var totalTrips = await _context.Trips.AsNoTracking().CountAsync(x => !x.IsDeleted, cancellationToken);
+        var completedTrips = await _context.Trips.AsNoTracking().CountAsync(x => !x.IsDeleted && x.Status == TripStatus.Completed, cancellationToken);
+        var activeLocations = await _context.Locations.AsNoTracking().CountAsync(x => !x.IsDeleted && x.Status == LocationStatus.Active, cancellationToken);
+
+        var coveredDestinations = await _context.Locations
             .AsNoTracking()
             .Where(x => !x.IsDeleted
                 && x.Status == LocationStatus.Active
@@ -37,18 +43,21 @@ public class GetAdminDashboardSummaryQueryHandler : IRequestHandler<GetAdminDash
             .Distinct()
             .CountAsync(cancellationToken);
 
-        var totalProvinces = await _context.Provinces.AsNoTracking().CountAsync(x => !x.IsDeleted, cancellationToken);
-        var totalLocations = await _context.Locations.AsNoTracking().CountAsync(x => !x.IsDeleted, cancellationToken);
-        var totalReviews = await _context.LocationReviews.AsNoTracking().CountAsync(x => !x.IsDeleted, cancellationToken);
-        var totalItinerariesCreated = await _context.Trips.AsNoTracking().CountAsync(x => !x.IsDeleted, cancellationToken);
-        var totalItinerariesCompleted = await _context.Trips.AsNoTracking().CountAsync(x => !x.IsDeleted && x.Status == TripStatus.Completed, cancellationToken);
+        var visibleReviews = await _context.LocationReviews.AsNoTracking().CountAsync(x => !x.IsDeleted && x.Status == LocationReviewStatus.Visible, cancellationToken);
+        var pendingLocationSubmissions = await _context.LocationSubmissions.AsNoTracking().CountAsync(x => !x.IsDeleted && x.Status == SubmissionStatus.Pending, cancellationToken);
+        var pendingReviewReports = await _context.LocationReviewReports.AsNoTracking().CountAsync(x => !x.IsDeleted && x.Status == LocationReviewReportStatus.Pending, cancellationToken);
+        var hiddenReviews = await _context.LocationReviews.AsNoTracking().CountAsync(x => !x.IsDeleted && x.Status == LocationReviewStatus.Hidden, cancellationToken);
 
         return new AdminDashboardSummaryDto(
-            totalDestinations,
-            totalProvinces,
-            totalLocations,
-            totalReviews,
-            totalItinerariesCreated,
-            totalItinerariesCompleted);
+            totalUsers,
+            activeAccounts,
+            totalTrips,
+            completedTrips,
+            activeLocations,
+            coveredDestinations,
+            visibleReviews,
+            pendingLocationSubmissions,
+            pendingReviewReports,
+            hiddenReviews);
     }
 }

@@ -21,4 +21,18 @@ public class DashboardController : BaseApiController
         var result = await Mediator.Send(new GetAdminDashboardTrendsQuery(months), cancellationToken);
         return result.Match(Ok, errors => MapErrors(errors));
     }
+
+    [HttpGet("insights")]
+    public async Task<IActionResult> GetInsights(CancellationToken cancellationToken)
+    {
+        var result = await Mediator.Send(new GetAdminDashboardInsightsQuery(), cancellationToken);
+        return result.Match(Ok, errors => MapErrors(errors));
+    }
+
+    [HttpGet("queues")]
+    public async Task<IActionResult> GetQueues(CancellationToken cancellationToken)
+    {
+        var result = await Mediator.Send(new GetAdminDashboardQueuesQuery(), cancellationToken);
+        return result.Match(Ok, errors => MapErrors(errors));
+    }
 }

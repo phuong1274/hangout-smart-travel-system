@@ -45,7 +45,7 @@ public class GetAdminDashboardTrendsQueryHandler : IRequestHandler<GetAdminDashb
             .Select(x => new { x.Key.Year, x.Key.Month, Value = x.Count() })
             .ToListAsync(cancellationToken);
 
-        var itineraryRaw = await _context.Trips
+        var tripRaw = await _context.Trips
             .AsNoTracking()
             .Where(x => !x.IsDeleted && x.CreatedAt >= startMonth && x.CreatedAt < endMonth)
             .GroupBy(x => new { x.CreatedAt.Year, x.CreatedAt.Month })
@@ -54,9 +54,9 @@ public class GetAdminDashboardTrendsQueryHandler : IRequestHandler<GetAdminDashb
 
         var locationGrowth = BuildSeries(startMonth, request.Months, locationRaw.Select(x => (x.Year, x.Month, x.Value)));
         var reviewGrowth = BuildSeries(startMonth, request.Months, reviewRaw.Select(x => (x.Year, x.Month, x.Value)));
-        var itineraryGrowth = BuildSeries(startMonth, request.Months, itineraryRaw.Select(x => (x.Year, x.Month, x.Value)));
+        var tripGrowth = BuildSeries(startMonth, request.Months, tripRaw.Select(x => (x.Year, x.Month, x.Value)));
 
-        return new AdminDashboardTrendDto(locationGrowth, reviewGrowth, itineraryGrowth);
+        return new AdminDashboardTrendDto(locationGrowth, reviewGrowth, tripGrowth);
     }
 
     private static IReadOnlyList<DashboardTrendPointDto> BuildSeries(DateTime startMonth, int months, IEnumerable<(int Year, int Month, int Value)> source)

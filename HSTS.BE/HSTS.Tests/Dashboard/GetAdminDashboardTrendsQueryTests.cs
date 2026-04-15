@@ -40,6 +40,6 @@ public class GetAdminDashboardTrendsQueryTests
         result.Value.LocationGrowth.Should().NotBeEmpty();
         result.Value.LocationGrowth.Sum(x => x.Value).Should().BeGreaterThan(0);
         result.Value.ReviewGrowth.Sum(x => x.Value).Should().BeGreaterThan(0);
-        result.Value.ItineraryGrowth.Sum(x => x.Value).Should().BeGreaterThan(0);
+        result.Value.TripGrowth.Sum(x => x.Value).Should().BeGreaterThan(0);
     }
 }
