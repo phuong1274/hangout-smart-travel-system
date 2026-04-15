@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace HSTS.API.Controllers
 {
-    [Authorize(Roles = "ADMIN")]
+    [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
     [EnableRateLimiting("fixed")]
     [Route("api/admin")]
     public class AdminReviewModerationController : BaseApiController

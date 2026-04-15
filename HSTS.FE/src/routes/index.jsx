@@ -100,7 +100,6 @@ export const router = createBrowserRouter([
         children: [
           {
             path: PATHS.DASHBOARD,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
             children: [
               { index: true, element: <DashboardPage /> }
             ]
@@ -181,7 +180,7 @@ export const router = createBrowserRouter([
           },
           {
             path: PATHS.REPORTED_REVIEWS,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
             children: [
               { index: true, element: <ReportedReviewsPage /> },
             ]
