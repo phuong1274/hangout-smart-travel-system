@@ -39,14 +39,14 @@ const DetailModal = ({ open, onClose, data, type, children }) => {
             
             <Descriptions.Item label="Ticket Price">
               <div className={styles.iconText}>
-                {data.ticketPrice ? `$${data.ticketPrice.toFixed(2)}` : 'Free'}
+                {data.ticketPrice ? `${data.ticketPrice.toFixed(2)}` : 'Free'}
               </div>
             </Descriptions.Item>
             
             <Descriptions.Item label="Price Range" span={2}>
               {(data.priceMinUsd || data.priceMaxUsd) ? (
                 <Space className={styles.iconText}>
-                  ${data.priceMinUsd?.toFixed(2) || '0'} - ${data.priceMaxUsd?.toFixed(2) || '0'}
+                  {data.priceMinUsd?.toFixed(2) || '0'} - {data.priceMaxUsd?.toFixed(2) || '0'}
                 </Space>
               ) : 'N/A'}
             </Descriptions.Item>
