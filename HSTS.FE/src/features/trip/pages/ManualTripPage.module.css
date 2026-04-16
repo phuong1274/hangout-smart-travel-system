@@ -150,6 +150,303 @@
   text-align: center;
 }
 
+.activityMetaRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.activityConfigGrid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.optionalBudgetRow {
+  margin-top: 18px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.travelInfoBox {
+  margin-top: 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(26, 83, 92, 0.2);
+  background: rgba(78, 205, 196, 0.08);
+  padding: 12px;
+}
+
+.betweenTravelCard {
+  margin: 4px 0;
+}
+
+.travelRoute {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.travelPoint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #1A535C;
+  font-weight: 700;
+}
+
+.travelDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 2px solid #4ECDC4;
+  background: #FFFFFF;
+  flex-shrink: 0;
+}
+
+.travelRouteConnector {
+  margin-left: 4px;
+  width: 2px;
+  min-height: 16px;
+  background: linear-gradient(180deg, rgba(78, 205, 196, 0.75), rgba(26, 83, 92, 0.2));
+}
+
+.travelMetaLine {
+  margin-top: 10px;
+}
+
+.transportOptionsSection {
+  margin-top: 10px;
+}
+
+.transportOptionsTitle {
+  display: block;
+  font-size: 12px;
+  color: rgba(26, 83, 92, 0.7);
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.transportOptionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.transportOptionItem {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(78, 205, 196, 0.2);
+  border-radius: 10px;
+  background: #FFFFFF;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.transportOptionItem:hover {
+  border-color: #4ECDC4;
+  box-shadow: 0 8px 20px rgba(26, 83, 92, 0.08);
+}
+
+.transportOptionItemSelected {
+  border-color: #FF6B6B;
+  background: rgba(255, 107, 107, 0.05);
+}
+
+.transportOptionMain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.transportOptionName {
+  font-size: 13px;
+  color: #1A535C;
+  font-weight: 700;
+}
+
+.transportOptionRecommended {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #1A535C;
+  background: #FFE66D;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.transportOptionMeta {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(26, 83, 92, 0.68);
+  font-weight: 600;
+}
+
+.transportOptionNote {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(26, 83, 92, 0.6);
+}
+
+.customTransportEditor {
+  border: 1px dashed rgba(26, 83, 92, 0.2);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.customTransportGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.addBetweenModalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 16px;
+}
+
+.addBetweenHint {
+  display: block;
+  line-height: 1.5;
+  font-size: 14px;
+  color: rgba(26, 83, 92, 0.7);
+}
+
+.addBetweenSplitLayout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.addBetweenPanel {
+  background: #FFFFFF;
+  border: 1px solid rgba(26, 83, 92, 0.14);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.addBetweenPanelTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1A535C;
+}
+
+.addBetweenPanelHint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(26, 83, 92, 0.7);
+}
+
+.addBetweenPrimaryAction {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.addBetweenFooterActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.addBetweenSelect {
+  width: 100%;
+}
+
+.customLocationMapCard {
+  background: #FFFFFF !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08) !important;
+  border: none !important;
+}
+
+.customLocationMapCard :global(.ant-card-head) {
+  border-bottom: 1px solid rgba(26, 83, 92, 0.08);
+}
+
+.customLocationMapCard :global(.ant-card-body) {
+  padding: 16px 24px 20px;
+}
+
+.customLocationMapHeader {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1A535C;
+  line-height: 1.2;
+}
+
+.customLocationCoordinates {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(26, 83, 92, 0.78);
+}
+
+.customLocationHint {
+  line-height: 1.5;
+  font-size: 13px;
+  color: rgba(26, 83, 92, 0.72);
+}
+
+.customLocationMapWrap {
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  border: none;
+}
+
+.customLocationCurrentBtn {
+  min-height: 48px !important;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+  margin-top: 16px;
+  border-color: #4ECDC4 !important;
+  color: #1A535C !important;
+  background-color: rgba(78, 205, 196, 0.1) !important;
+}
+
+.customLocationTimelineGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.customLocationAddButton {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.editTimelineField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editTimelineLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(26, 83, 92, 0.85);
+}
+
+.editTimelineInput {
+  width: 100%;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .pageContent {
@@ -168,6 +465,27 @@
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .addBetweenSplitLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .customLocationTimelineGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .activityMetaRow {
+    flex-direction: column;
+  }
+
+  .activityConfigGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .customTransportGrid {
+    grid-template-columns: 1fr;
+  }
+
 }
 
 /* Antd overrides */

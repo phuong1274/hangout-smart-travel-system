@@ -131,6 +131,11 @@ export const getLocationTypesApi = () => {
   return apiClient.get('/api/LocationTypes').then(res => res.data);
 };
 
+// Get transport modes for manual transport selection
+export const getTransportModesApi = (params) => {
+  return apiClient.get('/api/transport-modes', { params }).then(res => res.data);
+};
+
 // Get all amenities
 export const getAmenitiesApi = () => {
   return apiClient.get('/api/Amenities').then(res => res.data);
