@@ -41,7 +41,7 @@ namespace HSTS.Application.Trips.Commands
             RuleFor(x => x.TripName).NotEmpty().MaximumLength(200);
             RuleFor(x => x.StartDate).NotEmpty();
             RuleFor(x => x.EndDate).NotEmpty();
-            RuleFor(x => x.EndDate).GreaterThan(x => x.StartDate)
+            RuleFor(x => x.EndDate).GreaterThanOrEqualTo(x => x.StartDate)
                 .When(x => x.StartDate != default && x.EndDate != default);
             RuleFor(x => x.Currency).NotEmpty().MaximumLength(10);
             RuleFor(x => x.Status).IsInEnum();
@@ -56,7 +56,7 @@ namespace HSTS.Application.Trips.Commands
             RuleFor(x => x.TripName).NotEmpty().MaximumLength(200);
             RuleFor(x => x.StartDate).NotEmpty();
             RuleFor(x => x.EndDate).NotEmpty();
-            RuleFor(x => x.EndDate).GreaterThan(x => x.StartDate)
+            RuleFor(x => x.EndDate).GreaterThanOrEqualTo(x => x.StartDate)
                 .When(x => x.StartDate != default && x.EndDate != default);
             RuleFor(x => x.Currency).NotEmpty().MaximumLength(10);
             RuleFor(x => x.Status).IsInEnum();
