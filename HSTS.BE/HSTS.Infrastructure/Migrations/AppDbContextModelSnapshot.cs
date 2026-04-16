@@ -2028,7 +2028,6 @@ namespace HSTS.Infrastructure.Migrations
                         .HasDefaultValue(false);
 
                     b.Property<string>("Title")
-                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)")
                         .HasColumnName("Title");
