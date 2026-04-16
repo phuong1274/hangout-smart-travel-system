@@ -85,6 +85,8 @@ namespace HSTS.Application.Trips.Commands
                     // CustomLocation validation (auto-create)
                     act.RuleFor(a => a.CustomLocation).ChildRules(cl =>
                     {
+                        cl.RuleFor(x => x.LocationTypeId)
+                            .GreaterThan(0).WithMessage("LocationTypeId is required and must be greater than 0.");
                         cl.RuleFor(x => x.Name)
                             .NotEmpty().WithMessage("Custom location name is required.")
                             .MaximumLength(200).WithMessage("Name must not exceed 200 characters.");
@@ -193,6 +195,10 @@ namespace HSTS.Application.Trips.Commands
                     {
                         b.RuleFor(x => x.EstimateCost)
                             .GreaterThanOrEqualTo(0).WithMessage("Estimate cost must be non-negative.");
+                        b.RuleFor(x => x.Title)
+                            .MaximumLength(200).WithMessage("Budget title must not exceed 200 characters.");
+                        b.RuleFor(x => x.Description)
+                            .MaximumLength(500).WithMessage("Budget description must not exceed 500 characters.");
                     }).When(a => a.Budget != null);
                 });
             });
@@ -426,7 +432,9 @@ namespace HSTS.Application.Trips.Commands
                                 Name = actReq.CustomLocation.Name,
                                 Latitude = actReq.CustomLocation.Latitude,
                                 Longitude = actReq.CustomLocation.Longitude,
-                                Address = actReq.CustomLocation.Address
+                                Address = actReq.CustomLocation.Address,
+                                Description = actReq.CustomLocation.Description,
+                                LocationTypeId = actReq.CustomLocation.LocationTypeId
                             };
                             _context.CustomLocations.Add(customLocation);
                             await _context.SaveChangesAsync(cancellationToken);
@@ -499,8 +507,8 @@ namespace HSTS.Application.Trips.Commands
                             activity.Budget = new TripActivityBudget
                             {
                                 EstimateCost = actReq.Budget.EstimateCost,
-                                Title = null,
-                                Description = null
+                                Title = actReq.Budget.Title,
+                                Description = actReq.Budget.Description
                             };
                         }
 
