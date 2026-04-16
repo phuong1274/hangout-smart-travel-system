@@ -81,26 +81,54 @@ namespace HSTS.API.Controllers
         [HttpGet("profile/{profileId}")]
         public async Task<IActionResult> GetTripsByProfile(int profileId, CancellationToken ct)
         {
-            var result = await Mediator.Send(new GetTripsByProfileQuery(profileId), ct);
-            return result.Match(Ok, MapErrors);
+            var result = await _mediator.Send(new GetTripsByProfileQuery(profileId), ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(result.Value);
         }
 
         [HttpPost]
         public async Task<IActionResult> CreateTrip([FromBody] CreateTripCommand command, CancellationToken ct)
         {
-            var result = await Mediator.Send(command, ct);
-            return result.Match(
-                value => CreatedAtAction(nameof(GetTrip), new { id = value.Id }, value),
-                MapErrors);
+            var result = await _mediator.Send(command, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return CreatedAtAction(nameof(GetTrip), new { id = result.Value.Id }, result.Value);
         }
 
         [HttpPost("save")]
         public async Task<IActionResult> SaveTrip([FromBody] SaveTripRequest request, CancellationToken ct)
         {
-            var result = await Mediator.Send(new SaveTripCommand(request), ct);
-            return result.Match(
-                tripId => Ok(new { message = "Trip was saved successfully!!!", tripId }),
-                MapErrors);
+            var result = await _mediator.Send(new SaveTripCommand(request), ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(new { message = "Trip was saved successfully!!!", tripId = result.Value });
         }
 
         [HttpPut("{id}")]
@@ -111,15 +139,36 @@ namespace HSTS.API.Controllers
                 return BadRequest("ID mismatch.");
             }
 
-            var result = await Mediator.Send(command, ct);
-            return result.Match(Ok, MapErrors);
+            var result = await _mediator.Send(command, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(result.Value);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTrip(int id, CancellationToken ct)
         {
-            var result = await Mediator.Send(new DeleteTripCommand(id), ct);
-            return result.Match(_ => NoContent(), MapErrors);
+            var result = await _mediator.Send(new DeleteTripCommand(id), ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return NoContent();
         }
 
         [HttpPatch("activities/{activityId}/status")]
@@ -129,8 +178,19 @@ namespace HSTS.API.Controllers
             CancellationToken ct)
         {
             var command = new UpdateTripActivityStatusCommand(activityId, request.Status);
-            var result = await Mediator.Send(command, ct);
-            return result.Match(Ok, MapErrors);
+            var result = await _mediator.Send(command, ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(result.Value);
         }
 
         /// <summary>
@@ -158,25 +218,6 @@ namespace HSTS.API.Controllers
             }
 
             return Ok(result.Value);
-        }
-
-        [HttpPost("save")]
-        public async Task<IActionResult> SaveTrip([FromBody] SaveTripRequest request, CancellationToken ct)
-        {
-            var command = new SaveTripCommand(request);
-            var result = await _mediator.Send(command, ct);
-
-            if (result.IsError)
-            {
-                return result.FirstError.Type switch
-                {
-                    ErrorType.NotFound => NotFound(result.FirstError.Description),
-                    ErrorType.Validation => BadRequest(result.FirstError.Description),
-                    _ => Problem(result.FirstError.Description)
-                };
-            }
-
-            return Ok(new { message = "Trip was saved successfully!!!", tripId = result.Value });
         }
 
         [HttpPut("{id}/save")]

@@ -5,6 +5,7 @@ import { buildCreateTripPath, PATHS } from '@/routes/paths';
 import { ROLES } from '@/config/constants';
 import { useAuthStore } from '@/store/authStore';
 import { usePublicLocationDetail } from '../hooks/usePublicLocationDetail';
+import { LocationReviewSection } from '@/features/reviews/components/LocationReviewSection';
 import styles from '../styles/PublicLocationDetailPage.module.css';
 
 const { Paragraph, Text, Title } = Typography;
@@ -432,6 +433,8 @@ const PublicLocationDetailPage = () => {
               ) : null}
             </Space>
           </div>
+
+          <LocationReviewSection locationId={Number(id)} />
         </Space>
       </div>
     </div>

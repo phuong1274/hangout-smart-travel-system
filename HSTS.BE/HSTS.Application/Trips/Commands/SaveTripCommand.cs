@@ -387,8 +387,7 @@ namespace HSTS.Application.Trips.Commands
                 {
                     TripId = trip.Id,
                     UserId = _currentUser.UserId,
-                    Name = user.FullName,
-                    Role = TripMemberRole.ADMIN
+                    Role = TripRole.Leader
                 };
                 _context.TripMembers.Add(tripMember);
                 await _context.SaveChangesAsync(cancellationToken);

@@ -121,6 +121,8 @@ export const router = createBrowserRouter([
   {
     path: 'invitations/accept',
     element: <SuspenseWrapper><AcceptInvitationPage /></SuspenseWrapper>
+  },
+  {
     path: 'trips/:id',
     element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
   },

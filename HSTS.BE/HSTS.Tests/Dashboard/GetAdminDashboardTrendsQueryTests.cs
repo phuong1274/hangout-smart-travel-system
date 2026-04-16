@@ -22,8 +22,8 @@ public class GetAdminDashboardTrendsQueryTests
         var review1 = new LocationReview { Id = 1, LocationId = 1, UserId = 1, Rating = 5, Comment = "good", Status = LocationReviewStatus.Visible, IsDeleted = false, CreatedAt = now.AddMonths(-1) };
         var review2 = new LocationReview { Id = 2, LocationId = 2, UserId = 2, Rating = 4, Comment = "nice", Status = LocationReviewStatus.Visible, IsDeleted = false, CreatedAt = now };
 
-        var trip1 = new Trip { Id = 1, TripName = "T1", StartDate = now, EndDate = now.AddDays(1), GroupSize = 2, UserId = 1, Currency = "VND", Status = TripStatus.Planned, IsDeleted = false, CreatedAt = now.AddMonths(-1) };
-        var trip2 = new Trip { Id = 2, TripName = "T2", StartDate = now, EndDate = now.AddDays(2), GroupSize = 2, UserId = 1, Currency = "VND", Status = TripStatus.Completed, IsDeleted = false, CreatedAt = now };
+        var trip1 = new Trip { Id = 1, TripName = "T1", StartDate = now, EndDate = now.AddDays(1), GroupSize = 2, Currency = "VND", Status = TripStatus.Planned, IsDeleted = false, CreatedAt = now.AddMonths(-1) };
+        var trip2 = new Trip { Id = 2, TripName = "T2", StartDate = now, EndDate = now.AddDays(2), GroupSize = 2, Currency = "VND", Status = TripStatus.Completed, IsDeleted = false, CreatedAt = now };
 
         var ctx = MockDbContextFactory.Create()
             .WithProvinces(province)

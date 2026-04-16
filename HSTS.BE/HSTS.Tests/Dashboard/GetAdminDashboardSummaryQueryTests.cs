@@ -20,8 +20,8 @@ public class GetAdminDashboardSummaryQueryTests
         var location1 = new Location { Id = 101, Name = "Temple", Address = "A", Latitude = 1, Longitude = 1, TicketPrice = 0, DistrictId = 11, District = district1, Status = LocationStatus.Active, IsDeleted = false };
         var location2 = new Location { Id = 102, Name = "Beach", Address = "B", Latitude = 1, Longitude = 1, TicketPrice = 0, DistrictId = 22, District = district2, Status = LocationStatus.Active, IsDeleted = false };
 
-        var trip1 = new Trip { Id = 1, TripName = "Trip 1", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(1), GroupSize = 2, UserId = 1, Currency = "VND", Status = TripStatus.Planned, IsDeleted = false };
-        var trip2 = new Trip { Id = 2, TripName = "Trip 2", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(2), GroupSize = 2, UserId = 1, Currency = "VND", Status = TripStatus.Completed, IsDeleted = false };
+        var trip1 = new Trip { Id = 1, TripName = "Trip 1", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(1), GroupSize = 2, Currency = "VND", Status = TripStatus.Planned, IsDeleted = false };
+        var trip2 = new Trip { Id = 2, TripName = "Trip 2", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(2), GroupSize = 2, Currency = "VND", Status = TripStatus.Completed, IsDeleted = false };
 
         var ctx = MockDbContextFactory.Create()
             .WithUsers(

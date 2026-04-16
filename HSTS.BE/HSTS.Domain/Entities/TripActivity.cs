@@ -33,10 +33,9 @@ namespace HSTS.Domain.Entities
         public int? LocationId { get; set; }
 
         public TripActivityStatus Status { get; set; } = TripActivityStatus.Upcoming;
+
         [Column("CustomLocationId")]
         public int? CustomLocationId { get; set; }
-
-        public TripActivityStatus Status { get; set; } = TripActivityStatus.Upcoming;
 
         public TripDay TripDay { get; set; } = null!;
         public Location? Location { get; set; }
