@@ -1,14 +1,15 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { Form, InputNumber, DatePicker, Select, Button, Card, Radio, Typography, Row, Col, Checkbox, Tag, Spin, message, ConfigProvider, Steps } from 'antd';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { Form, InputNumber, DatePicker, Select, Button, Card, Radio, Typography, Row, Col, Checkbox, Tag, Spin, message, ConfigProvider, Steps, Alert } from 'antd';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useTripFormData } from '../hooks/useTripFormData';
+import { useTripFormData, parseTripPrefillParams } from '../hooks/useTripFormData';
 import { useTripPlanner } from '../hooks/useTripPlanner';
 import { CURRENCY_OPTIONS } from '../constants/currency';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
+import { PATHS } from '@/routes/paths';
 import styles from '../styles/CreateTripPage.module.css';
 
 const { Title, Text } = Typography;
@@ -80,6 +81,7 @@ const uiTheme = {
 const CreateTripPage = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { provinces, rootTags, childTagsMap, districtsMap, loadingProvinces, loadingTags, fetchChildTags, fetchDistricts } = useTripFormData();
   const { loading, generateItinerary } = useTripPlanner();
 
@@ -89,6 +91,127 @@ const CreateTripPage = () => {
   const [destinations, setDestinations] = useState([]);
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [activeParentTagId, setActiveParentTagId] = useState(null);
+  const [prefillSummaryDismissed, setPrefillSummaryDismissed] = useState(false);
+  const prefillAppliedRef = useRef(false);
+  const prefillInjectedRef = useRef({
+    addedProvinceId: null,
+    addedProvinceInitial: null,
+    addedTagIds: [],
+    fallbackBackup: null,
+  });
+
+  const prefill = useMemo(() => parseTripPrefillParams(searchParams), [searchParams]);
+  const hasPrefillContext = prefill.provinceId != null || prefill.districtId != null || prefill.tagIds.length > 0;
+
+  const clearPrefillContext = useCallback(() => {
+    const injected = prefillInjectedRef.current;
+
+    setDestinations((prev) => {
+      let next = prev;
+
+      if (injected.addedProvinceId != null) {
+        const current = next.find((destination) => Number(destination.provinceId) === Number(injected.addedProvinceId));
+        const initial = injected.addedProvinceInitial;
+        const unchanged = Boolean(current && initial
+          && current.allDistricts === initial.allDistricts
+          && current.districtIds.length === initial.districtIds.length
+          && current.districtIds.every((id, index) => Number(id) === Number(initial.districtIds[index])));
+
+        if (unchanged) {
+          next = next.filter((destination) => Number(destination.provinceId) !== Number(injected.addedProvinceId));
+        }
+      }
+
+      if (injected.fallbackBackup) {
+        next = next.map((destination) => {
+          if (Number(destination.provinceId) !== Number(injected.fallbackBackup.provinceId)) return destination;
+          const stillFallback = destination.allDistricts === true && destination.districtIds.length === 0;
+          return stillFallback ? injected.fallbackBackup.destination : destination;
+        });
+      }
+
+      return next;
+    });
+
+    if (injected.addedTagIds.length > 0) {
+      setSelectedTagIds((prev) => prev.filter((id) => !injected.addedTagIds.includes(Number(id))));
+    }
+
+    prefillInjectedRef.current = { addedProvinceId: null, addedProvinceInitial: null, addedTagIds: [], fallbackBackup: null };
+    setPrefillSummaryDismissed(false);
+    navigate(PATHS.CREATE_TRIP, { replace: true });
+  }, [navigate]);
+
+  useEffect(() => {
+    prefillAppliedRef.current = false;
+    prefillInjectedRef.current = { addedProvinceId: null, addedProvinceInitial: null, addedTagIds: [], fallbackBackup: null };
+    setPrefillSummaryDismissed(false);
+  }, [prefill.provinceId, prefill.districtId, prefill.tagIds]);
+
+  useEffect(() => {
+    if (prefillAppliedRef.current || provinces.length === 0 || !hasPrefillContext) return;
+
+    if (prefill.provinceId != null) {
+      const province = provinces.find((item) => Number(item.id || item.Id) === prefill.provinceId);
+      if (province) {
+        fetchDistricts(prefill.provinceId);
+        setDestinations((prev) => {
+          const exists = prev.some((destination) => Number(destination.provinceId) === prefill.provinceId);
+          if (exists) return prev;
+
+          const injectedDestination = {
+            provinceId: prefill.provinceId,
+            provinceName: getEnglishPreferredName(province),
+            districtIds: prefill.districtId != null ? [prefill.districtId] : [],
+            allDistricts: prefill.districtId == null,
+          };
+
+          prefillInjectedRef.current.addedProvinceId = prefill.provinceId;
+          prefillInjectedRef.current.addedProvinceInitial = {
+            allDistricts: injectedDestination.allDistricts,
+            districtIds: [...injectedDestination.districtIds],
+          };
+
+          return [...prev, injectedDestination];
+        });
+      }
+    }
+
+    if (prefill.tagIds.length > 0) {
+      setSelectedTagIds((prev) => {
+        const added = prefill.tagIds.filter((tagId) => !prev.includes(tagId));
+        prefillInjectedRef.current.addedTagIds = added;
+        return Array.from(new Set([...prev, ...prefill.tagIds]));
+      });
+    }
+
+    prefillAppliedRef.current = true;
+  }, [hasPrefillContext, prefill, provinces, fetchDistricts]);
+
+  useEffect(() => {
+    if (prefill.provinceId == null || prefill.districtId == null) return;
+
+    const districts = districtsMap[prefill.provinceId] || [];
+    if (districts.length === 0) return;
+
+    const hasValidDistrict = districts.some((district) => Number(district.id || district.Id) === prefill.districtId);
+
+    if (!hasValidDistrict) {
+      setDestinations((prev) => prev.map((destination) => {
+        if (Number(destination.provinceId) !== prefill.provinceId) return destination;
+        if (!prefillInjectedRef.current.fallbackBackup) {
+          prefillInjectedRef.current.fallbackBackup = {
+            provinceId: prefill.provinceId,
+            destination: {
+              ...destination,
+              districtIds: [...destination.districtIds],
+            },
+          };
+        }
+        return { ...destination, districtIds: [], allDistricts: true };
+      }));
+    }
+  }, [prefill.provinceId, prefill.districtId, districtsMap]);
 
   const dateRange = Form.useWatch('dateRange', form);
   const groupSize = Form.useWatch('groupSize', form);
@@ -353,6 +476,39 @@ const CreateTripPage = () => {
     return { id: tagId, name: tagNameMap.get(numericId) || `Tag ${tagId}`, isParent: parentTagIdSet.has(numericId) };
   });
 
+  const prefilledDestination = prefill.provinceId != null
+    ? destinations.find((destination) => Number(destination.provinceId) === prefill.provinceId)
+    : null;
+
+  const prefillBadges = useMemo(() => {
+    const badges = [];
+
+    if (prefilledDestination) {
+      const provinceLabel = prefilledDestination.provinceName || `Province ${prefill.provinceId}`;
+      if (prefill.districtId != null && !prefilledDestination.allDistricts && prefilledDestination.districtIds.includes(prefill.districtId)) {
+        const district = (districtsMap[prefilledDestination.provinceId] || []).find((item) => Number(item.id || item.Id) === prefill.districtId);
+        badges.push({ key: 'destination', label: `Destination: ${provinceLabel} / ${getEnglishPreferredName(district) || `District ${prefill.districtId}`}` });
+      } else {
+        badges.push({ key: 'destination', label: `Destination: ${provinceLabel} (all districts)` });
+      }
+    }
+
+    if (prefill.tagIds.length > 0) {
+      const selectedPrefillTags = prefill.tagIds.filter((tagId) => selectedTagIds.includes(tagId));
+      if (selectedPrefillTags.length > 0) {
+        badges.push({
+          key: 'tags',
+          label: `Interests: ${selectedPrefillTags.map((tagId) => tagNameMap.get(Number(tagId)) || `Tag ${tagId}`).join(', ')}`,
+        });
+      }
+    }
+
+    return badges;
+  }, [prefilledDestination, prefill, selectedTagIds, tagNameMap, districtsMap]);
+
+  const showPrefillSummary = hasPrefillContext && !prefillSummaryDismissed && prefillBadges.length > 0;
+  const dismissPrefillSummary = useCallback(() => setPrefillSummaryDismissed(true), []);
+
   return (
     <ConfigProvider theme={uiTheme}>
       <div className={styles.createTripPage}>
@@ -364,6 +520,26 @@ const CreateTripPage = () => {
           </div>
 
           <Steps current={currentStep} onChange={handleStepClick} items={stepItems} className={styles.stepper} />
+
+          {showPrefillSummary && (
+            <Alert
+              type="info"
+              showIcon
+              message="Prefilled from discovery"
+              description={(
+                <div>
+                  <div style={{ marginBottom: 8 }}>
+                    {prefillBadges.map((item) => (
+                      <Tag key={item.key} color="processing" style={{ marginBottom: 6 }}>{item.label}</Tag>
+                    ))}
+                  </div>
+                  <Button type="link" onClick={clearPrefillContext} style={{ padding: 0 }}>Clear prefill context</Button>
+                  <Button type="link" onClick={dismissPrefillSummary} style={{ padding: 0, marginLeft: 12 }}>Hide</Button>
+                </div>
+              )}
+              style={{ marginBottom: 16 }}
+            />
+          )}
 
           <Form
             form={form}

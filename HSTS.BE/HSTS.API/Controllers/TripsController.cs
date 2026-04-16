@@ -1,14 +1,14 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using HSTS.API.Common;
 using HSTS.Application.Trips;
 using HSTS.Application.Trips.Commands;
+using HSTS.Application.Trips.Dtos;
 using HSTS.Application.Trips.Queries;
 using HSTS.Application.TripActivities.Commands;
 using HSTS.Domain.Enums;
-using HSTS.API.Common;
-using HSTS.Application.Trips.Dtos;
 using HSTS.Application.Interfaces;
+using Microsoft.AspNetCore.Mvc;
 
 namespace HSTS.API.Controllers
 {
@@ -81,12 +81,15 @@ namespace HSTS.API.Controllers
         [HttpGet("profile/{profileId}")]
         public async Task<IActionResult> GetTripsByProfile(int profileId, CancellationToken ct)
         {
-            var query = new GetTripsByProfileQuery(profileId);
-            var result = await _mediator.Send(query, ct);
+            var result = await _mediator.Send(new GetTripsByProfileQuery(profileId), ct);
 
             if (result.IsError)
             {
-                return Problem(result.FirstError.Description);
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
             }
 
             return Ok(result.Value);
@@ -108,6 +111,24 @@ namespace HSTS.API.Controllers
             }
 
             return CreatedAtAction(nameof(GetTrip), new { id = result.Value.Id }, result.Value);
+        }
+
+        [HttpPost("save")]
+        public async Task<IActionResult> SaveTrip([FromBody] SaveTripRequest request, CancellationToken ct)
+        {
+            var result = await _mediator.Send(new SaveTripCommand(request), ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(new { message = "Trip was saved successfully!!!", tripId = result.Value });
         }
 
         [HttpPut("{id}")]
@@ -136,8 +157,7 @@ namespace HSTS.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTrip(int id, CancellationToken ct)
         {
-            var command = new DeleteTripCommand(id);
-            var result = await _mediator.Send(command, ct);
+            var result = await _mediator.Send(new DeleteTripCommand(id), ct);
 
             if (result.IsError)
             {
@@ -151,10 +171,6 @@ namespace HSTS.API.Controllers
             return NoContent();
         }
 
-        /// <summary>
-        /// Update a trip activity's status (Upcoming, InProgress, Completed).
-        /// If no status is provided, it auto-determines based on activity start/end times.
-        /// </summary>
         [HttpPatch("activities/{activityId}/status")]
         public async Task<IActionResult> UpdateTripActivityStatus(
             int activityId,
@@ -202,25 +218,6 @@ namespace HSTS.API.Controllers
             }
 
             return Ok(result.Value);
-        }
-
-        [HttpPost("save")]
-        public async Task<IActionResult> SaveTrip([FromBody] SaveTripRequest request, CancellationToken ct)
-        {
-            var command = new SaveTripCommand(request);
-            var result = await _mediator.Send(command, ct);
-
-            if (result.IsError)
-            {
-                return result.FirstError.Type switch
-                {
-                    ErrorType.NotFound => NotFound(result.FirstError.Description),
-                    ErrorType.Validation => BadRequest(result.FirstError.Description),
-                    _ => Problem(result.FirstError.Description)
-                };
-            }
-
-            return Ok(new { message = "Trip was saved successfully!!!", tripId = result.Value });
         }
 
         [HttpPut("{id}/save")]

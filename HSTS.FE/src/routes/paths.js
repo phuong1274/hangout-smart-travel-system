@@ -13,6 +13,8 @@ export const PATHS = {
   TAGS: '/tags',
   LOCATION_TYPES: '/location-types',
   LOCATIONS: '/locations',
+  PUBLIC_LOCATIONS: '/explore/locations',
+  PUBLIC_LOCATION_DETAIL: (id = ':id') => `/explore/locations/${id}`,
   AMENITIES: '/amenities',
   ITINERARY: '/itinerary',
   MY_LOCATIONS: '/my-locations',
@@ -31,4 +33,34 @@ export const PATHS = {
   TRANSPORTATION: '/transportation',
   UNAUTHORIZED: '/403',
   NOT_FOUND: '*',
+};
+
+export const buildCreateTripPath = ({ provinceId, districtId, locationId, tagIds } = {}) => {
+  // Supported prefill params: provinceId, districtId, locationId, tagIds (comma-separated ids).
+  const query = new URLSearchParams();
+
+  if (provinceId !== undefined && provinceId !== null && provinceId !== '') {
+    query.set('provinceId', String(provinceId));
+  }
+
+  if (districtId !== undefined && districtId !== null && districtId !== '') {
+    query.set('districtId', String(districtId));
+  }
+
+  if (locationId !== undefined && locationId !== null && locationId !== '') {
+    query.set('locationId', String(locationId));
+  }
+
+  const normalizedTagIds = Array.isArray(tagIds)
+    ? tagIds
+        .map((tagId) => Number(tagId))
+        .filter((tagId) => Number.isFinite(tagId))
+    : [];
+
+  if (normalizedTagIds.length > 0) {
+    query.set('tagIds', normalizedTagIds.join(','));
+  }
+
+  const queryString = query.toString();
+  return queryString ? `${PATHS.CREATE_TRIP}?${queryString}` : PATHS.CREATE_TRIP;
 };

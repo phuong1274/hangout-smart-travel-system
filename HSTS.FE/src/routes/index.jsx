@@ -17,6 +17,7 @@ const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
 const UserDetailPage = lazy(() => import('@/features/users/pages/UserDetailPage'));
 const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const HomePage = lazy(() => import('@/features/home/pages/Home'));
+const DashboardPage = lazy(() => import('@/features/dashboard/pages/DashboardPage'));
 
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
@@ -24,6 +25,8 @@ const DestinationsPage = lazy(() => import('@/features/destinations/pages/Destin
 const TagsPage = lazy(() => import('@/features/tags/pages/TagsPage'));
 const LocationTypesPage = lazy(() => import('@/features/locationTypes/pages/LocationTypesPage'));
 const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPage'));
+const PublicLocationsPage = lazy(() => import('@/features/locations/pages/PublicLocationsPage'));
+const PublicLocationDetailPage = lazy(() => import('@/features/locations/pages/PublicLocationDetailPage'));
 const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPage'));
 const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
@@ -76,6 +79,14 @@ export const router = createBrowserRouter([
     ]
   },
   {
+    path: PATHS.PUBLIC_LOCATIONS.replace('/', ''),
+    element: <SuspenseWrapper><PublicLocationsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.PUBLIC_LOCATION_DETAIL().replace('/', ''),
+    element: <SuspenseWrapper><PublicLocationDetailPage /></SuspenseWrapper>
+  },
+  {
     path: PATHS.DESTINATIONS.replace('/', ''),
     element: <SuspenseWrapper><DestinationsPage /></SuspenseWrapper>
   },
@@ -112,6 +123,10 @@ export const router = createBrowserRouter([
     element: <SuspenseWrapper><AcceptInvitationPage /></SuspenseWrapper>
   },
   {
+    path: 'trips/:id',
+    element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
+  },
+  {
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
       {
@@ -119,7 +134,9 @@ export const router = createBrowserRouter([
         children: [
           {
             path: PATHS.DASHBOARD,
-            element: <DashboardOverview />
+            children: [
+              { index: true, element: <DashboardPage /> }
+            ]
           },
           {
             path: PATHS.SCHEDULES,
@@ -209,7 +226,7 @@ export const router = createBrowserRouter([
           },
           {
             path: PATHS.REPORTED_REVIEWS,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
             children: [
               { index: true, element: <ReportedReviewsPage /> },
             ]

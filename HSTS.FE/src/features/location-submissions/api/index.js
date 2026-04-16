@@ -47,5 +47,3 @@ export const getAllTagsApi = (params) => {
   return apiClient.get('/api/Tags', { params }).then(res => res.data);
 };
 
-// Import from locations API for testing suggest edit
-export { getLocationByIdApi } from '@/features/locations/api';

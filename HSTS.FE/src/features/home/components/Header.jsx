@@ -10,11 +10,40 @@ import styles from '../styles/Header.module.css';
 
 const { Text } = Typography;
 
-const AppHeader = () => {
+const AppHeader = ({ destinations = [] }) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { logout } = useLogout();
+
+  const destinationOptions = destinations.map((destination) => ({
+    value: String(destination.id || destination.destinationId || ''),
+    label: destination.name || destination.title || 'Destination',
+  })).filter((option) => option.value);
+
+  const handleDestinationChange = (destinationId) => {
+    navigate(`${PATHS.PUBLIC_LOCATIONS}?destinationId=${destinationId}`);
+  };
+
+  const destinationMenu = destinationOptions.length ? (
+    <Select
+      placeholder="Destination"
+      variant="borderless"
+      options={destinationOptions}
+      className={styles.locationPicker}
+      onChange={handleDestinationChange}
+    />
+  ) : (
+    <Text className={styles.navLink}>Location</Text>
+  );
+
+  const locationLink = destinationOptions.length ? (
+    destinationMenu
+  ) : (
+    <Link to={PATHS.PUBLIC_LOCATIONS}>
+      <Text className={styles.navLink}>Location</Text>
+    </Link>
+  );
 
   const showDrawer = () => setOpen(true);
   const onClose = () => setOpen(false);
@@ -40,19 +69,13 @@ const AppHeader = () => {
 
   const menuItems = (
     <>
-      <Select 
-        defaultValue="Hanoi" 
-        variant="borderless" 
-        options={[{ value: 'Hanoi', label: 'Hanoi' }]} 
-        className={styles.locationPicker}
-      />
+      {locationLink}
       <Link to="/">
         <Text className={styles.navLink}>Home</Text>
       </Link>
       <Link to={PATHS.CREATE_TRIP}>
         <Text className={styles.navLink}>Plan a Trip</Text>
       </Link>
-      <Text className={styles.navLink}>Location</Text>
       
       {user ? (
         <Dropdown menu={{ items: userDropdownItems }} placement="bottomRight" trigger={['click']}>
