@@ -47,7 +47,8 @@ const Sidebar = () => {
       key: PATHS.CREATE_TRIP,
       icon: <RocketOutlined />,
       label: 'Plan Trip',
-      onClick: () => navigate(PATHS.CREATE_TRIP)
+      onClick: () => navigate(PATHS.CREATE_TRIP),
+      hidden: !hasRole([ROLES.TRAVELER]),
     },
     {
       key: PATHS.TRIPS_LIST,
@@ -60,31 +61,35 @@ const Sidebar = () => {
       icon: <CompassOutlined />,
       label: 'Destinations',
       onClick: () => navigate(PATHS.DESTINATIONS),
-      hidden: !hasRole([ROLES.ADMIN]),
+      hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
     },
     {
       key: PATHS.LOCATIONS,
       icon: <EnvironmentOutlined />,
       label: 'Locations',
-      onClick: () => navigate(PATHS.LOCATIONS)
+      onClick: () => navigate(PATHS.LOCATIONS),
+      hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
     },
     {
       key: PATHS.TAGS,
       icon: <TagsOutlined />,
       label: 'Tags',
-      onClick: () => navigate(PATHS.TAGS)
+      onClick: () => navigate(PATHS.TAGS),
+      hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
     },
     {
       key: PATHS.LOCATION_TYPES,
       icon: <AppstoreOutlined />,
       label: 'Location Types',
-      onClick: () => navigate(PATHS.LOCATION_TYPES)
+      onClick: () => navigate(PATHS.LOCATION_TYPES),
+      hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
     },
     {
       key: PATHS.AMENITIES,
       icon: <GoldOutlined />,
       label: 'Amenities',
-      onClick: () => navigate(PATHS.AMENITIES)
+      onClick: () => navigate(PATHS.AMENITIES),
+      hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
     },
     {
       key: PATHS.PARTNER_LOCATIONS,
@@ -112,7 +117,7 @@ const Sidebar = () => {
       icon: <SafetyCertificateOutlined />,
       label: 'Reported Reviews',
       onClick: () => navigate(PATHS.REPORTED_REVIEWS),
-      hidden: !hasRole([ROLES.ADMIN]),
+      hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
     },
     {
       key: PATHS.LOCATION_SUBMISSIONS_REVIEW,

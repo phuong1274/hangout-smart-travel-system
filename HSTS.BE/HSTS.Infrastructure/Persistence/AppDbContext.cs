@@ -50,13 +50,12 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<CustomLocation> CustomLocations => Set<CustomLocation>();
         public DbSet<CustomTransitHub> CustomTransitHubs => Set<CustomTransitHub>();
         public DbSet<TripInvitation> TripInvitations => Set<TripInvitation>();
+        public DbSet<TripMember> TripMembers => Set<TripMember>();
+        public DbSet<Expense> Expenses => Set<Expense>();
+        public DbSet<CustomLocation> CustomLocations => Set<CustomLocation>();
+        public DbSet<CustomTransitHub> CustomTransitHubs => Set<CustomTransitHub>();
 
         #region Logging
-        /// <summary>
-        /// Logging config
-        /// !!!WARNING, DO NOT DELETE THIS SECTION!!!
-        /// If you delete this section, the logging feature will be broken.
-        /// </summary>
         public DbSet<LogError> LogErrors => Set<LogError>();
         public DbSet<LogActivity> LogActivities => Set<LogActivity>();
         public DbSet<LogHistory> LogHistories => Set<LogHistory>();

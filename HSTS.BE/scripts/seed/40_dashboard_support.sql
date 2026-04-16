@@ -1,0 +1,2 @@
+-- Optional dashboard support data for deterministic demo/testing
+-- Add supporting INSERT statements if required by dashboard cards/charts.
