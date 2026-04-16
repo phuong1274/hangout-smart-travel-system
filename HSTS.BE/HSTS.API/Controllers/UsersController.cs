@@ -42,48 +42,33 @@ namespace HSTS.API.Controllers
         }
 
         [HttpGet("me/profiles")]
-        public async Task<IActionResult> GetMyProfiles()
+        public IActionResult GetMyProfiles()
         {
-            var result = await Mediator.Send(new GetMyProfilesQuery());
-
-            return result.Match<IActionResult>(Ok, MapErrors);
+            return TravelProfilesDisabled();
         }
 
         [HttpGet("me/profiles/{profileId:int}")]
-        public async Task<IActionResult> GetMyProfile(int profileId)
+        public IActionResult GetMyProfile(int profileId)
         {
-            var result = await Mediator.Send(new GetMyProfileQuery(profileId));
-
-            return result.Match<IActionResult>(Ok, MapErrors);
+            return TravelProfilesDisabled();
         }
 
         [HttpPost("me/profiles")]
-        public async Task<IActionResult> CreateProfile(CreateProfileCommand command)
+        public IActionResult CreateProfile()
         {
-            var result = await Mediator.Send(command);
-
-            return result.Match<IActionResult>(
-                value => CreatedAtAction(nameof(GetMyProfile), new { profileId = value.Id }, value),
-                MapErrors);
+            return TravelProfilesDisabled();
         }
 
         [HttpPut("me/profiles/{profileId:int}")]
-        public async Task<IActionResult> UpdateProfile(int profileId, [FromBody] UpdateProfileCommand command)
+        public IActionResult UpdateProfile(int profileId)
         {
-            if (profileId != command.ProfileId)
-                return BadRequest(new { message = "Profile ID in route does not match request body." });
-
-            var result = await Mediator.Send(command);
-
-            return result.Match<IActionResult>(Ok, MapErrors);
+            return TravelProfilesDisabled();
         }
 
         [HttpDelete("me/profiles/{profileId:int}")]
-        public async Task<IActionResult> DeleteProfile(int profileId)
+        public IActionResult DeleteProfile(int profileId)
         {
-            var result = await Mediator.Send(new DeleteProfileCommand(profileId));
-
-            return result.Match<IActionResult>(_ => NoContent(), MapErrors);
+            return TravelProfilesDisabled();
         }
 
         [HttpGet]
@@ -147,5 +132,14 @@ namespace HSTS.API.Controllers
 
         public record CreateUserBody(string Email, string FullName, int RoleId);
         public record ChangeUserRoleBody(int UserId, int RoleId);
+
+        private IActionResult TravelProfilesDisabled()
+        {
+            return StatusCode(410, new
+            {
+                code = "TravelProfiles.Disabled",
+                message = "Travel Profiles feature has been disabled."
+            });
+        }
     }
 }
