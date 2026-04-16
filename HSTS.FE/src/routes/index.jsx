@@ -1,10 +1,11 @@
 import React, { lazy } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
 import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
+import { useAuthStore } from '@/store/authStore';
 
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
@@ -56,6 +57,20 @@ const ScheduleManagement = () => (
   </div>
 );
 
+const HybridTripLayout = () => {
+  const user = useAuthStore((state) => state.user);
+
+  if (user) {
+    return (
+      <MainLayout>
+        <Outlet />
+      </MainLayout>
+    );
+  }
+
+  return <Outlet />;
+};
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -103,28 +118,33 @@ export const router = createBrowserRouter([
     element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
   },
   {
-    path: PATHS.CREATE_TRIP.replace('/', ''),
-    element: <SuspenseWrapper><CreateTripPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.ITINERARY.replace('/', ''),
-    element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.CREATE_TRIP_MANUAL_SETUP.replace('/', ''),
-    element: <SuspenseWrapper><ManualTripSetupPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.CREATE_TRIP_MANUAL_BUILDER.replace('/', ''),
-    element: <SuspenseWrapper><ManualTripPage /></SuspenseWrapper>
-  },
-  {
     path: 'invitations/accept',
     element: <SuspenseWrapper><AcceptInvitationPage /></SuspenseWrapper>
   },
   {
     path: 'trips/:id',
     element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
+  },
+  {
+    element: <SuspenseWrapper><HybridTripLayout /></SuspenseWrapper>,
+    children: [
+      {
+        path: PATHS.CREATE_TRIP.replace('/', ''),
+        element: <CreateTripPage />
+      },
+      {
+        path: PATHS.ITINERARY.replace('/', ''),
+        element: <ItineraryResultPage />
+      },
+      {
+        path: PATHS.CREATE_TRIP_MANUAL_SETUP.replace('/', ''),
+        element: <ManualTripSetupPage />
+      },
+      {
+        path: PATHS.CREATE_TRIP_MANUAL_BUILDER.replace('/', ''),
+        element: <ManualTripPage />
+      }
+    ]
   },
   {
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
@@ -143,24 +163,8 @@ export const router = createBrowserRouter([
             element: <ScheduleManagement />
           },
           {
-            path: PATHS.CREATE_TRIP,
-            element: <CreateTripPage />
-          },
-          {
             path: PATHS.TRIPS_LIST,
             element: <TripsPage />
-          },
-          {
-            path: PATHS.CREATE_TRIP_MANUAL_SETUP,
-            element: <ManualTripSetupPage />
-          },
-          {
-            path: PATHS.CREATE_TRIP_MANUAL_BUILDER,
-            element: <ManualTripPage />
-          },
-          {
-            path: PATHS.ITINERARY,
-            element: <ItineraryResultPage />
           },
           {
             path: PATHS.TRIP_DETAIL,

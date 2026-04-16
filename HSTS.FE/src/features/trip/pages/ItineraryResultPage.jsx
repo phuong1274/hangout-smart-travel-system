@@ -45,7 +45,7 @@ import {
 } from '@phosphor-icons/react';
 import { useAuthStore } from '@/store/authStore';
 import { PATHS } from '@/routes/paths';
-import styles from './ItineraryResultPage.module.css';
+import styles from '../styles/ItineraryResultPage.module.css';
 
 const { Title, Text } = Typography;
 
