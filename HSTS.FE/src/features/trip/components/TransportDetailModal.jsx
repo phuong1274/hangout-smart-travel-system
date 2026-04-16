@@ -170,70 +170,114 @@ const TransportDetailModal = ({ open, data, onClose }) => {
   const costForGroup = payload.costForGroup || payload.CostForGroup;
   const ticketCost = payload.ticketCost || payload.TicketCost;
   const note = payload.note || payload.Note;
-  const travelDetail = payload.travelDetail || payload.TravelDetail || null;
+  
+  // Support both new TripTransportDto and old travelDetail format
+  const isNewFormat = 'transportModeName' in payload || 'distanceKm' in payload;
+  const travelDetail = isNewFormat ? null : (payload.travelDetail || payload.TravelDetail || null);
+  
   const transportOptions = useMemo(() => getTransportOptions(travelDetail), [travelDetail]);
   const recommendedOption = useMemo(
     () => getRecommendedTransportOption(transportOptions),
     [transportOptions],
   );
-  // Extract travel leg details
-  const fromLocationId = pickFirst(travelDetail?.fromLocationId, travelDetail?.FromLocationId);
-  const toLocationId = pickFirst(travelDetail?.toLocationId, travelDetail?.ToLocationId);
-  const fromTransitHubId = pickFirst(travelDetail?.fromTransitHubId, travelDetail?.FromTransitHubId);
-  const toTransitHubId = pickFirst(travelDetail?.toTransitHubId, travelDetail?.ToTransitHubId);
-  const fromProvinceId = pickFirst(travelDetail?.fromProvinceId, travelDetail?.FromProvinceId);
-  const toProvinceId = pickFirst(travelDetail?.toProvinceId, travelDetail?.ToProvinceId);
 
-  const fromName = pickFirst(
-    travelDetail?.fromProvinceName,
-    travelDetail?.FromProvinceName,
-    travelDetail?.fromEnglishName,
-    travelDetail?.FromEnglishName,
-    travelDetail?.fromName,
-    travelDetail?.FromName,
-    travelDetail?.from,
-    travelDetail?.From,
-    fromLocationId ? `Location #${fromLocationId}` : '',
-    fromTransitHubId ? `Transit hub #${fromTransitHubId}` : '',
-    fromProvinceId ? `Province #${fromProvinceId}` : '',
-  );
-  const toName = pickFirst(
-    travelDetail?.toProvinceName,
-    travelDetail?.ToProvinceName,
-    travelDetail?.toEnglishName,
-    travelDetail?.ToEnglishName,
-    travelDetail?.toName,
-    travelDetail?.ToName,
-    travelDetail?.to,
-    travelDetail?.To,
-    toLocationId ? `Location #${toLocationId}` : '',
-    toTransitHubId ? `Transit hub #${toTransitHubId}` : '',
-    toProvinceId ? `Province #${toProvinceId}` : '',
-  );
+  // Extract travel leg details
+  const fromLocationId = isNewFormat 
+    ? payload.fromLocationId 
+    : pickFirst(travelDetail?.fromLocationId, travelDetail?.FromLocationId);
+  const toLocationId = isNewFormat 
+    ? payload.toLocationId 
+    : pickFirst(travelDetail?.toLocationId, travelDetail?.ToLocationId);
+  const fromTransitHubId = isNewFormat 
+    ? payload.fromTransitHubId 
+    : pickFirst(travelDetail?.fromTransitHubId, travelDetail?.FromTransitHubId);
+  const toTransitHubId = isNewFormat 
+    ? payload.toTransitHubId 
+    : pickFirst(travelDetail?.toTransitHubId, travelDetail?.ToTransitHubId);
+  const fromProvinceId = isNewFormat 
+    ? null 
+    : pickFirst(travelDetail?.fromProvinceId, travelDetail?.FromProvinceId);
+  const toProvinceId = isNewFormat 
+    ? null 
+    : pickFirst(travelDetail?.toProvinceId, travelDetail?.ToProvinceId);
+
+  const fromName = isNewFormat
+    ? pickFirst(
+        payload.customFromTransitHubName,
+        payload.fromTransitHubName,
+        payload.fromLocationName,
+        payload.yourLocationName,
+        fromLocationId ? `Location #${fromLocationId}` : '',
+        fromTransitHubId ? `Transit hub #${fromTransitHubId}` : '',
+      )
+    : pickFirst(
+        travelDetail?.fromProvinceName,
+        travelDetail?.FromProvinceName,
+        travelDetail?.fromEnglishName,
+        travelDetail?.FromEnglishName,
+        travelDetail?.fromName,
+        travelDetail?.FromName,
+        travelDetail?.from,
+        travelDetail?.From,
+        fromLocationId ? `Location #${fromLocationId}` : '',
+        fromTransitHubId ? `Transit hub #${fromTransitHubId}` : '',
+        fromProvinceId ? `Province #${fromProvinceId}` : '',
+      );
+
+  const toName = isNewFormat
+    ? pickFirst(
+        payload.customToTransitHubName,
+        payload.toTransitHubName,
+        payload.toLocationName,
+        toLocationId ? `Location #${toLocationId}` : '',
+        toTransitHubId ? `Transit hub #${toTransitHubId}` : '',
+      )
+    : pickFirst(
+        travelDetail?.toProvinceName,
+        travelDetail?.ToProvinceName,
+        travelDetail?.toEnglishName,
+        travelDetail?.ToEnglishName,
+        travelDetail?.toName,
+        travelDetail?.ToName,
+        travelDetail?.to,
+        travelDetail?.To,
+        toLocationId ? `Location #${toLocationId}` : '',
+        toTransitHubId ? `Transit hub #${toTransitHubId}` : '',
+        toProvinceId ? `Province #${toProvinceId}` : '',
+      );
+
   const distanceKm = toFiniteNumber(
-    travelDetail?.distanceKm || travelDetail?.DistanceKm || travelDetail?.distance || travelDetail?.Distance,
+    isNewFormat 
+      ? payload.distanceKm 
+      : (travelDetail?.distanceKm || travelDetail?.DistanceKm || travelDetail?.distance || travelDetail?.Distance)
   );
+
   const durationMinutes = toFiniteNumber(
-    travelDetail?.selectedTravelTimeMinutes
-    || travelDetail?.SelectedTravelTimeMinutes
-    || travelDetail?.durationMinutes
-    || travelDetail?.DurationMinutes
-    || travelDetail?.duration
-    || travelDetail?.Duration
-    || recommendedOption?.estimatedTravelMinutes
-    || recommendedOption?.EstimatedTravelMinutes,
+    isNewFormat
+      ? payload.travelTimeMinutes
+      : (travelDetail?.selectedTravelTimeMinutes
+          || travelDetail?.SelectedTravelTimeMinutes
+          || travelDetail?.durationMinutes
+          || travelDetail?.DurationMinutes
+          || travelDetail?.duration
+          || travelDetail?.Duration
+          || recommendedOption?.estimatedTravelMinutes
+          || recommendedOption?.EstimatedTravelMinutes)
   );
-  const mode = pickFirst(
-    travelDetail?.selectedMethod,
-    travelDetail?.SelectedMethod,
-    recommendedOption?.method,
-    recommendedOption?.Method,
-    travelDetail?.mode,
-    travelDetail?.Mode,
-    travelDetail?.transportMode,
-    travelDetail?.TransportMode,
-    '',
-  );
+
+  const mode = isNewFormat
+    ? payload.transportModeName
+    : pickFirst(
+        travelDetail?.selectedMethod,
+        travelDetail?.SelectedMethod,
+        recommendedOption?.method,
+        recommendedOption?.Method,
+        travelDetail?.mode,
+        travelDetail?.Mode,
+        travelDetail?.transportMode,
+        travelDetail?.TransportMode,
+        '',
+      );
   const groupCost = pickBestMoney(
     costForGroup,
     travelDetail?.selectedTotalCost,
@@ -349,7 +393,7 @@ const TransportDetailModal = ({ open, data, onClose }) => {
       onClose={onClose}
       placement="right"
       mask={false}
-      width={700}
+      width={490}
       destroyOnClose
     >
       {/* Route */}

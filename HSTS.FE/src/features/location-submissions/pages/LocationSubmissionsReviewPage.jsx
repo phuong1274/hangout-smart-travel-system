@@ -178,7 +178,7 @@ const LocationSubmissionsReviewPage = () => {
           [SubmissionStatus.Published]: { color: '#1A535C', text: 'Published', textColor: '#FFFFFF' }
         };
         const config = statusConfig[status] || { color: 'default', text: 'Unknown', textColor: '#1A535C' };
-        return <Tag color={config.color} style={{ color: config.textColor, fontWeight: 700 }} className={styles.bouncyTag}>{config.text}</Tag>;
+        return <Tag color={config.color} style={{ backgroundColor: config.color, color: config.textColor, fontWeight: 700 }} className={styles.bouncyTag}>{config.text}</Tag>;
       }
     },
     {
@@ -420,7 +420,7 @@ const SubmissionDetail = ({ submission }) => {
     <div className={styles.fadeUpAnim}>
       <div className={styles.detailSection}>
         <strong className={styles.labelDark}>Status: </strong>
-        <Tag color={statusColors[submission.status]} style={{ color: submission.status === SubmissionStatus.Pending ? '#1A535C' : '#FFFFFF', fontWeight: 700 }} className={styles.bouncyTag}>
+        <Tag color={statusColors[submission.status]} style={{ backgroundColor: statusColors[submission.status], color: submission.status === SubmissionStatus.Pending ? '#1A535C' : '#FFFFFF', fontWeight: 700 }} className={styles.bouncyTag}>
           {statusLabels[submission.status]}
         </Tag>
       </div>

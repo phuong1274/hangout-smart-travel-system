@@ -39,14 +39,14 @@ const DetailModal = ({ open, onClose, data, type, children }) => {
             
             <Descriptions.Item label="Ticket Price">
               <div className={styles.iconText}>
-                {data.ticketPrice ? `$${data.ticketPrice.toFixed(2)}` : 'Free'}
+                {data.ticketPrice ? `${data.ticketPrice.toFixed(2)}` : 'Free'}
               </div>
             </Descriptions.Item>
             
             <Descriptions.Item label="Price Range" span={2}>
               {(data.priceMinUsd || data.priceMaxUsd) ? (
                 <Space className={styles.iconText}>
-                  ${data.priceMinUsd?.toFixed(2) || '0'} - ${data.priceMaxUsd?.toFixed(2) || '0'}
+                  {data.priceMinUsd?.toFixed(2) || '0'} - {data.priceMaxUsd?.toFixed(2) || '0'}
                 </Space>
               ) : 'N/A'}
             </Descriptions.Item>
@@ -216,9 +216,6 @@ const DetailModal = ({ open, onClose, data, type, children }) => {
             <Descriptions.Item label="ID">{data.id}</Descriptions.Item>
             <Descriptions.Item label="Name">{data.name}</Descriptions.Item>
             <Descriptions.Item label="English Name">{data.englishName || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Code">
-              <Tag className={styles.customTag} color="blue">{data.code || 'N/A'}</Tag>
-            </Descriptions.Item>
 
             <Descriptions.Item label="Coordinates">
               <Space direction="vertical" size="small">
@@ -271,6 +268,66 @@ const DetailModal = ({ open, onClose, data, type, children }) => {
           </Descriptions>
         );
 
+      case 'transportMode':
+        return (
+          <Descriptions column={1} size="small" bordered className={styles.tropicalDescriptions}>
+            <Descriptions.Item label="ID">{data.id}</Descriptions.Item>
+            <Descriptions.Item label="Name">{data.name}</Descriptions.Item>
+            <Descriptions.Item label="Category">
+              <Tag color={data.category === 1 ? 'blue' : 'green'}>
+                {data.category === 1 ? 'Dynamic Local' : data.category === 2 ? 'Fixed Intercity' : data.category}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Capacity">{data.capacity}</Descriptions.Item>
+            <Descriptions.Item label="Created At">
+              <div className={styles.iconText}>{data.createdAt ? new Date(data.createdAt).toLocaleString() : 'N/A'}</div>
+            </Descriptions.Item>
+            <Descriptions.Item label="Updated At">
+              <div className={styles.iconText}>{data.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}</div>
+            </Descriptions.Item>
+          </Descriptions>
+        );
+
+      case 'transitHub':
+        return (
+          <Descriptions column={1} size="small" bordered className={styles.tropicalDescriptions}>
+            <Descriptions.Item label="ID">{data.id}</Descriptions.Item>
+            <Descriptions.Item label="Code"><Tag>{data.code}</Tag></Descriptions.Item>
+            <Descriptions.Item label="Name">{data.name}</Descriptions.Item>
+            <Descriptions.Item label="District">{data.districtName || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Transport Mode">{data.transportModeName || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Hub Type">{data.transitHubTypeName || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Coordinates">
+              <Space direction="vertical" size="small">
+                <div>Latitude: {data.latitude?.toFixed(6) || 'N/A'}</div>
+                <div>Longitude: {data.longitude?.toFixed(6) || 'N/A'}</div>
+              </Space>
+            </Descriptions.Item>
+            <Descriptions.Item label="Created At">
+              <div className={styles.iconText}>{data.createdAt ? new Date(data.createdAt).toLocaleString() : 'N/A'}</div>
+            </Descriptions.Item>
+            <Descriptions.Item label="Updated At">
+              <div className={styles.iconText}>{data.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}</div>
+            </Descriptions.Item>
+          </Descriptions>
+        );
+
+      case 'localTransportMetrics':
+        return (
+          <Descriptions column={1} size="small" bordered className={styles.tropicalDescriptions}>
+            <Descriptions.Item label="Transport Mode">{data.transportModeName || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Cost per Km">{data.costPerKm?.toLocaleString() ?? 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Speed (km/h)">{data.speedKmh?.toLocaleString() ?? 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Max Recommended Distance">{data.maxRecommendedDistance?.toLocaleString() ?? 'Unlimited'}</Descriptions.Item>
+            <Descriptions.Item label="Created At">
+              <div className={styles.iconText}>{data.createdAt ? new Date(data.createdAt).toLocaleString() : 'N/A'}</div>
+            </Descriptions.Item>
+            <Descriptions.Item label="Updated At">
+              <div className={styles.iconText}>{data.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'N/A'}</div>
+            </Descriptions.Item>
+          </Descriptions>
+        );
+
       default:
         return <div className={styles.unknownText}>Unknown entity type</div>;
     }
@@ -283,6 +340,9 @@ const DetailModal = ({ open, onClose, data, type, children }) => {
       case 'district': return ` ${data.name}`;
       case 'locationType': return ` ${data.name}`;
       case 'amenity': return ` ${data.name}`;
+      case 'transportMode': return ` ${data.name}`;
+      case 'transitHub': return ` ${data.name}`;
+      case 'localTransportMetrics': return ` ${data.transportModeName || 'Metrics'}`;
       default: return 'Details';
     }
   };

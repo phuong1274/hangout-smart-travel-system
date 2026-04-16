@@ -10,8 +10,8 @@ import SubmissionTable from '@/features/location-submissions/components/Submissi
 import LocationDetailView from '@/components/LocationDetailView';
 import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import { useNavigate } from 'react-router-dom';
-import { deleteLocationSubmissionApi, getSubmissionByIdApi, getLocationByIdApi } from '@/features/location-submissions/api';
-import { deleteLocationApi } from '../api';
+import { deleteLocationSubmissionApi, getSubmissionByIdApi } from '@/features/location-submissions/api';
+import { deleteLocationApi, getLocationByIdApi } from '../api';
 import { getClosuresByLocationApi, endClosureApi } from '../api/closures';
 import { PAGINATION } from '@/config/constants';
 import { fetchReferenceData, getCachedReferenceData } from '@/utils/locationCache';
@@ -29,7 +29,7 @@ const { Title } = Typography;
 const PartnerLocationsPage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('locations');
-  
+
   const {
     data: locationsData,
     loading: locationsLoading,
@@ -280,10 +280,10 @@ const PartnerLocationsPage = () => {
         width: 100,
         render: (_, record) => (
           <div style={{ fontSize: 12, color: '#1A535C' }}>
-            {record.ticketPrice > 0 && <div style={{ fontWeight: 600 }}>${record.ticketPrice.toFixed(2)}</div>}
+            {record.ticketPrice > 0 && <div style={{ fontWeight: 600 }}>{record.ticketPrice.toFixed(2)}</div>}
             {(record.priceMinUsd || record.priceMaxUsd) && (
               <div style={{ fontSize: 11 }}>
-                ${record.priceMinUsd?.toFixed(2) || '0'} - ${record.priceMaxUsd?.toFixed(2) || '0'}
+                {record.priceMinUsd?.toFixed(2) || '0'} - {record.priceMaxUsd?.toFixed(2) || '0'}
               </div>
             )}
           </div>
@@ -386,9 +386,9 @@ const PartnerLocationsPage = () => {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div className={styles.headerContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Title level={4} className={styles.sectionTitle}>Your Managed Locations</Title>
-            <Button 
+            <Button
               className={styles.ctaButton}
-              icon={<PlusOutlined />} 
+              icon={<PlusOutlined />}
               onClick={handleCreateSubmission}
             >
               Submit New Location
@@ -422,9 +422,9 @@ const PartnerLocationsPage = () => {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div className={styles.headerContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Title level={4} className={styles.sectionTitle}>Your Location Submissions</Title>
-            <Button 
+            <Button
               className={styles.ctaButton}
-              icon={<PlusOutlined />} 
+              icon={<PlusOutlined />}
               onClick={handleCreateSubmission}
             >
               Submit New Location
@@ -453,14 +453,14 @@ const PartnerLocationsPage = () => {
   }
 
   return (
-    <ConfigProvider 
-      theme={{ 
-        token: { 
-          colorPrimary: '#FF6B6B', 
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: '#FF6B6B',
           borderRadius: 16,
           colorText: '#1A535C',
           fontFamily: "'Plus Jakarta Sans', sans-serif"
-        } 
+        }
       }}
     >
       <div className={styles.tropicalContainer}>
@@ -549,6 +549,70 @@ const PartnerLocationsPage = () => {
           locationName={selectedLocationForClosure?.name}
           onClosureChange={fetchLocations}
         />
+
+      {/* Suggest Edit Modal - Using SubmissionForm with existingLocation prop */}
+      <SubmissionForm
+        open={suggestEditOpen}
+        submission={null}
+        existingLocation={selectedLocation}
+        onClose={() => {
+          setSuggestEditOpen(false);
+          setSelectedLocation(null);
+        }}
+        onSuccess={handleSuggestEditSuccess}
+      />
+
+      <SubmissionForm
+        open={formOpen}
+        submission={editingSubmission}
+        onClose={handleFormClose}
+        onSuccess={handleFormSuccess}
+      />
+
+      <Modal
+        title={`📝 ${viewingSubmission?.name || 'Submission Details'}`}
+        open={detailModalOpen}
+        onCancel={() => {
+          setDetailModalOpen(false);
+          setViewingSubmission(null);
+        }}
+        footer={null}
+        width={900}
+      >
+        {viewingSubmission && (
+          <LocationDetailView
+            data={viewingSubmission}
+            options={{
+              showSubmissionInfo: true,
+              showId: true,
+              showTimestamps: true,
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* Location Detail Modal */}
+      <Modal
+        title={`📍 ${viewingLocation?.name || 'Location Details'}`}
+        open={locationDetailModalOpen}
+        onCancel={() => {
+          setLocationDetailModalOpen(false);
+          setViewingLocation(null);
+        }}
+        footer={null}
+        width={900}
+      >
+        {viewingLocation && (
+          <LocationDetailView
+            data={viewingLocation}
+            options={{
+              showSubmissionInfo: false,
+              showId: true,
+              showTimestamps: true,
+            }}
+          />
+        )}
+      </Modal>
       </div>
     </ConfigProvider>
   );

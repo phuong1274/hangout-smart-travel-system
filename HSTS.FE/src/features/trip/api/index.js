@@ -13,12 +13,30 @@ export const saveTripApi = (data) => {
   return apiClient.post('/api/Trips/save', data).then(res => res.data);
 };
 
-// Estimate local travel leg between two locations
-export const estimateLocalTravelApi = ({ fromLocationId, toLocationId, groupSize, departureTime, currencyCode }) => {
+// Estimate local travel leg between flexible endpoints (location, transit hub, or coordinates)
+export const estimateLocalTravelApi = ({
+  fromLocationId,
+  fromTransitHubId,
+  fromLat,
+  fromLng,
+  toLocationId,
+  toTransitHubId,
+  toLat,
+  toLng,
+  groupSize,
+  departureTime,
+  currencyCode,
+}) => {
   return apiClient.get('/api/Itineraries/local-travel-estimate', {
     params: {
       fromLocationId,
+      fromTransitHubId,
+      fromLat,
+      fromLng,
       toLocationId,
+      toTransitHubId,
+      toLat,
+      toLng,
       groupSize,
       departureTime,
       currencyCode,
@@ -45,16 +63,21 @@ export const getLocationsByDistrictIdsApi = ({ districtIds, pageIndex = 1, pageS
 };
 
 // Lookup all locations of a province via new endpoint: GET /api/locations?provinceId=...
-export const getLocationsByProvinceApi = async ({ provinceId, searchTerm, pageSize = 200, pageIndex = 1 }) => {
+export const getLocationsByProvinceApi = async ({ provinceId, searchTerm, pageSize = 200, pageIndex = 1, locationTypeId }) => {
   const targetProvinceId = Number(provinceId);
   if (!Number.isFinite(targetProvinceId) || targetProvinceId <= 0) {
     return { items: [], totalCount: 0 };
   }
 
+  const targetLocationTypeId = Number(locationTypeId);
+
   const response = await apiClient.get('/api/locations', {
     params: {
       provinceId: targetProvinceId,
       searchTerm,
+      locationTypeIds: Number.isFinite(targetLocationTypeId) && targetLocationTypeId > 0
+        ? targetLocationTypeId
+        : undefined,
       pageIndex,
       pageSize,
     },
@@ -108,7 +131,117 @@ export const getLocationTypesApi = () => {
   return apiClient.get('/api/LocationTypes').then(res => res.data);
 };
 
+// Get transport modes for manual transport selection
+export const getTransportModesApi = (params) => {
+  return apiClient.get('/api/transport-modes', { params }).then(res => res.data);
+};
+
 // Get all amenities
 export const getAmenitiesApi = () => {
   return apiClient.get('/api/Amenities').then(res => res.data);
+};
+
+// Get trip detail by id (full detail with days, activities, members, summary)
+export const getTripDetailApi = (id) => {
+  return apiClient.get(`/api/trips/${id}/detail`).then(res => res.data);
+};
+
+// Get trip by id (for manual trip builder)
+export const getTripByIdApi = (id) => {
+  return apiClient.get(`/api/trips/${id}`).then(res => res.data);
+};
+
+// Get trips list by user id
+export const getTripsApi = (userId) => {
+  return apiClient.get(`/api/trips/profile/${userId}`).then(res => res.data);
+};
+
+// Create a new trip (returns created trip with id)
+export const createTripApi = (data) => {
+  return apiClient.post('/api/trips', data).then(res => res.data);
+};
+
+// Update and save manual trip
+export const updateSavedTripApi = (tripId, data) => {
+  return apiClient.put(`/api/trips/${tripId}/save`, data).then(res => res.data);
+};
+
+// Delete trip by id
+export const deleteTripApi = (id) => {
+  return apiClient.delete(`/api/trips/${id}`).then(res => res.data);
+};
+
+// Update trip activity status
+// Status flow: Upcoming (0) -> InProgress (1) -> Completed (2)
+export const updateTripActivityStatusApi = (activityId, status) => {
+  return apiClient.patch(`/api/trips/activities/${activityId}/status`, { status }).then(res => res.data);
+};
+
+// Log actual expense for an activity
+export const logActualExpenseApi = (data) => {
+  return apiClient.post('/api/Expenses', data).then(res => res.data);
+};
+
+// Update an expense
+export const updateExpenseApi = (expenseId, data) => {
+  return apiClient.put(`/api/Expenses/${expenseId}`, { expenseId, ...data }).then(res => res.data);
+};
+
+// Get expenses by activity (grouped)
+export const getExpensesByActivityApi = (tripId) => {
+  return apiClient.get(`/api/Expenses/trip/${tripId}/by-activity`).then(res => res.data);
+};
+
+// Delete expense
+export const deleteExpenseApi = (expenseId) => {
+  return apiClient.delete(`/api/Expenses/${expenseId}`).then(res => res.data);
+};
+
+// ==================== INVITATIONS API ====================
+
+// Send invitation to a user by email
+export const createInvitationApi = (tripId, email) => {
+  return apiClient.post(`/api/trips/${tripId}/invitations`, { email }).then(res => res.data);
+};
+
+// Verify invitation token
+export const verifyInvitationApi = (token) => {
+  return apiClient.get('/api/invitations/verify', { params: { token } }).then(res => res.data);
+};
+
+// Respond to invitation (accept/reject)
+export const respondInvitationApi = (invitationId, isAccepted) => {
+  return apiClient.post(`/api/invitations/${invitationId}/respond`, { isAccepted }).then(res => res.data);
+};
+
+// Get current user's pending invitations
+export const getMyInvitationsApi = () => {
+  return apiClient.get('/api/users/me/invitations').then(res => res.data);
+};
+
+
+// ==================== MEMBER MANAGEMENT API ====================
+
+// Get trip members with detail
+export const getTripMembersDetailApi = (tripId) => {
+  return apiClient.get(`/api/trips/${tripId}/members/detail`).then(res => res.data);
+};
+
+// Remove a member from the trip (leader only)
+export const removeTripMemberApi = (tripId, userId) => {
+  return apiClient.delete(`/api/trips/${tripId}/members/${userId}`).then(res => res.data);
+};
+
+// Change member role (leader only)
+export const changeMemberRoleApi = (tripId, userId, newRole) => {
+  return apiClient.put(`/api/trips/${tripId}/members/${userId}/role`, { newRole }).then(res => res.data);
+};
+// Batch update activity statuses (complete previous + start current atomically)
+export const batchUpdateActivityStatusApi = (data) => {
+  return apiClient.post('/api/trips/activities/batch-status', data).then(res => res.data);
+};
+
+// Get budget vs actual data for PDF export
+export const getBudgetVsActualExportApi = (tripId) => {
+  return apiClient.get(`/api/Expenses/trip/${tripId}/budget-vs-actual/export`).then(res => res.data);
 };

@@ -21,17 +21,22 @@ namespace HSTS.Domain.Entities
 
         [Required]
         public DateTime EndDate { get; set; }
+
         [Required]
         public int GroupSize { get; set; }
 
         [Required]
-        [MaxLength(3)]
-        public String Currency { get; set; } = null!;
+        [MaxLength(10)]
+        public string Currency { get; set; } = "VND";
+
         public TripStatus Status { get; set; } = TripStatus.Planned;
 
-        // Navigation properties
-        public ICollection<TripMember> TripMembers { get; set; } = new List<TripMember>();
+        [NotMapped]
+        public string? StartingLocation { get; set; }
+
         public ICollection<TripDay> TripDays { get; set; } = new List<TripDay>();
+        public ICollection<TripInvitation> TripInvitations { get; set; } = new List<TripInvitation>();
         public TripSummary? TripSummary { get; set; }
+        public ICollection<TripMember> TripMembers { get; set; } = new List<TripMember>();
     }
 }

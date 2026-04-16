@@ -5,7 +5,6 @@ import PublicRoute from './PublicRoute';
 import SuspenseWrapper from './RouteShell';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
-import ItineraryResultPage from '@/features/trip/pages/ItineraryResultPage';
 
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
@@ -18,6 +17,7 @@ const UsersPage = lazy(() => import('@/features/users/pages/UsersPage'));
 const UserDetailPage = lazy(() => import('@/features/users/pages/UserDetailPage'));
 const ProfilePage = lazy(() => import('@/features/users/pages/ProfilePage'));
 const HomePage = lazy(() => import('@/features/home/pages/Home'));
+const DashboardPage = lazy(() => import('@/features/dashboard/pages/DashboardPage'));
 
 const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
@@ -25,13 +25,23 @@ const DestinationsPage = lazy(() => import('@/features/destinations/pages/Destin
 const TagsPage = lazy(() => import('@/features/tags/pages/TagsPage'));
 const LocationTypesPage = lazy(() => import('@/features/locationTypes/pages/LocationTypesPage'));
 const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPage'));
+const PublicLocationsPage = lazy(() => import('@/features/locations/pages/PublicLocationsPage'));
+const PublicLocationDetailPage = lazy(() => import('@/features/locations/pages/PublicLocationDetailPage'));
 const AmenitiesPage = lazy(() => import('@/features/amenities/pages/AmenitiesPage'));
 const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages/SubmissionsPage'));
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/ReportedReviewsPage'));
 
+const TransportManagementPage = lazy(() => import('@/features/transportation/pages/TransportManagementPage'));
+
 const CreateTripPage = lazy(() => import('@/features/trip/pages/CreateTripPage'));
+const ItineraryResultPage = lazy(() => import('@/features/trip/pages/ItineraryResultPage'));
+const TripDetailPage = lazy(() => import('@/features/trip/pages/TripDetailPage'));
+const TripsPage = lazy(() => import('@/features/trip/pages/TripsPage'));
+const ManualTripSetupPage = lazy(() => import('@/features/trip/pages/ManualTripSetupPage'));
+const ManualTripPage = lazy(() => import('@/features/trip/pages/ManualTripPage'));
+const AcceptInvitationPage = lazy(() => import('@/features/trip/pages/AcceptInvitationPage'));
 
 const DashboardOverview = () => (
   <div>
@@ -69,6 +79,54 @@ export const router = createBrowserRouter([
     ]
   },
   {
+    path: PATHS.PUBLIC_LOCATIONS.replace('/', ''),
+    element: <SuspenseWrapper><PublicLocationsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.PUBLIC_LOCATION_DETAIL().replace('/', ''),
+    element: <SuspenseWrapper><PublicLocationDetailPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.DESTINATIONS.replace('/', ''),
+    element: <SuspenseWrapper><DestinationsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.TAGS.replace('/', ''),
+    element: <SuspenseWrapper><TagsPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.LOCATION_TYPES.replace('/', ''),
+    element: <SuspenseWrapper><LocationTypesPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.AMENITIES.replace('/', ''),
+    element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.CREATE_TRIP.replace('/', ''),
+    element: <SuspenseWrapper><CreateTripPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.ITINERARY.replace('/', ''),
+    element: <SuspenseWrapper><ItineraryResultPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.CREATE_TRIP_MANUAL_SETUP.replace('/', ''),
+    element: <SuspenseWrapper><ManualTripSetupPage /></SuspenseWrapper>
+  },
+  {
+    path: PATHS.CREATE_TRIP_MANUAL_BUILDER.replace('/', ''),
+    element: <SuspenseWrapper><ManualTripPage /></SuspenseWrapper>
+  },
+  {
+    path: 'invitations/accept',
+    element: <SuspenseWrapper><AcceptInvitationPage /></SuspenseWrapper>
+  },
+  {
+    path: 'trips/:id',
+    element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
+  },
+  {
     element: <SuspenseWrapper><ProtectedRoute /></SuspenseWrapper>,
     children: [
       {
@@ -76,7 +134,9 @@ export const router = createBrowserRouter([
         children: [
           {
             path: PATHS.DASHBOARD,
-            element: <DashboardOverview />
+            children: [
+              { index: true, element: <DashboardPage /> }
+            ]
           },
           {
             path: PATHS.SCHEDULES,
@@ -87,11 +147,27 @@ export const router = createBrowserRouter([
             element: <CreateTripPage />
           },
           {
+            path: PATHS.TRIPS_LIST,
+            element: <TripsPage />
+          },
+          {
+            path: PATHS.CREATE_TRIP_MANUAL_SETUP,
+            element: <ManualTripSetupPage />
+          },
+          {
+            path: PATHS.CREATE_TRIP_MANUAL_BUILDER,
+            element: <ManualTripPage />
+          },
+          {
             path: PATHS.ITINERARY,
             element: <ItineraryResultPage />
           },
           {
-            path: PATHS.MY_LOCATIONS,
+            path: PATHS.TRIP_DETAIL,
+            element: <TripDetailPage />
+          },
+          {
+            path: '/my-locations',
             element: <SubmissionsPage />
           },
           {
@@ -150,9 +226,16 @@ export const router = createBrowserRouter([
           },
           {
             path: PATHS.REPORTED_REVIEWS,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
             children: [
               { index: true, element: <ReportedReviewsPage /> },
+            ]
+          },
+          {
+            path: PATHS.TRANSPORTATION,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            children: [
+              { index: true, element: <TransportManagementPage /> },
             ]
           },
           {

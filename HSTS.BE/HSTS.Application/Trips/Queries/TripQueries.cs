@@ -1,0 +1,223 @@
+using ErrorOr;
+using HSTS.Application.Trips.Dtos;
+using HSTS.Application.Interfaces;
+using HSTS.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+using static HSTS.Application.Interfaces.IRepository;
+
+namespace HSTS.Application.Trips.Queries
+{
+    public record GetTripByIdQuery(int TripId, int CurrentUserId) : IRequest<ErrorOr<TripDto>>;
+    public record GetTripDetailQuery(int TripId, int CurrentUserId) : IRequest<ErrorOr<TripDetailDto>>;
+    public record GetTripsByProfileQuery(int ProfileId) : IRequest<ErrorOr<List<TripDto>>>;
+
+    public class GetTripByIdQueryHandler : IRequestHandler<GetTripByIdQuery, ErrorOr<TripDto>>
+    {
+        private readonly IRepository<Trip> _tripRepository;
+        private readonly IRepository<TripMember> _tripMemberRepository;
+
+        public GetTripByIdQueryHandler(IRepository<Trip> tripRepository, IRepository<TripMember> tripMemberRepository)
+        {
+            _tripRepository = tripRepository;
+            _tripMemberRepository = tripMemberRepository;
+        }
+
+        public async Task<ErrorOr<TripDto>> Handle(GetTripByIdQuery request, CancellationToken cancellationToken)
+        {
+            // Check if user is a member of the trip
+            var isTripMember = await _tripMemberRepository.Query()
+                .AnyAsync(tm => tm.TripId == request.TripId && tm.UserId == request.CurrentUserId, cancellationToken);
+
+            if (!isTripMember)
+            {
+                return Error.Forbidden("Trip.AccessDenied", "You are not a member of this trip.");
+            }
+
+            var trip = await _tripRepository.GetAsync(request.TripId, cancellationToken);
+
+            if (trip == null)
+            {
+                return Error.NotFound("Trip.NotFound", "Trip not found.");
+            }
+
+            return trip.ToDto();
+        }
+    }
+
+    public class GetTripDetailQueryHandler : IRequestHandler<GetTripDetailQuery, ErrorOr<TripDetailDto>>
+    {
+        private readonly IRepository<Trip> _tripRepository;
+        private readonly IRepository<TripMember> _tripMemberRepository;
+
+        public GetTripDetailQueryHandler(IRepository<Trip> tripRepository, IRepository<TripMember> tripMemberRepository)
+        {
+            _tripRepository = tripRepository;
+            _tripMemberRepository = tripMemberRepository;
+        }
+
+        public async Task<ErrorOr<TripDetailDto>> Handle(GetTripDetailQuery request, CancellationToken cancellationToken)
+        {
+            // Check if user is a member of the trip
+            var isTripMember = await _tripMemberRepository.Query()
+                .AnyAsync(tm => tm.TripId == request.TripId && tm.UserId == request.CurrentUserId, cancellationToken);
+
+            if (!isTripMember)
+            {
+                return Error.Forbidden("Trip.AccessDenied", "You are not a member of this trip.");
+            }
+
+            var trip = await _tripRepository.Query()
+                .Include(t => t.TripSummary)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Budget)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.TransportMode)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.FromLocation)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.ToLocation)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.FromTransitHub)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.ToTransitHub)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.CustomFromTransitHub)
+                .Include(t => t.TripDays)
+                    .ThenInclude(td => td.Activities)
+                        .ThenInclude(a => a.Transport)
+                            .ThenInclude(tr => tr!.CustomToTransitHub)
+                .Include(t => t.TripMembers)
+                    .ThenInclude(tm => tm.User)
+                .FirstOrDefaultAsync(t => t.Id == request.TripId, cancellationToken);
+
+            if (trip == null)
+            {
+                return Error.NotFound("Trip.NotFound", "Trip not found.");
+            }
+
+            var tripDays = trip.TripDays
+                .OrderBy(td => td.DayNumber)
+                .Select(td => new TripDayDto(
+                    td.Id,
+                    td.DayNumber,
+                    td.Date,
+                    td.DayTitle,
+                    td.WeatherSummary,
+                    td.EstimateCost,
+                    td.Activities
+                        .OrderBy(a => a.Id)
+                        .Select(a => new TripActivityDto(
+                            a.Id,
+                            a.Type.ToString(),
+                            a.Title,
+                            a.StartTime,
+                            a.EndTime,
+                            a.LocationId,
+                            (int)a.Status,
+                            a.Budget != null ? new TripActivityBudgetDto(
+                                a.Budget.Id,
+                                a.Budget.EstimateCost,
+                                a.Budget.Title,
+                                a.Budget.Description
+                            ) : null,
+                            a.Transport != null ? new TripTransportDto(
+                                a.Transport.Id,
+                                a.Transport.TransportModeId,
+                                a.Transport.TransportMode?.Name,
+                                a.Transport.DistanceKm,
+                                a.Transport.TravelTimeMinutes,
+                                a.Transport.YourLocationName,
+                                a.Transport.FromLocationId,
+                                a.Transport.FromLocation?.Name,
+                                a.Transport.ToLocationId,
+                                a.Transport.ToLocation?.Name,
+                                a.Transport.FromTransitHubId,
+                                a.Transport.FromTransitHub?.Name,
+                                a.Transport.ToTransitHubId,
+                                a.Transport.ToTransitHub?.Name,
+                                a.Transport.CustomFromTransitHubId,
+                                a.Transport.CustomFromTransitHub?.Name,
+                                a.Transport.CustomToTransitHubId,
+                                a.Transport.CustomToTransitHub?.Name
+                            ) : null
+                        ))
+                        .ToList()
+                ))
+                .ToList();
+
+            var tripMembers = trip.TripMembers
+                .Select(tm => new TripMemberDto(
+                    tm.Id,
+                    tm.TripId,
+                    tm.UserId,
+                    tm.User?.FullName ?? "",
+                    tm.Role.ToString(),
+                    tm.CreatedAt
+                ))
+                .ToList();
+
+            var tripSummary = trip.TripSummary != null ? new TripSummaryDto(
+                trip.TripSummary.Id,
+                trip.TripSummary.TotalBudget,
+                trip.TripSummary.UsableBudget,
+                trip.TripSummary.EstimatedAccommodationCost,
+                trip.TripSummary.EstimatedTransportCost,
+                trip.TripSummary.EstimatedActivityCost,
+                trip.TripSummary.EstimatedMealCost,
+                trip.TripSummary.EstimatedTotalCost,
+                trip.TripSummary.RemainingBudget,
+                trip.TripSummary.ContingencyFund
+            ) : null;
+
+            return new TripDetailDto(
+                trip.Id,
+                trip.TripName,
+                trip.Description,
+                trip.StartDate,
+                trip.EndDate,
+                trip.StartingLocation,
+                trip.Status,
+                trip.Currency,
+                trip.CreatedAt,
+                trip.GroupSize,
+                tripSummary,
+                tripDays,
+                tripMembers
+            );
+        }
+    }
+
+    public class GetTripsByProfileQueryHandler : IRequestHandler<GetTripsByProfileQuery, ErrorOr<List<TripDto>>>
+    {
+        private readonly IRepository<Trip> _tripRepository;
+
+        public GetTripsByProfileQueryHandler(IRepository<Trip> tripRepository)
+        {
+            _tripRepository = tripRepository;
+        }
+
+        public async Task<ErrorOr<List<TripDto>>> Handle(GetTripsByProfileQuery request, CancellationToken cancellationToken)
+        {
+            var trips = await _tripRepository.Query()
+                .Include(t => t.TripMembers)
+                .Where(t => t.TripMembers.Any(tm => tm.UserId == request.ProfileId))
+                .OrderByDescending(t => t.StartDate)
+                .ToListAsync(cancellationToken);
+
+            return trips.Select(t => t.ToDto()).ToList();
+        }
+    }
+}

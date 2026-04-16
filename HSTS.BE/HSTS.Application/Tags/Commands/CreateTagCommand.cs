@@ -32,26 +32,39 @@ namespace HSTS.Application.Tags.Commands
                     $"A tag with the name '{request.Name}' already exists.");
             }
 
-            // Determine level based on parent
+            // Determine level and validate parent
             int level = 1;
             if (request.ParentTagId.HasValue)
             {
                 var parentTag = await _repository.GetAsync(request.ParentTagId.Value, cancellationToken);
-                if (parentTag != null)
+                if (parentTag != null && !parentTag.IsDeleted)
                 {
                     level = parentTag.Level + 1;
                 }
+                else
+                {
+                    return Error.NotFound("Tag.ParentNotFound",
+                        "Parent tag does not exist or has been deleted.");
+                }
             }
 
-            var tag = new Tag 
-            { 
+            var tag = new Tag
+            {
                 Name = request.Name,
                 ParentTagId = request.ParentTagId,
                 Level = level
             };
 
             await _repository.AddAsync(tag, cancellationToken);
-            return tag.ToDto();
+
+            string? parentName = null;
+            if (request.ParentTagId.HasValue)
+            {
+                var parent = await _repository.GetAsync(request.ParentTagId.Value, cancellationToken);
+                parentName = parent?.Name;
+            }
+
+            return tag.ToDto(parentName);
         }
     }
 

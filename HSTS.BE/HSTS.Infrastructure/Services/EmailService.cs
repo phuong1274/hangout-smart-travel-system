@@ -153,6 +153,46 @@ namespace HSTS.Infrastructure.Services
             _logger.LogInformation("Onboarding link email sent to {Email}", toEmail);
         }
 
+        public async Task SendTripInvitationEmailAsync(string toEmail, string inviterName, string tripName, string token, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(_settings.ApiKey))
+            {
+                _logger.LogError("Resend API key is not configured.");
+                throw new InvalidOperationException("Resend API key is not configured.");
+            }
+
+            if (string.IsNullOrWhiteSpace(_settings.FromEmail))
+            {
+                _logger.LogError("Resend sender email is not configured.");
+                throw new InvalidOperationException("Resend sender email is not configured.");
+            }
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+            request.Content = JsonContent.Create(new ResendEmailRequest(
+                From: $"{_settings.FromName} <{_settings.FromEmail}>",
+                To: new[] { toEmail },
+                Subject: $"{inviterName} invited you to {tripName} - Hangout",
+                Html:
+                    $"<h2>You've been invited!</h2>" +
+                    $"<p><strong>{inviterName}</strong> has invited you to join the trip <strong>{tripName}</strong> on Hangout.</p>" +
+                    $"<p>Log in to your Hangout account to accept or decline this invitation.</p>" +
+                    $"<p>This invitation will expire in 3 days.</p>"));
+
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadFromJsonAsync<ResendErrorResponse>(cancellationToken: cancellationToken);
+                var errorCode = error?.Name ?? "unknown_resend_error";
+                var errorMessage = error?.Message ?? "Resend email request failed.";
+                _logger.LogWarning("Failed to send trip invitation email to {Email}. Code: {Code}. Message: {Message}", toEmail, errorCode, errorMessage);
+                // Don't throw — invitation is still created, email is best-effort
+                return;
+            }
+
+            _logger.LogInformation("Trip invitation email sent to {Email} for trip {TripName}", toEmail, tripName);
+        }
+
         private sealed record ResendEmailRequest(string From, string[] To, string Subject, string Html);
 
         private sealed record ResendErrorResponse(

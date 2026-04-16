@@ -16,7 +16,6 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<Otp> Otps => Set<Otp>();
-        public DbSet<PasswordSetupToken> PasswordSetupTokens => Set<PasswordSetupToken>();
         public DbSet<AccountRefreshToken> AccountRefreshTokens => Set<AccountRefreshToken>();
         public DbSet<TransportMode> TransportModes => Set<TransportMode>();
         public DbSet<LocalTransportMetrics> LocalTransportMetrics => Set<LocalTransportMetrics>();
@@ -27,8 +26,6 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<Country> Countries => Set<Country>();
         public DbSet<LocationType> LocationTypes => Set<LocationType>();
         public DbSet<Location> Locations => Set<Location>();
-        public DbSet<LocationReview> LocationReviews => Set<LocationReview>();
-        public DbSet<LocationReviewReport> LocationReviewReports => Set<LocationReviewReport>();
         public DbSet<LocationSocialLink> LocationSocialLinks => Set<LocationSocialLink>();
         public DbSet<LocationMedia> LocationMedias => Set<LocationMedia>();
         public DbSet<LocationTag> LocationTags => Set<LocationTag>();
@@ -39,35 +36,27 @@ namespace HSTS.Infrastructure.Persistence
         public DbSet<LocationClosure> LocationClosures => Set<LocationClosure>();
         public DbSet<LocationSubmission> LocationSubmissions => Set<LocationSubmission>();
         public DbSet<LocationSeason> LocationSeasons => Set<LocationSeason>();
-
+        public DbSet<PasswordSetupToken> PasswordSetupTokens => Set<PasswordSetupToken>();
+        public DbSet<LocationReview> LocationReviews => Set<LocationReview>();
+        public DbSet<LocationReviewReport> LocationReviewReports => Set<LocationReviewReport>();
+        public DbSet<TripMember> TripMembers => Set<TripMember>();
+        public DbSet<Expense> Expenses => Set<Expense>();
         public DbSet<Trip> Trips => Set<Trip>();
         public DbSet<TripDay> TripDays => Set<TripDay>();
         public DbSet<TripActivity> TripActivities => Set<TripActivity>();
         public DbSet<TripTransport> TripTransports => Set<TripTransport>();
         public DbSet<TripSummary> TripSummaries => Set<TripSummary>();
         public DbSet<TripActivityBudget> TripActivityBudgets => Set<TripActivityBudget>();
-
         public DbSet<CustomLocation> CustomLocations => Set<CustomLocation>();
         public DbSet<CustomTransitHub> CustomTransitHubs => Set<CustomTransitHub>();
-        public DbSet<TripMember> TripMembers => Set<TripMember>();
+        public DbSet<TripInvitation> TripInvitations => Set<TripInvitation>();
 
         #region Logging
-        /// <summary>
-        /// Logging config
-        /// !!!WARNING, DO NOT DELETE THIS SECTION!!!
-        /// If you delete this section, the logging feature will be broken.
-        /// </summary>
         public DbSet<LogError> LogErrors => Set<LogError>();
         public DbSet<LogActivity> LogActivities => Set<LogActivity>();
         public DbSet<LogHistory> LogHistories => Set<LogHistory>();
         public DbSet<LogLogin> LogLogins => Set<LogLogin>();
         #endregion
-
-        // Explicit implementation of ITransactionDbContext
-        public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
-        {
-            return await Database.BeginTransactionAsync(cancellationToken);
-        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -93,6 +82,11 @@ namespace HSTS.Infrastructure.Persistence
                         .HasDefaultValue(false);
                 }
             }
+        }
+
+        public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            return await Database.BeginTransactionAsync(cancellationToken);
         }
     }
 }

@@ -1,3 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+.loadingContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #F7F9F9;
+}
+
 .container {
-  padding: 24px;
+  background-color: #F7F9F9;
+  min-height: 100vh;
+  padding: clamp(40px, 5vw, 100px) clamp(16px, 3vw, 40px);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #1A535C;
+}
+
+.headerSection {
+  margin-bottom: clamp(24px, 4vw, 48px);
+  animation: fadeUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.headingMain {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 700 !important;
+  color: #F4CB8C !important;
+  font-size: clamp(32px, 5vw, 56px) !important;
+  margin-bottom: 8px !important;
+  line-height: 1.2 !important;
+}
+
+.subHeading {
+  font-family: 'Caveat', cursive !important;
+  color: #4ECDC4 !important;
+  font-size: clamp(24px, 3vw, 32px) !important;
+  display: block;
+}
+
+.fadeUp1 {
+  animation: fadeUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation-delay: 0.1s;
+}
+
+.fadeUp2 {
+  animation: fadeUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation-delay: 0.2s;
+}
+
+@keyframes fadeUp {
+  from { 
+    transform: translateY(40px); 
+    opacity: 0; 
+  }
+  to { 
+    transform: translateY(0); 
+    opacity: 1; 
+  }
+}
+
+.cardWrapper,
+.container :global(.ant-card) {
+  border-radius: 20px !important;
+  border: none !important;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08) !important;
+  background: #FFFFFF !important;
+}
+
+.container :global(.ant-card-head) {
+  border-bottom: 2px solid rgba(78, 205, 196, 0.1) !important;
+  padding: 20px 24px !important;
+}
+
+.container :global(.ant-card-head-title) {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 700 !important;
+  color: #F4CB8C !important;
+  font-size: 20px !important;
+}
+
+.container :global(.ant-card-body) {
+  padding: 24px !important;
+}
+
+.container :global(.ant-btn) {
+  text-transform: uppercase !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.8px !important;
+  border-radius: 8px !important;
+  min-height: 44px !important;
+  min-width: 44px !important;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.container :global(.ant-btn-primary) {
+  background-color: #FFE66D !important;
+  color: #1A535C !important;
+  border-color: #FFE66D !important;
+  border-radius: 999px !important;
+}
+
+.container :global(.ant-btn-primary:hover) {
+  background-color: #F4CB8C !important;
+  border-color: #F4CB8C !important;
+  color: #1A535C !important;
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 8px 20px rgba(244, 203, 140, 0.4) !important;
+}
+
+.container :global(img),
+.container :global(.ant-image) {
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+
+.container :global(img:hover),
+.container :global(.ant-image:hover) {
+  transform: scale(1.1);
+}
+
+.container :global(img::after),
+.container :global(.ant-image::after) {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(244, 203, 140, 0.05);
+  pointer-events: none;
 }

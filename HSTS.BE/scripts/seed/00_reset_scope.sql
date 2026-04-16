@@ -1,0 +1,10 @@
+SET FOREIGN_KEY_CHECKS = 0;
+
+DELETE FROM LocationReviewReports;
+DELETE FROM LocationReviews;
+DELETE FROM LocationMedias;
+DELETE FROM Locations;
+DELETE FROM Districts;
+DELETE FROM Provinces;
+
+SET FOREIGN_KEY_CHECKS = 1;

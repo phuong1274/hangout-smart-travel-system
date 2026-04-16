@@ -15,14 +15,10 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasColumnType("decimal(18,2)");
 
             builder.Property(x => x.Title)
-                .HasMaxLength(200)
-                .IsRequired();
+                .HasMaxLength(200);
 
             builder.Property(x => x.Description)
                 .HasMaxLength(500);
-
-            builder.Property(x => x.ActualExpense)
-                .HasColumnType("decimal(18,2)");
 
             builder.HasOne(b => b.TripActivity)
                 .WithOne(a => a.Budget)

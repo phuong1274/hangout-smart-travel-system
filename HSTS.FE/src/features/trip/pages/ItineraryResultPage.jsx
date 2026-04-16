@@ -3,6 +3,8 @@ import {
   Card,
   Typography,
   Button,
+  Input,
+  InputNumber,
   Tag,
   Empty,
   Space,
@@ -22,8 +24,12 @@ import {
   getProvincesApi,
   estimateLocalTravelApi,
   getLocationsByProvinceApi,
+  getLocationTypesApi,
   saveTripApi,
 } from '../api';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import LocationDetailModal from '../components/LocationDetailModal';
 import TransportDetailModal from '../components/TransportDetailModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
@@ -37,9 +43,20 @@ import {
   Star,
   Clock
 } from '@phosphor-icons/react';
+import { useAuthStore } from '@/store/authStore';
+import { PATHS } from '@/routes/paths';
 import styles from './ItineraryResultPage.module.css';
 
 const { Title, Text } = Typography;
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+const DEFAULT_CUSTOM_LOCATION_CENTER_VIETNAM = [16.047079, 108.206230];
 
 const EVENT_BADGES = {
   travel: {
@@ -367,17 +384,18 @@ const getTravelDurationMinutes = (travelDetail) => {
 
 const getTravelGroupCost = (itemCostForGroup, travelDetail) => {
   const recommended = getRecommendedTransportOption(travelDetail);
-  return pickBestMoney(
+  const cost = pickBestMoney(
     itemCostForGroup,
-    travelDetail?.costForGroup,
-    travelDetail?.CostForGroup,
     travelDetail?.selectedTotalCost,
     travelDetail?.SelectedTotalCost,
+    travelDetail?.costForGroup,
+    travelDetail?.CostForGroup,
     recommended?.costForGroup,
     recommended?.CostForGroup,
     recommended?.estimatedTotalCost,
     recommended?.EstimatedTotalCost,
   );
+  return normalizeMoney(cost, 'VND');
 };
 
 const formatMinutesAsHourMinute = (minutes) => {
@@ -539,6 +557,30 @@ const isEditableLocationEvent = (item) => {
   return !isTravelEvent(item) && Number.isFinite(locationId) && locationId > 0;
 };
 
+const getItemCustomLocation = (item) => toCustomGeoPayload(item?.customLocation || item?.CustomLocation);
+
+const isTimelineStopEvent = (item) => {
+  if (isTravelEvent(item)) return false;
+  if (isEditableLocationEvent(item)) return true;
+  return Boolean(getItemCustomLocation(item));
+};
+
+const getTimelineStopEndpointParams = (item, side = 'from') => {
+  const locationId = getItemLocationId(item);
+  if (Number.isFinite(locationId) && locationId > 0) {
+    return side === 'from'
+      ? { fromLocationId: locationId }
+      : { toLocationId: locationId };
+  }
+
+  const customLocation = getItemCustomLocation(item);
+  if (!customLocation) return {};
+
+  return side === 'from'
+    ? { fromLat: customLocation.latitude, fromLng: customLocation.longitude }
+    : { toLat: customLocation.latitude, toLng: customLocation.longitude };
+};
+
 const getTravelDetailEntry = (item) => {
   const candidates = [
     ['locationToLocationTravel', item?.locationToLocationTravel],
@@ -684,17 +726,37 @@ const normalizeTimeOnly = (value) => {
 
 const toIsoDateTimeString = (value, fallbackValue) => {
   const raw = value ?? fallbackValue;
-  if (!raw) return new Date().toISOString();
-
+  
+  // If it's already YYYY-MM-DD format, keep it as-is (no timezone conversion)
   if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    return new Date(`${raw}T00:00:00`).toISOString();
+    return raw;
   }
 
-  const parsed = new Date(raw);
-  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  // For other inputs, parse and return as YYYY-MM-DD without timezone conversion
+  let targetDate = null;
+  
+  if (typeof raw === 'string') {
+    targetDate = new Date(raw);
+  } else if (raw instanceof Date) {
+    targetDate = raw;
+  } else {
+    targetDate = new Date(raw);
+  }
 
-  const fallback = new Date(fallbackValue || Date.now());
-  return !Number.isNaN(fallback.getTime()) ? fallback.toISOString() : new Date().toISOString();
+  if (!Number.isNaN(targetDate.getTime())) {
+    // Format as YYYY-MM-DD using local date (no UTC conversion)
+    const year = targetDate.getFullYear();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // Fallback to today
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const toCustomGeoPayload = (value) => {
@@ -743,31 +805,188 @@ const updateBudgetSummaryFromDays = (draftItinerary) => {
   const currencyCode = pickFirstText(draftItinerary?.currencyCode, draftItinerary?.CurrencyCode) || 'VND';
   const totalBreakdown = days.reduce((acc, day) => {
     const timeline = getDayTimeline(day, currencyCode);
-    const dayBreakdown = getTimelineCostBreakdown(timeline);
+    const dayBreakdown = getTimelineDetailedCostBreakdown(timeline);
     acc.meal += dayBreakdown.meal;
-    acc.other += dayBreakdown.other;
+    acc.transport += dayBreakdown.transport;
+    acc.activity += dayBreakdown.activity;
     return acc;
-  }, { meal: 0, other: 0 });
+  }, { meal: 0, transport: 0, activity: 0 });
 
-  const estimatedTotal = totalBreakdown.meal + totalBreakdown.other;
+  const accommodationFallback = days.reduce((sum, day) => {
+    const accommodations = day?.accommodationRecommendations || day?.AccommodationRecommendations || [];
+    const safeList = Array.isArray(accommodations) ? accommodations : [];
+    const selected = safeList[0];
+    if (!selected) return sum;
+
+    const estimated = normalizeMoney(
+      selected.pricePerNight
+      || selected.PricePerNight
+      || selected.estimatedCost
+      || selected.EstimatedCost,
+      currencyCode,
+    );
+
+    return sum + (estimated?.amount || 0);
+  }, 0);
+
+  const estimatedAccommodationAmount = Math.round(
+    getMoneyAmount(summary?.estimatedAccommodationCost || summary?.EstimatedAccommodationCost)
+    ?? accommodationFallback
+  );
+  const estimatedTransportAmount = Math.round(totalBreakdown.transport);
+  const estimatedActivityAmount = Math.round(totalBreakdown.activity);
+  const estimatedMealAmount = Math.round(totalBreakdown.meal);
+  const estimatedOtherAmount = estimatedTransportAmount + estimatedActivityAmount;
+  const estimatedTotal = estimatedAccommodationAmount + estimatedTransportAmount + estimatedActivityAmount + estimatedMealAmount;
 
   const estimatedMoney = { amount: Math.round(estimatedTotal), currency: currencyCode };
-  const mealMoney = { amount: Math.round(totalBreakdown.meal), currency: currencyCode };
-  const otherMoney = { amount: Math.round(totalBreakdown.other), currency: currencyCode };
+  const accommodationMoney = { amount: estimatedAccommodationAmount, currency: currencyCode };
+  const transportMoney = { amount: estimatedTransportAmount, currency: currencyCode };
+  const activityMoney = { amount: estimatedActivityAmount, currency: currencyCode };
+  const mealMoney = { amount: estimatedMealAmount, currency: currencyCode };
+  const otherMoney = { amount: estimatedOtherAmount, currency: currencyCode };
   const usable = normalizeMoney(summary?.usableBudget || summary?.UsableBudget, currencyCode);
   const remainingMoney = usable
     ? { amount: Math.round(usable.amount - estimatedMoney.amount), currency: usable.currency || currencyCode }
     : null;
 
-  if ('estimatedTotalCost' in summary) summary.estimatedTotalCost = estimatedMoney;
-  if ('EstimatedTotalCost' in summary) summary.EstimatedTotalCost = estimatedMoney;
+  summary.estimatedAccommodationCost = accommodationMoney;
+  summary.EstimatedAccommodationCost = accommodationMoney;
+  summary.estimatedTransportCost = transportMoney;
+  summary.EstimatedTransportCost = transportMoney;
+  summary.estimatedActivityCost = activityMoney;
+  summary.EstimatedActivityCost = activityMoney;
+  summary.estimatedMealCost = mealMoney;
+  summary.EstimatedMealCost = mealMoney;
+  summary.estimatedTotalCost = estimatedMoney;
+  summary.EstimatedTotalCost = estimatedMoney;
   summary.mealCost = mealMoney;
   summary.MealCost = mealMoney;
   summary.otherCost = otherMoney;
   summary.OtherCost = otherMoney;
   if (remainingMoney) {
-    if ('remainingBudget' in summary) summary.remainingBudget = remainingMoney;
-    if ('RemainingBudget' in summary) summary.RemainingBudget = remainingMoney;
+    summary.remainingBudget = remainingMoney;
+    summary.RemainingBudget = remainingMoney;
+  }
+};
+
+const updateBudgetSummaryForTransportDelta = (draftItinerary, dayTimelineBefore, dayTimelineAfter) => {
+  if (!draftItinerary) return;
+
+  const summaryKey = draftItinerary?.budgetSummary ? 'budgetSummary' : 'BudgetSummary';
+  const summary = draftItinerary?.[summaryKey];
+  if (!summary) {
+    updateBudgetSummaryFromDays(draftItinerary);
+    return;
+  }
+
+  const currencyCode = pickFirstText(draftItinerary?.currencyCode, draftItinerary?.CurrencyCode) || 'VND';
+  const beforeTransport = Math.round(getTimelineDetailedCostBreakdown(dayTimelineBefore || []).transport || 0);
+  const afterTransport = Math.round(getTimelineDetailedCostBreakdown(dayTimelineAfter || []).transport || 0);
+  const transportDelta = afterTransport - beforeTransport;
+
+  if (transportDelta === 0) return;
+
+  const toAmount = (value, fallback = 0) => {
+    const amount = getMoneyAmount(value);
+    return Number.isFinite(amount) ? amount : fallback;
+  };
+  const toMoney = (amount) => ({
+    amount: Math.max(0, Math.round(amount)),
+    currency: currencyCode,
+  });
+
+  const estimatedAccommodation = toAmount(summary?.estimatedAccommodationCost || summary?.EstimatedAccommodationCost, 0);
+  const estimatedTransport = toAmount(summary?.estimatedTransportCost || summary?.EstimatedTransportCost, 0);
+  const estimatedActivity = toAmount(summary?.estimatedActivityCost || summary?.EstimatedActivityCost, 0);
+  const estimatedMeal = toAmount(summary?.estimatedMealCost || summary?.EstimatedMealCost || summary?.mealCost || summary?.MealCost, 0);
+  const estimatedTotal = toAmount(
+    summary?.estimatedTotalCost || summary?.EstimatedTotalCost,
+    estimatedAccommodation + estimatedTransport + estimatedActivity + estimatedMeal,
+  );
+
+  const nextTransport = Math.max(0, estimatedTransport + transportDelta);
+  const nextTotal = Math.max(0, estimatedTotal + transportDelta);
+  const nextOther = Math.max(0, toAmount(summary?.otherCost || summary?.OtherCost, 0) + transportDelta);
+
+  const transportMoney = toMoney(nextTransport);
+  const totalMoney = toMoney(nextTotal);
+  const otherMoney = toMoney(nextOther);
+
+  summary.estimatedTransportCost = transportMoney;
+  summary.EstimatedTransportCost = transportMoney;
+  summary.estimatedTotalCost = totalMoney;
+  summary.EstimatedTotalCost = totalMoney;
+  summary.otherCost = otherMoney;
+  summary.OtherCost = otherMoney;
+
+  const usable = normalizeMoney(summary?.usableBudget || summary?.UsableBudget, currencyCode);
+  if (usable) {
+    const remainingMoney = toMoney(usable.amount - nextTotal);
+    summary.remainingBudget = remainingMoney;
+    summary.RemainingBudget = remainingMoney;
+  }
+};
+
+const updateBudgetSummaryForTimelineItemCostDelta = (draftItinerary, eventType, costDelta) => {
+  if (!draftItinerary) return;
+  if (!Number.isFinite(costDelta) || costDelta === 0) return;
+
+  const summaryKey = draftItinerary?.budgetSummary ? 'budgetSummary' : 'BudgetSummary';
+  const summary = draftItinerary?.[summaryKey];
+  if (!summary) {
+    updateBudgetSummaryFromDays(draftItinerary);
+    return;
+  }
+
+  const normalizedEventType = toEventType(eventType);
+  const currencyCode = pickFirstText(draftItinerary?.currencyCode, draftItinerary?.CurrencyCode) || 'VND';
+  const toAmount = (value, fallback = 0) => {
+    const amount = getMoneyAmount(value);
+    return Number.isFinite(amount) ? amount : fallback;
+  };
+  const toMoney = (amount) => ({
+    amount: Math.max(0, Math.round(amount)),
+    currency: currencyCode,
+  });
+  const updatePair = (camelKey, pascalKey, amount) => {
+    const money = toMoney(amount);
+    summary[camelKey] = money;
+    summary[pascalKey] = money;
+  };
+
+  const currentEstimatedTotal = toAmount(summary?.estimatedTotalCost || summary?.EstimatedTotalCost, 0);
+  const nextEstimatedTotal = Math.max(0, currentEstimatedTotal + costDelta);
+  updatePair('estimatedTotalCost', 'EstimatedTotalCost', nextEstimatedTotal);
+
+  if (normalizedEventType === 'meal') {
+    const currentMealEstimated = toAmount(summary?.estimatedMealCost || summary?.EstimatedMealCost || summary?.mealCost || summary?.MealCost, 0);
+    const nextMealEstimated = Math.max(0, currentMealEstimated + costDelta);
+    updatePair('estimatedMealCost', 'EstimatedMealCost', nextMealEstimated);
+    updatePair('mealCost', 'MealCost', nextMealEstimated);
+  } else if (normalizedEventType === 'travel') {
+    const currentTransportEstimated = toAmount(summary?.estimatedTransportCost || summary?.EstimatedTransportCost, 0);
+    const nextTransportEstimated = Math.max(0, currentTransportEstimated + costDelta);
+    updatePair('estimatedTransportCost', 'EstimatedTransportCost', nextTransportEstimated);
+
+    const currentOther = toAmount(summary?.otherCost || summary?.OtherCost, 0);
+    const nextOther = Math.max(0, currentOther + costDelta);
+    updatePair('otherCost', 'OtherCost', nextOther);
+  } else {
+    const currentActivityEstimated = toAmount(summary?.estimatedActivityCost || summary?.EstimatedActivityCost, 0);
+    const nextActivityEstimated = Math.max(0, currentActivityEstimated + costDelta);
+    updatePair('estimatedActivityCost', 'EstimatedActivityCost', nextActivityEstimated);
+
+    const currentOther = toAmount(summary?.otherCost || summary?.OtherCost, 0);
+    const nextOther = Math.max(0, currentOther + costDelta);
+    updatePair('otherCost', 'OtherCost', nextOther);
+  }
+
+  const usableBudget = normalizeMoney(summary?.usableBudget || summary?.UsableBudget, currencyCode);
+  if (usableBudget) {
+    const remainingMoney = toMoney(usableBudget.amount - nextEstimatedTotal);
+    summary.remainingBudget = remainingMoney;
+    summary.RemainingBudget = remainingMoney;
   }
 };
 
@@ -785,8 +1004,30 @@ const findPreviousPrimaryLocationIndex = (timeline, fromIndex) => {
   return -1;
 };
 
+const CustomLocationMapClickHandler = ({ onPick }) => {
+  useMapEvents({
+    click(event) {
+      onPick(event?.latlng?.lat, event?.latlng?.lng);
+    },
+  });
+
+  return null;
+};
+
+const CustomLocationMapInvalidate = ({ activeKey }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    const timers = [120, 300, 520].map((delay) => setTimeout(() => map.invalidateSize(), delay));
+    return () => timers.forEach((timer) => clearTimeout(timer));
+  }, [map, activeKey]);
+
+  return null;
+};
+
 const ItineraryResultPage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
   const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
   const [savingTrip, setSavingTrip] = useState(false);
   const [provinceNameById, setProvinceNameById] = useState(new Map());
@@ -803,6 +1044,42 @@ const ItineraryResultPage = () => {
   const [provinceLocationLoading, setProvinceLocationLoading] = useState(false);
   const [selectedProvinceLocationId, setSelectedProvinceLocationId] = useState(null);
   const [provinceLocationSearch, setProvinceLocationSearch] = useState('');
+  const [addBetweenExistingStartTime, setAddBetweenExistingStartTime] = useState('');
+  const [addBetweenExistingEndTime, setAddBetweenExistingEndTime] = useState('');
+  const [addBetweenExistingCostAmount, setAddBetweenExistingCostAmount] = useState(0);
+  const [addBetweenLocationTypeOptions, setAddBetweenLocationTypeOptions] = useState([]);
+  const [addBetweenLocationTypeLoading, setAddBetweenLocationTypeLoading] = useState(false);
+  const [selectedAddBetweenLocationTypeId, setSelectedAddBetweenLocationTypeId] = useState(null);
+  const [addBetweenCustomName, setAddBetweenCustomName] = useState('');
+  const [addBetweenCustomAddress, setAddBetweenCustomAddress] = useState('');
+  const [addBetweenCustomLat, setAddBetweenCustomLat] = useState(null);
+  const [addBetweenCustomLng, setAddBetweenCustomLng] = useState(null);
+  const [addBetweenCustomStartTime, setAddBetweenCustomStartTime] = useState('');
+  const [addBetweenCustomEndTime, setAddBetweenCustomEndTime] = useState('');
+  const [addBetweenCustomCostAmount, setAddBetweenCustomCostAmount] = useState(0);
+  const [addingCustomLocation, setAddingCustomLocation] = useState(false);
+  const [editTimelineModal, setEditTimelineModal] = useState({
+    open: false,
+    dayIndex: null,
+    timelineIndex: null,
+    provinceId: null,
+    canChangeLocation: false,
+  });
+  const [editTimelineStartTime, setEditTimelineStartTime] = useState('');
+  const [editTimelineEndTime, setEditTimelineEndTime] = useState('');
+  const [editTimelineCostAmount, setEditTimelineCostAmount] = useState(0);
+  const [editTimelineLocationId, setEditTimelineLocationId] = useState(null);
+  const [editTimelineLocationOptions, setEditTimelineLocationOptions] = useState([]);
+  const [editTimelineLocationLoading, setEditTimelineLocationLoading] = useState(false);
+  const [editTimelineLocationSearch, setEditTimelineLocationSearch] = useState('');
+  const [customTransportModal, setCustomTransportModal] = useState({
+    open: false,
+    dayIndex: null,
+    timelineIndex: null,
+  });
+  const [customTransportMethod, setCustomTransportMethod] = useState('');
+  const [customTransportMinutes, setCustomTransportMinutes] = useState(30);
+  const [customTransportCostAmount, setCustomTransportCostAmount] = useState(0);
 
   const [locationModal, setLocationModal] = useState({ open: false, locationId: null });
   const [transportModal, setTransportModal] = useState({ open: false, data: null });
@@ -813,6 +1090,19 @@ const ItineraryResultPage = () => {
     telephoneMap: locationTelephoneById,
     amenitiesMap: locationAmenitiesById,
   } = useMemo(() => buildLocationMetadataFromItinerary(itinerary), [itinerary]);
+
+  const customLocationLatValue = toFiniteNumber(addBetweenCustomLat);
+  const customLocationLngValue = toFiniteNumber(addBetweenCustomLng);
+  const hasCustomLocationCoordinates = customLocationLatValue != null
+    && customLocationLngValue != null
+    && customLocationLatValue >= -90
+    && customLocationLatValue <= 90
+    && customLocationLngValue >= -180
+    && customLocationLngValue <= 180;
+  const customLocationMapCenter = hasCustomLocationCoordinates
+    ? [customLocationLatValue, customLocationLngValue]
+    : DEFAULT_CUSTOM_LOCATION_CENTER_VIETNAM;
+  const customLocationMapActiveKey = `${addBetweenModal?.open ? 'open' : 'closed'}-${addBetweenModal?.dayIndex ?? 'x'}-${addBetweenModal?.insertAfterIndex ?? 'x'}-${hasCustomLocationCoordinates ? 'picked' : 'empty'}`;
 
   useEffect(() => {
     let mounted = true;
@@ -892,6 +1182,98 @@ const ItineraryResultPage = () => {
     setAccommodationModal({ open: true, data });
   }, []);
 
+  const resetAddBetweenCustomForm = useCallback((startTime = '08:00:00') => {
+    const normalizedStart = normalizeTimeOnly(startTime) || '08:00:00';
+    const defaultEnd = addMinutesToTime(normalizedStart, 90);
+
+    setAddBetweenCustomName('');
+    setAddBetweenCustomAddress('');
+    setAddBetweenCustomLat(null);
+    setAddBetweenCustomLng(null);
+    setAddBetweenCustomStartTime(normalizedStart.slice(0, 5));
+    setAddBetweenCustomEndTime(defaultEnd.slice(0, 5));
+    setAddBetweenCustomCostAmount(0);
+  }, []);
+
+  const resetAddBetweenExistingForm = useCallback((startTime = '08:00:00') => {
+    const normalizedStart = normalizeTimeOnly(startTime) || '08:00:00';
+    const defaultEnd = addMinutesToTime(normalizedStart, 90);
+
+    setAddBetweenExistingStartTime(normalizedStart.slice(0, 5));
+    setAddBetweenExistingEndTime(defaultEnd.slice(0, 5));
+    setAddBetweenExistingCostAmount(0);
+  }, []);
+
+  const updateBudgetSummaryForExistingAddFlow = useCallback((draftItinerary, dayTimelineBefore, dayTimelineAfter, addedLocationCost = 0) => {
+    if (!draftItinerary) return;
+
+    const getTravelCostSum = (timeline) => {
+      const safeTimeline = Array.isArray(timeline) ? timeline : [];
+      return safeTimeline.reduce((sum, currentItem) => {
+        if (!isTravelEvent(currentItem)) return sum;
+
+        const [detailKey, detail] = getTravelDetailEntry(currentItem);
+        const amount = getMoneyAmount(
+          currentItem?.costForGroup
+          ?? currentItem?.CostForGroup
+          ?? detail?.selectedTotalCost
+          ?? detail?.SelectedTotalCost
+          ?? detail?.costForGroup
+          ?? detail?.CostForGroup
+        );
+
+        return sum + (Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 0);
+      }, 0);
+    };
+
+    const normalizedAddedLocationCost = Math.max(0, Math.round(Number(addedLocationCost) || 0));
+    const beforeTravelCost = getTravelCostSum(dayTimelineBefore);
+    const afterTravelCost = getTravelCostSum(dayTimelineAfter);
+    const travelDelta = afterTravelCost - beforeTravelCost;
+
+    if (normalizedAddedLocationCost !== 0) {
+      updateBudgetSummaryForTimelineItemCostDelta(draftItinerary, 'visit', normalizedAddedLocationCost);
+    }
+    if (travelDelta !== 0) {
+      updateBudgetSummaryForTimelineItemCostDelta(draftItinerary, 'travel', travelDelta);
+    }
+  }, []);
+
+  const updateBudgetSummaryForCustomAddFlow = useCallback((draftItinerary, dayTimelineBefore, dayTimelineAfter, addedLocationCost = 0) => {
+    if (!draftItinerary) return;
+
+    const getTravelCostSum = (timeline) => {
+      const safeTimeline = Array.isArray(timeline) ? timeline : [];
+      return safeTimeline.reduce((sum, currentItem) => {
+        if (!isTravelEvent(currentItem)) return sum;
+
+        const [detailKey, detail] = getTravelDetailEntry(currentItem);
+        const amount = getMoneyAmount(
+          currentItem?.costForGroup
+          ?? currentItem?.CostForGroup
+          ?? detail?.selectedTotalCost
+          ?? detail?.SelectedTotalCost
+          ?? detail?.costForGroup
+          ?? detail?.CostForGroup
+        );
+
+        return sum + (Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 0);
+      }, 0);
+    };
+
+    const normalizedAddedLocationCost = Math.max(0, Math.round(Number(addedLocationCost) || 0));
+    const beforeTravelCost = getTravelCostSum(dayTimelineBefore);
+    const afterTravelCost = getTravelCostSum(dayTimelineAfter);
+    const travelDelta = afterTravelCost - beforeTravelCost;
+
+    if (normalizedAddedLocationCost !== 0) {
+      updateBudgetSummaryForTimelineItemCostDelta(draftItinerary, 'visit', normalizedAddedLocationCost);
+    }
+    if (travelDelta !== 0) {
+      updateBudgetSummaryForTimelineItemCostDelta(draftItinerary, 'travel', travelDelta);
+    }
+  }, []);
+
   const recalculateDayTimeline = useCallback(async (draftItinerary, dayIndex, options = {}) => {
     const preserveExternalSegments = Boolean(options?.preserveExternalSegments);
     const daysKey = Array.isArray(draftItinerary?.days) ? 'days' : 'Days';
@@ -901,18 +1283,18 @@ const ItineraryResultPage = () => {
 
     const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
     const sourceTimeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
-    const locationIndexes = sourceTimeline
-      .map((item, index) => (isEditableLocationEvent(item) ? index : -1))
+    const stopIndexes = sourceTimeline
+      .map((item, index) => (isTimelineStopEvent(item) ? index : -1))
       .filter((index) => index >= 0);
 
-    if (locationIndexes.length === 0) {
+    if (stopIndexes.length === 0) {
       day[timelineKey] = preserveExternalSegments
         ? sourceTimeline
         : sourceTimeline.filter((item) => !isTravelEvent(item));
       return draftItinerary;
     }
 
-    if (locationIndexes.length === 1) {
+    if (stopIndexes.length === 1) {
       day[timelineKey] = preserveExternalSegments
         ? sourceTimeline
         : sourceTimeline.filter((item) => !isTravelEvent(item));
@@ -925,14 +1307,14 @@ const ItineraryResultPage = () => {
       ? Math.round(groupSizeValue)
       : 1;
 
-    const locationStops = locationIndexes.map((index) => ({ ...sourceTimeline[index] }));
-    const stopDurations = locationStops.map(getTimelineDurationMinutes);
+    const timelineStops = stopIndexes.map((index) => ({ ...sourceTimeline[index] }));
+    const stopDurations = timelineStops.map(getTimelineDurationMinutes);
     const rebuiltSegment = [];
 
-    const firstStart = pickFirstText(locationStops[0]?.startTime, locationStops[0]?.StartTime) || '08:00:00';
+    const firstStart = pickFirstText(timelineStops[0]?.startTime, timelineStops[0]?.StartTime) || '08:00:00';
     const firstEnd = addMinutesToTime(firstStart, stopDurations[0]);
     const firstStop = {
-      ...locationStops[0],
+      ...timelineStops[0],
       startTime: firstStart,
       endTime: firstEnd,
     };
@@ -940,18 +1322,18 @@ const ItineraryResultPage = () => {
 
     let prevStop = firstStop;
 
-    for (let index = 1; index < locationStops.length; index += 1) {
-      const currentStop = locationStops[index];
+    for (let index = 1; index < timelineStops.length; index += 1) {
+      const currentStop = timelineStops[index];
       const departureTime = pickFirstText(prevStop.endTime, prevStop.EndTime) || firstEnd;
-      const fromLocationId = getItemLocationId(prevStop);
-      const toLocationId = getItemLocationId(currentStop);
+      const fromEndpoint = getTimelineStopEndpointParams(prevStop, 'from');
+      const toEndpoint = getTimelineStopEndpointParams(currentStop, 'to');
+      const canEstimate = Object.values({ ...fromEndpoint, ...toEndpoint }).some((value) => value != null);
 
       let travelLeg = null;
-      if (Number.isFinite(fromLocationId) && fromLocationId > 0
-        && Number.isFinite(toLocationId) && toLocationId > 0) {
+      if (canEstimate) {
         travelLeg = await estimateLocalTravelApi({
-          fromLocationId,
-          toLocationId,
+          ...fromEndpoint,
+          ...toEndpoint,
           groupSize,
           departureTime,
           currencyCode,
@@ -974,19 +1356,27 @@ const ItineraryResultPage = () => {
       const fromName = pickFirstText(
         travelLeg?.fromLocationName,
         travelLeg?.FromLocationName,
+        prevStop?.customLocation?.name,
+        prevStop?.customLocation?.Name,
+        prevStop?.CustomLocation?.name,
+        prevStop?.CustomLocation?.Name,
         prevStop?.locationName,
         prevStop?.LocationName,
         prevStop?.title,
         prevStop?.Title,
-      ) || `Location #${fromLocationId}`;
+      ) || 'Custom Point';
       const toName = pickFirstText(
         travelLeg?.toLocationName,
         travelLeg?.ToLocationName,
+        currentStop?.customLocation?.name,
+        currentStop?.customLocation?.Name,
+        currentStop?.CustomLocation?.name,
+        currentStop?.CustomLocation?.Name,
         currentStop?.locationName,
         currentStop?.LocationName,
         currentStop?.title,
         currentStop?.Title,
-      ) || `Location #${toLocationId}`;
+      ) || 'Custom Point';
 
       rebuiltSegment.push({
         eventType: 'travel',
@@ -1013,8 +1403,8 @@ const ItineraryResultPage = () => {
       prevStop = normalizedCurrentStop;
     }
 
-    const firstLocationIndex = locationIndexes[0];
-    const lastLocationIndex = locationIndexes[locationIndexes.length - 1];
+    const firstLocationIndex = stopIndexes[0];
+    const lastLocationIndex = stopIndexes[stopIndexes.length - 1];
     const beforeSegment = preserveExternalSegments
       ? sourceTimeline.slice(0, firstLocationIndex)
       : sourceTimeline.slice(0, firstLocationIndex).filter((item) => !isTravelEvent(item));
@@ -1028,8 +1418,14 @@ const ItineraryResultPage = () => {
     return draftItinerary;
   }, []);
 
-  const loadProvinceLocations = useCallback(async (provinceId, dayIndex, searchTerm = '') => {
+  const loadProvinceLocations = useCallback(async (provinceId, dayIndex, searchTerm = '', locationTypeId = null) => {
     if (!itinerary) return;
+
+    const normalizedLocationTypeId = Number(locationTypeId);
+    if (!Number.isFinite(normalizedLocationTypeId) || normalizedLocationTypeId <= 0) {
+      setProvinceLocationOptions([]);
+      return;
+    }
 
     setProvinceLocationLoading(true);
     try {
@@ -1047,6 +1443,7 @@ const ItineraryResultPage = () => {
         provinceId,
         countryId: 'VN',
         searchTerm: searchTerm || undefined,
+        locationTypeId: normalizedLocationTypeId,
         pageSize: 300,
       });
 
@@ -1076,6 +1473,39 @@ const ItineraryResultPage = () => {
       setProvinceLocationLoading(false);
     }
   }, [itinerary]);
+
+  const loadAddBetweenLocationTypes = useCallback(async () => {
+    setAddBetweenLocationTypeLoading(true);
+    try {
+      const response = await getLocationTypesApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.items || response?.Items || [];
+
+      const options = items
+        .map((locationType) => {
+          const id = Number(locationType?.id ?? locationType?.Id);
+          if (!Number.isFinite(id) || id <= 0) return null;
+
+          const name = pickFirstText(
+            locationType?.name,
+            locationType?.Name,
+            locationType?.englishName,
+            locationType?.EnglishName,
+          ) || `Location Type #${id}`;
+
+          return { id, name };
+        })
+        .filter(Boolean);
+
+      setAddBetweenLocationTypeOptions(options);
+    } catch {
+      setAddBetweenLocationTypeOptions([]);
+      message.error('Unable to load location types.');
+    } finally {
+      setAddBetweenLocationTypeLoading(false);
+    }
+  }, []);
 
   const handleReplaceAlternative = useCallback(async (dayIndex, timelineIndex, alternative, sourceEventType) => {
     if (!itinerary) return;
@@ -1201,19 +1631,85 @@ const ItineraryResultPage = () => {
       || (itinerary?.days || itinerary?.Days || [])[dayIndex]?.DayNumber
       || dayIndex + 1;
 
+    const day = (itinerary?.days || itinerary?.Days || [])[dayIndex];
+    const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+    const timeline = day ? getDayTimeline(day, itineraryCurrency) : [];
+    const anchorItem = timeline[insertAfterIndex] || {};
+    const defaultStartTime = pickFirstText(anchorItem?.endTime, anchorItem?.EndTime, '08:00:00');
+
     setSelectedProvinceLocationId(null);
     setProvinceLocationSearch('');
+    setSelectedAddBetweenLocationTypeId(null);
+    setProvinceLocationOptions([]);
+    resetAddBetweenExistingForm(defaultStartTime);
+    resetAddBetweenCustomForm(defaultStartTime);
     setAddBetweenModal({ open: true, dayIndex, insertAfterIndex, provinceId: normalizedProvinceId });
     setRecalculatingDayNumber(dayNum);
-    await loadProvinceLocations(normalizedProvinceId, dayIndex, '');
+    await loadAddBetweenLocationTypes();
     setRecalculatingDayNumber(null);
-  }, [itinerary, loadProvinceLocations]);
+  }, [itinerary, loadAddBetweenLocationTypes, resetAddBetweenCustomForm, resetAddBetweenExistingForm]);
+
+  const handlePickCustomLocationOnMap = useCallback((latitude, longitude) => {
+    const safeLat = toFiniteNumber(latitude);
+    const safeLng = toFiniteNumber(longitude);
+    if (safeLat == null || safeLng == null) return;
+    if (safeLat < -90 || safeLat > 90 || safeLng < -180 || safeLng > 180) return;
+
+    setAddBetweenCustomLat(safeLat);
+    setAddBetweenCustomLng(safeLng);
+  }, []);
+
+  const handleUseCurrentLocationForCustom = useCallback(() => {
+    if (!navigator?.geolocation) {
+      message.error('Geolocation is not supported by this browser.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setAddBetweenCustomLat(position.coords.latitude);
+        setAddBetweenCustomLng(position.coords.longitude);
+      },
+      () => {
+        message.error('Unable to get your current location.');
+      },
+    );
+  }, []);
+
+  const handleChangeAddBetweenLocationType = useCallback(async (value) => {
+    const locationTypeId = Number(value);
+
+    setSelectedAddBetweenLocationTypeId(Number.isFinite(locationTypeId) && locationTypeId > 0
+      ? locationTypeId
+      : null);
+    setSelectedProvinceLocationId(null);
+    setProvinceLocationSearch('');
+
+    if (!addBetweenModal?.open || !Number.isFinite(Number(addBetweenModal?.provinceId))) {
+      setProvinceLocationOptions([]);
+      return;
+    }
+
+    if (!Number.isFinite(locationTypeId) || locationTypeId <= 0) {
+      setProvinceLocationOptions([]);
+      return;
+    }
+
+    await loadProvinceLocations(addBetweenModal.provinceId, addBetweenModal.dayIndex, '', locationTypeId);
+  }, [addBetweenModal, loadProvinceLocations]);
 
   const handleSearchProvinceLocations = useCallback(async (searchTerm) => {
     if (!addBetweenModal?.open || !Number.isFinite(Number(addBetweenModal?.provinceId))) return;
+    const locationTypeId = Number(selectedAddBetweenLocationTypeId);
+    if (!Number.isFinite(locationTypeId) || locationTypeId <= 0) return;
     setProvinceLocationSearch(searchTerm);
-    await loadProvinceLocations(addBetweenModal.provinceId, addBetweenModal.dayIndex, searchTerm);
-  }, [addBetweenModal, loadProvinceLocations]);
+    await loadProvinceLocations(
+      addBetweenModal.provinceId,
+      addBetweenModal.dayIndex,
+      searchTerm,
+      locationTypeId,
+    );
+  }, [addBetweenModal, loadProvinceLocations, selectedAddBetweenLocationTypeId]);
 
   const handleConfirmAddBetween = useCallback(async () => {
     if (!itinerary) return;
@@ -1223,8 +1719,29 @@ const ItineraryResultPage = () => {
     const locationId = Number(selectedProvinceLocationId);
 
     if (!Number.isFinite(dayIndex) || !Number.isFinite(insertAfterIndex)) return;
+    if (!Number.isFinite(Number(selectedAddBetweenLocationTypeId)) || Number(selectedAddBetweenLocationTypeId) <= 0) {
+      message.warning('Please select a location type first.');
+      return;
+    }
     if (!Number.isFinite(locationId) || locationId <= 0) {
       message.warning('Please select a location to add.');
+      return;
+    }
+
+    const normalizedStart = normalizeTimeOnly(addBetweenExistingStartTime);
+    const normalizedEnd = normalizeTimeOnly(addBetweenExistingEndTime);
+    if (!normalizedStart || !normalizedEnd) {
+      message.warning('Please provide valid start and end time.');
+      return;
+    }
+
+    const startMinutes = toMinutesOfDay(normalizedStart);
+    const endMinutes = toMinutesOfDay(normalizedEnd);
+    const durationMinutes = startMinutes != null && endMinutes != null
+      ? ((endMinutes - startMinutes + 1440) % 1440)
+      : 0;
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+      message.warning('End time must be after start time.');
       return;
     }
 
@@ -1236,6 +1753,8 @@ const ItineraryResultPage = () => {
 
     const days = itinerary.days || itinerary.Days || [];
     const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+    const costAmount = Math.max(0, Math.round(Number(addBetweenExistingCostAmount) || 0));
     setRecalculatingDayNumber(dayNumber);
 
     try {
@@ -1247,23 +1766,35 @@ const ItineraryResultPage = () => {
 
       const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
       const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
-      const anchorItem = timeline[insertAfterIndex] || {};
-      const startTime = pickFirstText(anchorItem?.endTime, anchorItem?.EndTime, '08:00:00');
+      const dayTimelineBefore = [...timeline];
+      const summaryKey = draft?.budgetSummary ? 'budgetSummary' : 'BudgetSummary';
+      const summarySnapshot = clonePlainObject(draft?.[summaryKey] || null);
+      const groupCost = {
+        amount: costAmount,
+        currency: itineraryCurrency,
+      };
 
       const insertedItem = {
         eventType: 'visit',
         title: `Visit ${picked.name}`,
         locationName: picked.name,
-        startTime,
-        endTime: addMinutesToTime(startTime, getTimelineDurationMinutes(anchorItem)),
+        LocationName: picked.name,
+        startTime: normalizedStart,
+        StartTime: normalizedStart,
+        endTime: normalizedEnd,
+        EndTime: normalizedEnd,
         locationId: picked.id,
+        LocationId: picked.id,
         tagNames: picked.tagNames || [],
-        ticketCost: null,
+        ticketCost: groupCost,
+        TicketCost: groupCost,
         extraCostPerPerson: null,
-        costForGroup: null,
+        costForGroup: groupCost,
+        CostForGroup: groupCost,
         note: 'Inserted after selected location',
         score: picked.score ?? 0,
         address: picked.address || null,
+        Address: picked.address || null,
         telephone: picked.telephone || null,
         mediaUrls: picked.mediaUrls || [],
         alternatives: [],
@@ -1273,6 +1804,11 @@ const ItineraryResultPage = () => {
       day[timelineKey] = timeline;
 
       await recalculateDayTimeline(draft, dayIndex);
+      if (summarySnapshot) {
+        draft[summaryKey] = summarySnapshot;
+      }
+      const dayTimelineAfter = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      updateBudgetSummaryForExistingAddFlow(draft, dayTimelineBefore, dayTimelineAfter, costAmount);
       updateItinerary(draft);
       message.success('Location added and timeline recalculated.');
 
@@ -1280,6 +1816,8 @@ const ItineraryResultPage = () => {
       setProvinceLocationOptions([]);
       setSelectedProvinceLocationId(null);
       setProvinceLocationSearch('');
+      setSelectedAddBetweenLocationTypeId(null);
+      resetAddBetweenExistingForm('08:00:00');
     } catch {
       message.error('Unable to add location.');
     } finally {
@@ -1288,9 +1826,156 @@ const ItineraryResultPage = () => {
   }, [
     itinerary,
     addBetweenModal,
+    selectedAddBetweenLocationTypeId,
     selectedProvinceLocationId,
+    addBetweenExistingStartTime,
+    addBetweenExistingEndTime,
+    addBetweenExistingCostAmount,
     provinceLocationOptions,
     recalculateDayTimeline,
+    resetAddBetweenExistingForm,
+    updateBudgetSummaryForExistingAddFlow,
+    updateItinerary,
+  ]);
+
+  const handleConfirmAddCustomLocation = useCallback(async () => {
+    if (!itinerary) return;
+
+    const dayIndex = addBetweenModal?.dayIndex;
+    const insertAfterIndex = addBetweenModal?.insertAfterIndex;
+
+    if (!Number.isFinite(dayIndex) || !Number.isFinite(insertAfterIndex)) return;
+
+    const customName = String(addBetweenCustomName || '').trim();
+    if (!customName) {
+      message.warning('Please enter custom location name.');
+      return;
+    }
+
+    if (!Number.isFinite(Number(addBetweenCustomLat)) || !Number.isFinite(Number(addBetweenCustomLng))) {
+      message.warning('Please pick custom location on map.');
+      return;
+    }
+
+    const normalizedStart = normalizeTimeOnly(addBetweenCustomStartTime);
+    const normalizedEnd = normalizeTimeOnly(addBetweenCustomEndTime);
+    if (!normalizedStart || !normalizedEnd) {
+      message.warning('Please provide valid start and end time.');
+      return;
+    }
+
+    const startMinutes = toMinutesOfDay(normalizedStart);
+    const endMinutes = toMinutesOfDay(normalizedEnd);
+    const durationMinutes = startMinutes != null && endMinutes != null
+      ? ((endMinutes - startMinutes + 1440) % 1440)
+      : 0;
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+      message.warning('End time must be after start time.');
+      return;
+    }
+
+    const days = itinerary.days || itinerary.Days || [];
+    const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+    const costAmount = Math.max(0, Math.round(Number(addBetweenCustomCostAmount) || 0));
+    const customAddress = String(addBetweenCustomAddress || '').trim();
+
+    setRecalculatingDayNumber(dayNumber);
+    setAddingCustomLocation(true);
+    try {
+      const draft = clonePlainObject(itinerary);
+      const daysKey = Array.isArray(draft?.days) ? 'days' : 'Days';
+      const draftDays = Array.isArray(draft?.[daysKey]) ? draft[daysKey] : [];
+      const day = draftDays[dayIndex];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const dayTimelineBefore = [...timeline];
+      const summaryKey = draft?.budgetSummary ? 'budgetSummary' : 'BudgetSummary';
+      const summarySnapshot = clonePlainObject(draft?.[summaryKey] || null);
+      const customLocationPayload = {
+        name: customName,
+        Name: customName,
+        latitude: Number(addBetweenCustomLat),
+        Latitude: Number(addBetweenCustomLat),
+        longitude: Number(addBetweenCustomLng),
+        Longitude: Number(addBetweenCustomLng),
+        address: customAddress || null,
+        Address: customAddress || null,
+      };
+      const groupCost = {
+        amount: costAmount,
+        currency: itineraryCurrency,
+      };
+
+      const insertedItem = {
+        eventType: 'visit',
+        title: `Visit ${customName}`,
+        locationName: customName,
+        LocationName: customName,
+        startTime: normalizedStart,
+        StartTime: normalizedStart,
+        endTime: normalizedEnd,
+        EndTime: normalizedEnd,
+        locationId: 0,
+        LocationId: 0,
+        customLocation: customLocationPayload,
+        CustomLocation: customLocationPayload,
+        tagNames: [],
+        ticketCost: groupCost,
+        TicketCost: groupCost,
+        extraCostPerPerson: null,
+        costForGroup: groupCost,
+        CostForGroup: groupCost,
+        note: 'Custom location inserted manually',
+        score: 0,
+        address: customAddress || null,
+        Address: customAddress || null,
+        telephone: null,
+        mediaUrls: [],
+        alternatives: [],
+      };
+
+      timeline.splice(Math.min(timeline.length, insertAfterIndex + 1), 0, insertedItem);
+      day[timelineKey] = timeline;
+
+      await recalculateDayTimeline(draft, dayIndex);
+      if (summarySnapshot) {
+        draft[summaryKey] = summarySnapshot;
+      }
+      const dayTimelineAfter = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      updateDayEstimatedCost(day, timelineKey, itineraryCurrency);
+      updateBudgetSummaryForCustomAddFlow(draft, dayTimelineBefore, dayTimelineAfter, costAmount);
+      updateItinerary(draft);
+      message.success('Custom location added to timeline.');
+
+      setAddBetweenModal({ open: false, dayIndex: null, insertAfterIndex: null, provinceId: null });
+      setProvinceLocationOptions([]);
+      setSelectedProvinceLocationId(null);
+      setProvinceLocationSearch('');
+      setSelectedAddBetweenLocationTypeId(null);
+      resetAddBetweenExistingForm('08:00:00');
+      resetAddBetweenCustomForm('08:00:00');
+    } catch {
+      message.error('Unable to add custom location.');
+    } finally {
+      setAddingCustomLocation(false);
+      setRecalculatingDayNumber(null);
+    }
+  }, [
+    itinerary,
+    addBetweenModal,
+    addBetweenCustomName,
+    addBetweenCustomAddress,
+    addBetweenCustomLat,
+    addBetweenCustomLng,
+    addBetweenCustomStartTime,
+    addBetweenCustomEndTime,
+    addBetweenCustomCostAmount,
+    resetAddBetweenExistingForm,
+    resetAddBetweenCustomForm,
+    updateBudgetSummaryForCustomAddFlow,
     updateItinerary,
   ]);
 
@@ -1299,10 +1984,157 @@ const ItineraryResultPage = () => {
     setProvinceLocationOptions([]);
     setSelectedProvinceLocationId(null);
     setProvinceLocationSearch('');
+    setSelectedAddBetweenLocationTypeId(null);
+    resetAddBetweenExistingForm('08:00:00');
+    resetAddBetweenCustomForm('08:00:00');
+  }, [resetAddBetweenCustomForm, resetAddBetweenExistingForm]);
+
+  const loadEditTimelineLocations = useCallback(async (provinceId, searchTerm = '', ensureOption = null) => {
+    const normalizedProvinceId = Number(provinceId);
+    if (!Number.isFinite(normalizedProvinceId) || normalizedProvinceId <= 0) {
+      setEditTimelineLocationOptions(ensureOption ? [ensureOption] : []);
+      return;
+    }
+
+    setEditTimelineLocationLoading(true);
+    try {
+      const response = await getLocationsByProvinceApi({
+        provinceId: normalizedProvinceId,
+        countryId: 'VN',
+        searchTerm: searchTerm || undefined,
+        pageSize: 300,
+      });
+
+      const items = Array.isArray(response?.items) ? response.items : [];
+      const options = items
+        .map((location) => {
+          const id = Number(location?.id ?? location?.Id);
+          if (!Number.isFinite(id) || id <= 0) return null;
+
+          const name = pickFirstText(
+            location?.englishName,
+            location?.EnglishName,
+            location?.name,
+            location?.Name,
+          ) || `Location #${id}`;
+
+          return {
+            id,
+            name,
+            address: pickFirstText(location?.address, location?.Address),
+            score: location?.score ?? location?.Score ?? null,
+            tagNames: location?.tagNames || location?.TagNames || [],
+            telephone: pickFirstText(location?.telephone, location?.Telephone),
+            mediaUrls: location?.mediaLinks || location?.MediaLinks || [],
+          };
+        })
+        .filter(Boolean);
+
+      if (ensureOption && Number.isFinite(Number(ensureOption?.id))) {
+        const hasEnsured = options.some((option) => option.id === ensureOption.id);
+        if (!hasEnsured) {
+          options.unshift(ensureOption);
+        }
+      }
+
+      setEditTimelineLocationOptions(options);
+    } catch {
+      setEditTimelineLocationOptions(ensureOption ? [ensureOption] : []);
+      message.error('Unable to load locations for editing.');
+    } finally {
+      setEditTimelineLocationLoading(false);
+    }
   }, []);
 
-  const handleSelectTransportOption = useCallback((dayIndex, timelineIndex, optionIndex) => {
+  const handleOpenEditTimeline = useCallback(async (dayIndex, timelineIndex, provinceId) => {
     if (!itinerary) return;
+
+    const days = itinerary.days || itinerary.Days || [];
+    const day = days[dayIndex];
+    const dayNumber = day?.dayNumber || day?.DayNumber || dayIndex + 1;
+    if (!day) return;
+
+    const timeline = getDayTimeline(day, pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND');
+    const item = timeline[timelineIndex];
+    if (!item) return;
+
+    const normalizedStart = normalizeTimeOnly(item?.startTime || item?.StartTime);
+    const normalizedEnd = normalizeTimeOnly(item?.endTime || item?.EndTime);
+    const currentCost = Math.round(Math.max(0, getTimelineItemCostAmount(item)));
+    const canChangeLocation = isEditableLocationEvent(item);
+    const currentLocationId = canChangeLocation ? getItemLocationId(item) : null;
+    const currentLocationName = canChangeLocation
+      ? pickFirstText(
+          item?.locationName,
+          item?.LocationName,
+          locationNameById.get(currentLocationId),
+        ) || `Location #${currentLocationId}`
+      : '';
+    const ensuredOption = canChangeLocation && Number.isFinite(currentLocationId) && currentLocationId > 0
+      ? {
+          id: currentLocationId,
+          name: currentLocationName,
+          address: pickFirstText(item?.address, item?.Address),
+          score: item?.score ?? item?.Score ?? null,
+          tagNames: item?.tagNames || item?.TagNames || [],
+          telephone: pickFirstText(item?.telephone, item?.Telephone),
+          mediaUrls: item?.mediaUrls || item?.MediaUrls || [],
+        }
+      : null;
+
+    setEditTimelineStartTime(normalizedStart ? normalizedStart.slice(0, 5) : '');
+    setEditTimelineEndTime(normalizedEnd ? normalizedEnd.slice(0, 5) : '');
+    setEditTimelineCostAmount(currentCost);
+    setEditTimelineLocationId(currentLocationId);
+    setEditTimelineLocationSearch('');
+    setEditTimelineModal({
+      open: true,
+      dayIndex,
+      timelineIndex,
+      provinceId: Number.isFinite(Number(provinceId)) ? Number(provinceId) : null,
+      canChangeLocation,
+    });
+
+    if (!canChangeLocation) {
+      setEditTimelineLocationOptions([]);
+      return;
+    }
+
+    setRecalculatingDayNumber(dayNumber);
+    await loadEditTimelineLocations(provinceId, '', ensuredOption);
+    setRecalculatingDayNumber(null);
+  }, [itinerary, loadEditTimelineLocations, locationNameById]);
+
+  const handleSearchEditTimelineLocations = useCallback(async (searchTerm) => {
+    if (!editTimelineModal?.open || !editTimelineModal?.canChangeLocation) return;
+    setEditTimelineLocationSearch(searchTerm);
+
+    const selectedLocation = editTimelineLocationOptions.find((option) => option.id === Number(editTimelineLocationId));
+    await loadEditTimelineLocations(editTimelineModal.provinceId, searchTerm, selectedLocation || null);
+  }, [editTimelineLocationId, editTimelineLocationOptions, editTimelineModal, loadEditTimelineLocations]);
+
+  const handleCloseEditTimelineModal = useCallback(() => {
+    setEditTimelineModal({
+      open: false,
+      dayIndex: null,
+      timelineIndex: null,
+      provinceId: null,
+      canChangeLocation: false,
+    });
+    setEditTimelineStartTime('');
+    setEditTimelineEndTime('');
+    setEditTimelineCostAmount(0);
+    setEditTimelineLocationId(null);
+    setEditTimelineLocationOptions([]);
+    setEditTimelineLocationSearch('');
+  }, []);
+
+  const handleConfirmEditTimeline = useCallback(async () => {
+    if (!itinerary || !editTimelineModal?.open) return;
+
+    const dayIndex = Number(editTimelineModal?.dayIndex);
+    const timelineIndex = Number(editTimelineModal?.timelineIndex);
+    if (!Number.isFinite(dayIndex) || !Number.isFinite(timelineIndex)) return;
 
     const days = itinerary.days || itinerary.Days || [];
     const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
@@ -1317,104 +2149,20 @@ const ItineraryResultPage = () => {
 
       const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
       const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
-      const travelItem = timeline[timelineIndex];
-      if (!travelItem || !isTravelEvent(travelItem)) {
-        message.warning('Only travel segments can change transport option.');
-        return;
-      }
+      const currentItem = timeline[timelineIndex];
+      if (!currentItem) return;
 
-      const [travelDetailKey, travelDetail] = getTravelDetailEntry(travelItem);
-      if (!travelDetailKey || !travelDetail) {
-        message.warning('Travel detail is missing on this segment.');
-        return;
-      }
-
-      const options = getTransportOptions(travelDetail);
-      const selectedOption = options[optionIndex];
-      if (!selectedOption) {
-        message.warning('Selected transport option is not available.');
-        return;
-      }
-
-      const startTime = pickFirstText(travelItem?.startTime, travelItem?.StartTime);
-      const currentEndTime = pickFirstText(travelItem?.endTime, travelItem?.EndTime);
-      const currentMinutesFromClock = (() => {
-        const start = toMinutesOfDay(startTime);
-        const end = toMinutesOfDay(currentEndTime);
+      const getDurationMinutesFromClock = (startText, endText) => {
+        const start = toMinutesOfDay(startText);
+        const end = toMinutesOfDay(endText);
         if (start == null || end == null) return null;
         return end >= start ? end - start : (end + 1440) - start;
-      })();
-
-      const selectedMinutesRaw = toFiniteNumber(
-        selectedOption?.estimatedTravelMinutes ?? selectedOption?.EstimatedTravelMinutes,
-      );
-      const selectedMinutes = selectedMinutesRaw != null && selectedMinutesRaw > 0
-        ? Math.round(selectedMinutesRaw)
-        : (getTravelDurationMinutes(travelDetail) || getTimelineDurationMinutes(travelItem));
-      const currentMinutes = currentMinutesFromClock != null
-        ? currentMinutesFromClock
-        : (getTravelDurationMinutes(travelDetail) || selectedMinutes);
-
-      const newEndTime = addMinutesToTime(startTime, selectedMinutes);
-      const deltaMinutes = selectedMinutes - currentMinutes;
-
-      const selectedMethod = pickFirstText(
-        selectedOption?.method,
-        selectedOption?.Method,
-        travelDetail?.selectedMethod,
-        travelDetail?.SelectedMethod,
-      ) || 'Transport';
-      const selectedCost = pickBestMoney(
-        selectedOption?.costForGroup,
-        selectedOption?.CostForGroup,
-        selectedOption?.estimatedTotalCost,
-        selectedOption?.EstimatedTotalCost,
-        travelDetail?.selectedTotalCost,
-        travelDetail?.SelectedTotalCost,
-      );
-
-      const normalizedOptions = options.map((option, idx) => ({
-        ...option,
-        recommended: idx === optionIndex,
-        Recommended: idx === optionIndex,
-      }));
-
-      const updatedTravelDetail = {
-        ...travelDetail,
-        selectedMethod: selectedMethod,
-        SelectedMethod: selectedMethod,
-        selectedTravelTimeMinutes: selectedMinutes,
-        SelectedTravelTimeMinutes: selectedMinutes,
-        selectedTotalCost: selectedCost,
-        SelectedTotalCost: selectedCost,
-        departureTime: pickFirstText(travelDetail?.departureTime, travelDetail?.DepartureTime, startTime),
-        DepartureTime: pickFirstText(travelDetail?.departureTime, travelDetail?.DepartureTime, startTime),
-        arrivalTime: newEndTime,
-        ArrivalTime: newEndTime,
       };
 
-      if ('transportOptions' in travelDetail) {
-        updatedTravelDetail.transportOptions = normalizedOptions;
-      }
-      if ('TransportOptions' in travelDetail) {
-        updatedTravelDetail.TransportOptions = normalizedOptions;
-      }
-      if (!('transportOptions' in travelDetail) && !('TransportOptions' in travelDetail)) {
-        updatedTravelDetail.transportOptions = normalizedOptions;
-      }
+      const shiftFollowingTimelineItems = (fromIndex, deltaMinutes) => {
+        if (!deltaMinutes) return;
 
-      const updatedTravelItem = {
-        ...travelItem,
-        endTime: newEndTime,
-        EndTime: newEndTime,
-        costForGroup: selectedCost,
-        CostForGroup: selectedCost,
-      };
-      updatedTravelItem[travelDetailKey] = updatedTravelDetail;
-      timeline[timelineIndex] = updatedTravelItem;
-
-      if (deltaMinutes !== 0) {
-        for (let index = timelineIndex + 1; index < timeline.length; index += 1) {
+        for (let index = fromIndex + 1; index < timeline.length; index += 1) {
           const next = { ...timeline[index] };
           const itemStart = pickFirstText(next?.startTime, next?.StartTime);
           const itemEnd = pickFirstText(next?.endTime, next?.EndTime);
@@ -1450,21 +2198,933 @@ const ItineraryResultPage = () => {
 
           timeline[index] = next;
         }
+      };
+
+      const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+      const existingStart = normalizeTimeOnly(currentItem?.startTime || currentItem?.StartTime) || '08:00:00';
+      const existingEnd = normalizeTimeOnly(currentItem?.endTime || currentItem?.EndTime)
+        || addMinutesToTime(existingStart, getTimelineDurationMinutes(currentItem));
+
+      let nextStart = normalizeTimeOnly(editTimelineStartTime) || existingStart;
+      let nextEnd = normalizeTimeOnly(editTimelineEndTime) || existingEnd;
+
+      const previousItem = timelineIndex > 0 ? timeline[timelineIndex - 1] : null;
+      const previousEnd = normalizeTimeOnly(previousItem?.endTime || previousItem?.EndTime);
+      const previousEndMinutes = toMinutesOfDay(previousEnd);
+      const nextStartMinutes = toMinutesOfDay(nextStart);
+      if (previousEndMinutes != null && nextStartMinutes != null && nextStartMinutes < previousEndMinutes) {
+        nextStart = previousEnd;
+      }
+
+      const fallbackDuration = getDurationMinutesFromClock(existingStart, existingEnd)
+        || Math.max(15, getTimelineDurationMinutes(currentItem));
+      const nextDuration = getDurationMinutesFromClock(nextStart, nextEnd);
+      if (nextDuration == null || nextDuration <= 0) {
+        nextEnd = addMinutesToTime(nextStart, fallbackDuration);
+      }
+
+      const existingEndMinutes = toMinutesOfDay(existingEnd);
+      const normalizedNextEndMinutes = toMinutesOfDay(nextEnd);
+      const timelineShiftDeltaMinutes = (existingEndMinutes != null && normalizedNextEndMinutes != null)
+        ? normalizedNextEndMinutes - existingEndMinutes
+        : 0;
+      const normalizedCostAmount = Math.max(0, Math.round(Number(editTimelineCostAmount) || 0));
+      const updatedCost = { amount: normalizedCostAmount, currency: currencyCode };
+
+      const eventType = toEventType(
+        currentItem?.eventType
+        || currentItem?.EventType
+        || currentItem?.type
+        || currentItem?.Type
+      );
+      const previousCostAmount = Math.round(Math.max(0, getTimelineItemCostAmount(currentItem)));
+
+      const updatedBaseItem = {
+        ...currentItem,
+        startTime: nextStart,
+        StartTime: nextStart,
+        endTime: nextEnd,
+        EndTime: nextEnd,
+        costForGroup: updatedCost,
+        CostForGroup: updatedCost,
+        ticketCost: updatedCost,
+        TicketCost: updatedCost,
+      };
+
+      const canChangeLocation = isEditableLocationEvent(currentItem) && editTimelineModal?.canChangeLocation;
+      const currentLocationId = getItemLocationId(currentItem);
+      const nextLocationId = Number(editTimelineLocationId);
+      const locationChanged = canChangeLocation
+        && Number.isFinite(nextLocationId)
+        && nextLocationId > 0
+        && nextLocationId !== currentLocationId;
+
+      if (locationChanged) {
+        const selectedLocation = editTimelineLocationOptions.find((option) => option.id === nextLocationId);
+        if (!selectedLocation) {
+          message.warning('Selected location is not available for this day.');
+          return;
+        }
+
+        const selectedName = selectedLocation.name || `Location #${nextLocationId}`;
+        const nextTitle = eventType === 'meal'
+          ? `Meal at ${selectedName}`
+          : (eventType === 'visit' ? `Visit ${selectedName}` : (pickFirstText(currentItem?.title, currentItem?.Title) || selectedName));
+
+        timeline[timelineIndex] = {
+          ...updatedBaseItem,
+          title: nextTitle,
+          Title: nextTitle,
+          locationId: nextLocationId,
+          LocationId: nextLocationId,
+          locationName: selectedName,
+          LocationName: selectedName,
+          name: selectedName,
+          Name: selectedName,
+          address: selectedLocation.address || null,
+          Address: selectedLocation.address || null,
+          telephone: selectedLocation.telephone || null,
+          Telephone: selectedLocation.telephone || null,
+          tagNames: selectedLocation.tagNames || [],
+          TagNames: selectedLocation.tagNames || [],
+          mediaUrls: selectedLocation.mediaUrls || [],
+          MediaUrls: selectedLocation.mediaUrls || [],
+        };
+
+        day[timelineKey] = timeline;
+        await recalculateDayTimeline(draft, dayIndex);
+      } else {
+        timeline[timelineIndex] = updatedBaseItem;
+        if (timelineShiftDeltaMinutes !== 0) {
+          shiftFollowingTimelineItems(timelineIndex, timelineShiftDeltaMinutes);
+        }
+        day[timelineKey] = timeline;
+
+        const updatedItem = timeline[timelineIndex];
+        const nextCostAmount = Math.round(Math.max(0, getTimelineItemCostAmount(updatedItem)));
+        const costDelta = nextCostAmount - previousCostAmount;
+
+        updateDayEstimatedCost(day, timelineKey, currencyCode);
+        updateBudgetSummaryForTimelineItemCostDelta(draft, eventType, costDelta);
+      }
+
+      updateItinerary(draft);
+      handleCloseEditTimelineModal();
+      message.success(locationChanged
+        ? 'Timeline item updated. Route and budget were recalculated.'
+        : 'Timeline item updated and budget summary refreshed.');
+    } catch {
+      message.error('Unable to update timeline item.');
+    } finally {
+      setRecalculatingDayNumber(null);
+    }
+  }, [
+    editTimelineCostAmount,
+    editTimelineEndTime,
+    editTimelineLocationId,
+    editTimelineLocationOptions,
+    editTimelineModal,
+    editTimelineStartTime,
+    handleCloseEditTimelineModal,
+    itinerary,
+    recalculateDayTimeline,
+    updateItinerary,
+  ]);
+
+  const handleSelectTransportOption = useCallback(async (dayIndex, timelineIndex, optionIndex) => {
+    if (!itinerary) return;
+
+    const days = itinerary.days || itinerary.Days || [];
+    const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    setRecalculatingDayNumber(dayNumber);
+
+    try {
+      const draft = clonePlainObject(itinerary);
+      const daysKey = Array.isArray(draft?.days) ? 'days' : 'Days';
+      const draftDays = Array.isArray(draft?.[daysKey]) ? draft[daysKey] : [];
+      const day = draftDays[dayIndex];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const timelineBeforeTransportChange = timeline.map((item) => clonePlainObject(item));
+      const travelItem = timeline[timelineIndex];
+      if (!travelItem || !isTravelEvent(travelItem)) {
+        message.warning('Only travel segments can change transport option.');
+        return;
+      }
+
+      const [travelDetailKey, travelDetail] = getTravelDetailEntry(travelItem);
+      if (!travelDetailKey || !travelDetail) {
+        message.warning('Travel detail is missing on this segment.');
+        return;
+      }
+
+      const options = getTransportOptions(travelDetail);
+      const selectedOption = options[optionIndex];
+      if (!selectedOption) {
+        message.warning('Selected transport option is not available.');
+        return;
+      }
+
+      const isIntercitySegment = String(travelDetailKey || '').toLowerCase().includes('provincetoprovincetravel');
+      const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+      const groupSizeValue = Number(draft?.groupSize ?? draft?.GroupSize);
+      const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0 ? Math.round(groupSizeValue) : 1;
+
+      const getDurationMinutesFromClock = (startText, endText) => {
+        const start = toMinutesOfDay(startText);
+        const end = toMinutesOfDay(endText);
+        if (start == null || end == null) return null;
+        return end >= start ? end - start : (end + 1440) - start;
+      };
+
+      const shiftFollowingTimelineItems = (fromIndex, deltaMinutes) => {
+        if (!deltaMinutes) return;
+
+        for (let index = fromIndex + 1; index < timeline.length; index += 1) {
+          const next = { ...timeline[index] };
+          const itemStart = pickFirstText(next?.startTime, next?.StartTime);
+          const itemEnd = pickFirstText(next?.endTime, next?.EndTime);
+
+          if (itemStart) {
+            const shiftedStart = shiftTimeByMinutes(itemStart, deltaMinutes);
+            next.startTime = shiftedStart;
+            next.StartTime = shiftedStart;
+          }
+          if (itemEnd) {
+            const shiftedEnd = shiftTimeByMinutes(itemEnd, deltaMinutes);
+            next.endTime = shiftedEnd;
+            next.EndTime = shiftedEnd;
+          }
+
+          const [nextTravelKey, nextTravelDetail] = getTravelDetailEntry(next);
+          if (nextTravelKey && nextTravelDetail) {
+            const td = { ...nextTravelDetail };
+            const tdDeparture = pickFirstText(td?.departureTime, td?.DepartureTime);
+            const tdArrival = pickFirstText(td?.arrivalTime, td?.ArrivalTime);
+            if (tdDeparture) {
+              const shiftedDeparture = shiftTimeByMinutes(tdDeparture, deltaMinutes);
+              td.departureTime = shiftedDeparture;
+              td.DepartureTime = shiftedDeparture;
+            }
+            if (tdArrival) {
+              const shiftedArrival = shiftTimeByMinutes(tdArrival, deltaMinutes);
+              td.arrivalTime = shiftedArrival;
+              td.ArrivalTime = shiftedArrival;
+            }
+            next[nextTravelKey] = td;
+          }
+
+          timeline[index] = next;
+        }
+      };
+
+      const resolveEndpointParams = (detail, side) => {
+        const isFrom = side === 'from';
+        const locationId = toPositiveIntOrNull(
+          isFrom
+            ? (detail?.fromLocationId ?? detail?.FromLocationId)
+            : (detail?.toLocationId ?? detail?.ToLocationId)
+        );
+        const transitHubId = toPositiveIntOrNull(
+          isFrom
+            ? (detail?.fromTransitHubId ?? detail?.FromTransitHubId)
+            : (detail?.toTransitHubId ?? detail?.ToTransitHubId)
+        );
+        const customHub = toCustomGeoPayload(
+          isFrom
+            ? (detail?.customFromTransitHub || detail?.CustomFromTransitHub)
+            : (detail?.customToTransitHub || detail?.CustomToTransitHub)
+        );
+
+        if (isFrom) {
+          if (locationId) return { fromLocationId: locationId };
+          if (transitHubId) return { fromTransitHubId: transitHubId };
+          if (customHub) return { fromLat: customHub.latitude, fromLng: customHub.longitude };
+          return {};
+        }
+
+        if (locationId) return { toLocationId: locationId };
+        if (transitHubId) return { toTransitHubId: transitHubId };
+        if (customHub) return { toLat: customHub.latitude, toLng: customHub.longitude };
+        return {};
+      };
+
+      const applyEndpointToTravelDetail = (detail, endpointPatch = {}) => {
+        const nextDetail = { ...detail };
+
+        if ('fromTransitHubId' in endpointPatch) {
+          nextDetail.fromTransitHubId = endpointPatch.fromTransitHubId;
+          nextDetail.FromTransitHubId = endpointPatch.fromTransitHubId;
+        }
+        if ('toTransitHubId' in endpointPatch) {
+          nextDetail.toTransitHubId = endpointPatch.toTransitHubId;
+          nextDetail.ToTransitHubId = endpointPatch.toTransitHubId;
+        }
+        if ('fromTransitHubName' in endpointPatch) {
+          nextDetail.fromTransitHubName = endpointPatch.fromTransitHubName;
+          nextDetail.FromTransitHubName = endpointPatch.fromTransitHubName;
+        }
+        if ('toTransitHubName' in endpointPatch) {
+          nextDetail.toTransitHubName = endpointPatch.toTransitHubName;
+          nextDetail.ToTransitHubName = endpointPatch.toTransitHubName;
+        }
+
+        return nextDetail;
+      };
+
+      const applyTravelLegAtIndex = (targetIndex, travelLeg, endpointPatch = {}) => {
+        const targetItem = timeline[targetIndex];
+        if (!targetItem || !isTravelEvent(targetItem)) return false;
+
+        const [targetDetailKey, targetDetail] = getTravelDetailEntry(targetItem);
+        if (!targetDetailKey || !targetDetail) return false;
+
+        const startTimeText = pickFirstText(targetItem?.startTime, targetItem?.StartTime);
+        const currentEndText = pickFirstText(targetItem?.endTime, targetItem?.EndTime);
+        const currentMinutesFromClock = getDurationMinutesFromClock(startTimeText, currentEndText);
+
+        const incomingOptions = getTransportOptions(travelLeg);
+        const recommendedIncoming = getRecommendedTransportOption(travelLeg);
+        const nextMinutesRaw = toFiniteNumber(
+          travelLeg?.selectedTravelTimeMinutes
+          ?? travelLeg?.SelectedTravelTimeMinutes
+          ?? recommendedIncoming?.estimatedTravelMinutes
+          ?? recommendedIncoming?.EstimatedTravelMinutes
+        );
+        const nextMinutes = nextMinutesRaw != null && nextMinutesRaw > 0
+          ? Math.round(nextMinutesRaw)
+          : (getTravelDurationMinutes(targetDetail) || getTimelineDurationMinutes(targetItem));
+        const currentMinutes = currentMinutesFromClock != null
+          ? currentMinutesFromClock
+          : (getTravelDurationMinutes(targetDetail) || nextMinutes);
+
+        const nextEndTime = pickFirstText(
+          travelLeg?.arrivalTime,
+          travelLeg?.ArrivalTime,
+          addMinutesToTime(startTimeText, nextMinutes),
+        );
+        const deltaMinutes = nextMinutes - currentMinutes;
+
+        const nextMethod = pickFirstText(
+          travelLeg?.selectedMethod,
+          travelLeg?.SelectedMethod,
+          recommendedIncoming?.method,
+          recommendedIncoming?.Method,
+          targetDetail?.selectedMethod,
+          targetDetail?.SelectedMethod,
+        ) || 'Transport';
+
+        const nextCost = normalizeMoney(pickBestMoney(
+          travelLeg?.selectedTotalCost,
+          travelLeg?.SelectedTotalCost,
+          recommendedIncoming?.costForGroup,
+          recommendedIncoming?.CostForGroup,
+          recommendedIncoming?.estimatedTotalCost,
+          recommendedIncoming?.EstimatedTotalCost,
+        ), currencyCode);
+
+        const nextTransportModeId = toPositiveIntOrNull(
+          travelLeg?.selectedTransportModeId
+          ?? travelLeg?.SelectedTransportModeId
+          ?? recommendedIncoming?.transportModeId
+          ?? recommendedIncoming?.TransportModeId
+          ?? recommendedIncoming?.modeId
+          ?? recommendedIncoming?.ModeId
+        );
+
+        const normalizedIncomingOptions = incomingOptions.length > 0
+          ? incomingOptions.map((option) => {
+            const optionRecommended = Boolean(option?.recommended ?? option?.Recommended);
+            return {
+              ...option,
+              recommended: optionRecommended,
+              Recommended: optionRecommended,
+            };
+          })
+          : getTransportOptions(targetDetail);
+
+        let nextDetail = {
+          ...targetDetail,
+          ...travelLeg,
+          selectedMethod: nextMethod,
+          SelectedMethod: nextMethod,
+          selectedTransportModeId: nextTransportModeId,
+          SelectedTransportModeId: nextTransportModeId,
+          selectedTravelTimeMinutes: nextMinutes,
+          SelectedTravelTimeMinutes: nextMinutes,
+          costForGroup: nextCost,
+          CostForGroup: nextCost,
+          selectedTotalCost: nextCost,
+          SelectedTotalCost: nextCost,
+          departureTime: startTimeText,
+          DepartureTime: startTimeText,
+          arrivalTime: nextEndTime,
+          ArrivalTime: nextEndTime,
+        };
+
+        nextDetail = applyEndpointToTravelDetail(nextDetail, endpointPatch);
+
+        if (Array.isArray(normalizedIncomingOptions) && normalizedIncomingOptions.length > 0) {
+          if ('transportOptions' in nextDetail) nextDetail.transportOptions = normalizedIncomingOptions;
+          if ('TransportOptions' in nextDetail) nextDetail.TransportOptions = normalizedIncomingOptions;
+          if (!('transportOptions' in nextDetail) && !('TransportOptions' in nextDetail)) {
+            nextDetail.transportOptions = normalizedIncomingOptions;
+          }
+        }
+
+        const nextItem = {
+          ...targetItem,
+          endTime: nextEndTime,
+          EndTime: nextEndTime,
+          ticketCost: null,
+          TicketCost: null,
+          costForGroup: nextCost,
+          CostForGroup: nextCost,
+        };
+        nextItem[targetDetailKey] = nextDetail;
+        timeline[targetIndex] = nextItem;
+
+        if (deltaMinutes !== 0) {
+          shiftFollowingTimelineItems(targetIndex, deltaMinutes);
+        }
+
+        return true;
+      };
+
+      const findNearestTravelIndex = (startIndex, direction, predicate) => {
+        const step = direction === 'backward' ? -1 : 1;
+        for (
+          let cursor = startIndex + step;
+          cursor >= 0 && cursor < timeline.length;
+          cursor += step
+        ) {
+          const item = timeline[cursor];
+          if (!item || !isTravelEvent(item)) continue;
+          const [detailKey, detail] = getTravelDetailEntry(item);
+          if (!detailKey || !detail) continue;
+          if (predicate(detailKey, detail)) return cursor;
+        }
+        return -1;
+      };
+
+      const reestimateLocalTravelAtIndex = async (targetIndex, endpointPatch, endpointRequestPatch) => {
+        if (targetIndex < 0) return false;
+
+        const targetItem = timeline[targetIndex];
+        const [targetDetailKey, targetDetail] = getTravelDetailEntry(targetItem);
+        if (!targetDetailKey || !targetDetail) return false;
+
+        const hasEndpointOverride = Object.values(endpointRequestPatch || {}).some((value) => value != null);
+        if (!hasEndpointOverride) {
+          const nextItem = { ...targetItem };
+          nextItem[targetDetailKey] = applyEndpointToTravelDetail(targetDetail, endpointPatch);
+          timeline[targetIndex] = nextItem;
+          return false;
+        }
+
+        const startTimeText = pickFirstText(targetItem?.startTime, targetItem?.StartTime);
+        const baseFrom = resolveEndpointParams(targetDetail, 'from');
+        const baseTo = resolveEndpointParams(targetDetail, 'to');
+
+        const estimateRequest = {
+          ...baseFrom,
+          ...baseTo,
+          ...endpointRequestPatch,
+          groupSize,
+          departureTime: startTimeText,
+          currencyCode,
+        };
+
+        const hasFrom = Boolean(
+          estimateRequest.fromLocationId
+          || estimateRequest.fromTransitHubId
+          || (estimateRequest.fromLat != null && estimateRequest.fromLng != null)
+        );
+        const hasTo = Boolean(
+          estimateRequest.toLocationId
+          || estimateRequest.toTransitHubId
+          || (estimateRequest.toLat != null && estimateRequest.toLng != null)
+        );
+
+        if (!hasFrom || !hasTo) {
+          const nextItem = { ...targetItem };
+          nextItem[targetDetailKey] = applyEndpointToTravelDetail(targetDetail, endpointPatch);
+          timeline[targetIndex] = nextItem;
+          return false;
+        }
+
+        try {
+          const travelLeg = await estimateLocalTravelApi(estimateRequest);
+          return applyTravelLegAtIndex(targetIndex, travelLeg || {}, endpointPatch);
+        } catch {
+          const nextItem = { ...targetItem };
+          nextItem[targetDetailKey] = applyEndpointToTravelDetail(targetDetail, endpointPatch);
+          timeline[targetIndex] = nextItem;
+          return false;
+        }
+      };
+
+      const selectedMethod = pickFirstText(
+        selectedOption?.method,
+        selectedOption?.Method,
+        travelDetail?.selectedMethod,
+        travelDetail?.SelectedMethod,
+      ) || 'Transport';
+      const selectedCost = normalizeMoney(pickBestMoney(
+        selectedOption?.costForGroup,
+        selectedOption?.CostForGroup,
+        selectedOption?.estimatedTotalCost,
+        selectedOption?.EstimatedTotalCost,
+      ), currencyCode);
+
+      const selectedTransportModeId = toPositiveIntOrNull(
+        selectedOption?.transportModeId
+        ?? selectedOption?.TransportModeId
+        ?? selectedOption?.modeId
+        ?? selectedOption?.ModeId
+      );
+
+      const selectedFromTransitHubId = toPositiveIntOrNull(
+        selectedOption?.fromTransitHubId
+        ?? selectedOption?.FromTransitHubId
+      );
+      const selectedToTransitHubId = toPositiveIntOrNull(
+        selectedOption?.toTransitHubId
+        ?? selectedOption?.ToTransitHubId
+      );
+      const selectedFromTransitHubName = pickFirstText(
+        selectedOption?.fromTransitHubName,
+        selectedOption?.FromTransitHubName,
+      );
+      const selectedToTransitHubName = pickFirstText(
+        selectedOption?.toTransitHubName,
+        selectedOption?.ToTransitHubName,
+      );
+
+      const previousLocalTravelIndex = isIntercitySegment
+        ? findNearestTravelIndex(
+            timelineIndex,
+            'backward',
+            (detailKey) => String(detailKey).toLowerCase().includes('locationtotransithubtravel')
+          )
+        : -1;
+      const nextLocalTravelIndex = isIntercitySegment
+        ? findNearestTravelIndex(
+            timelineIndex,
+            'forward',
+            (detailKey) => String(detailKey).toLowerCase().includes('transithubtolocationtravel')
+          )
+        : -1;
+
+      if (previousLocalTravelIndex >= 0) {
+        await reestimateLocalTravelAtIndex(
+          previousLocalTravelIndex,
+          {
+            toTransitHubId: selectedFromTransitHubId,
+            toTransitHubName: selectedFromTransitHubName,
+          },
+          selectedFromTransitHubId
+            ? { toTransitHubId: selectedFromTransitHubId, toLocationId: undefined, toLat: undefined, toLng: undefined }
+            : {}
+        );
+      }
+
+      const currentTravelItem = timeline[timelineIndex];
+      const [currentTravelDetailKey, currentTravelDetail] = getTravelDetailEntry(currentTravelItem);
+      if (!currentTravelItem || !currentTravelDetailKey || !currentTravelDetail) {
+        message.warning('Travel detail is missing on this segment.');
+        return;
+      }
+
+      const currentStartTime = pickFirstText(currentTravelItem?.startTime, currentTravelItem?.StartTime);
+      const currentEndTime = pickFirstText(currentTravelItem?.endTime, currentTravelItem?.EndTime);
+      const currentMinutesFromClock = getDurationMinutesFromClock(currentStartTime, currentEndTime);
+
+      const selectedMinutesRaw = toFiniteNumber(
+        selectedOption?.estimatedTravelMinutes ?? selectedOption?.EstimatedTravelMinutes,
+      );
+      const selectedMinutes = selectedMinutesRaw != null && selectedMinutesRaw > 0
+        ? Math.round(selectedMinutesRaw)
+        : (getTravelDurationMinutes(currentTravelDetail) || getTimelineDurationMinutes(currentTravelItem));
+      const currentMinutes = currentMinutesFromClock != null
+        ? currentMinutesFromClock
+        : (getTravelDurationMinutes(currentTravelDetail) || selectedMinutes);
+
+      const newEndTime = addMinutesToTime(currentStartTime, selectedMinutes);
+      const deltaMinutes = selectedMinutes - currentMinutes;
+
+      const normalizedOptions = options.map((option, idx) => ({
+        ...option,
+        recommended: idx === optionIndex,
+        Recommended: idx === optionIndex,
+      }));
+
+      const updatedTravelDetail = {
+        ...currentTravelDetail,
+        selectedMethod: selectedMethod,
+        SelectedMethod: selectedMethod,
+        selectedTransportModeId: selectedTransportModeId,
+        SelectedTransportModeId: selectedTransportModeId,
+        selectedTravelTimeMinutes: selectedMinutes,
+        SelectedTravelTimeMinutes: selectedMinutes,
+        costForGroup: selectedCost,
+        CostForGroup: selectedCost,
+        selectedTotalCost: selectedCost,
+        SelectedTotalCost: selectedCost,
+        fromTransitHubId: selectedFromTransitHubId,
+        FromTransitHubId: selectedFromTransitHubId,
+        toTransitHubId: selectedToTransitHubId,
+        ToTransitHubId: selectedToTransitHubId,
+        fromTransitHubName: selectedFromTransitHubName || currentTravelDetail?.fromTransitHubName || currentTravelDetail?.FromTransitHubName,
+        FromTransitHubName: selectedFromTransitHubName || currentTravelDetail?.FromTransitHubName || currentTravelDetail?.fromTransitHubName,
+        toTransitHubName: selectedToTransitHubName || currentTravelDetail?.toTransitHubName || currentTravelDetail?.ToTransitHubName,
+        ToTransitHubName: selectedToTransitHubName || currentTravelDetail?.ToTransitHubName || currentTravelDetail?.toTransitHubName,
+        departureTime: pickFirstText(currentTravelDetail?.departureTime, currentTravelDetail?.DepartureTime, currentStartTime),
+        DepartureTime: pickFirstText(currentTravelDetail?.departureTime, currentTravelDetail?.DepartureTime, currentStartTime),
+        arrivalTime: newEndTime,
+        ArrivalTime: newEndTime,
+      };
+
+      if ('transportOptions' in currentTravelDetail) {
+        updatedTravelDetail.transportOptions = normalizedOptions;
+      }
+      if ('TransportOptions' in currentTravelDetail) {
+        updatedTravelDetail.TransportOptions = normalizedOptions;
+      }
+      if (!('transportOptions' in currentTravelDetail) && !('TransportOptions' in currentTravelDetail)) {
+        updatedTravelDetail.transportOptions = normalizedOptions;
+      }
+
+      const updatedTravelItem = {
+        ...currentTravelItem,
+        endTime: newEndTime,
+        EndTime: newEndTime,
+        ticketCost: null,
+        TicketCost: null,
+        costForGroup: selectedCost,
+        CostForGroup: selectedCost,
+      };
+      updatedTravelItem[currentTravelDetailKey] = updatedTravelDetail;
+      timeline[timelineIndex] = updatedTravelItem;
+
+      if (deltaMinutes !== 0) {
+        shiftFollowingTimelineItems(timelineIndex, deltaMinutes);
+      }
+
+      if (nextLocalTravelIndex >= 0) {
+        await reestimateLocalTravelAtIndex(
+          nextLocalTravelIndex,
+          {
+            fromTransitHubId: selectedToTransitHubId,
+            fromTransitHubName: selectedToTransitHubName,
+          },
+          selectedToTransitHubId
+            ? { fromTransitHubId: selectedToTransitHubId, fromLocationId: undefined, fromLat: undefined, fromLng: undefined }
+            : {}
+        );
+      }
+
+      // Canonicalize every travel item's cost fields after timeline mutations
+      // so repeated transport changes always replace old values instead of stacking stale data.
+      for (let idx = 0; idx < timeline.length; idx += 1) {
+        const item = timeline[idx];
+        if (!item || !isTravelEvent(item)) continue;
+
+        const [detailKey, detail] = getTravelDetailEntry(item);
+        if (!detailKey || !detail) continue;
+
+        const recommended = getRecommendedTransportOption(detail);
+        const canonicalCost = normalizeMoney(pickBestMoney(
+          detail?.selectedTotalCost,
+          detail?.SelectedTotalCost,
+          detail?.costForGroup,
+          detail?.CostForGroup,
+          item?.costForGroup,
+          item?.CostForGroup,
+          recommended?.costForGroup,
+          recommended?.CostForGroup,
+          recommended?.estimatedTotalCost,
+          recommended?.EstimatedTotalCost,
+        ), currencyCode);
+
+        const nextDetail = {
+          ...detail,
+          selectedTotalCost: canonicalCost,
+          SelectedTotalCost: canonicalCost,
+          costForGroup: canonicalCost,
+          CostForGroup: canonicalCost,
+        };
+
+        timeline[idx] = {
+          ...item,
+          ticketCost: null,
+          TicketCost: null,
+          costForGroup: canonicalCost,
+          CostForGroup: canonicalCost,
+          [detailKey]: nextDetail,
+        };
       }
 
       day[timelineKey] = timeline;
-
-      const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
       updateDayEstimatedCost(day, timelineKey, currencyCode);
-      updateBudgetSummaryFromDays(draft);
+      updateBudgetSummaryForTransportDelta(draft, timelineBeforeTransportChange, timeline);
       updateItinerary(draft);
-      message.success('Main transport option updated.');
+      message.success('Transport option and related segments updated.');
     } catch {
       message.error('Unable to update transport option.');
     } finally {
       setRecalculatingDayNumber(null);
     }
   }, [itinerary, updateItinerary]);
+
+  const handleCloseCustomTransportModal = useCallback(() => {
+    setCustomTransportModal({ open: false, dayIndex: null, timelineIndex: null });
+    setCustomTransportMethod('');
+    setCustomTransportMinutes(30);
+    setCustomTransportCostAmount(0);
+  }, []);
+
+  const handleOpenCustomTransportModal = useCallback((dayIndex, timelineIndex) => {
+    if (!itinerary) return;
+
+    const days = itinerary.days || itinerary.Days || [];
+    const day = days[dayIndex];
+    const timeline = getDayTimeline(day);
+    const item = timeline[timelineIndex];
+
+    if (!item || !isTravelEvent(item)) {
+      message.warning('Only travel segments can set a custom transport option.');
+      return;
+    }
+
+    const [, travelDetail] = getTravelDetailEntry(item);
+    if (!travelDetail) {
+      message.warning('Travel detail is missing on this segment.');
+      return;
+    }
+
+    const method = getTravelMethod(travelDetail) || 'Custom transport';
+    const minutes = Math.max(1, Math.round(getTravelDurationMinutes(travelDetail) || getTimelineDurationMinutes(item) || 30));
+    const costAmount = Math.max(
+      0,
+      Math.round(
+        getMoneyAmount(getTravelGroupCost(item?.costForGroup || item?.CostForGroup, travelDetail)) || 0
+      )
+    );
+
+    setCustomTransportMethod(method);
+    setCustomTransportMinutes(minutes);
+    setCustomTransportCostAmount(costAmount);
+    setCustomTransportModal({ open: true, dayIndex, timelineIndex });
+  }, [itinerary]);
+
+  const handleConfirmCustomTransportOption = useCallback(async () => {
+    if (!itinerary || !customTransportModal?.open) return;
+
+    const dayIndex = Number(customTransportModal?.dayIndex);
+    const timelineIndex = Number(customTransportModal?.timelineIndex);
+    if (!Number.isFinite(dayIndex) || !Number.isFinite(timelineIndex)) {
+      message.warning('Cannot determine the target travel segment.');
+      return;
+    }
+
+    const nextMethod = String(customTransportMethod || '').trim();
+    if (!nextMethod) {
+      message.warning('Please enter transport method.');
+      return;
+    }
+
+    const nextMinutes = Math.max(1, Math.round(Number(customTransportMinutes) || 0));
+    const nextCostAmount = Math.max(0, Math.round(Number(customTransportCostAmount) || 0));
+
+    const days = itinerary.days || itinerary.Days || [];
+    const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    setRecalculatingDayNumber(dayNumber);
+
+    try {
+      const draft = clonePlainObject(itinerary);
+      const daysKey = Array.isArray(draft?.days) ? 'days' : 'Days';
+      const draftDays = Array.isArray(draft?.[daysKey]) ? draft[daysKey] : [];
+      const day = draftDays[dayIndex];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const timelineBeforeTransportChange = timeline.map((item) => clonePlainObject(item));
+      const currentTravelItem = timeline[timelineIndex];
+      if (!currentTravelItem || !isTravelEvent(currentTravelItem)) {
+        message.warning('Only travel segments can set a custom transport option.');
+        return;
+      }
+
+      const [currentTravelDetailKey, currentTravelDetail] = getTravelDetailEntry(currentTravelItem);
+      if (!currentTravelDetailKey || !currentTravelDetail) {
+        message.warning('Travel detail is missing on this segment.');
+        return;
+      }
+
+      const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+      const selectedCost = { amount: nextCostAmount, currency: currencyCode };
+
+      const getDurationMinutesFromClock = (startText, endText) => {
+        const start = toMinutesOfDay(startText);
+        const end = toMinutesOfDay(endText);
+        if (start == null || end == null) return null;
+        return end >= start ? end - start : (end + 1440) - start;
+      };
+
+      const shiftFollowingTimelineItems = (fromIndex, deltaMinutes) => {
+        if (!deltaMinutes) return;
+
+        for (let index = fromIndex + 1; index < timeline.length; index += 1) {
+          const next = { ...timeline[index] };
+          const itemStart = pickFirstText(next?.startTime, next?.StartTime);
+          const itemEnd = pickFirstText(next?.endTime, next?.EndTime);
+
+          if (itemStart) {
+            const shiftedStart = shiftTimeByMinutes(itemStart, deltaMinutes);
+            next.startTime = shiftedStart;
+            next.StartTime = shiftedStart;
+          }
+          if (itemEnd) {
+            const shiftedEnd = shiftTimeByMinutes(itemEnd, deltaMinutes);
+            next.endTime = shiftedEnd;
+            next.EndTime = shiftedEnd;
+          }
+
+          const [nextTravelKey, nextTravelDetail] = getTravelDetailEntry(next);
+          if (nextTravelKey && nextTravelDetail) {
+            const td = { ...nextTravelDetail };
+            const tdDeparture = pickFirstText(td?.departureTime, td?.DepartureTime);
+            const tdArrival = pickFirstText(td?.arrivalTime, td?.ArrivalTime);
+            if (tdDeparture) {
+              const shiftedDeparture = shiftTimeByMinutes(tdDeparture, deltaMinutes);
+              td.departureTime = shiftedDeparture;
+              td.DepartureTime = shiftedDeparture;
+            }
+            if (tdArrival) {
+              const shiftedArrival = shiftTimeByMinutes(tdArrival, deltaMinutes);
+              td.arrivalTime = shiftedArrival;
+              td.ArrivalTime = shiftedArrival;
+            }
+            next[nextTravelKey] = td;
+          }
+
+          timeline[index] = next;
+        }
+      };
+
+      const currentStartTime = pickFirstText(currentTravelItem?.startTime, currentTravelItem?.StartTime);
+      const currentEndTime = pickFirstText(currentTravelItem?.endTime, currentTravelItem?.EndTime);
+      const currentMinutesFromClock = getDurationMinutesFromClock(currentStartTime, currentEndTime);
+      const currentMinutes = currentMinutesFromClock != null
+        ? currentMinutesFromClock
+        : (getTravelDurationMinutes(currentTravelDetail) || getTimelineDurationMinutes(currentTravelItem));
+      const newEndTime = addMinutesToTime(currentStartTime, nextMinutes);
+      const deltaMinutes = nextMinutes - currentMinutes;
+
+      const currentTransportModeId = toPositiveIntOrNull(
+        currentTravelDetail?.selectedTransportModeId
+        ?? currentTravelDetail?.SelectedTransportModeId
+        ?? currentTravelDetail?.transportModeId
+        ?? currentTravelDetail?.TransportModeId
+      );
+
+      const customOption = {
+        method: nextMethod,
+        Method: nextMethod,
+        estimatedTravelMinutes: nextMinutes,
+        EstimatedTravelMinutes: nextMinutes,
+        costForGroup: selectedCost,
+        CostForGroup: selectedCost,
+        estimatedTotalCost: selectedCost,
+        EstimatedTotalCost: selectedCost,
+        transportModeId: currentTransportModeId,
+        TransportModeId: currentTransportModeId,
+        recommended: true,
+        Recommended: true,
+        isCustom: true,
+        IsCustom: true,
+      };
+
+      const existingOptions = getTransportOptions(currentTravelDetail).map((option) => ({
+        ...option,
+        recommended: false,
+        Recommended: false,
+      }));
+      const customIndex = existingOptions.findIndex((option) => Boolean(option?.isCustom ?? option?.IsCustom));
+      if (customIndex >= 0) {
+        existingOptions[customIndex] = customOption;
+      } else {
+        existingOptions.push(customOption);
+      }
+
+      const updatedTravelDetail = {
+        ...currentTravelDetail,
+        selectedMethod: nextMethod,
+        SelectedMethod: nextMethod,
+        selectedTravelTimeMinutes: nextMinutes,
+        SelectedTravelTimeMinutes: nextMinutes,
+        costForGroup: selectedCost,
+        CostForGroup: selectedCost,
+        selectedTotalCost: selectedCost,
+        SelectedTotalCost: selectedCost,
+        selectedTransportModeId: currentTransportModeId,
+        SelectedTransportModeId: currentTransportModeId,
+        departureTime: pickFirstText(currentTravelDetail?.departureTime, currentTravelDetail?.DepartureTime, currentStartTime),
+        DepartureTime: pickFirstText(currentTravelDetail?.departureTime, currentTravelDetail?.DepartureTime, currentStartTime),
+        arrivalTime: newEndTime,
+        ArrivalTime: newEndTime,
+      };
+
+      if ('transportOptions' in currentTravelDetail) {
+        updatedTravelDetail.transportOptions = existingOptions;
+      }
+      if ('TransportOptions' in currentTravelDetail) {
+        updatedTravelDetail.TransportOptions = existingOptions;
+      }
+      if (!('transportOptions' in currentTravelDetail) && !('TransportOptions' in currentTravelDetail)) {
+        updatedTravelDetail.transportOptions = existingOptions;
+      }
+
+      const updatedTravelItem = {
+        ...currentTravelItem,
+        endTime: newEndTime,
+        EndTime: newEndTime,
+        ticketCost: null,
+        TicketCost: null,
+        costForGroup: selectedCost,
+        CostForGroup: selectedCost,
+      };
+      updatedTravelItem[currentTravelDetailKey] = updatedTravelDetail;
+      timeline[timelineIndex] = updatedTravelItem;
+
+      if (deltaMinutes !== 0) {
+        shiftFollowingTimelineItems(timelineIndex, deltaMinutes);
+      }
+
+      day[timelineKey] = timeline;
+      updateDayEstimatedCost(day, timelineKey, currencyCode);
+      updateBudgetSummaryForTransportDelta(draft, timelineBeforeTransportChange, timeline);
+      updateItinerary(draft);
+      handleCloseCustomTransportModal();
+      message.success('Custom transport option applied.');
+    } catch {
+      message.error('Unable to apply custom transport option.');
+    } finally {
+      setRecalculatingDayNumber(null);
+    }
+  }, [
+    customTransportCostAmount,
+    customTransportMethod,
+    customTransportMinutes,
+    customTransportModal,
+    handleCloseCustomTransportModal,
+    itinerary,
+    updateItinerary,
+  ]);
 
   const handleRemoveLocation = useCallback(async (dayIndex, timelineIndex) => {
     if (!itinerary) return;
@@ -1483,6 +3143,30 @@ const ItineraryResultPage = () => {
       const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
       const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
       const item = timeline[timelineIndex];
+      const removedEventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
+
+      const getStrictTravelCostAmount = (travelItem) => {
+        if (!travelItem || !isTravelEvent(travelItem)) return 0;
+        const [, travelDetail] = getTravelDetailEntry(travelItem);
+        const money =
+          travelItem?.costForGroup
+          ?? travelItem?.CostForGroup
+          ?? travelDetail?.selectedTotalCost
+          ?? travelDetail?.SelectedTotalCost
+          ?? travelDetail?.costForGroup
+          ?? travelDetail?.CostForGroup;
+        const amount = getMoneyAmount(money);
+        return Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 0;
+      };
+
+      const removedLocationCostAmount = Math.max(0, Math.round(
+        getMoneyAmount(
+          item?.costForGroup
+          ?? item?.CostForGroup
+          ?? item?.ticketCost
+          ?? item?.TicketCost
+        ) ?? 0
+      ));
 
       if (!item || !isEditableLocationEvent(item)) {
         message.warning('Only location events can be removed.');
@@ -1557,6 +3241,19 @@ const ItineraryResultPage = () => {
           travelLeg = null;
         }
 
+        const mergedTravelCostAmount = Math.max(0, Math.round(
+          getMoneyAmount(
+            travelLeg?.selectedTotalCost
+            ?? travelLeg?.SelectedTotalCost
+            ?? travelLeg?.costForGroup
+            ?? travelLeg?.CostForGroup
+          ) ?? 0
+        ));
+        const mergedTravelCostMoney = {
+          amount: mergedTravelCostAmount,
+          currency: currencyCode,
+        };
+
         const fromName = pickFirstText(
           travelLeg?.fromLocationName,
           travelLeg?.FromLocationName,
@@ -1590,9 +3287,14 @@ const ItineraryResultPage = () => {
               DepartureTime: departureTime,
               arrivalTime,
               ArrivalTime: arrivalTime,
+              selectedTotalCost: mergedTravelCostMoney,
+              SelectedTotalCost: mergedTravelCostMoney,
+              costForGroup: mergedTravelCostMoney,
+              CostForGroup: mergedTravelCostMoney,
             }
             : null,
-          costForGroup: travelLeg?.selectedTotalCost || travelLeg?.SelectedTotalCost || null,
+          costForGroup: mergedTravelCostMoney,
+          CostForGroup: mergedTravelCostMoney,
         };
       }
 
@@ -1611,11 +3313,29 @@ const ItineraryResultPage = () => {
         nextTimeline.splice(Math.max(0, Math.min(insertAt, nextTimeline.length)), 0, mergedTravelItem);
       }
 
+      const leftTravelCostAmount = leftTravelIndex >= 0
+        ? getStrictTravelCostAmount(timeline[leftTravelIndex])
+        : 0;
+      const rightTravelCostAmount = rightTravelIndex >= 0
+        ? getStrictTravelCostAmount(timeline[rightTravelIndex])
+        : 0;
+      const mergedTravelCostAmount = mergedTravelItem
+        ? getStrictTravelCostAmount(mergedTravelItem)
+        : 0;
+
+      const locationCostDelta = -removedLocationCostAmount;
+      const transportCostDelta = mergedTravelCostAmount - leftTravelCostAmount - rightTravelCostAmount;
+
       day[timelineKey] = nextTimeline;
 
       const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
       updateDayEstimatedCost(day, timelineKey, currencyCode);
-      updateBudgetSummaryFromDays(draft);
+      if (locationCostDelta !== 0) {
+        updateBudgetSummaryForTimelineItemCostDelta(draft, removedEventType, locationCostDelta);
+      }
+      if (transportCostDelta !== 0) {
+        updateBudgetSummaryForTimelineItemCostDelta(draft, 'travel', transportCostDelta);
+      }
       updateItinerary(draft);
       message.success('Location removed and adjacent locations were reconnected.');
     } catch {
@@ -1699,10 +3419,26 @@ const ItineraryResultPage = () => {
   }, 0), [days, tripCurrencyCode]);
 
   const totalBudgetValue = getMoneyAmount(budgetSummary?.totalBudget || budgetSummary?.TotalBudget) || 0;
-  const estimatedTotalValue = getMoneyAmount(budgetSummary?.estimatedTotalCost || budgetSummary?.EstimatedTotalCost)
-    ?? (timelineCostBreakdown.meal + timelineCostBreakdown.other);
+  const estimatedTotalValue = Math.round(
+    getMoneyAmount(budgetSummary?.estimatedTotalCost || budgetSummary?.EstimatedTotalCost)
+    ?? (accommodationCostFallback + timelineCostBreakdown.meal + timelineCostBreakdown.other)
+  );
+  const usableBudgetValue = getMoneyAmount(budgetSummary?.usableBudget || budgetSummary?.UsableBudget) || 0;
   const mealCostMoney = {
-    amount: Math.round(getMoneyAmount(budgetSummary?.mealCost || budgetSummary?.MealCost) ?? timelineCostBreakdown.meal),
+    amount: Math.round(
+      getMoneyAmount(
+        budgetSummary?.estimatedMealCost
+        || budgetSummary?.EstimatedMealCost
+        || budgetSummary?.mealCost
+        || budgetSummary?.MealCost
+      )
+      ?? timelineCostBreakdown.meal
+    ),
+    currency: tripCurrencyCode,
+  };
+  const summaryRemainingValue = getMoneyAmount(budgetSummary?.remainingBudget || budgetSummary?.RemainingBudget);
+  const remainingBudgetMoney = {
+    amount: Math.round(summaryRemainingValue ?? (usableBudgetValue - estimatedTotalValue)),
     currency: tripCurrencyCode,
   };
   const budgetUsedPercent = totalBudgetValue > 0 ? Math.round((estimatedTotalValue / totalBudgetValue) * 100) : 0;
@@ -1736,7 +3472,7 @@ const ItineraryResultPage = () => {
       {
         key: 'remainingBudget',
         label: 'Remaining',
-        value: formatMoney(budgetSummary.remainingBudget || budgetSummary.RemainingBudget),
+        value: formatMoney(remainingBudgetMoney),
         className: styles.budgetRemainingValue,
       },
     ]
@@ -1744,6 +3480,17 @@ const ItineraryResultPage = () => {
 
   const handleSaveTrip = async () => {
     if (!itinerary || savingTrip) return;
+
+    if (!isAuthenticated) {
+      updateItinerary(itinerary);
+      try {
+        sessionStorage.setItem('post-login-redirect', PATHS.ITINERARY);
+      } catch {
+      }
+      message.info('Please sign in to save this trip.');
+      navigate(`${PATHS.AUTH.LOGIN}?redirect=${encodeURIComponent(PATHS.ITINERARY)}`);
+      return;
+    }
 
     if (!Array.isArray(days) || days.length === 0) {
       message.error('Trip must include at least one day before saving.');
@@ -1865,8 +3612,8 @@ const ItineraryResultPage = () => {
 
     const startIso = toIsoDateTimeString(startDate);
     const endIso = toIsoDateTimeString(endDate, startDate);
-    if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
-      message.error('End date must be after start date to save this trip.');
+    if (new Date(endIso).getTime() < new Date(startIso).getTime()) {
+      message.error('End date must be on or after start date to save this trip.');
       return;
     }
 
@@ -2009,10 +3756,12 @@ const ItineraryResultPage = () => {
     setSavingTrip(true);
     try {
       const result = await saveTripApi(payload);
-      const savedTripId = Number(result?.tripId ?? result?.TripId);
+      const savedTripId = Number(result?.tripId ?? result?.TripId ?? result?.id ?? result?.Id);
       message.success('Trip saved successfully.');
       if (Number.isFinite(savedTripId) && savedTripId > 0) {
         navigate(`/trips/${savedTripId}`);
+      } else {
+        message.warning('Trip saved, but cannot open trip details automatically.');
       }
     } catch (error) {
       const responseData = error?.response?.data;
@@ -2043,7 +3792,7 @@ const ItineraryResultPage = () => {
   };
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#FF6B6B', colorTextBase: '#1A535C', colorInfo: '#4ECDC4', colorSuccess: '#4ECDC4', colorWarning: '#FFE66D', colorError: '#FF6B6B', borderRadius: 16, fontFamily: "'Plus Jakarta Sans', sans-serif" } }}>
+    <ConfigProvider theme={{ token: { colorPrimary: '#F4CB8C', colorTextBase: '#1A535C', colorInfo: '#4ECDC4', colorSuccess: '#4ECDC4', colorWarning: '#FFE66D', colorError: '#FF6B6B', borderRadius: 16, fontFamily: "'Plus Jakarta Sans', sans-serif" } }}>
       <div className={styles.itineraryPage}>
         <div className={planColumnClass}>
           <div className={styles.container}>
@@ -2257,6 +4006,9 @@ const ItineraryResultPage = () => {
 
                           const renderActions = () => (
                             <div className={styles.cardActions}>
+                              <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleOpenEditTimeline(dayIdx, idx, currentProvinceId)}>
+                                Edit
+                              </Button>
                               {locationId && !isTravel && (
                                 <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleViewLocation(locationId)}>
                                   View Details
@@ -2377,8 +4129,17 @@ const ItineraryResultPage = () => {
                                   const travelMinutes = getTravelDurationMinutes(travelDetail);
                                   const travelDistanceKm = toFiniteNumber(travelDetail?.distanceKm ?? travelDetail?.DistanceKm);
                                   const travelCostForGroup = getTravelGroupCost(costForGroup, travelDetail);
-                                  const fromText = getTravelPointName(travelDetail, true) || 'Previous Location';
+                                  const selectedTransportOption = getRecommendedTransportOption(travelDetail);
+                                  const fromText = pickFirstText(
+                                    selectedTransportOption?.fromTransitHubName,
+                                    selectedTransportOption?.FromTransitHubName,
+                                    travelDetail?.fromTransitHubName,
+                                    travelDetail?.FromTransitHubName,
+                                    getTravelPointName(travelDetail, true),
+                                  ) || 'Previous Location';
                                   const toText = pickFirstText(
+                                    selectedTransportOption?.toTransitHubName,
+                                    selectedTransportOption?.ToTransitHubName,
                                     travelDetail?.toTransitHubName,
                                     travelDetail?.ToTransitHubName,
                                     getTravelPointName(travelDetail, false),
@@ -2427,7 +4188,7 @@ const ItineraryResultPage = () => {
                                               {
                                                 key: '1',
                                                 className: styles.innerCollapsePanel,
-                                                label: <span className={styles.innerCollapseLabel}>Transport options ({transportOptions.length})</span>,
+                                                label: <span className={styles.innerCollapseLabel}>Transport options ({transportOptions.length + 1})</span>,
                                                 children: (
                                                   <div className={styles.transportOptionList}>
                                                     {transportOptions.map((option, optionIdx) => {
@@ -2448,6 +4209,21 @@ const ItineraryResultPage = () => {
                                                         </div>
                                                       );
                                                     })}
+                                                    <div
+                                                      className={`${styles.transportOptionItem} ${styles.transportOptionItemClickable} ${styles.transportOptionItemCustom}`}
+                                                      role="button"
+                                                      tabIndex={0}
+                                                      onClick={() => {
+                                                        if (!isDayUpdating) handleOpenCustomTransportModal(dayIdx, idx);
+                                                      }}
+                                                    >
+                                                      <div className={styles.transportOptionMain}>
+                                                        <span className={styles.transportOptionName}>Custom option</span>
+                                                      </div>
+                                                      <div className={styles.transportOptionMeta}>
+                                                        Set method, duration, and cost manually
+                                                      </div>
+                                                    </div>
                                                   </div>
                                                 )
                                               }
@@ -2663,33 +4439,354 @@ const ItineraryResultPage = () => {
           title="Add Point"
           open={addBetweenModal.open}
           onCancel={handleCloseAddBetweenModal}
-          onOk={handleConfirmAddBetween}
-          okText="Add To Timeline"
-          cancelText="Cancel"
-          okButtonProps={{ disabled: !selectedProvinceLocationId, loading: provinceLocationLoading }}
+          width="min(1100px, 94vw)"
+          footer={null}
         >
           <div className={styles.addBetweenModalBody}>
             <Text type="secondary" className={styles.addBetweenHint}>
-              Select a location in the same province. The system will recalculate route distance, duration, and costs.
+              Choose one flow below. Existing and custom flows are independent and will update timeline separately.
             </Text>
 
-            <Select
-              showSearch
-              allowClear
-              className={styles.addBetweenSelect}
-              placeholder="Search location in this province"
-              searchValue={provinceLocationSearch}
-              value={selectedProvinceLocationId}
-              onChange={(value) => setSelectedProvinceLocationId(value ?? null)}
-              onSearch={handleSearchProvinceLocations}
-              filterOption={false}
-              loading={provinceLocationLoading}
-              options={provinceLocationOptions.map((location) => ({
-                label: location.address ? `${location.name} - ${location.address}` : location.name,
-                value: location.id,
-              }))}
-              notFoundContent={provinceLocationLoading ? <Spin size="small" /> : 'No available locations'}
-            />
+            <div className={styles.addBetweenSplitLayout}>
+              <div className={styles.addBetweenPanel}>
+                <span className={styles.addBetweenPanelTitle}>Existing Location</span>
+                <Text type="secondary" className={styles.addBetweenPanelHint}>
+                  Select location type, location, time and cost before adding to timeline.
+                </Text>
+
+                <span className={styles.editTimelineLabel}>Location Type</span>
+                <Select
+                  showSearch
+                  allowClear
+                  className={styles.addBetweenSelect}
+                  placeholder="Select location type"
+                  value={selectedAddBetweenLocationTypeId}
+                  onChange={handleChangeAddBetweenLocationType}
+                  loading={addBetweenLocationTypeLoading}
+                  optionFilterProp="label"
+                  options={addBetweenLocationTypeOptions.map((locationType) => ({
+                    label: locationType.name,
+                    value: locationType.id,
+                  }))}
+                  notFoundContent={addBetweenLocationTypeLoading ? <Spin size="small" /> : 'No location types'}
+                />
+
+                <span className={styles.editTimelineLabel}>Location</span>
+                <Select
+                  showSearch
+                  allowClear
+                  className={styles.addBetweenSelect}
+                  placeholder={selectedAddBetweenLocationTypeId
+                    ? 'Search location in this province'
+                    : 'Select location type first'}
+                  searchValue={provinceLocationSearch}
+                  value={selectedProvinceLocationId}
+                  onChange={(value) => setSelectedProvinceLocationId(value ?? null)}
+                  onSearch={handleSearchProvinceLocations}
+                  filterOption={false}
+                  loading={provinceLocationLoading}
+                  disabled={!selectedAddBetweenLocationTypeId}
+                  options={provinceLocationOptions.map((location) => ({
+                    label: location.address ? `${location.name} - ${location.address}` : location.name,
+                    value: location.id,
+                  }))}
+                  notFoundContent={provinceLocationLoading
+                    ? <Spin size="small" />
+                    : (selectedAddBetweenLocationTypeId ? 'No available locations' : 'Select location type first')}
+                />
+
+                <div className={styles.customLocationTimelineGrid}>
+                  <div className={styles.editTimelineField}>
+                    <span className={styles.editTimelineLabel}>Start time</span>
+                    <Input
+                      type="time"
+                      className={styles.editTimelineInput}
+                      value={addBetweenExistingStartTime}
+                      onChange={(event) => setAddBetweenExistingStartTime(event?.target?.value || '')}
+                    />
+                  </div>
+
+                  <div className={styles.editTimelineField}>
+                    <span className={styles.editTimelineLabel}>End time</span>
+                    <Input
+                      type="time"
+                      className={styles.editTimelineInput}
+                      value={addBetweenExistingEndTime}
+                      onChange={(event) => setAddBetweenExistingEndTime(event?.target?.value || '')}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Cost for group</span>
+                  <InputNumber
+                    className={styles.editTimelineInput}
+                    min={0}
+                    step={10000}
+                    precision={0}
+                    controls={false}
+                    value={addBetweenExistingCostAmount}
+                    onChange={(value) => setAddBetweenExistingCostAmount(value ?? 0)}
+                    addonAfter={tripCurrencyCode}
+                  />
+                </div>
+
+                <Button
+                  type="primary"
+                  className={styles.addBetweenPrimaryAction}
+                  onClick={handleConfirmAddBetween}
+                  disabled={!selectedAddBetweenLocationTypeId || !selectedProvinceLocationId}
+                  loading={provinceLocationLoading || addBetweenLocationTypeLoading}
+                >
+                  Add To Timeline
+                </Button>
+              </div>
+
+              <div className={styles.addBetweenPanel}>
+                <span className={styles.addBetweenPanelTitle}>Custom Location</span>
+                <Text type="secondary" className={styles.addBetweenPanelHint}>
+                  Pick your own point on map and define timeline and cost manually.
+                </Text>
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Name</span>
+                  <Input
+                    className={styles.editTimelineInput}
+                    placeholder="e.g. Secret sunset viewpoint"
+                    value={addBetweenCustomName}
+                    onChange={(event) => setAddBetweenCustomName(event?.target?.value || '')}
+                  />
+                </div>
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Address (optional)</span>
+                  <Input
+                    className={styles.editTimelineInput}
+                    placeholder="Address or short note"
+                    value={addBetweenCustomAddress}
+                    onChange={(event) => setAddBetweenCustomAddress(event?.target?.value || '')}
+                  />
+                </div>
+
+                <Card
+                  className={styles.customLocationMapCard}
+                  title={<span className={styles.customLocationMapHeader}>Where are you starting from?</span>}
+                >
+                  <div className={styles.customLocationMapWrap}>
+                    <MapContainer
+                      center={customLocationMapCenter}
+                      zoom={hasCustomLocationCoordinates ? 14 : 12}
+                      style={{ width: '100%', height: 180, borderRadius: 12 }}
+                      scrollWheelZoom
+                    >
+                      <TileLayer
+                        attribution='&copy; OpenStreetMap contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      {hasCustomLocationCoordinates && (
+                        <Marker position={[customLocationLatValue, customLocationLngValue]} />
+                      )}
+                      <CustomLocationMapClickHandler onPick={handlePickCustomLocationOnMap} />
+                      <CustomLocationMapInvalidate activeKey={customLocationMapActiveKey} />
+                    </MapContainer>
+                  </div>
+
+                  <Button
+                    type="dashed"
+                    block
+                    className={styles.customLocationCurrentBtn}
+                    onClick={handleUseCurrentLocationForCustom}
+                    style={{ marginTop: 16, borderColor: '#4ECDC4', color: '#1A535C', backgroundColor: 'rgba(78, 205, 196, 0.1)' }}
+                  >
+                    Use My Current Location
+                  </Button>
+                </Card>
+
+                {hasCustomLocationCoordinates && (
+                  <span className={styles.customLocationCoordinates}>
+                    Picked: {customLocationLatValue.toFixed(6)}, {customLocationLngValue.toFixed(6)}
+                  </span>
+                )}
+                <Text type="secondary" className={styles.customLocationHint}>
+                  Click on map to pick location for custom point.
+                </Text>
+
+                <div className={styles.customLocationTimelineGrid}>
+                  <div className={styles.editTimelineField}>
+                    <span className={styles.editTimelineLabel}>Start time</span>
+                    <Input
+                      type="time"
+                      className={styles.editTimelineInput}
+                      value={addBetweenCustomStartTime}
+                      onChange={(event) => setAddBetweenCustomStartTime(event?.target?.value || '')}
+                    />
+                  </div>
+
+                  <div className={styles.editTimelineField}>
+                    <span className={styles.editTimelineLabel}>End time</span>
+                    <Input
+                      type="time"
+                      className={styles.editTimelineInput}
+                      value={addBetweenCustomEndTime}
+                      onChange={(event) => setAddBetweenCustomEndTime(event?.target?.value || '')}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Cost for group</span>
+                  <InputNumber
+                    className={styles.editTimelineInput}
+                    min={0}
+                    step={10000}
+                    precision={0}
+                    controls={false}
+                    value={addBetweenCustomCostAmount}
+                    onChange={(value) => setAddBetweenCustomCostAmount(value ?? 0)}
+                    addonAfter={tripCurrencyCode}
+                  />
+                </div>
+
+                <Button
+                  type="primary"
+                  className={styles.customLocationAddButton}
+                  loading={addingCustomLocation}
+                  onClick={handleConfirmAddCustomLocation}
+                >
+                  Add Custom Location
+                </Button>
+              </div>
+            </div>
+
+            <div className={styles.addBetweenFooterActions}>
+              <Button onClick={handleCloseAddBetweenModal}>Close</Button>
+            </div>
+          </div>
+        </Modal>
+
+        <Modal
+          title="Custom Transport Option"
+          open={customTransportModal.open}
+          onCancel={handleCloseCustomTransportModal}
+          onOk={handleConfirmCustomTransportOption}
+          okText="Apply"
+          cancelText="Cancel"
+          okButtonProps={{ loading: recalculatingDayNumber != null }}
+        >
+          <div className={styles.editTimelineModalBody}>
+            <Text type="secondary" className={styles.addBetweenHint}>
+              Configure a custom method for this travel segment. Timeline and budget will be updated automatically.
+            </Text>
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>Transport method</span>
+              <Input
+                className={styles.editTimelineInput}
+                placeholder="e.g. Private van"
+                value={customTransportMethod}
+                onChange={(event) => setCustomTransportMethod(event?.target?.value || '')}
+              />
+            </div>
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>Estimated duration (minutes)</span>
+              <InputNumber
+                className={styles.editTimelineInput}
+                min={1}
+                step={5}
+                precision={0}
+                controls={false}
+                value={customTransportMinutes}
+                onChange={(value) => setCustomTransportMinutes(Math.max(1, Math.round(Number(value) || 1)))}
+              />
+            </div>
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>Cost for group</span>
+              <InputNumber
+                className={styles.editTimelineInput}
+                min={0}
+                step={10000}
+                precision={0}
+                controls={false}
+                value={customTransportCostAmount}
+                onChange={(value) => setCustomTransportCostAmount(Math.max(0, Math.round(Number(value) || 0)))}
+                addonAfter={tripCurrencyCode}
+              />
+            </div>
+          </div>
+        </Modal>
+
+        <Modal
+          title="Edit Timeline Item"
+          open={editTimelineModal.open}
+          onCancel={handleCloseEditTimelineModal}
+          onOk={handleConfirmEditTimeline}
+          okText="Save Changes"
+          cancelText="Cancel"
+          okButtonProps={{ loading: recalculatingDayNumber != null }}
+        >
+          <div className={styles.editTimelineModalBody}>
+            <Text type="secondary" className={styles.addBetweenHint}>
+              Edit time and cost. If you change location, routes before and after this point will be re-estimated automatically.
+            </Text>
+
+            {editTimelineModal.canChangeLocation && (
+              <div className={styles.editTimelineField}>
+                <span className={styles.editTimelineLabel}>Location</span>
+                <Select
+                  showSearch
+                  allowClear={false}
+                  className={styles.editTimelineInput}
+                  placeholder="Search and select location"
+                  searchValue={editTimelineLocationSearch}
+                  value={editTimelineLocationId}
+                  onChange={(value) => setEditTimelineLocationId(value ?? null)}
+                  onSearch={handleSearchEditTimelineLocations}
+                  filterOption={false}
+                  loading={editTimelineLocationLoading}
+                  options={editTimelineLocationOptions.map((location) => ({
+                    label: location.address ? `${location.name} - ${location.address}` : location.name,
+                    value: location.id,
+                  }))}
+                  notFoundContent={editTimelineLocationLoading ? <Spin size="small" /> : 'No locations found'}
+                />
+              </div>
+            )}
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>Start time</span>
+              <Input
+                type="time"
+                className={styles.editTimelineInput}
+                value={editTimelineStartTime}
+                onChange={(event) => setEditTimelineStartTime(event?.target?.value || '')}
+              />
+            </div>
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>End time</span>
+              <Input
+                type="time"
+                className={styles.editTimelineInput}
+                value={editTimelineEndTime}
+                onChange={(event) => setEditTimelineEndTime(event?.target?.value || '')}
+              />
+            </div>
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>Cost for group</span>
+              <InputNumber
+                className={styles.editTimelineInput}
+                min={0}
+                step={10000}
+                precision={0}
+                controls={false}
+                value={editTimelineCostAmount}
+                onChange={(value) => setEditTimelineCostAmount(value ?? 0)}
+                addonAfter={tripCurrencyCode}
+              />
+            </div>
           </div>
         </Modal>
 

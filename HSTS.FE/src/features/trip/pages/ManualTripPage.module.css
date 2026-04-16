@@ -1,0 +1,526 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+
+.pageShell {
+  min-height: 100vh;
+  background-color: #F7F9F9;
+  padding-bottom: 100px;
+}
+
+.pageContent {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 48px) 24px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #1A535C;
+}
+
+.headerCard {
+  background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%);
+  border-radius: 16px;
+  margin-bottom: 24px;
+  border: none;
+  box-shadow: 0 8px 24px rgba(78, 205, 196, 0.15);
+  padding: 24px;
+}
+
+.pageTitle {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  color: #1A535C !important;
+  margin: 0 0 8px 0 !important;
+  font-size: 28px !important;
+  font-weight: 700 !important;
+}
+
+.pageSubtitle {
+  color: rgba(26, 83, 92, 0.75) !important;
+  font-size: 14px !important;
+}
+
+.overviewCard {
+  border-radius: 16px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.overviewCard :global(.ant-card-head) {
+  border-bottom: 1px solid #F0F0F0;
+  font-weight: 600;
+}
+
+.builderCard {
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.builderCard :global(.ant-card-head) {
+  border-bottom: 1px solid #F0F0F0;
+  font-weight: 600;
+}
+
+.tripAlert {
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+.budgetStrip {
+  background: linear-gradient(90deg, #F0F9FF 0%, #F5FFFE 100%);
+  border: 1px solid #E0F7FA;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: #1A535C;
+}
+
+.emptyState {
+  padding: 60px 20px !important;
+  margin: 0 !important;
+}
+
+.dayList {
+  width: 100%;
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+.dayCard {
+  border-radius: 12px;
+  border: 1px solid #E8E8E8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
+.dayCard:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.dayCard :global(.ant-card-head) {
+  background-color: #FAFAFA;
+  border-bottom: 1px solid #F0F0F0;
+  border-radius: 12px 12px 0 0;
+  font-weight: 600;
+  color: #1A535C;
+}
+
+.activityCard {
+  border-radius: 8px;
+  border: 1px solid #F0F0F0;
+  background-color: #FAFAFA;
+}
+
+.activityCard :global(.ant-card-head) {
+  background-color: #FFF;
+  border-bottom: 1px solid #F0F0F0;
+  font-weight: 500;
+  color: #1A535C;
+}
+
+.destinationDivider {
+  color: #1A535C;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.destinationDivider :global(.ant-divider-inner-text) {
+  color: #1A535C;
+}
+
+.activityList {
+  width: 100%;
+}
+
+.footerActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #F0F0F0;
+}
+
+.loadingCard {
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 60px 40px;
+  text-align: center;
+}
+
+.activityMetaRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.activityConfigGrid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.optionalBudgetRow {
+  margin-top: 18px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.travelInfoBox {
+  margin-top: 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(26, 83, 92, 0.2);
+  background: rgba(78, 205, 196, 0.08);
+  padding: 12px;
+}
+
+.betweenTravelCard {
+  margin: 4px 0;
+}
+
+.travelRoute {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.travelPoint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #1A535C;
+  font-weight: 700;
+}
+
+.travelDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 2px solid #4ECDC4;
+  background: #FFFFFF;
+  flex-shrink: 0;
+}
+
+.travelRouteConnector {
+  margin-left: 4px;
+  width: 2px;
+  min-height: 16px;
+  background: linear-gradient(180deg, rgba(78, 205, 196, 0.75), rgba(26, 83, 92, 0.2));
+}
+
+.travelMetaLine {
+  margin-top: 10px;
+}
+
+.transportOptionsSection {
+  margin-top: 10px;
+}
+
+.transportOptionsTitle {
+  display: block;
+  font-size: 12px;
+  color: rgba(26, 83, 92, 0.7);
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.transportOptionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.transportOptionItem {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(78, 205, 196, 0.2);
+  border-radius: 10px;
+  background: #FFFFFF;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.transportOptionItem:hover {
+  border-color: #4ECDC4;
+  box-shadow: 0 8px 20px rgba(26, 83, 92, 0.08);
+}
+
+.transportOptionItemSelected {
+  border-color: #FF6B6B;
+  background: rgba(255, 107, 107, 0.05);
+}
+
+.transportOptionMain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.transportOptionName {
+  font-size: 13px;
+  color: #1A535C;
+  font-weight: 700;
+}
+
+.transportOptionRecommended {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #1A535C;
+  background: #FFE66D;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.transportOptionMeta {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(26, 83, 92, 0.68);
+  font-weight: 600;
+}
+
+.transportOptionNote {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(26, 83, 92, 0.6);
+}
+
+.customTransportEditor {
+  border: 1px dashed rgba(26, 83, 92, 0.2);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.customTransportGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.addBetweenModalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 16px;
+}
+
+.addBetweenHint {
+  display: block;
+  line-height: 1.5;
+  font-size: 14px;
+  color: rgba(26, 83, 92, 0.7);
+}
+
+.addBetweenSplitLayout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.addBetweenPanel {
+  background: #FFFFFF;
+  border: 1px solid rgba(26, 83, 92, 0.14);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.addBetweenPanelTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1A535C;
+}
+
+.addBetweenPanelHint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(26, 83, 92, 0.7);
+}
+
+.addBetweenPrimaryAction {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.addBetweenFooterActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.addBetweenSelect {
+  width: 100%;
+}
+
+.customLocationMapCard {
+  background: #FFFFFF !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08) !important;
+  border: none !important;
+}
+
+.customLocationMapCard :global(.ant-card-head) {
+  border-bottom: 1px solid rgba(26, 83, 92, 0.08);
+}
+
+.customLocationMapCard :global(.ant-card-body) {
+  padding: 16px 24px 20px;
+}
+
+.customLocationMapHeader {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1A535C;
+  line-height: 1.2;
+}
+
+.customLocationCoordinates {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(26, 83, 92, 0.78);
+}
+
+.customLocationHint {
+  line-height: 1.5;
+  font-size: 13px;
+  color: rgba(26, 83, 92, 0.72);
+}
+
+.customLocationMapWrap {
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  border: none;
+}
+
+.customLocationCurrentBtn {
+  min-height: 48px !important;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+  margin-top: 16px;
+  border-color: #4ECDC4 !important;
+  color: #1A535C !important;
+  background-color: rgba(78, 205, 196, 0.1) !important;
+}
+
+.customLocationTimelineGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.customLocationAddButton {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.editTimelineField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editTimelineLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(26, 83, 92, 0.85);
+}
+
+.editTimelineInput {
+  width: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .pageContent {
+    padding: 16px 12px;
+  }
+
+  .footerActions {
+    flex-direction: column;
+  }
+
+  .footerActions :global(.ant-btn) {
+    width: 100%;
+  }
+
+  .budgetStrip {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .addBetweenSplitLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .customLocationTimelineGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .activityMetaRow {
+    flex-direction: column;
+  }
+
+  .activityConfigGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .customTransportGrid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+/* Antd overrides */
+:global(.ant-input),
+:global(.ant-input-number),
+:global(.ant-picker),
+:global(.ant-select) {
+  border-radius: 6px !important;
+}
+
+:global(.ant-btn) {
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+}
+
+:global(.ant-btn-primary) {
+  background: #FF6B6B !important;
+  border-color: #FF6B6B !important;
+}
+
+:global(.ant-btn-primary:hover) {
+  background: #FF5252 !important;
+  border-color: #FF5252 !important;
+}
+
+:global(.ant-btn-dashed) {
+  color: #4ECDC4 !important;
+  border-color: #4ECDC4 !important;
+}
+
+:global(.ant-btn-dashed:hover) {
+  color: #44A08D !important;
+  border-color: #44A08D !important;
+}
+
+:global(.ant-empty) {
+  color: #95A5A6 !important;
+}

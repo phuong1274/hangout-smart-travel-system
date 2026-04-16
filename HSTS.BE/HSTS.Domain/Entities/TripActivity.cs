@@ -32,10 +32,11 @@ namespace HSTS.Domain.Entities
         [Column("LocationId")]
         public int? LocationId { get; set; }
 
+        public TripActivityStatus Status { get; set; } = TripActivityStatus.Upcoming;
+
         [Column("CustomLocationId")]
         public int? CustomLocationId { get; set; }
 
-        // Navigation properties
         public TripDay TripDay { get; set; } = null!;
         public Location? Location { get; set; }
         public CustomLocation? CustomLocation { get; set; }

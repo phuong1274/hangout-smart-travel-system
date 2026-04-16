@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { message } from 'antd';
 import { authApi } from '../api';
 import { useAuthStore } from '@/store/authStore';
 import { ROLES } from '@/config/constants';
 import { PATHS } from '@/routes/paths';
+
+const POST_LOGIN_REDIRECT_KEY = 'post-login-redirect';
 
 const getRedirectPath = (roles) => {
   if (roles.includes(ROLES.ADMIN)) return '/users';
@@ -13,10 +15,35 @@ const getRedirectPath = (roles) => {
   return '/';
 };
 
+const isSafeInternalRedirect = (path) => {
+  if (!path || typeof path !== 'string') return false;
+  if (!path.startsWith('/')) return false;
+  if (path.startsWith('//')) return false;
+  return true;
+};
+
+const getPostLoginRedirect = (searchParams) => {
+  const redirectFromQuery = searchParams.get('redirect');
+
+  let redirectFromSession = null;
+  try {
+    redirectFromSession = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
+    if (redirectFromSession) {
+      sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+    }
+  } catch {
+    redirectFromSession = null;
+  }
+
+  const redirect = redirectFromQuery || redirectFromSession;
+  return isSafeInternalRedirect(redirect) ? redirect : null;
+};
+
 export const useLogin = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const loginFn = useCallback(async (data) => {
     setLoading(true);
@@ -31,7 +58,8 @@ export const useLogin = () => {
         hasGoogleLinked: res.data.hasGoogleLinked,
       });
       message.success('Login successful!');
-      navigate(getRedirectPath(res.data.roles));
+      const redirect = getPostLoginRedirect(searchParams);
+      navigate(redirect || getRedirectPath(res.data.roles));
     } catch (err) {
       const code = err?.response?.data?.code;
       if (code === 'Account.EmailNotVerified') {
@@ -44,7 +72,7 @@ export const useLogin = () => {
     } finally {
       setLoading(false);
     }
-  }, [login, navigate]);
+  }, [login, navigate, searchParams]);
 
   return { login: loginFn, loading };
 };
@@ -200,6 +228,7 @@ export const useGoogleLogin = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const googleLogin = useCallback(async (googleIdToken) => {
     setLoading(true);
@@ -214,13 +243,14 @@ export const useGoogleLogin = () => {
         hasGoogleLinked: res.data.hasGoogleLinked,
       });
       message.success('Login successful!');
-      navigate(getRedirectPath(res.data.roles));
+      const redirect = getPostLoginRedirect(searchParams);
+      navigate(redirect || getRedirectPath(res.data.roles));
     } catch {
       // handled by interceptor
     } finally {
       setLoading(false);
     }
-  }, [login, navigate]);
+  }, [login, navigate, searchParams]);
 
   return { googleLogin, loading };
 };

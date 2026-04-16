@@ -49,6 +49,22 @@ namespace HSTS.API.Controllers
             );
         }
 
+        [HttpGet("types")]
+        public async Task<IActionResult> GetTransitHubTypes(CancellationToken ct = default)
+        {
+            var result = await _mediator.Send(new GetTransitHubTypeListQuery(), ct);
+
+            return result.Match(
+                Ok,
+                errors => errors.First().Type switch
+                {
+                    ErrorType.NotFound => NotFound(errors.First().Description),
+                    ErrorType.Validation => BadRequest(errors),
+                    _ => Problem(errors.First().Description)
+                }
+            );
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTransitHub(int id, CancellationToken ct = default)
         {

@@ -49,10 +49,10 @@ namespace HSTS.Application.Tags.Commands
                 }
 
                 var parentTag = await _repository.GetAsync(request.ParentTagId.Value, cancellationToken);
-                if (parentTag != null)
+                if (parentTag != null && !parentTag.IsDeleted)
                 {
                     // Check if trying to set a child as parent (would create cycle)
-                    if (IsChildOf(parentTag, tag, cancellationToken))
+                    if (await IsChildOfAsync(parentTag, tag, cancellationToken))
                     {
                         return Error.Validation("Tag.CircularReference",
                             "Cannot set a child tag as parent. This would create a circular reference.");
@@ -68,29 +68,37 @@ namespace HSTS.Application.Tags.Commands
 
             tag.Name = request.Name;
             tag.ParentTagId = request.ParentTagId;
-            
+
             await _repository.UpdateAsync(tag, cancellationToken);
-            return tag.ToDto();
+
+            string? parentName = null;
+            if (request.ParentTagId.HasValue)
+            {
+                var parent = await _repository.GetAsync(request.ParentTagId.Value, cancellationToken);
+                parentName = parent?.Name;
+            }
+
+            return tag.ToDto(parentName);
         }
 
-        private bool IsChildOf(Tag potentialParent, Tag potentialChild, CancellationToken ct)
+        private async Task<bool> IsChildOfAsync(Tag potentialParent, Tag potentialChild, CancellationToken ct)
         {
             if (potentialParent.Id == potentialChild.Id)
                 return true;
-            
+
             if (potentialParent.ParentTagId == potentialChild.Id)
                 return true;
-            
+
             // Recursively check up the tree
             if (potentialParent.ParentTagId.HasValue)
             {
-                var grandParent = _repository.GetAsync(potentialParent.ParentTagId.Value, ct).Result;
+                var grandParent = await _repository.GetAsync(potentialParent.ParentTagId.Value, ct);
                 if (grandParent != null)
                 {
-                    return IsChildOf(grandParent, potentialChild, ct);
+                    return await IsChildOfAsync(grandParent, potentialChild, ct);
                 }
             }
-            
+
             return false;
         }
     }

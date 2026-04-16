@@ -33,7 +33,6 @@ export const UserFilters = ({ roles = [], filterState, onRoleChange, onStatusCha
         onChange={onStatusChange}
         style={{ minWidth: 220 }}
       />
-      <Text type="secondary">Filter users by role or lifecycle state.</Text>
     </Space>
   );
 };

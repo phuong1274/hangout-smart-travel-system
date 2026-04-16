@@ -1,3 +1,4 @@
+using HSTS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace HSTS.Application.Interfaces
@@ -33,7 +34,6 @@ namespace HSTS.Application.Interfaces
         DbSet<LocationClosure> LocationClosures { get; }
         DbSet<LocationSubmission> LocationSubmissions { get; }
         DbSet<LocationSeason> LocationSeasons { get; }
-
         DbSet<Trip> Trips { get; }
         DbSet<TripDay> TripDays { get; }
         DbSet<TripActivity> TripActivities { get; }
@@ -41,9 +41,11 @@ namespace HSTS.Application.Interfaces
         DbSet<TripSummary> TripSummaries { get; }
         DbSet<TripActivityBudget> TripActivityBudgets { get; }
 
+        DbSet<TripInvitation> TripInvitations { get; }
+        DbSet<TripMember> TripMembers { get; }
+        DbSet<Expense> Expenses { get; }
         DbSet<CustomLocation> CustomLocations { get; }
         DbSet<CustomTransitHub> CustomTransitHubs { get; }
-        DbSet<TripMember> TripMembers { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

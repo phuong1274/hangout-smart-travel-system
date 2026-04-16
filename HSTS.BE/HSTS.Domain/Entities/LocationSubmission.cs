@@ -99,7 +99,7 @@ namespace HSTS.Domain.Entities
         public string? SeasonsJson { get; set; }
 
         // Proposed changes for edit submissions (stored as JSON)
-        [MaxLength(250)]
+        [MaxLength(4000)]
         public string? ProposedChangesJson { get; set; }
 
         // Status
