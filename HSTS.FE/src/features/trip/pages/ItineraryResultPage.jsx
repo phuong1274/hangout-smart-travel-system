@@ -1072,6 +1072,14 @@ const ItineraryResultPage = () => {
   const [editTimelineLocationOptions, setEditTimelineLocationOptions] = useState([]);
   const [editTimelineLocationLoading, setEditTimelineLocationLoading] = useState(false);
   const [editTimelineLocationSearch, setEditTimelineLocationSearch] = useState('');
+  const [customTransportModal, setCustomTransportModal] = useState({
+    open: false,
+    dayIndex: null,
+    timelineIndex: null,
+  });
+  const [customTransportMethod, setCustomTransportMethod] = useState('');
+  const [customTransportMinutes, setCustomTransportMinutes] = useState(30);
+  const [customTransportCostAmount, setCustomTransportCostAmount] = useState(0);
 
   const [locationModal, setLocationModal] = useState({ open: false, locationId: null });
   const [transportModal, setTransportModal] = useState({ open: false, data: null });
@@ -2871,6 +2879,253 @@ const ItineraryResultPage = () => {
     }
   }, [itinerary, updateItinerary]);
 
+  const handleCloseCustomTransportModal = useCallback(() => {
+    setCustomTransportModal({ open: false, dayIndex: null, timelineIndex: null });
+    setCustomTransportMethod('');
+    setCustomTransportMinutes(30);
+    setCustomTransportCostAmount(0);
+  }, []);
+
+  const handleOpenCustomTransportModal = useCallback((dayIndex, timelineIndex) => {
+    if (!itinerary) return;
+
+    const days = itinerary.days || itinerary.Days || [];
+    const day = days[dayIndex];
+    const timeline = getDayTimeline(day);
+    const item = timeline[timelineIndex];
+
+    if (!item || !isTravelEvent(item)) {
+      message.warning('Only travel segments can set a custom transport option.');
+      return;
+    }
+
+    const [, travelDetail] = getTravelDetailEntry(item);
+    if (!travelDetail) {
+      message.warning('Travel detail is missing on this segment.');
+      return;
+    }
+
+    const method = getTravelMethod(travelDetail) || 'Custom transport';
+    const minutes = Math.max(1, Math.round(getTravelDurationMinutes(travelDetail) || getTimelineDurationMinutes(item) || 30));
+    const costAmount = Math.max(
+      0,
+      Math.round(
+        getMoneyAmount(getTravelGroupCost(item?.costForGroup || item?.CostForGroup, travelDetail)) || 0
+      )
+    );
+
+    setCustomTransportMethod(method);
+    setCustomTransportMinutes(minutes);
+    setCustomTransportCostAmount(costAmount);
+    setCustomTransportModal({ open: true, dayIndex, timelineIndex });
+  }, [itinerary]);
+
+  const handleConfirmCustomTransportOption = useCallback(async () => {
+    if (!itinerary || !customTransportModal?.open) return;
+
+    const dayIndex = Number(customTransportModal?.dayIndex);
+    const timelineIndex = Number(customTransportModal?.timelineIndex);
+    if (!Number.isFinite(dayIndex) || !Number.isFinite(timelineIndex)) {
+      message.warning('Cannot determine the target travel segment.');
+      return;
+    }
+
+    const nextMethod = String(customTransportMethod || '').trim();
+    if (!nextMethod) {
+      message.warning('Please enter transport method.');
+      return;
+    }
+
+    const nextMinutes = Math.max(1, Math.round(Number(customTransportMinutes) || 0));
+    const nextCostAmount = Math.max(0, Math.round(Number(customTransportCostAmount) || 0));
+
+    const days = itinerary.days || itinerary.Days || [];
+    const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
+    setRecalculatingDayNumber(dayNumber);
+
+    try {
+      const draft = clonePlainObject(itinerary);
+      const daysKey = Array.isArray(draft?.days) ? 'days' : 'Days';
+      const draftDays = Array.isArray(draft?.[daysKey]) ? draft[daysKey] : [];
+      const day = draftDays[dayIndex];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const timelineBeforeTransportChange = timeline.map((item) => clonePlainObject(item));
+      const currentTravelItem = timeline[timelineIndex];
+      if (!currentTravelItem || !isTravelEvent(currentTravelItem)) {
+        message.warning('Only travel segments can set a custom transport option.');
+        return;
+      }
+
+      const [currentTravelDetailKey, currentTravelDetail] = getTravelDetailEntry(currentTravelItem);
+      if (!currentTravelDetailKey || !currentTravelDetail) {
+        message.warning('Travel detail is missing on this segment.');
+        return;
+      }
+
+      const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+      const selectedCost = { amount: nextCostAmount, currency: currencyCode };
+
+      const getDurationMinutesFromClock = (startText, endText) => {
+        const start = toMinutesOfDay(startText);
+        const end = toMinutesOfDay(endText);
+        if (start == null || end == null) return null;
+        return end >= start ? end - start : (end + 1440) - start;
+      };
+
+      const shiftFollowingTimelineItems = (fromIndex, deltaMinutes) => {
+        if (!deltaMinutes) return;
+
+        for (let index = fromIndex + 1; index < timeline.length; index += 1) {
+          const next = { ...timeline[index] };
+          const itemStart = pickFirstText(next?.startTime, next?.StartTime);
+          const itemEnd = pickFirstText(next?.endTime, next?.EndTime);
+
+          if (itemStart) {
+            const shiftedStart = shiftTimeByMinutes(itemStart, deltaMinutes);
+            next.startTime = shiftedStart;
+            next.StartTime = shiftedStart;
+          }
+          if (itemEnd) {
+            const shiftedEnd = shiftTimeByMinutes(itemEnd, deltaMinutes);
+            next.endTime = shiftedEnd;
+            next.EndTime = shiftedEnd;
+          }
+
+          const [nextTravelKey, nextTravelDetail] = getTravelDetailEntry(next);
+          if (nextTravelKey && nextTravelDetail) {
+            const td = { ...nextTravelDetail };
+            const tdDeparture = pickFirstText(td?.departureTime, td?.DepartureTime);
+            const tdArrival = pickFirstText(td?.arrivalTime, td?.ArrivalTime);
+            if (tdDeparture) {
+              const shiftedDeparture = shiftTimeByMinutes(tdDeparture, deltaMinutes);
+              td.departureTime = shiftedDeparture;
+              td.DepartureTime = shiftedDeparture;
+            }
+            if (tdArrival) {
+              const shiftedArrival = shiftTimeByMinutes(tdArrival, deltaMinutes);
+              td.arrivalTime = shiftedArrival;
+              td.ArrivalTime = shiftedArrival;
+            }
+            next[nextTravelKey] = td;
+          }
+
+          timeline[index] = next;
+        }
+      };
+
+      const currentStartTime = pickFirstText(currentTravelItem?.startTime, currentTravelItem?.StartTime);
+      const currentEndTime = pickFirstText(currentTravelItem?.endTime, currentTravelItem?.EndTime);
+      const currentMinutesFromClock = getDurationMinutesFromClock(currentStartTime, currentEndTime);
+      const currentMinutes = currentMinutesFromClock != null
+        ? currentMinutesFromClock
+        : (getTravelDurationMinutes(currentTravelDetail) || getTimelineDurationMinutes(currentTravelItem));
+      const newEndTime = addMinutesToTime(currentStartTime, nextMinutes);
+      const deltaMinutes = nextMinutes - currentMinutes;
+
+      const currentTransportModeId = toPositiveIntOrNull(
+        currentTravelDetail?.selectedTransportModeId
+        ?? currentTravelDetail?.SelectedTransportModeId
+        ?? currentTravelDetail?.transportModeId
+        ?? currentTravelDetail?.TransportModeId
+      );
+
+      const customOption = {
+        method: nextMethod,
+        Method: nextMethod,
+        estimatedTravelMinutes: nextMinutes,
+        EstimatedTravelMinutes: nextMinutes,
+        costForGroup: selectedCost,
+        CostForGroup: selectedCost,
+        estimatedTotalCost: selectedCost,
+        EstimatedTotalCost: selectedCost,
+        transportModeId: currentTransportModeId,
+        TransportModeId: currentTransportModeId,
+        recommended: true,
+        Recommended: true,
+        isCustom: true,
+        IsCustom: true,
+      };
+
+      const existingOptions = getTransportOptions(currentTravelDetail).map((option) => ({
+        ...option,
+        recommended: false,
+        Recommended: false,
+      }));
+      const customIndex = existingOptions.findIndex((option) => Boolean(option?.isCustom ?? option?.IsCustom));
+      if (customIndex >= 0) {
+        existingOptions[customIndex] = customOption;
+      } else {
+        existingOptions.push(customOption);
+      }
+
+      const updatedTravelDetail = {
+        ...currentTravelDetail,
+        selectedMethod: nextMethod,
+        SelectedMethod: nextMethod,
+        selectedTravelTimeMinutes: nextMinutes,
+        SelectedTravelTimeMinutes: nextMinutes,
+        costForGroup: selectedCost,
+        CostForGroup: selectedCost,
+        selectedTotalCost: selectedCost,
+        SelectedTotalCost: selectedCost,
+        selectedTransportModeId: currentTransportModeId,
+        SelectedTransportModeId: currentTransportModeId,
+        departureTime: pickFirstText(currentTravelDetail?.departureTime, currentTravelDetail?.DepartureTime, currentStartTime),
+        DepartureTime: pickFirstText(currentTravelDetail?.departureTime, currentTravelDetail?.DepartureTime, currentStartTime),
+        arrivalTime: newEndTime,
+        ArrivalTime: newEndTime,
+      };
+
+      if ('transportOptions' in currentTravelDetail) {
+        updatedTravelDetail.transportOptions = existingOptions;
+      }
+      if ('TransportOptions' in currentTravelDetail) {
+        updatedTravelDetail.TransportOptions = existingOptions;
+      }
+      if (!('transportOptions' in currentTravelDetail) && !('TransportOptions' in currentTravelDetail)) {
+        updatedTravelDetail.transportOptions = existingOptions;
+      }
+
+      const updatedTravelItem = {
+        ...currentTravelItem,
+        endTime: newEndTime,
+        EndTime: newEndTime,
+        ticketCost: null,
+        TicketCost: null,
+        costForGroup: selectedCost,
+        CostForGroup: selectedCost,
+      };
+      updatedTravelItem[currentTravelDetailKey] = updatedTravelDetail;
+      timeline[timelineIndex] = updatedTravelItem;
+
+      if (deltaMinutes !== 0) {
+        shiftFollowingTimelineItems(timelineIndex, deltaMinutes);
+      }
+
+      day[timelineKey] = timeline;
+      updateDayEstimatedCost(day, timelineKey, currencyCode);
+      updateBudgetSummaryForTransportDelta(draft, timelineBeforeTransportChange, timeline);
+      updateItinerary(draft);
+      handleCloseCustomTransportModal();
+      message.success('Custom transport option applied.');
+    } catch {
+      message.error('Unable to apply custom transport option.');
+    } finally {
+      setRecalculatingDayNumber(null);
+    }
+  }, [
+    customTransportCostAmount,
+    customTransportMethod,
+    customTransportMinutes,
+    customTransportModal,
+    handleCloseCustomTransportModal,
+    itinerary,
+    updateItinerary,
+  ]);
+
   const handleRemoveLocation = useCallback(async (dayIndex, timelineIndex) => {
     if (!itinerary) return;
 
@@ -3933,7 +4188,7 @@ const ItineraryResultPage = () => {
                                               {
                                                 key: '1',
                                                 className: styles.innerCollapsePanel,
-                                                label: <span className={styles.innerCollapseLabel}>Transport options ({transportOptions.length})</span>,
+                                                label: <span className={styles.innerCollapseLabel}>Transport options ({transportOptions.length + 1})</span>,
                                                 children: (
                                                   <div className={styles.transportOptionList}>
                                                     {transportOptions.map((option, optionIdx) => {
@@ -3954,6 +4209,21 @@ const ItineraryResultPage = () => {
                                                         </div>
                                                       );
                                                     })}
+                                                    <div
+                                                      className={`${styles.transportOptionItem} ${styles.transportOptionItemClickable} ${styles.transportOptionItemCustom}`}
+                                                      role="button"
+                                                      tabIndex={0}
+                                                      onClick={() => {
+                                                        if (!isDayUpdating) handleOpenCustomTransportModal(dayIdx, idx);
+                                                      }}
+                                                    >
+                                                      <div className={styles.transportOptionMain}>
+                                                        <span className={styles.transportOptionName}>Custom option</span>
+                                                      </div>
+                                                      <div className={styles.transportOptionMeta}>
+                                                        Set method, duration, and cost manually
+                                                      </div>
+                                                    </div>
                                                   </div>
                                                 )
                                               }
@@ -4390,6 +4660,59 @@ const ItineraryResultPage = () => {
 
             <div className={styles.addBetweenFooterActions}>
               <Button onClick={handleCloseAddBetweenModal}>Close</Button>
+            </div>
+          </div>
+        </Modal>
+
+        <Modal
+          title="Custom Transport Option"
+          open={customTransportModal.open}
+          onCancel={handleCloseCustomTransportModal}
+          onOk={handleConfirmCustomTransportOption}
+          okText="Apply"
+          cancelText="Cancel"
+          okButtonProps={{ loading: recalculatingDayNumber != null }}
+        >
+          <div className={styles.editTimelineModalBody}>
+            <Text type="secondary" className={styles.addBetweenHint}>
+              Configure a custom method for this travel segment. Timeline and budget will be updated automatically.
+            </Text>
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>Transport method</span>
+              <Input
+                className={styles.editTimelineInput}
+                placeholder="e.g. Private van"
+                value={customTransportMethod}
+                onChange={(event) => setCustomTransportMethod(event?.target?.value || '')}
+              />
+            </div>
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>Estimated duration (minutes)</span>
+              <InputNumber
+                className={styles.editTimelineInput}
+                min={1}
+                step={5}
+                precision={0}
+                controls={false}
+                value={customTransportMinutes}
+                onChange={(value) => setCustomTransportMinutes(Math.max(1, Math.round(Number(value) || 1)))}
+              />
+            </div>
+
+            <div className={styles.editTimelineField}>
+              <span className={styles.editTimelineLabel}>Cost for group</span>
+              <InputNumber
+                className={styles.editTimelineInput}
+                min={0}
+                step={10000}
+                precision={0}
+                controls={false}
+                value={customTransportCostAmount}
+                onChange={(value) => setCustomTransportCostAmount(Math.max(0, Math.round(Number(value) || 0)))}
+                addonAfter={tripCurrencyCode}
+              />
             </div>
           </div>
         </Modal>
