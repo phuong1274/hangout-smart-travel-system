@@ -6,6 +6,8 @@ import { useTrips } from '../hooks/useTrips';
 import { getMyInvitationsApi, respondInvitationApi } from '../api';
 import { PATHS } from '@/routes/paths';
 import PhoneNumberModal from '../components/PhoneNumberModal';
+import AppPagination from '@/components/UI/AppPagination/AppPagination';
+import styles from '../styles/TripsPage.module.css';
 
 const { Title, Text } = Typography;
 
@@ -17,10 +19,10 @@ const STATUS_MAP = {
 };
 
 const statusColors = {
-  Planned: 'blue',
-  InProgress: 'green',
-  Completed: 'default',
-  Cancelled: 'red',
+  Planned: '#4ECDC4',     
+  InProgress: '#FFE66D',  
+  Completed: '#E9ECEF',   
+  Cancelled: '#FF6B6B',   
 };
 
 const getStatusLabel = (status) => {
@@ -34,14 +36,15 @@ const TripsPage = () => {
   const navigate = useNavigate();
   const { data: trips, loading, handleDelete, refetch: refetchTrips } = useTrips();
 
-  // Invitations state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const [invitations, setInvitations] = useState([]);
   const [invitationsLoading, setInvitationsLoading] = useState(false);
   const [respondingIds, setRespondingIds] = useState(new Set());
 
-  // Phone number modal
   const [phoneModalOpen, setPhoneModalOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null); // { type: 'invite', payload: any }
+  const [pendingAction, setPendingAction] = useState(null);
 
   const fetchInvitations = useCallback(async () => {
     setInvitationsLoading(true);
@@ -85,7 +88,6 @@ const TripsPage = () => {
 
   const handlePhoneNumberSuccess = async () => {
     setPhoneModalOpen(false);
-    // Retry the pending action after phone number update
     if (pendingAction?.type === 'invite') {
       await handleRespondInvitation(pendingAction.payload.invitationId, true);
     }
@@ -104,7 +106,7 @@ const TripsPage = () => {
       ellipsis: true,
       sorter: (a, b) => a.tripName.localeCompare(b.tripName),
       render: (text, record) => (
-        <Link to={PATHS.TRIP_DETAIL.replace(':id', record.id)} style={{ fontWeight: 500 }}>
+        <Link to={PATHS.TRIP_DETAIL.replace(':id', record.id)} style={{ fontWeight: 600, color: '#1A535C' }}>
           {text}
         </Link>
       ),
@@ -138,7 +140,28 @@ const TripsPage = () => {
       width: 120,
       render: (status) => {
         const label = getStatusLabel(status);
-        return <Tag color={statusColors[label] || 'default'}>{label}</Tag>;
+        const tagColor = statusColors[label] || '#E9ECEF';
+        
+        const isDarkText = label === 'InProgress' || label === 'Planned' || label === 'Completed';
+        const textColor = isDarkText ? '#1A535C' : '#FFFFFF';
+
+        return (
+          <Tag 
+            style={{ 
+              backgroundColor: tagColor, 
+              color: textColor,
+              border: 'none',
+              borderRadius: 9999, 
+              padding: '2px 14px', 
+              fontWeight: 700,
+              fontSize: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}
+          >
+            {label}
+          </Tag>
+        );
       },
       filters: Object.keys(statusColors).map((s) => ({ text: s, value: s })),
       onFilter: (value, record) => getStatusLabel(record.status) === value,
@@ -146,17 +169,16 @@ const TripsPage = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 150,
+      width: 120,
       fixed: 'right',
       render: (_, record) => (
-        <Space direction="vertical" size="small">
+        <Space size="middle">
           <Button
-            type="link"
+            type="text"
+            className={styles.actionIconView}
             icon={<EyeOutlined />}
             onClick={() => navigate(PATHS.TRIP_DETAIL.replace(':id', record.id))}
-          >
-            View
-          </Button>
+          />
           <Popconfirm
             title="Delete Trip"
             description="Are you sure you want to delete this trip? This action cannot be undone."
@@ -165,16 +187,18 @@ const TripsPage = () => {
             }}
             okText="Yes, Delete"
             cancelText="Cancel"
-            okButtonProps={{ danger: true }}
+            okButtonProps={{ danger: true, className: styles.pillBtn }}
+            cancelButtonProps={{ className: `${styles.pillBtn} ${styles.rejectBtn}` }}
           >
-            <Button type="link" danger icon={<DeleteOutlined />}>
-              Delete
-            </Button>
+            <Button type="text" className={styles.actionIconDelete} icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
     },
   ];
+
+  const tripsData = Array.isArray(trips) ? trips : [];
+  const currentTableData = tripsData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const tabItems = [
     {
@@ -183,24 +207,34 @@ const TripsPage = () => {
         <span><TeamOutlined style={{ marginRight: 4 }} />Trip List</span>
       ),
       children: (
-        <Table
-          columns={columns}
-          dataSource={trips}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 800 }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `Total ${total} trips`,
-          }}
-        />
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Table
+            className={styles.tropicalTable}
+            columns={columns}
+            dataSource={currentTableData}
+            rowKey="id"
+            loading={loading}
+            scroll={{ x: 800 }}
+            pagination={false}
+          />
+          <div className={styles.paginationContainer}>
+            <AppPagination
+              current={currentPage}
+              pageSize={pageSize}
+              total={tripsData.length}
+              onChange={(page, size) => {
+                setCurrentPage(page);
+                setPageSize(size);
+              }}
+            />
+          </div>
+        </Space>
       ),
     },
     {
       key: 'invitations',
       label: (
-        <Badge count={invitations.length} size="small" offset={[8, 0]}>
+        <Badge count={invitations.length} size="small" offset={[8, 0]} color="#FF6B6B">
           <span>Trip Invitations</span>
         </Badge>
       ),
@@ -215,7 +249,7 @@ const TripsPage = () => {
                 <Button
                   key="accept"
                   type="primary"
-                  size="small"
+                  className={styles.pillBtn}
                   icon={<CheckOutlined />}
                   loading={respondingIds.has(item.id)}
                   onClick={() => handleRespondInvitation(item.id, true)}
@@ -224,8 +258,7 @@ const TripsPage = () => {
                 </Button>,
                 <Button
                   key="reject"
-                  size="small"
-                  danger
+                  className={`${styles.pillBtn} ${styles.rejectBtn}`}
                   icon={<CloseOutlined />}
                   loading={respondingIds.has(item.id)}
                   onClick={() => handleRespondInvitation(item.id, false)}
@@ -235,11 +268,11 @@ const TripsPage = () => {
               ]}
             >
               <List.Item.Meta
-                avatar={<Avatar icon={<UserOutlined />} style={{ backgroundColor: '#FF6B6B' }} />}
+                avatar={<Avatar icon={<UserOutlined />} style={{ backgroundColor: '#4ECDC4' }} />}
                 title={
                   <Text>
-                    <Text strong>{item.inviterName}</Text> invited you to{' '}
-                    <Text strong>{item.tripName}</Text>
+                    <Text strong style={{ color: '#1A535C' }}>{item.inviterName}</Text> invited you to{' '}
+                    <Text strong style={{ color: '#1A535C' }}>{item.tripName}</Text>
                   </Text>
                 }
                 description={`Expires: ${new Date(item.expirationDate).toLocaleDateString()}`}
@@ -252,41 +285,53 @@ const TripsPage = () => {
   ];
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#FF6B6B',
-          borderRadius: 16,
-          colorText: '#1A535C',
-          fontFamily: "'Plus Jakarta Sans', sans-serif",
-        },
-      }}
-    >
-      <Card>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Space style={{ justifyContent: 'space-between', width: '100%' }}>
-            <Title level={3} style={{ margin: 0 }}>My Trips</Title>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleCreateTripClick}
-            >
-              Create Trip
-            </Button>
-          </Space>
+    <div className={styles.appWrapper}>
+      <div className={styles.floatingCircle1}></div>
+      <div className={styles.floatingCircle2}></div>
+      <div className={styles.content}>
+        <ConfigProvider
+          theme={{
+            token: {
+              colorPrimary: '#4ECDC4',
+              colorError: '#FF6B6B',
+              colorTextBase: '#1A535C',
+              borderRadius: 8,
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+            },
+            components: {
+              Button: {
+                borderRadius: 9999,
+                controlHeight: 44,
+              },
+              Tag: {
+                marginEnd: 0
+              }
+            },
+          }}
+        >
+          <Card className={styles.dataCard}>
+            <div className={styles.toolbar}>
+              <Title level={3} style={{ margin: 0, color: '#1A535C' }}>My Trips</Title>
+              <Button
+                className={styles.primaryBtn}
+                icon={<PlusOutlined />}
+                onClick={handleCreateTripClick}
+              >
+                Create Trip
+              </Button>
+            </div>
+            <Tabs items={tabItems} defaultActiveKey="trips" />
+          </Card>
 
-          <Tabs items={tabItems} defaultActiveKey="trips" />
-        </Space>
-      </Card>
-
-      {/* Phone Number Required Modal */}
-      <PhoneNumberModal
-        open={phoneModalOpen}
-        onCancel={() => { setPhoneModalOpen(false); setPendingAction(null); }}
-        onSuccess={handlePhoneNumberSuccess}
-      />
-
-    </ConfigProvider>
+          <PhoneNumberModal
+            wrapClassName={styles.tropicalModal}
+            open={phoneModalOpen}
+            onCancel={() => { setPhoneModalOpen(false); setPendingAction(null); }}
+            onSuccess={handlePhoneNumberSuccess}
+          />
+        </ConfigProvider>
+      </div>
+    </div>
   );
 };
 
