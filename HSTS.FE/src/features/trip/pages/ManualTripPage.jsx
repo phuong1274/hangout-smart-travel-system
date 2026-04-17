@@ -1293,6 +1293,86 @@ const ManualTripPage = () => {
     return normalized;
   }, [tripInfo, transportModeNameById]);
 
+  // Estimates the travel leg from the last activity of the previous day to the first
+  // activity of the current day. Returns an updated version of `toActivity` with
+  // `travelFromPrevious` populated (or the original if estimation fails/has no endpoints).
+  const estimateCrossDayTravel = useCallback(async (fromActivity, toActivity) => {
+    if (!tripInfo) return toActivity;
+
+    const fromEndpoint = getActivityEndpointForEstimate(fromActivity, 'from');
+    const toEndpoint = getActivityEndpointForEstimate(toActivity, 'to');
+    const hasEndpoint = Object.keys({ ...fromEndpoint, ...toEndpoint }).length > 0;
+    if (!hasEndpoint) return toActivity;
+
+    try {
+      const departureTime = normalizeTimeOnly(fromActivity.endTime) || '08:00:00';
+      const groupSize = Math.max(1, Math.round(toNumberOrDefault(tripInfo.groupSize, 1)));
+      const currencyCode = tripInfo.currencyCode || 'VND';
+      const cacheKey = buildTravelCacheKey(fromEndpoint, toEndpoint, groupSize, currencyCode);
+      const cached = travelCacheRef.current.get(cacheKey);
+      const travelLeg = cached
+        ? { ...cached }
+        : await estimateLocalTravelApi({ ...fromEndpoint, ...toEndpoint, groupSize, departureTime, currencyCode });
+      if (!cached) travelCacheRef.current.set(cacheKey, travelLeg);
+
+      const travelMinutesFromLeg = Math.max(0, toNumberOrDefault(
+        travelLeg?.selectedTravelTimeMinutes ?? travelLeg?.SelectedTravelTimeMinutes, 0));
+      const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
+      const travelCostFromLeg = Math.max(0, toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost));
+      const transportModeIdFromLeg = toPositiveIntOrNull(
+        travelLeg?.selectedTransportModeId ?? travelLeg?.SelectedTransportModeId
+        ?? travelLeg?.transportModeId ?? travelLeg?.TransportModeId);
+
+      const normalizedTransportOptions = normalizeTransportOptions(
+        travelLeg?.transportOptions ?? travelLeg?.TransportOptions
+        ?? travelLeg?.options ?? travelLeg?.Options,
+        currencyCode,
+      );
+      const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, null);
+      const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
+
+      const resolvedTravelMinutes = Math.max(1, toNumberOrDefault(selectedOption?.travelMinutes, travelMinutesFromLeg || 1));
+      const autoStart = normalizeTimeOnly(travelLeg?.arrivalTime || travelLeg?.ArrivalTime)
+        || addMinutesToTime(departureTime, resolvedTravelMinutes > 0 ? resolvedTravelMinutes : 20);
+      const desiredDuration = durationBetweenTimes(toActivity.startTime, toActivity.endTime);
+      const autoEnd = addMinutesToTime(autoStart, desiredDuration);
+
+      const resolvedCostAmount = Math.max(0, toNumberOrDefault(selectedOption?.costAmount, travelCostFromLeg));
+      const resolvedTransportModeId = toPositiveIntOrNull(selectedOption?.transportModeId) || transportModeIdFromLeg;
+      const resolvedTransportModeName = pickFirstText(
+        selectedOption?.method,
+        resolvedTransportModeId ? transportModeNameById.get(resolvedTransportModeId) : '',
+        travelLeg?.selectedMethod,
+        travelLeg?.SelectedMethod,
+      ) || null;
+      const resolvedCurrency = pickFirstText(selectedOption?.costCurrency, currencyCode, 'VND') || 'VND';
+
+      return {
+        ...toActivity,
+        startTime: autoStart,
+        endTime: autoEnd,
+        travelFromPrevious: {
+          distanceKm,
+          travelMinutes: resolvedTravelMinutes,
+          costAmount: resolvedCostAmount,
+          costCurrency: resolvedCurrency,
+          transportModeId: resolvedTransportModeId,
+          transportModeName: resolvedTransportModeName,
+          departureTime,
+          arrivalTime: autoStart,
+          fromName: getActivityDisplayName(fromActivity, 'Previous'),
+          toName: getActivityDisplayName(toActivity, 'Destination'),
+          selectedOptionIndex,
+          manualCostOverride: false,
+          isCustomTransport: false,
+          transportOptions: normalizedTransportOptions,
+        },
+      };
+    } catch {
+      return toActivity;
+    }
+  }, [tripInfo, transportModeNameById]);
+
   const addExistingLocationToDay = async () => {
     if (!addLocationModal.dayId) return;
     if (!Number.isFinite(Number(existingLocationTypeId)) || Number(existingLocationTypeId) <= 0) {
@@ -1344,7 +1424,20 @@ const ManualTripPage = () => {
         estimatedCost: Math.max(0, toNumberOrDefault(existingBudget, 0)),
       };
 
-      const recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended]);
+      let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended]);
+
+      // If this is the first location added to a non-first day, estimate travel from
+      // the last activity of the previous day.
+      if (recalculated.length > 0 && dayIndex > 0 && day.activities.length === 0) {
+        const prevDay = manualDays[dayIndex - 1];
+        const prevLastActivity = prevDay?.activities?.[prevDay.activities.length - 1];
+        if (prevLastActivity) {
+          recalculated = [
+            await estimateCrossDayTravel(prevLastActivity, recalculated[0]),
+            ...recalculated.slice(1),
+          ];
+        }
+      }
 
       setManualDays((prev) => prev.map((item, index) => (
         index === dayIndex ? { ...item, activities: recalculated } : item
@@ -1414,7 +1507,20 @@ const ManualTripPage = () => {
         estimatedCost: Math.max(0, toNumberOrDefault(customBudget, 0)),
       };
 
-      const recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended]);
+      let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended]);
+
+      // If this is the first location added to a non-first day, estimate travel from
+      // the last activity of the previous day.
+      if (recalculated.length > 0 && dayIndex > 0 && day.activities.length === 0) {
+        const prevDay = manualDays[dayIndex - 1];
+        const prevLastActivity = prevDay?.activities?.[prevDay.activities.length - 1];
+        if (prevLastActivity) {
+          recalculated = [
+            await estimateCrossDayTravel(prevLastActivity, recalculated[0]),
+            ...recalculated.slice(1),
+          ];
+        }
+      }
 
       setManualDays((prev) => prev.map((item, index) => (
         index === dayIndex ? { ...item, activities: recalculated } : item
@@ -1486,14 +1592,27 @@ const ManualTripPage = () => {
 
     setReorderRecalculating(true);
     try {
-      const recalculated = await recalculateDayTravelAndEstimate(reordered);
+      let recalculated = await recalculateDayTravelAndEstimate(reordered);
+
+      // If the first activity of a non-first day changed, re-estimate cross-day travel.
+      if (dayIdx > 0 && recalculated.length > 0 && (oldIdx === 0 || newIdx === 0)) {
+        const prevDay = manualDays[dayIdx - 1];
+        const prevLastActivity = prevDay?.activities?.[prevDay.activities.length - 1];
+        if (prevLastActivity) {
+          recalculated = [
+            await estimateCrossDayTravel(prevLastActivity, recalculated[0]),
+            ...recalculated.slice(1),
+          ];
+        }
+      }
+
       setManualDays((prev) => prev.map((d, i) => (i === dayIdx ? { ...d, activities: recalculated } : d)));
     } catch {
       message.error('Unable to recalculate travel estimates after reordering.');
     } finally {
       setReorderRecalculating(false);
     }
-  }, [manualDays, recalculateDayTravelAndEstimate]);
+  }, [manualDays, recalculateDayTravelAndEstimate, estimateCrossDayTravel]);
 
   const moveDayUp = useCallback((dayId) => {
     setManualDays((prev) => {
@@ -1570,7 +1689,9 @@ const ManualTripPage = () => {
     }
 
     const currencyCode = tripInfo.currencyCode || 'VND';
-    const daysNeedingBackfill = manualDays
+
+    // Days that need intra-day travel backfill (activities[>0] with travelFromPrevious but no options)
+    const daysNeedingIntraDayBackfill = manualDays
       .map((day, dayIndex) => ({ day, dayIndex }))
       .filter(({ day }) => (day.activities || []).some((activity, activityIndex) => {
         if (activityIndex <= 0 || !activity?.travelFromPrevious) return false;
@@ -1582,6 +1703,24 @@ const ManualTripPage = () => {
         return options.length === 0;
       }));
 
+    // Days whose first activity is missing cross-day travel (non-first days with activities)
+    const daysNeedingCrossDayBackfill = manualDays
+      .map((day, dayIndex) => ({ day, dayIndex }))
+      .filter(({ day, dayIndex }) => {
+        if (dayIndex === 0) return false;
+        const firstActivity = day.activities?.[0];
+        if (!firstActivity || firstActivity.travelFromPrevious != null) return false;
+        const prevDay = manualDays[dayIndex - 1];
+        return prevDay?.activities?.length > 0;
+      });
+
+    const daysNeedingBackfill = [
+      ...daysNeedingIntraDayBackfill,
+      ...daysNeedingCrossDayBackfill.filter(
+        ({ dayIndex }) => !daysNeedingIntraDayBackfill.some((d) => d.dayIndex === dayIndex),
+      ),
+    ];
+
     if (daysNeedingBackfill.length === 0) {
       setTransportOptionsBackfilled(true);
       return;
@@ -1592,7 +1731,20 @@ const ManualTripPage = () => {
     const backfill = async () => {
       try {
         const updates = await Promise.all(daysNeedingBackfill.map(async ({ dayIndex, day }) => {
-          const nextActivities = await recalculateDayTravelAndEstimate(day.activities || []);
+          let nextActivities = await recalculateDayTravelAndEstimate(day.activities || []);
+
+          // Also apply cross-day travel for the first activity if it's a non-first day
+          if (dayIndex > 0 && nextActivities.length > 0 && nextActivities[0].travelFromPrevious == null) {
+            const prevDay = manualDays[dayIndex - 1];
+            const prevLastActivity = prevDay?.activities?.[prevDay.activities.length - 1];
+            if (prevLastActivity) {
+              nextActivities = [
+                await estimateCrossDayTravel(prevLastActivity, nextActivities[0]),
+                ...nextActivities.slice(1),
+              ];
+            }
+          }
+
           return { dayIndex, nextActivities };
         }));
 
@@ -1618,7 +1770,7 @@ const ManualTripPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [manualDays, recalculateDayTravelAndEstimate, transportOptionsBackfilled, tripInfo]);
+  }, [manualDays, recalculateDayTravelAndEstimate, estimateCrossDayTravel, transportOptionsBackfilled, tripInfo]);
 
   const handlePickCustomLocationOnMap = (latitude, longitude) => {
     const safeLat = toFiniteNumber(latitude);
