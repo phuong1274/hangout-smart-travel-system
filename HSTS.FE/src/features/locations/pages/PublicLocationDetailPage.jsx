@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, Divider, List, Modal, Rate, Skeleton, Space, Tag, Typography } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { buildCreateTripPath, PATHS } from '@/routes/paths';
@@ -224,11 +224,50 @@ const GalleryMosaic = ({ images = [], name }) => {
   );
 };
 
-const LocationMap = ({ latitude, longitude, name }) => {
+const FitBoundsToMarkers = ({ locationPos, userPos }) => {
+  const map = useMap();
+  const fitted = useRef(false);
+  useEffect(() => {
+    if (fitted.current) return;
+    if (userPos) {
+      const bounds = L.latLngBounds([locationPos, userPos]);
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+      fitted.current = true;
+    }
+  }, [map, locationPos, userPos]);
+  return null;
+};
+
+const userLocationIcon = L.divIcon({
+  className: '',
+  html: `<div style="
+    width:16px;height:16px;
+    border-radius:50%;
+    background:#4285F4;
+    border:3px solid #fff;
+    box-shadow:0 0 0 2px #4285F4,0 2px 6px rgba(0,0,0,0.3);">
+  </div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+
+const LocationMap = ({ latitude, longitude, name, firstImage }) => {
   const lat = Number(latitude);
   const lng = Number(longitude);
+  const [userPos, setUserPos] = useState(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserPos([pos.coords.latitude, pos.coords.longitude]),
+      () => {},
+      { timeout: 6000 }
+    );
+  }, []);
+
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
+  const locationPos = [lat, lng];
   const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
 
   return (
@@ -237,9 +276,9 @@ const LocationMap = ({ latitude, longitude, name }) => {
       <Title level={4} className={styles.sectionTitle}>Location on map</Title>
       <div className={styles.mapWrapper}>
         <MapContainer
-          center={[lat, lng]}
+          center={locationPos}
           zoom={15}
-          style={{ width: '100%', height: '260px', borderRadius: '16px', overflow: 'hidden' }}
+          style={{ width: '100%', height: '280px' }}
           scrollWheelZoom={false}
           zoomControl
           attributionControl={false}
@@ -250,7 +289,26 @@ const LocationMap = ({ latitude, longitude, name }) => {
             attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
             maxZoom={20}
           />
-          <Marker position={[lat, lng]} />
+
+          <Marker position={locationPos}>
+            <Popup className={styles.mapPopup} closeButton={false}>
+              {firstImage ? (
+                <img src={firstImage} alt={name} className={styles.mapPopupImage} />
+              ) : null}
+              <div className={styles.mapPopupName}>{name}</div>
+              <div className={styles.mapPopupCoords}>{lat.toFixed(5)}, {lng.toFixed(5)}</div>
+            </Popup>
+          </Marker>
+
+          {userPos ? (
+            <Marker position={userPos} icon={userLocationIcon}>
+              <Popup className={styles.mapPopup} closeButton={false}>
+                <div className={styles.mapPopupName}>Your location</div>
+              </Popup>
+            </Marker>
+          ) : null}
+
+          <FitBoundsToMarkers locationPos={locationPos} userPos={userPos} />
         </MapContainer>
       </div>
       <div className={styles.mapCoords}>{lat.toFixed(6)}, {lng.toFixed(6)}</div>
@@ -433,7 +491,7 @@ const PublicLocationDetailPage = () => {
                 ) : null}
               </Card>
 
-              <LocationMap latitude={latitude} longitude={longitude} name={name} />
+              <LocationMap latitude={latitude} longitude={longitude} name={name} firstImage={imageUrls[0]} />
 
               {amenities.length > 0 ? (
                 <DetailSection eyebrow="Comfort" title="Comfort highlights">

@@ -375,6 +375,46 @@
   border-radius: 16px;
   overflow: hidden;
   margin-bottom: 12px;
+  /* Leaflet popup styles scoped here */
+}
+
+.mapWrapper :global(.leaflet-popup-content-wrapper) {
+  border-radius: 14px !important;
+  padding: 0 !important;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(23, 61, 68, 0.18) !important;
+  min-width: 160px;
+}
+
+.mapWrapper :global(.leaflet-popup-content) {
+  margin: 0 !important;
+  width: auto !important;
+}
+
+.mapWrapper :global(.leaflet-popup-tip-container) {
+  display: none;
+}
+
+.mapPopupImage {
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  display: block;
+}
+
+.mapPopupName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #173d44;
+  padding: 10px 14px 4px;
+  line-height: 1.3;
+}
+
+.mapPopupCoords {
+  font-size: 11px;
+  color: rgba(26, 83, 92, 0.54);
+  padding: 0 14px 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .mapCoords {
