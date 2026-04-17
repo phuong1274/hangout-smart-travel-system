@@ -826,6 +826,24 @@ const toCustomGeoPayload = (value) => {
   };
 };
 
+const toCustomLocationPayload = (value, fallbackLocationTypeId = null) => {
+  const base = toCustomGeoPayload(value);
+  if (!base) return null;
+
+  const locationTypeId = toPositiveIntOrNull(
+    value?.locationTypeId
+    ?? value?.LocationTypeId
+    ?? fallbackLocationTypeId,
+  );
+  if (!locationTypeId) return null;
+
+  return {
+    ...base,
+    description: pickFirstText(value?.description, value?.Description) || null,
+    locationTypeId,
+  };
+};
+
 const updateDayEstimatedCost = (day, timelineKey, currencyCode) => {
   if (!day || !timelineKey) return;
   const timeline = Array.isArray(day[timelineKey]) ? day[timelineKey] : [];
@@ -1110,6 +1128,8 @@ const ItineraryResultPage = () => {
   const [addBetweenLocationTypeLoading, setAddBetweenLocationTypeLoading] = useState(false);
   const [selectedAddBetweenLocationTypeId, setSelectedAddBetweenLocationTypeId] = useState(null);
   const [addBetweenCustomName, setAddBetweenCustomName] = useState('');
+  const [selectedAddBetweenCustomLocationTypeId, setSelectedAddBetweenCustomLocationTypeId] = useState(null);
+  const [addBetweenCustomDescription, setAddBetweenCustomDescription] = useState('');
   const [addBetweenCustomAddress, setAddBetweenCustomAddress] = useState('');
   const [addBetweenCustomLat, setAddBetweenCustomLat] = useState(null);
   const [addBetweenCustomLng, setAddBetweenCustomLng] = useState(null);
@@ -1246,6 +1266,8 @@ const ItineraryResultPage = () => {
     const defaultEnd = addMinutesToTime(normalizedStart, 90);
 
     setAddBetweenCustomName('');
+    setSelectedAddBetweenCustomLocationTypeId(null);
+    setAddBetweenCustomDescription('');
     setAddBetweenCustomAddress('');
     setAddBetweenCustomLat(null);
     setAddBetweenCustomLng(null);
@@ -2179,6 +2201,12 @@ const ItineraryResultPage = () => {
       return;
     }
 
+    const customLocationTypeId = toPositiveIntOrNull(selectedAddBetweenCustomLocationTypeId);
+    if (!customLocationTypeId) {
+      message.warning('Please select location type for custom location.');
+      return;
+    }
+
     if (!Number.isFinite(Number(addBetweenCustomLat)) || !Number.isFinite(Number(addBetweenCustomLng))) {
       message.warning('Please pick custom location on map.');
       return;
@@ -2205,6 +2233,7 @@ const ItineraryResultPage = () => {
     const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
     const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
     const costAmount = Math.max(0, Math.round(Number(addBetweenCustomCostAmount) || 0));
+    const customDescription = String(addBetweenCustomDescription || '').trim();
     const customAddress = String(addBetweenCustomAddress || '').trim();
 
     setRecalculatingDayNumber(dayNumber);
@@ -2228,6 +2257,10 @@ const ItineraryResultPage = () => {
         Latitude: Number(addBetweenCustomLat),
         longitude: Number(addBetweenCustomLng),
         Longitude: Number(addBetweenCustomLng),
+        description: customDescription || null,
+        Description: customDescription || null,
+        locationTypeId: customLocationTypeId,
+        LocationTypeId: customLocationTypeId,
         address: customAddress || null,
         Address: customAddress || null,
       };
@@ -2247,6 +2280,8 @@ const ItineraryResultPage = () => {
         EndTime: normalizedEnd,
         locationId: 0,
         LocationId: 0,
+        locationTypeId: customLocationTypeId,
+        LocationTypeId: customLocationTypeId,
         customLocation: customLocationPayload,
         CustomLocation: customLocationPayload,
         tagNames: [],
@@ -2294,6 +2329,8 @@ const ItineraryResultPage = () => {
     itinerary,
     addBetweenModal,
     addBetweenCustomName,
+    selectedAddBetweenCustomLocationTypeId,
+    addBetweenCustomDescription,
     addBetweenCustomAddress,
     addBetweenCustomLat,
     addBetweenCustomLng,
@@ -3944,6 +3981,33 @@ const ItineraryResultPage = () => {
       return;
     }
 
+    for (let dayIndex = 0; dayIndex < days.length; dayIndex += 1) {
+      const day = days[dayIndex];
+      const dayNumber = Number(day?.dayNumber ?? day?.DayNumber);
+      const safeDayNumber = Number.isFinite(dayNumber) && dayNumber > 0 ? Math.round(dayNumber) : dayIndex + 1;
+      const timeline = getDayTimeline(day, tripCurrencyCode);
+
+      for (let itemIndex = 0; itemIndex < timeline.length; itemIndex += 1) {
+        const item = timeline[itemIndex];
+        const locationId = toPositiveIntOrNull(item?.locationId ?? item?.LocationId);
+        const customLocationId = locationId ? null : toPositiveIntOrNull(item?.customLocationId ?? item?.CustomLocationId);
+        if (locationId || customLocationId) continue;
+
+        const rawCustomLocation = item?.customLocation || item?.CustomLocation;
+        if (!rawCustomLocation) continue;
+
+        const customLocationPayload = toCustomLocationPayload(
+          rawCustomLocation,
+          item?.locationTypeId ?? item?.LocationTypeId,
+        );
+        if (!customLocationPayload) {
+          const customName = pickFirstText(rawCustomLocation?.name, rawCustomLocation?.Name, item?.title, item?.Title);
+          message.error(`Day ${safeDayNumber}: custom location "${customName || `Item ${itemIndex + 1}`}" requires location type.`);
+          return;
+        }
+      }
+    }
+
     const mappedDays = days.map((day, dayIndex) => {
       const dayNumber = Number(day?.dayNumber ?? day?.DayNumber);
       const safeDayNumber = Number.isFinite(dayNumber) && dayNumber > 0 ? Math.round(dayNumber) : dayIndex + 1;
@@ -3971,7 +4035,10 @@ const ItineraryResultPage = () => {
         const locationId = toPositiveIntOrNull(item?.locationId ?? item?.LocationId);
         const customLocationId = locationId ? null : toPositiveIntOrNull(item?.customLocationId ?? item?.CustomLocationId);
         const customLocation = (!locationId && !customLocationId)
-          ? toCustomGeoPayload(item?.customLocation || item?.CustomLocation)
+          ? toCustomLocationPayload(
+            item?.customLocation || item?.CustomLocation,
+            item?.locationTypeId ?? item?.LocationTypeId,
+          )
           : null;
 
         return {
@@ -4986,6 +5053,33 @@ const ItineraryResultPage = () => {
                   />
                 </div>
 
+                <span className={styles.editTimelineLabel}>Location Type</span>
+                <Select
+                  showSearch
+                  allowClear
+                  className={styles.addBetweenSelect}
+                  placeholder="Select location type"
+                  value={selectedAddBetweenCustomLocationTypeId}
+                  onChange={(value) => setSelectedAddBetweenCustomLocationTypeId(value ?? null)}
+                  loading={addBetweenLocationTypeLoading}
+                  optionFilterProp="label"
+                  options={addBetweenLocationTypeOptions.map((locationType) => ({
+                    label: locationType.name,
+                    value: locationType.id,
+                  }))}
+                  notFoundContent={addBetweenLocationTypeLoading ? <Spin size="small" /> : 'No location types'}
+                />
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Description</span>
+                  <Input
+                    className={styles.editTimelineInput}
+                    placeholder="Describe this custom location"
+                    value={addBetweenCustomDescription}
+                    onChange={(event) => setAddBetweenCustomDescription(event?.target?.value || '')}
+                  />
+                </div>
+
                 <div className={styles.editTimelineField}>
                   <span className={styles.editTimelineLabel}>Address (optional)</span>
                   <Input
@@ -5082,6 +5176,7 @@ const ItineraryResultPage = () => {
                   className={styles.customLocationAddButton}
                   loading={addingCustomLocation}
                   onClick={handleConfirmAddCustomLocation}
+                  disabled={!selectedAddBetweenCustomLocationTypeId}
                 >
                   Add Custom Location
                 </Button>

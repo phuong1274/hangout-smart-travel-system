@@ -380,6 +380,13 @@ const normalizeDraftDays = (rawDays) => {
                 latitude: toFiniteNumber(customLocation.latitude ?? customLocation.Latitude),
                 longitude: toFiniteNumber(customLocation.longitude ?? customLocation.Longitude),
                 address: String(customLocation.address || customLocation.Address || activity.address || '').trim(),
+                description: String(customLocation.description || customLocation.Description || '').trim(),
+                locationTypeId: toFiniteNumber(
+                  customLocation.locationTypeId
+                  ?? customLocation.LocationTypeId
+                  ?? activity.locationTypeId
+                  ?? activity.LocationTypeId,
+                ),
               }
             : null;
 
@@ -389,7 +396,11 @@ const normalizeDraftDays = (rawDays) => {
             id: activity.id || createClientId(`activity-${dayIndex}-${activityIndex}`),
             sourceType: activity.sourceType || (normalizedCustom ? 'custom' : 'existing'),
             locationId: toFiniteNumber(activity.locationId ?? activity.LocationId) || null,
-            locationTypeId: toFiniteNumber(activity.locationTypeId ?? activity.LocationTypeId) || null,
+            locationTypeId: toFiniteNumber(
+              activity.locationTypeId
+              ?? activity.LocationTypeId
+              ?? normalizedCustom?.locationTypeId,
+            ) || null,
             destinationName: String(activity.destinationName || activity.locationName || activity.LocationName || activity.title || '').trim(),
             title: String(activity.title || '').trim(),
             address: String(activity.address || activity.Address || normalizedCustom?.address || '').trim(),
@@ -544,6 +555,8 @@ const ManualTripPage = () => {
   const [existingBudget, setExistingBudget] = useState(null);
 
   const [customName, setCustomName] = useState('');
+  const [customLocationTypeId, setCustomLocationTypeId] = useState(null);
+  const [customDescription, setCustomDescription] = useState('');
   const [customAddress, setCustomAddress] = useState('');
   const [customLat, setCustomLat] = useState(null);
   const [customLng, setCustomLng] = useState(null);
@@ -960,6 +973,8 @@ const ManualTripPage = () => {
     setExistingBudget(null);
 
     setCustomName('');
+    setCustomLocationTypeId(null);
+    setCustomDescription('');
     setCustomAddress('');
     setCustomLat(null);
     setCustomLng(null);
@@ -1269,6 +1284,10 @@ const ManualTripPage = () => {
       message.warning('Please enter custom location name.');
       return;
     }
+    if (!Number.isFinite(Number(customLocationTypeId)) || Number(customLocationTypeId) <= 0) {
+      message.warning('Please select location type.');
+      return;
+    }
 
     if (!hasCustomCoordinates) {
       message.warning('Please pick custom location on map.');
@@ -1294,7 +1313,7 @@ const ManualTripPage = () => {
         id: createClientId('activity'),
         sourceType: 'custom',
         locationId: null,
-        locationTypeId: null,
+        locationTypeId: Number(customLocationTypeId),
         destinationName: normalizedName,
         title: `Visit ${normalizedName}`,
         address: String(customAddress || '').trim(),
@@ -1305,6 +1324,8 @@ const ManualTripPage = () => {
           latitude: customLatValue,
           longitude: customLngValue,
           address: String(customAddress || '').trim(),
+          description: String(customDescription || '').trim(),
+          locationTypeId: Number(customLocationTypeId),
         },
         travelFromPrevious: null,
         estimatedCost: Math.max(0, toNumberOrDefault(customBudget, 0)),
@@ -1573,6 +1594,23 @@ const ManualTripPage = () => {
         message.error(`Day ${dayIndex + 1}: please add at least one location.`);
         return;
       }
+
+      for (let activityIndex = 0; activityIndex < day.activities.length; activityIndex += 1) {
+        const activity = day.activities[activityIndex];
+        const customLocation = activity?.customLocation || null;
+        if (!customLocation) continue;
+
+        const resolvedCustomLocationTypeId = toPositiveIntOrNull(
+          customLocation.locationTypeId
+          ?? customLocation.LocationTypeId
+          ?? activity.locationTypeId
+          ?? activity.LocationTypeId,
+        );
+        if (!resolvedCustomLocationTypeId) {
+          message.error(`Day ${dayIndex + 1}: custom location "${getActivityDisplayName(activity, `Location ${activityIndex + 1}`)}" requires location type.`);
+          return;
+        }
+      }
     }
 
     const mappedDays = manualDays.map((day, dayIndex) => {
@@ -1638,12 +1676,21 @@ const ManualTripPage = () => {
           locationId: toPositiveIntOrNull(activity.locationId),
           customLocationId: null,
           customLocation: activity.customLocation
-            ? {
-                name: String(activity.customLocation.name || name).trim(),
-                latitude: toNumberOrDefault(activity.customLocation.latitude, 0),
-                longitude: toNumberOrDefault(activity.customLocation.longitude, 0),
-                address: String(activity.customLocation.address || activity.address || '').trim() || null,
-              }
+            ? (() => {
+                const resolvedCustomLocationTypeId = toPositiveIntOrNull(
+                  activity.customLocation.locationTypeId
+                  ?? activity.customLocation.LocationTypeId
+                  ?? activity.locationTypeId,
+                );
+                return {
+                  name: String(activity.customLocation.name || name).trim(),
+                  latitude: toNumberOrDefault(activity.customLocation.latitude, 0),
+                  longitude: toNumberOrDefault(activity.customLocation.longitude, 0),
+                  address: String(activity.customLocation.address || activity.address || '').trim() || null,
+                  description: String(activity.customLocation.description || activity.customLocation.Description || '').trim() || null,
+                  locationTypeId: resolvedCustomLocationTypeId,
+                };
+              })()
             : null,
           transport: null,
           budget: {
@@ -2333,6 +2380,35 @@ const ManualTripPage = () => {
               </div>
 
               <div className={styles.editTimelineField}>
+                <span className={styles.editTimelineLabel}>Location type</span>
+                <Select
+                  showSearch
+                  allowClear
+                  className={styles.editTimelineInput}
+                  placeholder="Select location type"
+                  value={customLocationTypeId}
+                  onChange={(value) => setCustomLocationTypeId(value ?? null)}
+                  loading={loadingLocationTypes}
+                  optionFilterProp="label"
+                  options={locationTypes.map((typeOption) => ({
+                    label: typeOption.name,
+                    value: typeOption.id,
+                  }))}
+                  notFoundContent={loadingLocationTypes ? <Spin size="small" /> : 'No location types'}
+                />
+              </div>
+
+              <div className={styles.editTimelineField}>
+                <span className={styles.editTimelineLabel}>Description</span>
+                <Input
+                  className={styles.editTimelineInput}
+                  placeholder="Describe this custom location"
+                  value={customDescription}
+                  onChange={(event) => setCustomDescription(event?.target?.value || '')}
+                />
+              </div>
+
+              <div className={styles.editTimelineField}>
                 <span className={styles.editTimelineLabel}>Address (optional)</span>
                 <Input
                   className={styles.editTimelineInput}
@@ -2420,6 +2496,7 @@ const ManualTripPage = () => {
                 className={styles.customLocationAddButton}
                 loading={addingLocation}
                 onClick={addCustomLocationToDay}
+                disabled={!customLocationTypeId}
               >
                 Add Custom Location
               </Button>
