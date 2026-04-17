@@ -243,8 +243,10 @@ const TransitHubForm = ({ open, transitHub, onClose, onSuccess, districts, trans
               key={`map-${isEdit ? transitHub?.id : 'new'}`}
             >
               <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                url="http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+                subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+                maxZoom={20}
               />
               <Marker
                 position={centerPosition}
