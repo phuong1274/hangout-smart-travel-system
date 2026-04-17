@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Button, Card, Divider, List, Modal, Rate, Skeleton, Space, Tag, Typography } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { buildCreateTripPath, PATHS } from '@/routes/paths';
 import { ROLES } from '@/config/constants';
 import { useAuthStore } from '@/store/authStore';
@@ -8,6 +11,13 @@ import { DAYS_OF_WEEK } from '@/utils/locationConstants';
 import { usePublicLocationDetail } from '../hooks/usePublicLocationDetail';
 import { LocationReviewSection } from '@/features/reviews/components/LocationReviewSection';
 import styles from '../styles/PublicLocationDetailPage.module.css';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -214,6 +224,43 @@ const GalleryMosaic = ({ images = [], name }) => {
   );
 };
 
+const LocationMap = ({ latitude, longitude, name }) => {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+
+  return (
+    <Card className={styles.sectionCard}>
+      <span className={styles.sectionEyebrow}>Map reference</span>
+      <Title level={4} className={styles.sectionTitle}>Location on map</Title>
+      <div className={styles.mapWrapper}>
+        <MapContainer
+          center={[lat, lng]}
+          zoom={15}
+          style={{ width: '100%', height: '260px', borderRadius: '16px', overflow: 'hidden' }}
+          scrollWheelZoom={false}
+          zoomControl
+          attributionControl={false}
+        >
+          <TileLayer
+            url="http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+            attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+            maxZoom={20}
+          />
+          <Marker position={[lat, lng]} />
+        </MapContainer>
+      </div>
+      <div className={styles.mapCoords}>{lat.toFixed(6)}, {lng.toFixed(6)}</div>
+      <a href={googleMapsUrl} target="_blank" rel="noreferrer" className={styles.mapExternalLink}>
+        <Button className={styles.mapOpenButton}>Open in Google Maps</Button>
+      </a>
+    </Card>
+  );
+};
+
 const PublicLocationDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -377,7 +424,7 @@ const PublicLocationDetailPage = () => {
                   <FactCard label="Typical spend" value={formatBudget(priceMinUsd, priceMaxUsd, ticketPrice)} />
                   <FactCard label="Suggested stay" value={formatDuration(recommendedDurationMinutes)} />
                   <FactCard label="Who it suits" value={formatMinimumAge(minimumAge)} />
-                  <FactCard label="Map reference" value={formatCoordinates(latitude, longitude)} />
+                  <FactCard label="Coordinates" value={formatCoordinates(latitude, longitude)} />
                 </div>
                 {showCta ? (
                   <Button type="primary" className={styles.primaryCta} onClick={() => navigate(ctaPath)}>
@@ -385,6 +432,8 @@ const PublicLocationDetailPage = () => {
                   </Button>
                 ) : null}
               </Card>
+
+              <LocationMap latitude={latitude} longitude={longitude} name={name} />
 
               {amenities.length > 0 ? (
                 <DetailSection eyebrow="Comfort" title="Comfort highlights">
