@@ -1344,8 +1344,10 @@ const ItineraryResultPage = () => {
 
     const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
     const sourceTimeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+    // Use !isTravelEvent (not isTimelineStopEvent) so non-geo stops (no locationId/customLocation)
+    // are preserved in the rebuilt timeline instead of being silently dropped.
     const stopIndexes = sourceTimeline
-      .map((item, index) => (isTimelineStopEvent(item) ? index : -1))
+      .map((item, index) => (!isTravelEvent(item) ? index : -1))
       .filter((index) => index >= 0);
 
     if (stopIndexes.length === 0) {
@@ -1445,24 +1447,37 @@ const ItineraryResultPage = () => {
       const departureTime = pickFirstText(prevStop.endTime, prevStop.EndTime) || firstEnd;
       const fromEndpoint = getTimelineStopEndpointParams(prevStop, 'from');
       const toEndpoint = getTimelineStopEndpointParams(currentStop, 'to');
-      const canEstimate = Object.values({ ...fromEndpoint, ...toEndpoint }).some((value) => value != null);
+      // Both sides must have geo data to call the travel-estimate API. Using some() on the
+      // merged object would return true when only one side has data, causing a broken API call.
+      const fromHasGeo = Object.values(fromEndpoint).some((v) => v != null);
+      const toHasGeo = Object.values(toEndpoint).some((v) => v != null);
+      const canEstimate = fromHasGeo && toHasGeo;
+
+      if (!canEstimate) {
+        // One or both stops have no geo coordinates — chain time directly, no travel event.
+        // This preserves non-geo stops (e.g. custom notes, future event types) without dropping them.
+        const currentDuration = stopDurations[index];
+        const currentEnd = addMinutesToTime(departureTime, currentDuration);
+        const normalizedCurrentStop = { ...currentStop, startTime: departureTime, endTime: currentEnd };
+        rebuiltSegment.push(normalizedCurrentStop);
+        prevStop = normalizedCurrentStop;
+        continue;
+      }
 
       let travelLeg = null;
-      if (canEstimate) {
-        const cacheKey = buildTravelCacheKey(fromEndpoint, toEndpoint, groupSize, currencyCode);
-        const cached = travelCacheRef.current.get(cacheKey);
-        if (cached) {
-          travelLeg = { ...cached, arrivalTime: null, ArrivalTime: null };
-        } else {
-          travelLeg = await estimateLocalTravelApi({
-            ...fromEndpoint,
-            ...toEndpoint,
-            groupSize,
-            departureTime,
-            currencyCode,
-          });
-          travelCacheRef.current.set(cacheKey, travelLeg);
-        }
+      const cacheKey = buildTravelCacheKey(fromEndpoint, toEndpoint, groupSize, currencyCode);
+      const cached = travelCacheRef.current.get(cacheKey);
+      if (cached) {
+        travelLeg = { ...cached, arrivalTime: null, ArrivalTime: null };
+      } else {
+        travelLeg = await estimateLocalTravelApi({
+          ...fromEndpoint,
+          ...toEndpoint,
+          groupSize,
+          departureTime,
+          currencyCode,
+        });
+        travelCacheRef.current.set(cacheKey, travelLeg);
       }
 
       const estimatedTravelMinutes = Number(
