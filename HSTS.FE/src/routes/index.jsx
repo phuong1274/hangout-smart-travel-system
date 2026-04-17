@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
 import SuspenseWrapper from './RouteShell';
+import RouteRoot from './RouteRoot';
 import { PATHS } from './paths';
 import { ROLES } from '@/config/constants';
 import { useAuthStore } from '@/store/authStore';
@@ -72,6 +73,9 @@ const HybridTripLayout = () => {
 };
 
 export const router = createBrowserRouter([
+  {
+    element: <RouteRoot />,
+    children: [
   {
     path: '/',
     element: <SuspenseWrapper><HomePage /></SuspenseWrapper>,
@@ -257,5 +261,7 @@ export const router = createBrowserRouter([
   {
     path: PATHS.NOT_FOUND,
     element: <SuspenseWrapper><Error404 /></SuspenseWrapper>
+  }
+  ]
   }
 ]);
