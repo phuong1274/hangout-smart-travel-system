@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, Divider, List, Modal, Rate, Skeleton, Space, Tag, Typography } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { buildCreateTripPath, PATHS } from '@/routes/paths';
@@ -224,46 +224,28 @@ const GalleryMosaic = ({ images = [], name }) => {
   );
 };
 
-const FitBoundsToMarkers = ({ locationPos, userPos }) => {
+const AutoOpenPopup = () => {
   const map = useMap();
-  const fitted = useRef(false);
+  const opened = useRef(false);
   useEffect(() => {
-    if (fitted.current) return;
-    if (userPos) {
-      const bounds = L.latLngBounds([locationPos, userPos]);
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-      fitted.current = true;
-    }
-  }, [map, locationPos, userPos]);
+    if (opened.current) return;
+    // Open the first popup (location marker) after map is ready
+    const timer = setTimeout(() => {
+      map.eachLayer((layer) => {
+        if (!opened.current && layer instanceof L.Marker) {
+          layer.openPopup();
+          opened.current = true;
+        }
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [map]);
   return null;
 };
-
-const userLocationIcon = L.divIcon({
-  className: '',
-  html: `<div style="
-    width:16px;height:16px;
-    border-radius:50%;
-    background:#4285F4;
-    border:3px solid #fff;
-    box-shadow:0 0 0 2px #4285F4,0 2px 6px rgba(0,0,0,0.3);">
-  </div>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
 
 const LocationMap = ({ latitude, longitude, name, firstImage }) => {
   const lat = Number(latitude);
   const lng = Number(longitude);
-  const [userPos, setUserPos] = useState(null);
-
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setUserPos([pos.coords.latitude, pos.coords.longitude]),
-      () => {},
-      { timeout: 6000 }
-    );
-  }, []);
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
@@ -289,9 +271,8 @@ const LocationMap = ({ latitude, longitude, name, firstImage }) => {
             attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
             maxZoom={20}
           />
-
           <Marker position={locationPos}>
-            <Popup className={styles.mapPopup} closeButton={false}>
+            <Popup closeButton={false} autoClose={false} closeOnClick={false}>
               {firstImage ? (
                 <img src={firstImage} alt={name} className={styles.mapPopupImage} />
               ) : null}
@@ -299,16 +280,7 @@ const LocationMap = ({ latitude, longitude, name, firstImage }) => {
               <div className={styles.mapPopupCoords}>{lat.toFixed(5)}, {lng.toFixed(5)}</div>
             </Popup>
           </Marker>
-
-          {userPos ? (
-            <Marker position={userPos} icon={userLocationIcon}>
-              <Popup className={styles.mapPopup} closeButton={false}>
-                <div className={styles.mapPopupName}>Your location</div>
-              </Popup>
-            </Marker>
-          ) : null}
-
-          <FitBoundsToMarkers locationPos={locationPos} userPos={userPos} />
+          <AutoOpenPopup />
         </MapContainer>
       </div>
       <div className={styles.mapCoords}>{lat.toFixed(6)}, {lng.toFixed(6)}</div>
