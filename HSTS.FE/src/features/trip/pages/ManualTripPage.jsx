@@ -431,7 +431,6 @@ const saveDraftToStorage = (tripId, payload) => {
   try {
     localStorage.setItem(getDraftStorageKey(tripId), JSON.stringify(payload));
   } catch {
-    // Ignore storage write failures.
   }
 };
 
@@ -439,7 +438,6 @@ const clearDraftStorage = (tripId) => {
   try {
     localStorage.removeItem(getDraftStorageKey(tripId));
   } catch {
-    // Ignore storage remove failures.
   }
 };
 
@@ -1963,6 +1961,7 @@ const ManualTripPage = () => {
         width="min(1100px, 94vw)"
         footer={null}
         destroyOnClose
+        rootClassName={styles.pageShell}
       >
         <div className={styles.addBetweenModalBody}>
           <Text type="secondary" className={styles.addBetweenHint}>
