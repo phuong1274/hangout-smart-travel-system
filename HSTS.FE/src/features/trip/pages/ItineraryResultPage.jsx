@@ -600,6 +600,27 @@ const getTimelineStopEndpointParams = (item, side = 'from') => {
     : { toLat: customLocation.latitude, toLng: customLocation.longitude };
 };
 
+// Extracts the "from" origin endpoint from a travel event (before-segment).
+// The API response (LocalTravelEstimateDto) only echoes back integer FromId/ToId.
+// If FromId <= 0 the origin was coordinates (user GPS); fall back to itinerary.userLocation.
+const extractOriginEndpointFromTravel = (travelEvent, itinerary) => {
+  const travelData = travelEvent?.locationToLocationTravel || travelEvent?.LocationToLocationTravel;
+  if (travelData) {
+    const fromId = Number(travelData?.fromId ?? travelData?.FromId);
+    if (Number.isFinite(fromId) && fromId > 0) {
+      return { fromLocationId: fromId };
+    }
+  }
+  // Fallback: user's GPS stored in itinerary root
+  const userLoc = itinerary?.userLocation || itinerary?.UserLocation;
+  const lat = Number(userLoc?.latitude ?? userLoc?.Latitude);
+  const lng = Number(userLoc?.longitude ?? userLoc?.Longitude);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { fromLat: lat, fromLng: lng };
+  }
+  return null;
+};
+
 const buildTravelCacheKey = (fromEndpoint, toEndpoint, groupSize, currencyCode) => {
   const fromKey = fromEndpoint.fromLocationId != null
     ? `L:${fromEndpoint.fromLocationId}`
@@ -1314,6 +1335,8 @@ const ItineraryResultPage = () => {
 
   const recalculateDayTimeline = useCallback(async (draftItinerary, dayIndex, options = {}) => {
     const preserveExternalSegments = Boolean(options?.preserveExternalSegments);
+    // originEndpoint: { fromLocationId } or { fromLat, fromLng } — travel from origin to first stop
+    const originEndpoint = options?.originEndpoint || null;
     const daysKey = Array.isArray(draftItinerary?.days) ? 'days' : 'Days';
     const days = Array.isArray(draftItinerary?.[daysKey]) ? draftItinerary[daysKey] : [];
     const day = days[dayIndex];
@@ -1357,6 +1380,63 @@ const ItineraryResultPage = () => {
       endTime: firstEnd,
     };
     rebuiltSegment.push(firstStop);
+
+    // If an origin endpoint is provided (e.g. user's GPS location before first stop),
+    // calculate travel from that origin to the new first stop and prepend it.
+    if (originEndpoint) {
+      const toEndpoint = getTimelineStopEndpointParams(firstStop, 'to');
+      const canEstimate = Object.values({ ...originEndpoint, ...toEndpoint }).some((v) => v != null);
+      if (canEstimate) {
+        let originTravelLeg = null;
+        try {
+          const cacheKey = buildTravelCacheKey(originEndpoint, toEndpoint, groupSize, currencyCode);
+          const cached = travelCacheRef.current.get(cacheKey);
+          if (cached) {
+            originTravelLeg = { ...cached, arrivalTime: null, ArrivalTime: null };
+          } else {
+            const guessedDeparture = shiftTimeByMinutes(firstStart, -30);
+            originTravelLeg = await estimateLocalTravelApi({
+              ...originEndpoint,
+              ...toEndpoint,
+              groupSize,
+              departureTime: guessedDeparture,
+              currencyCode,
+            });
+            travelCacheRef.current.set(cacheKey, originTravelLeg);
+          }
+        } catch {
+          // non-fatal: if origin travel can't be estimated, skip it
+        }
+        if (originTravelLeg) {
+          const travelMinutes = Number(
+            originTravelLeg?.selectedTravelTimeMinutes ?? originTravelLeg?.SelectedTravelTimeMinutes ?? 20,
+          );
+          const safeTravelMinutes = Number.isFinite(travelMinutes) && travelMinutes > 0 ? travelMinutes : 20;
+          const originTravelEnd = firstStart;
+          const originTravelStart = shiftTimeByMinutes(firstStart, -safeTravelMinutes);
+          const toName = pickFirstText(
+            originTravelLeg?.toLocationName,
+            originTravelLeg?.ToLocationName,
+            firstStop?.locationName,
+            firstStop?.LocationName,
+            firstStop?.title,
+            firstStop?.Title,
+          ) || 'First Stop';
+          rebuiltSegment.unshift({
+            eventType: 'travel',
+            title: `Move to ${toName}`,
+            startTime: originTravelStart,
+            endTime: originTravelEnd,
+            locationId: 0,
+            tagNames: [],
+            note: 'Updated by local-travel-estimate',
+            score: 0,
+            locationToLocationTravel: originTravelLeg,
+            costForGroup: originTravelLeg?.selectedTotalCost || originTravelLeg?.SelectedTotalCost || null,
+          });
+        }
+      }
+    }
 
     let prevStop = firstStop;
 
@@ -1531,6 +1611,12 @@ const ItineraryResultPage = () => {
       const stops = timeline.filter((item) => !isTravelEvent(item));
       if (activeStopIdx >= stops.length || overStopIdx >= stops.length) return;
 
+      // Capture origin endpoint before clearing travel events from the timeline
+      const beforeTravelEvent = timeline[0] && isTravelEvent(timeline[0]) ? timeline[0] : null;
+      const originEndpoint = beforeTravelEvent
+        ? extractOriginEndpointFromTravel(beforeTravelEvent, itinerary)
+        : null;
+
       const reorderedStops = arrayMove(stops, activeStopIdx, overStopIdx);
 
       // Anchor the new first stop's start time to the original first stop's start time,
@@ -1550,7 +1636,7 @@ const ItineraryResultPage = () => {
 
       setReorderRecalculating(true);
       try {
-        await recalculateDayTimeline(draft, dayIdx);
+        await recalculateDayTimeline(draft, dayIdx, { originEndpoint });
         updateItinerary(draft);
       } catch {
         message.error('Unable to recalculate travel estimates after reordering.');
@@ -1588,6 +1674,10 @@ const ItineraryResultPage = () => {
     const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
     const stops = timeline.filter((item) => !isTravelEvent(item));
     if (stopIdx >= stops.length) return;
+    const beforeTravelEvent = timeline[0] && isTravelEvent(timeline[0]) ? timeline[0] : null;
+    const originEndpoint = beforeTravelEvent
+      ? extractOriginEndpointFromTravel(beforeTravelEvent, itinerary)
+      : null;
     const reorderedStops = arrayMove(stops, stopIdx, stopIdx - 1);
     const anchorStartTime = pickFirstText(stops[0]?.startTime, stops[0]?.StartTime);
     if (anchorStartTime && reorderedStops.length > 0) {
@@ -1598,7 +1688,7 @@ const ItineraryResultPage = () => {
     day[timelineKey] = reorderedStops;
     setReorderRecalculating(true);
     try {
-      await recalculateDayTimeline(draft, dayIdx);
+      await recalculateDayTimeline(draft, dayIdx, { originEndpoint });
       updateItinerary(draft);
     } catch {
       message.error('Unable to recalculate travel estimates after reordering.');
@@ -1617,6 +1707,10 @@ const ItineraryResultPage = () => {
     const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
     const stops = timeline.filter((item) => !isTravelEvent(item));
     if (stopIdx >= stops.length) return;
+    const beforeTravelEvent = timeline[0] && isTravelEvent(timeline[0]) ? timeline[0] : null;
+    const originEndpoint = beforeTravelEvent
+      ? extractOriginEndpointFromTravel(beforeTravelEvent, itinerary)
+      : null;
     const reorderedStops = arrayMove(stops, stopIdx, stopIdx + 1);
     const anchorStartTime = pickFirstText(stops[0]?.startTime, stops[0]?.StartTime);
     if (anchorStartTime && reorderedStops.length > 0) {
@@ -1627,7 +1721,7 @@ const ItineraryResultPage = () => {
     day[timelineKey] = reorderedStops;
     setReorderRecalculating(true);
     try {
-      await recalculateDayTimeline(draft, dayIdx);
+      await recalculateDayTimeline(draft, dayIdx, { originEndpoint });
       updateItinerary(draft);
     } catch {
       message.error('Unable to recalculate travel estimates after reordering.');
