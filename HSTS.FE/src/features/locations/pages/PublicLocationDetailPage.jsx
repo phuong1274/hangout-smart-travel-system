@@ -454,7 +454,6 @@ const PublicLocationDetailPage = () => {
                   <FactCard label="Typical spend" value={formatBudget(priceMinUsd, priceMaxUsd, ticketPrice)} />
                   <FactCard label="Suggested stay" value={formatDuration(recommendedDurationMinutes)} />
                   <FactCard label="Who it suits" value={formatMinimumAge(minimumAge)} />
-                  <FactCard label="Coordinates" value={formatCoordinates(latitude, longitude)} />
                 </div>
                 {showCta ? (
                   <Button type="primary" className={styles.primaryCta} onClick={() => navigate(ctaPath)}>
