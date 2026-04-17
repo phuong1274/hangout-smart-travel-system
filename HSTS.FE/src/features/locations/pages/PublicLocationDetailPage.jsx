@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { buildCreateTripPath, PATHS } from '@/routes/paths';
 import { ROLES } from '@/config/constants';
 import { useAuthStore } from '@/store/authStore';
+import { DAYS_OF_WEEK } from '@/utils/locationConstants';
 import { usePublicLocationDetail } from '../hooks/usePublicLocationDetail';
 import { LocationReviewSection } from '@/features/reviews/components/LocationReviewSection';
 import styles from '../styles/PublicLocationDetailPage.module.css';
@@ -40,6 +41,13 @@ const formatMinimumAge = (minimumAge) => {
 const formatTime = (value) => {
   if (!value) return 'Closed';
   return String(value).slice(0, 5);
+};
+
+const getDayName = (dayOfWeek) => {
+  if (dayOfWeek === null || dayOfWeek === undefined) return 'N/A';
+  const dayNum = typeof dayOfWeek === 'string' ? parseInt(dayOfWeek, 10) : Number(dayOfWeek);
+  if (!Number.isFinite(dayNum) || dayNum < 1 || dayNum > 7) return `Day ${dayOfWeek}`;
+  return DAYS_OF_WEEK.find((day) => day.value === dayNum)?.label || `Day ${dayNum}`;
 };
 
 const formatStatusLabel = (status) => {
@@ -322,7 +330,7 @@ const PublicLocationDetailPage = () => {
                       renderItem={(item) => (
                         <List.Item>
                           <Text>
-                            {item?.dayOfWeek || item?.DayOfWeek}: {formatTime(item?.openTime || item?.OpenTime)} - {formatTime(item?.closeTime || item?.CloseTime)}
+                            {item?.dayName || item?.DayName || getDayName(item?.dayOfWeek ?? item?.DayOfWeek)}: {formatTime(item?.openTime || item?.OpenTime)} - {formatTime(item?.closeTime || item?.CloseTime)}
                             {(item?.note || item?.Note) ? ` (${item?.note || item?.Note})` : ''}
                           </Text>
                         </List.Item>
