@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Card,
   Typography,
@@ -46,6 +46,19 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { PATHS } from '@/routes/paths';
 import styles from '../styles/ItineraryResultPage.module.css';
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableDayCard } from '../components/SortableDayCard';
+import { SortableActivityCard } from '../components/SortableActivityCard';
+import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -587,6 +600,16 @@ const getTimelineStopEndpointParams = (item, side = 'from') => {
     : { toLat: customLocation.latitude, toLng: customLocation.longitude };
 };
 
+const buildTravelCacheKey = (fromEndpoint, toEndpoint, groupSize, currencyCode) => {
+  const fromKey = fromEndpoint.fromLocationId != null
+    ? `L:${fromEndpoint.fromLocationId}`
+    : `C:${fromEndpoint.fromLat},${fromEndpoint.fromLng}`;
+  const toKey = toEndpoint.toLocationId != null
+    ? `L:${toEndpoint.toLocationId}`
+    : `C:${toEndpoint.toLat},${toEndpoint.toLng}`;
+  return `${fromKey}|${toKey}|${groupSize}|${currencyCode}`;
+};
+
 const getTravelDetailEntry = (item) => {
   const candidates = [
     ['locationToLocationTravel', item?.locationToLocationTravel],
@@ -1035,6 +1058,15 @@ const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
+  const travelCacheRef = useRef(new Map());
+  const [reorderRecalculating, setReorderRecalculating] = useState(false);
+  const [activeDragItem, setActiveDragItem] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   const [savingTrip, setSavingTrip] = useState(false);
   const [provinceNameById, setProvinceNameById] = useState(new Map());
   const [showAlternativeItems, setShowAlternativeItems] = useState(true);
@@ -1337,13 +1369,20 @@ const ItineraryResultPage = () => {
 
       let travelLeg = null;
       if (canEstimate) {
-        travelLeg = await estimateLocalTravelApi({
-          ...fromEndpoint,
-          ...toEndpoint,
-          groupSize,
-          departureTime,
-          currencyCode,
-        });
+        const cacheKey = buildTravelCacheKey(fromEndpoint, toEndpoint, groupSize, currencyCode);
+        const cached = travelCacheRef.current.get(cacheKey);
+        if (cached) {
+          travelLeg = { ...cached, arrivalTime: null, ArrivalTime: null };
+        } else {
+          travelLeg = await estimateLocalTravelApi({
+            ...fromEndpoint,
+            ...toEndpoint,
+            groupSize,
+            departureTime,
+            currencyCode,
+          });
+          travelCacheRef.current.set(cacheKey, travelLeg);
+        }
       }
 
       const estimatedTravelMinutes = Number(
@@ -1423,6 +1462,179 @@ const ItineraryResultPage = () => {
     updateBudgetSummaryFromDays(draftItinerary);
     return draftItinerary;
   }, []);
+
+  const handleDragStart = useCallback((event) => {
+    const { active } = event;
+    const type = active.data.current?.type;
+    if (!itinerary) return;
+
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+    const days = Array.isArray(itinerary?.[daysKey]) ? itinerary[daysKey] : [];
+
+    if (type === 'day') {
+      const dayIdx = Number(active.id.toString().replace('itinerary-day-', ''));
+      const day = days[dayIdx];
+      const dayNum = day?.dayNumber || day?.DayNumber || dayIdx + 1;
+      setActiveDragItem({ type: 'day', label: `Day ${dayNum}` });
+    } else if (type === 'activity') {
+      const dayIdx = active.data.current?.dayId;
+      const stopIdx = Number(active.id.toString().split('-').pop());
+      const day = days[dayIdx];
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? day[timelineKey] : [];
+      const stops = timeline.filter((item) => !isTravelEvent(item));
+      const stop = stops[stopIdx];
+      const label = stop?.locationName || stop?.LocationName || stop?.title || stop?.Title || 'Activity';
+      setActiveDragItem({ type: 'activity', label });
+    }
+  }, [itinerary]);
+
+  const handleDragEnd = useCallback(async (event) => {
+    const { active, over } = event;
+    setActiveDragItem(null);
+
+    if (!over || active.id === over.id || !itinerary) return;
+
+    const type = active.data.current?.type;
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+
+    if (type === 'day') {
+      const oldIdx = Number(active.id.toString().replace('itinerary-day-', ''));
+      // If dragged onto an activity card, resolve to its parent day index
+      const overDayId = over.data.current?.type === 'activity'
+        ? `itinerary-day-${over.data.current?.dayId}`
+        : over.id;
+      const newIdx = Number(overDayId.toString().replace('itinerary-day-', ''));
+      if (oldIdx === newIdx || !Number.isFinite(oldIdx) || !Number.isFinite(newIdx)) return;
+
+      const draft = JSON.parse(JSON.stringify(itinerary));
+      draft[daysKey] = arrayMove(draft[daysKey], oldIdx, newIdx);
+      updateBudgetSummaryFromDays(draft);
+      updateItinerary(draft);
+      return;
+    }
+
+    if (type === 'activity') {
+      const dayIdx = active.data.current?.dayId;
+      if (!Number.isFinite(dayIdx)) return;
+
+      const activeStopIdx = Number(active.id.toString().split('-').pop());
+      const overStopIdx = Number(over.id.toString().split('-').pop());
+      if (activeStopIdx === overStopIdx) return;
+
+      const draft = JSON.parse(JSON.stringify(itinerary));
+      const day = draft[daysKey][dayIdx];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const stops = timeline.filter((item) => !isTravelEvent(item));
+      if (activeStopIdx >= stops.length || overStopIdx >= stops.length) return;
+
+      const reorderedStops = arrayMove(stops, activeStopIdx, overStopIdx);
+
+      // Anchor the new first stop's start time to the original first stop's start time,
+      // preserving its duration. Prevents the whole day schedule from shifting on reorder.
+      const anchorStartTime = pickFirstText(stops[0]?.startTime, stops[0]?.StartTime);
+      if (anchorStartTime && reorderedStops.length > 0) {
+        const newFirst = reorderedStops[0];
+        const duration = getTimelineDurationMinutes(newFirst);
+        reorderedStops[0] = {
+          ...newFirst,
+          startTime: anchorStartTime,
+          endTime: addMinutesToTime(anchorStartTime, Math.max(30, duration)),
+        };
+      }
+
+      day[timelineKey] = reorderedStops;
+
+      setReorderRecalculating(true);
+      try {
+        await recalculateDayTimeline(draft, dayIdx);
+        updateItinerary(draft);
+      } catch {
+        message.error('Unable to recalculate travel estimates after reordering.');
+      } finally {
+        setReorderRecalculating(false);
+      }
+    }
+  }, [itinerary, recalculateDayTimeline, updateItinerary]);
+
+  const moveDayUp = useCallback((dayIdx) => {
+    if (!itinerary || dayIdx <= 0) return;
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+    const draft = JSON.parse(JSON.stringify(itinerary));
+    draft[daysKey] = arrayMove(draft[daysKey], dayIdx, dayIdx - 1);
+    updateBudgetSummaryFromDays(draft);
+    updateItinerary(draft);
+  }, [itinerary, updateItinerary]);
+
+  const moveDayDown = useCallback((dayIdx, totalDays) => {
+    if (!itinerary || dayIdx >= totalDays - 1) return;
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+    const draft = JSON.parse(JSON.stringify(itinerary));
+    draft[daysKey] = arrayMove(draft[daysKey], dayIdx, dayIdx + 1);
+    updateBudgetSummaryFromDays(draft);
+    updateItinerary(draft);
+  }, [itinerary, updateItinerary]);
+
+  const moveStopUp = useCallback(async (dayIdx, stopIdx) => {
+    if (!itinerary || stopIdx <= 0) return;
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+    const draft = JSON.parse(JSON.stringify(itinerary));
+    const day = draft[daysKey][dayIdx];
+    if (!day) return;
+    const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+    const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+    const stops = timeline.filter((item) => !isTravelEvent(item));
+    if (stopIdx >= stops.length) return;
+    const reorderedStops = arrayMove(stops, stopIdx, stopIdx - 1);
+    const anchorStartTime = pickFirstText(stops[0]?.startTime, stops[0]?.StartTime);
+    if (anchorStartTime && reorderedStops.length > 0) {
+      const newFirst = reorderedStops[0];
+      const duration = getTimelineDurationMinutes(newFirst);
+      reorderedStops[0] = { ...newFirst, startTime: anchorStartTime, endTime: addMinutesToTime(anchorStartTime, Math.max(30, duration)) };
+    }
+    day[timelineKey] = reorderedStops;
+    setReorderRecalculating(true);
+    try {
+      await recalculateDayTimeline(draft, dayIdx);
+      updateItinerary(draft);
+    } catch {
+      message.error('Unable to recalculate travel estimates after reordering.');
+    } finally {
+      setReorderRecalculating(false);
+    }
+  }, [itinerary, recalculateDayTimeline, updateItinerary]);
+
+  const moveStopDown = useCallback(async (dayIdx, stopIdx, totalStops) => {
+    if (!itinerary || stopIdx >= totalStops - 1) return;
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+    const draft = JSON.parse(JSON.stringify(itinerary));
+    const day = draft[daysKey][dayIdx];
+    if (!day) return;
+    const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+    const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+    const stops = timeline.filter((item) => !isTravelEvent(item));
+    if (stopIdx >= stops.length) return;
+    const reorderedStops = arrayMove(stops, stopIdx, stopIdx + 1);
+    const anchorStartTime = pickFirstText(stops[0]?.startTime, stops[0]?.StartTime);
+    if (anchorStartTime && reorderedStops.length > 0) {
+      const newFirst = reorderedStops[0];
+      const duration = getTimelineDurationMinutes(newFirst);
+      reorderedStops[0] = { ...newFirst, startTime: anchorStartTime, endTime: addMinutesToTime(anchorStartTime, Math.max(30, duration)) };
+    }
+    day[timelineKey] = reorderedStops;
+    setReorderRecalculating(true);
+    try {
+      await recalculateDayTimeline(draft, dayIdx);
+      updateItinerary(draft);
+    } catch {
+      message.error('Unable to recalculate travel estimates after reordering.');
+    } finally {
+      setReorderRecalculating(false);
+    }
+  }, [itinerary, recalculateDayTimeline, updateItinerary]);
 
   const loadProvinceLocations = useCallback(async (provinceId, dayIndex, searchTerm = '', locationTypeId = null) => {
     if (!itinerary) return;
@@ -3870,6 +4082,16 @@ const ItineraryResultPage = () => {
             </Card>
           )}
 
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+            <SortableContext
+              items={days.map((_, i) => `itinerary-day-${i}`)}
+              strategy={verticalListSortingStrategy}
+            >
             {days.map((day, dayIdx) => {
               const dayNum = day.dayNumber || day.DayNumber;
               const isDayUpdating = recalculatingDayNumber === dayNum;
@@ -3906,6 +4128,11 @@ const ItineraryResultPage = () => {
                 }
               }
 
+              const dayDragId = `itinerary-day-${dayIdx}`;
+              const dayTimeline = getDayTimeline(day, itinerary?.currencyCode || itinerary?.CurrencyCode || 'VND');
+              const dayStops = dayTimeline.filter((item) => !isTravelEvent(item));
+              const dayStopIds = dayStops.map((_, si) => `itinerary-stop-${dayIdx}-${si}`);
+
               const collapseItems = [
                 {
                   key: '1',
@@ -3936,7 +4163,12 @@ const ItineraryResultPage = () => {
                   children: (
                     <>
                       <div className={styles.timeline}>
-                        {timeline.map((item, idx) => {
+                        <SortableContext items={dayStopIds} strategy={verticalListSortingStrategy}>
+                        {(() => {
+                          let sc = -1;
+                          return timeline.map((item) => ({ item, stopIdx: !isTravelEvent(item) ? (++sc) : -1 }));
+                        })().map(({ item, stopIdx }, idx) => {
+                          const isStopItem = stopIdx >= 0;
                           const eventType = toEventType(item.eventType || item.EventType || item.type || item.Type);
                           const startTime = item.startTime || item.StartTime;
                           const endTime = item.endTime || item.EndTime;
@@ -4117,8 +4349,14 @@ const ItineraryResultPage = () => {
 
                           const badgeConfig = EVENT_BADGES[eventType] || EVENT_BADGES.visit;
 
-                          return (
-                            <div key={idx} className={styles.timelineItem}>
+                          const timelineItemContent = (dragHandle, moveButtons) => (
+                            <div className={styles.timelineItem}>
+                              {isStopItem && (dragHandle || moveButtons) && (
+                                <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 2 }}>
+                                  {moveButtons}
+                                  {dragHandle}
+                                </div>
+                              )}
                               <div className={styles.timelineTime}>
                                 <span className={styles.timelineTimeStart}>{startTimeLabel}</span>
                                 {endTimeLabel && <span className={styles.timelineTimeEnd}>{endTimeLabel}</span>}
@@ -4370,7 +4608,47 @@ const ItineraryResultPage = () => {
                               </div>
                             </div>
                           );
+
+                          if (!isStopItem) {
+                            return <React.Fragment key={idx}>{timelineItemContent(null)}</React.Fragment>;
+                          }
+
+                          return (
+                            <SortableActivityCard
+                              key={idx}
+                              id={`itinerary-stop-${dayIdx}-${stopIdx}`}
+                              dayId={dayIdx}
+                              disabled={reorderRecalculating || isDayUpdating}
+                            >
+                              {({ dragHandle }) => {
+                                const moveButtons = (
+                                  <Space size={0}>
+                                    <Button
+                                      type="text"
+                                      size="small"
+                                      icon={<ArrowUpOutlined />}
+                                      onClick={() => moveStopUp(dayIdx, stopIdx)}
+                                      disabled={stopIdx === 0 || reorderRecalculating || isDayUpdating}
+                                      title="Move up"
+                                      style={{ color: '#8c8c8c' }}
+                                    />
+                                    <Button
+                                      type="text"
+                                      size="small"
+                                      icon={<ArrowDownOutlined />}
+                                      onClick={() => moveStopDown(dayIdx, stopIdx, dayStops.length)}
+                                      disabled={stopIdx === dayStops.length - 1 || reorderRecalculating || isDayUpdating}
+                                      title="Move down"
+                                      style={{ color: '#8c8c8c' }}
+                                    />
+                                  </Space>
+                                );
+                                return timelineItemContent(dragHandle, moveButtons);
+                              }}
+                            </SortableActivityCard>
+                          );
                         })}
+                        </SortableContext>
                       </div>
 
                       {accommodations.length > 0 && (
@@ -4409,16 +4687,51 @@ const ItineraryResultPage = () => {
               ];
 
               return (
-                <Collapse
-                  key={dayNum}
-                  defaultActiveKey={['1']}
-                  className={styles.dayCard}
-                  bordered={false}
-                  expandIconPosition="end"
-                  items={collapseItems}
-                />
+                <SortableDayCard key={dayDragId} id={dayDragId} disabled={reorderRecalculating}>
+                  {({ dragHandle }) => (
+                    <div style={{ position: 'relative' }}>
+                      <div style={{ position: 'absolute', top: 8, left: -56, zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        {dragHandle}
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<ArrowUpOutlined />}
+                          onClick={() => moveDayUp(dayIdx)}
+                          disabled={dayIdx === 0 || reorderRecalculating}
+                          title="Move day up"
+                          style={{ color: '#8c8c8c' }}
+                        />
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<ArrowDownOutlined />}
+                          onClick={() => moveDayDown(dayIdx, days.length)}
+                          disabled={dayIdx === days.length - 1 || reorderRecalculating}
+                          title="Move day down"
+                          style={{ color: '#8c8c8c' }}
+                        />
+                      </div>
+                      <Collapse
+                        defaultActiveKey={['1']}
+                        className={styles.dayCard}
+                        bordered={false}
+                        expandIconPosition="end"
+                        items={collapseItems}
+                      />
+                    </div>
+                  )}
+                </SortableDayCard>
               );
             })}
+            </SortableContext>
+            <DragOverlay>
+              {activeDragItem && (
+                <div style={{ background: '#fff', border: '1px solid #d9d9d9', borderRadius: 6, padding: '8px 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', opacity: 0.95 }}>
+                  {activeDragItem.type === 'day' ? '📅' : '📍'} {activeDragItem.label}
+                </div>
+              )}
+            </DragOverlay>
+            </DndContext>
 
             <div className={styles.actionBar}>
               <Button onClick={handleRegenerate} size="large" className={styles.actionBtnSecondary}>

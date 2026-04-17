@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Button,
@@ -17,7 +17,19 @@ import {
   Typography,
   message,
 } from 'antd';
-import { DeleteOutlined, EnvironmentOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, EnvironmentOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableDayCard } from '../components/SortableDayCard';
+import { SortableActivityCard } from '../components/SortableActivityCard';
 import dayjs from 'dayjs';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
@@ -459,6 +471,16 @@ const getActivityEndpointForEstimate = (activity, side) => {
     : { toLat: latitude, toLng: longitude };
 };
 
+const buildTravelCacheKey = (fromEndpoint, toEndpoint, groupSize, currencyCode) => {
+  const fromKey = fromEndpoint.fromLocationId != null
+    ? `L:${fromEndpoint.fromLocationId}`
+    : `C:${fromEndpoint.fromLat},${fromEndpoint.fromLng}`;
+  const toKey = toEndpoint.toLocationId != null
+    ? `L:${toEndpoint.toLocationId}`
+    : `C:${toEndpoint.toLat},${toEndpoint.toLng}`;
+  return `${fromKey}|${toKey}|${groupSize}|${currencyCode}`;
+};
+
 const CustomLocationMapClickHandler = ({ onPick }) => {
   useMapEvents({
     click(event) {
@@ -498,6 +520,15 @@ const ManualTripPage = () => {
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [transportModes, setTransportModes] = useState([]);
   const [, setLoadingTransportModes] = useState(false);
+
+  const travelCacheRef = useRef(new Map());
+  const [reorderRecalculating, setReorderRecalculating] = useState(false);
+  const [activeDragItem, setActiveDragItem] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const [addLocationModal, setAddLocationModal] = useState({ open: false, dayId: null });
   const [addingLocation, setAddingLocation] = useState(false);
@@ -1045,13 +1076,20 @@ const ManualTripPage = () => {
 
       try {
         const departureTime = normalizeTimeOnly(previous.endTime) || '08:00:00';
-        const travelLeg = await estimateLocalTravelApi({
-          ...fromEndpoint,
-          ...toEndpoint,
-          groupSize: Math.max(1, Math.round(toNumberOrDefault(tripInfo.groupSize, 1))),
-          departureTime,
-          currencyCode: tripInfo.currencyCode || 'VND',
-        });
+        const groupSize = Math.max(1, Math.round(toNumberOrDefault(tripInfo.groupSize, 1)));
+        const currencyCode = tripInfo.currencyCode || 'VND';
+        const cacheKey = buildTravelCacheKey(fromEndpoint, toEndpoint, groupSize, currencyCode);
+        const cached = travelCacheRef.current.get(cacheKey);
+        const travelLeg = cached
+          ? { ...cached, arrivalTime: null, ArrivalTime: null }
+          : await estimateLocalTravelApi({
+              ...fromEndpoint,
+              ...toEndpoint,
+              groupSize,
+              departureTime,
+              currencyCode,
+            });
+        if (!cached) travelCacheRef.current.set(cacheKey, travelLeg);
 
         const travelMinutesFromLeg = Math.max(
           0,
@@ -1077,7 +1115,7 @@ const ManualTripPage = () => {
           ?? travelLeg?.TransportOptions
           ?? travelLeg?.options
           ?? travelLeg?.Options,
-          tripInfo.currencyCode || 'VND',
+          currencyCode,
         );
         const isCustomTransport = Boolean(previousTravel?.isCustomTransport);
         const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, previousTravel);
@@ -1119,7 +1157,7 @@ const ManualTripPage = () => {
         const resolvedCurrency = pickFirstText(
           selectedOption?.costCurrency,
           previousTravel?.costCurrency,
-          tripInfo.currencyCode,
+          currencyCode,
           'VND',
         ) || 'VND';
 
@@ -1304,6 +1342,121 @@ const ManualTripPage = () => {
       message.error('Unable to recalculate estimates after removing location.');
     } finally {
       setAddingLocation(false);
+    }
+  };
+
+  const handleDragStart = (event) => {
+    const { active } = event;
+    const type = active.data.current?.type;
+    if (type === 'day') {
+      const day = manualDays.find((d) => d.id === active.id);
+      setActiveDragItem(day ? { type: 'day', label: day.dayTitle || `Day ${manualDays.indexOf(day) + 1}` } : null);
+    } else if (type === 'activity') {
+      const dayId = active.data.current?.dayId;
+      const day = manualDays.find((d) => d.id === dayId);
+      const activity = day?.activities?.find((a) => a.id === active.id);
+      setActiveDragItem(activity ? { type: 'activity', label: activity.destinationName || activity.title || 'Activity' } : null);
+    }
+  };
+
+  // Shared helper: reorder activities within a day by index and recalculate travel.
+  const reorderActivitiesInDay = useCallback(async (dayIdx, oldIdx, newIdx) => {
+    const day = manualDays[dayIdx];
+    if (!day || oldIdx === newIdx) return;
+
+    const reordered = arrayMove(day.activities, oldIdx, newIdx);
+
+    // Anchor the new first activity's start time to the day's original anchor time so
+    // the whole day schedule doesn't shift when activities are reordered.
+    const anchorStartTime = normalizeTimeOnly(day.activities[0]?.startTime);
+    if (anchorStartTime && reordered.length > 0) {
+      const newFirst = reordered[0];
+      const visitDuration = durationBetweenTimes(newFirst.startTime, newFirst.endTime);
+      reordered[0] = {
+        ...newFirst,
+        startTime: anchorStartTime,
+        endTime: addMinutesToTime(anchorStartTime, Math.max(30, visitDuration)),
+        travelFromPrevious: null,
+      };
+    }
+
+    setReorderRecalculating(true);
+    try {
+      const recalculated = await recalculateDayTravelAndEstimate(reordered);
+      setManualDays((prev) => prev.map((d, i) => (i === dayIdx ? { ...d, activities: recalculated } : d)));
+    } catch {
+      message.error('Unable to recalculate travel estimates after reordering.');
+    } finally {
+      setReorderRecalculating(false);
+    }
+  }, [manualDays, recalculateDayTravelAndEstimate]);
+
+  const moveDayUp = useCallback((dayId) => {
+    setManualDays((prev) => {
+      const idx = prev.findIndex((d) => d.id === dayId);
+      if (idx <= 0) return prev;
+      return arrayMove(prev, idx, idx - 1);
+    });
+  }, []);
+
+  const moveDayDown = useCallback((dayId) => {
+    setManualDays((prev) => {
+      const idx = prev.findIndex((d) => d.id === dayId);
+      if (idx < 0 || idx >= prev.length - 1) return prev;
+      return arrayMove(prev, idx, idx + 1);
+    });
+  }, []);
+
+  const moveActivityUp = useCallback(async (dayId, activityId) => {
+    const dayIdx = manualDays.findIndex((d) => d.id === dayId);
+    if (dayIdx === -1) return;
+    const day = manualDays[dayIdx];
+    const actIdx = day.activities.findIndex((a) => a.id === activityId);
+    if (actIdx <= 0) return;
+    await reorderActivitiesInDay(dayIdx, actIdx, actIdx - 1);
+  }, [manualDays, reorderActivitiesInDay]);
+
+  const moveActivityDown = useCallback(async (dayId, activityId) => {
+    const dayIdx = manualDays.findIndex((d) => d.id === dayId);
+    if (dayIdx === -1) return;
+    const day = manualDays[dayIdx];
+    const actIdx = day.activities.findIndex((a) => a.id === activityId);
+    if (actIdx < 0 || actIdx >= day.activities.length - 1) return;
+    await reorderActivitiesInDay(dayIdx, actIdx, actIdx + 1);
+  }, [manualDays, reorderActivitiesInDay]);
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    setActiveDragItem(null);
+
+    if (!over || active.id === over.id) return;
+
+    const type = active.data.current?.type;
+
+    if (type === 'day') {
+      // When dragging a day, over.id may resolve to an activity inside the target day
+      // (because activity cards have more DOM area). Resolve to the parent day ID.
+      const overDayId = over.data.current?.type === 'activity'
+        ? over.data.current?.dayId
+        : over.id;
+      setManualDays((prev) => {
+        const oldIdx = prev.findIndex((d) => d.id === active.id);
+        const newIdx = prev.findIndex((d) => d.id === overDayId);
+        if (oldIdx === -1 || newIdx === -1) return prev;
+        return arrayMove(prev, oldIdx, newIdx);
+      });
+      return;
+    }
+
+    if (type === 'activity') {
+      const dayId = active.data.current?.dayId;
+      const dayIdx = manualDays.findIndex((d) => d.id === dayId);
+      if (dayIdx === -1) return;
+      const day = manualDays[dayIdx];
+      const oldIdx = day.activities.findIndex((a) => a.id === active.id);
+      const newIdx = day.activities.findIndex((a) => a.id === over.id);
+      if (oldIdx === -1 || newIdx === -1 || oldIdx === newIdx) return;
+      await reorderActivitiesInDay(dayIdx, oldIdx, newIdx);
     }
   };
 
@@ -1662,6 +1815,13 @@ const ManualTripPage = () => {
               )}
 
               {manualDays.length > 0 && (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                <SortableContext items={manualDays.map((d) => d.id)} strategy={verticalListSortingStrategy}>
                 <Space direction="vertical" size="large" className={styles.dayList}>
                   {manualDays.map((day, dayIndex) => {
                     const dayActivityEstimate = (day.activities || []).reduce(
@@ -1675,18 +1835,34 @@ const ManualTripPage = () => {
                     const dayEstimate = dayActivityEstimate + dayTransportEstimate;
 
                     return (
+                      <SortableDayCard key={day.id} id={day.id} disabled={reorderRecalculating || addingLocation}>
+                        {({ dragHandle }) => (
                       <Card
-                        key={day.id}
                         size="small"
                         className={styles.dayCard}
                         title={(
                           <Space>
+                            {dragHandle}
                             <span>{`Day ${dayIndex + 1}`}</span>
                             <Tag color="cyan">{formatMoney(dayEstimate, tripInfo.currencyCode)}</Tag>
                           </Space>
                         )}
                         extra={(
                           <Space>
+                            <Button
+                              type="text"
+                              icon={<ArrowUpOutlined />}
+                              onClick={() => moveDayUp(day.id)}
+                              disabled={dayIndex === 0 || reorderRecalculating}
+                              title="Move day up"
+                            />
+                            <Button
+                              type="text"
+                              icon={<ArrowDownOutlined />}
+                              onClick={() => moveDayDown(day.id)}
+                              disabled={dayIndex === manualDays.length - 1 || reorderRecalculating}
+                              title="Move day down"
+                            />
                             <Button type="dashed" icon={<PlusOutlined />} onClick={() => openAddLocationModal(day.id)}>
                               Add Location
                             </Button>
@@ -1736,6 +1912,10 @@ const ManualTripPage = () => {
 
                         {(day.activities || []).length > 0 && (
                           <Space direction="vertical" size="middle" className={styles.activityList}>
+                            <SortableContext
+                              items={(day.activities || []).map((a) => a.id)}
+                              strategy={verticalListSortingStrategy}
+                            >
                             {(day.activities || []).map((activity, activityIndex) => {
                               const previousActivity = activityIndex > 0 ? day.activities?.[activityIndex - 1] : null;
                               const travelFromPrevious = activity.travelFromPrevious || null;
@@ -1868,12 +2048,19 @@ const ManualTripPage = () => {
                                     </div>
                                   )}
 
+                                  <SortableActivityCard
+                                    id={activity.id}
+                                    dayId={day.id}
+                                    disabled={reorderRecalculating || addingLocation}
+                                  >
+                                    {({ dragHandle: activityDragHandle }) => (
                                   <Card
                                     size="small"
                                     type="inner"
                                     className={styles.activityCard}
                                     title={(
                                       <Space>
+                                        {activityDragHandle}
                                         <EnvironmentOutlined />
                                         <span>{activity.destinationName || `Location ${activityIndex + 1}`}</span>
                                         <Tag color={activity.sourceType === 'custom' ? 'gold' : 'blue'}>
@@ -1882,17 +2069,40 @@ const ManualTripPage = () => {
                                       </Space>
                                     )}
                                     extra={(
-                                      <Button
-                                        danger
-                                        type="text"
-                                        icon={<DeleteOutlined />}
-                                        onClick={() => removeActivity(day.id, activity.id)}
-                                        loading={addingLocation}
-                                      >
-                                        Remove
-                                      </Button>
+                                      <Space>
+                                        <Button
+                                          type="text"
+                                          icon={<ArrowUpOutlined />}
+                                          onClick={() => moveActivityUp(day.id, activity.id)}
+                                          disabled={activityIndex === 0 || reorderRecalculating}
+                                          title="Move activity up"
+                                        />
+                                        <Button
+                                          type="text"
+                                          icon={<ArrowDownOutlined />}
+                                          onClick={() => moveActivityDown(day.id, activity.id)}
+                                          disabled={activityIndex === (day.activities || []).length - 1 || reorderRecalculating}
+                                          title="Move activity down"
+                                        />
+                                        <Button
+                                          danger
+                                          type="text"
+                                          icon={<DeleteOutlined />}
+                                          onClick={() => removeActivity(day.id, activity.id)}
+                                          loading={addingLocation}
+                                          disabled={reorderRecalculating}
+                                        >
+                                          Remove
+                                        </Button>
+                                      </Space>
                                     )}
                                   >
+                                    {reorderRecalculating && (
+                                      <div style={{ textAlign: 'center', padding: '8px 0', color: '#8c8c8c', fontSize: 12 }}>
+                                        <Spin size="small" style={{ marginRight: 6 }} />
+                                        Recalculating travel estimates...
+                                      </div>
+                                    )}
                                     <div className={styles.activityMetaRow}>
                                       <Text strong>{toInputTimeValue(activity.startTime)} - {toInputTimeValue(activity.endTime)}</Text>
                                       <Text>{activity.address || '-'}</Text>
@@ -1911,9 +2121,12 @@ const ManualTripPage = () => {
                                       </div>
                                     </div>
                                   </Card>
+                                  )}
+                                  </SortableActivityCard>
                                 </React.Fragment>
                               );
                             })}
+                            </SortableContext>
 
                             <Button
                               type="dashed"
@@ -1925,9 +2138,20 @@ const ManualTripPage = () => {
                           </Space>
                         )}
                       </Card>
+                        )}
+                      </SortableDayCard>
                     );
                   })}
                 </Space>
+                </SortableContext>
+                <DragOverlay>
+                  {activeDragItem && (
+                    <div style={{ background: '#fff', border: '1px solid #d9d9d9', borderRadius: 6, padding: '8px 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', opacity: 0.95 }}>
+                      {activeDragItem.type === 'day' ? '📅' : '📍'} {activeDragItem.label}
+                    </div>
+                  )}
+                </DragOverlay>
+                </DndContext>
               )}
 
               {manualDays.length > 0 && (
