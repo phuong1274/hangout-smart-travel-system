@@ -75,6 +75,10 @@ const EVENT_BADGES = {
     badge: <SignIn size={24} weight="bold" color="#1A535C" />,
     bg: 'rgba(26, 83, 92, 0.1)'
   },
+  'hotel-return': {
+    badge: <SignIn size={24} weight="bold" color="#1A535C" />,
+    bg: 'rgba(26, 83, 92, 0.1)'
+  },
   'check-out': {
     badge: <SignOut size={24} weight="bold" color="#1A535C" />,
     bg: 'rgba(26, 83, 92, 0.1)'
@@ -90,12 +94,14 @@ const EVENT_DEFAULT_TITLES = {
   visit: 'Visit',
   meal: 'Meal',
   'check-in': 'Check-in',
+  'hotel-return': 'Hotel Return',
   'check-out': 'Check-out',
   'luggage-refresh': 'Luggage Refresh',
 };
 
 const ACTIVITY_TYPE_ENUM = {
   'check-in': 0,
+  'hotel-return': 0,
   'check-out': 1,
   travel: 2,
   visit: 3,
@@ -543,7 +549,7 @@ const getTimelineDurationMinutes = (item) => {
     if (diff > 0) return diff;
   }
 
-  if (eventType === 'check-in' || eventType === 'check-out' || eventType === 'luggage-refresh') return 30;
+  if (eventType === 'check-in' || eventType === 'check-out' || eventType === 'luggage-refresh' || eventType === 'hotel-return') return 30;
   if (eventType === 'meal') return 60;
   return 90;
 };
@@ -3941,7 +3947,7 @@ const ItineraryResultPage = () => {
                           const rawTitle = item.title || item.Title || '';
                           const isTravel = eventType === 'travel';
                           const isMeal = eventType === 'meal';
-                          const isLogistics = ['check-in', 'check-out', 'luggage-refresh'].includes(eventType);
+                          const isLogistics = ['check-in', 'check-out', 'luggage-refresh', 'hotel-return'].includes(eventType);
 
                           const travelDetail = item.locationToLocationTravel || item.LocationToLocationTravel
                             || item.transitHubToLocationTravel || item.TransitHubToLocationTravel

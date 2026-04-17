@@ -39,7 +39,9 @@ namespace HSTS.Application.Trips.Dtos
         string Name,
         double Latitude,
         double Longitude,
-        string? Address
+        string? Address,
+        string? Description,
+        int LocationTypeId
     );
 
     public record SaveTripTransportRequest(
@@ -64,7 +66,9 @@ namespace HSTS.Application.Trips.Dtos
     );
 
     public record SaveTripActivityBudgetRequest(
-        decimal EstimateCost
+        decimal EstimateCost,
+        string? Title,
+        string? Description
     );
 
     public record SaveTripSummaryRequest(
