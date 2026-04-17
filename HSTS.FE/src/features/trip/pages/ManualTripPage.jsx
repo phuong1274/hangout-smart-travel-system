@@ -2242,7 +2242,7 @@ const ManualTripPage = () => {
 
                               return (
                                 <React.Fragment key={activity.id}>
-                                  {activityIndex > 0 && travelFromPrevious && (
+                                  {travelFromPrevious && (activityIndex > 0 || dayIndex > 0) && (
                                     <div className={styles.betweenTravelCard}>
                                       <div className={styles.travelInfoBox}>
                                         <div className={styles.travelRoute}>
