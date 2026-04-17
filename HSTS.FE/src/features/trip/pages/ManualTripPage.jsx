@@ -1859,8 +1859,13 @@ const ManualTripPage = () => {
         const visitStartTime = normalizeTimeOnly(activity.startTime);
         const visitEndTime = normalizeTimeOnly(activity.endTime);
 
-        if (activityIndex > 0 && activity.travelFromPrevious) {
-          const previousActivity = sourceActivities[activityIndex - 1];
+        // Cross-day first activity: activityIndex === 0 but travelFromPrevious is set (from previous day's last stop)
+        const isCrossDayFirst = activityIndex === 0 && dayIndex > 0;
+        const previousActivity = activityIndex > 0
+          ? sourceActivities[activityIndex - 1]
+          : (isCrossDayFirst ? manualDays[dayIndex - 1]?.activities?.at(-1) : null);
+
+        if ((activityIndex > 0 || isCrossDayFirst) && activity.travelFromPrevious) {
           const travelMethodText = String(activity.travelFromPrevious.transportModeName || '').trim();
           const travelMinutes = Math.max(1, Math.round(toNumberOrDefault(activity.travelFromPrevious.travelMinutes, 1)));
           const travelDistanceKm = Math.max(0, toNumberOrDefault(activity.travelFromPrevious.distanceKm, 0));
@@ -1872,7 +1877,8 @@ const ManualTripPage = () => {
           const travelEndTime = normalizeTimeOnly(activity.travelFromPrevious.arrivalTime)
             || visitStartTime
             || addMinutesToTime(travelStartTime, travelMinutes);
-          const fromEndpoint = toTransportEndpointPayload(previousActivity, `Start ${activityIndex}`);
+          const fromLabel = activity.travelFromPrevious.fromName || `Start ${activityIndex}`;
+          const fromEndpoint = toTransportEndpointPayload(previousActivity, fromLabel);
           const toEndpoint = toTransportEndpointPayload(activity, name || `Destination ${activityIndex + 1}`);
 
           mappedActivities.push({
