@@ -43,7 +43,9 @@ import {
   getProvincesApi,
   getTransportModesApi,
   saveTripApi,
+  updateSavedTripApi,
   getTripByIdApi,
+  getTripDetailApi,
 } from '../api';
 import styles from './ManualTripPage.module.css';
 
@@ -349,7 +351,9 @@ const normalizeTripInfo = (raw) => {
     ?? raw.budgetSummary?.totalBudget
     ?? raw.budgetSummary?.TotalBudget
     ?? raw.BudgetSummary?.totalBudget
-    ?? raw.BudgetSummary?.TotalBudget,
+    ?? raw.BudgetSummary?.TotalBudget
+    ?? raw.tripSummary?.totalBudget
+    ?? raw.tripSummary?.TotalBudget,
   );
 
   return {
@@ -437,6 +441,66 @@ const normalizeDraftDays = (rawDays) => {
   }));
 };
 
+// Converts a saved TripDetail's days (interleaved Travel+Visit) into the builder's
+// Visit-only format where travel legs are stored as travelFromPrevious on the next activity.
+const convertDetailDaysToBuilderDays = (tripDays) => {
+  if (!Array.isArray(tripDays)) return [];
+
+  return tripDays.map((day, dayIndex) => {
+    const activities = [];
+    let pendingTravel = null;
+
+    (day.activities || []).forEach((act) => {
+      if (act.type === 'Travel') {
+        pendingTravel = act;
+        return;
+      }
+
+      const transport = pendingTravel;
+      pendingTravel = null;
+
+      activities.push({
+        id: createClientId(`activity-${dayIndex}-${activities.length}`),
+        sourceType: act.locationId && Number(act.locationId) > 0 ? 'existing' : 'custom',
+        locationId: act.locationId && Number(act.locationId) > 0 ? Number(act.locationId) : null,
+        locationTypeId: null,
+        destinationName: String(act.title || '').trim(),
+        title: String(act.title || '').trim(),
+        address: '',
+        startTime: normalizeTimeOnly(act.startTime),
+        endTime: normalizeTimeOnly(act.endTime),
+        customLocation: null,
+        travelFromPrevious: transport
+          ? {
+              distanceKm: Math.max(0, toNumberOrDefault(transport.transport?.distanceKm, 0)),
+              travelMinutes: Math.max(0, toNumberOrDefault(transport.transport?.travelTimeMinutes, 0)),
+              costAmount: Math.max(0, toNumberOrDefault(transport.budget?.estimateCost, 0)),
+              costCurrency: 'VND',
+              transportModeId: toPositiveIntOrNull(transport.transport?.transportModeId),
+              transportModeName: String(transport.transport?.transportModeName || '').trim() || null,
+              departureTime: normalizeTimeOnly(transport.startTime),
+              arrivalTime: normalizeTimeOnly(transport.endTime),
+              fromName: null,
+              toName: null,
+              selectedOptionIndex: null,
+              manualCostOverride: true,
+              isCustomTransport: true,
+              transportOptions: [],
+            }
+          : null,
+        estimatedCost: Math.max(0, toNumberOrDefault(act.budget?.estimateCost, 0)),
+      });
+    });
+
+    return {
+      id: createClientId(`day-${dayIndex}`),
+      date: day.date ? dayjs(day.date).format('YYYY-MM-DD') : dayjs().add(dayIndex, 'day').format('YYYY-MM-DD'),
+      dayTitle: String(day.dayTitle || `Day ${dayIndex + 1}`).trim(),
+      activities,
+    };
+  });
+};
+
 const getDraftStorageKey = (tripId) => `manual-trip-draft-${tripId}`;
 
 const loadDraftFromStorage = (tripId) => {
@@ -519,6 +583,7 @@ const ManualTripPage = () => {
 
   const [loadingTrip, setLoadingTrip] = useState(false);
   const [savingTrip, setSavingTrip] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [tripId, setTripId] = useState(null);
   const [tripInfo, setTripInfo] = useState(null);
   const [manualTotalBudget, setManualTotalBudget] = useState(null);
@@ -583,8 +648,9 @@ const ManualTripPage = () => {
       : (Number.isFinite(stateTripId) && stateTripId > 0 ? stateTripId : 0);
 
     setTripId(resolvedTripId > 0 ? resolvedTripId : null);
+    setEditMode(Boolean(location?.state?.editMode));
     setTransportOptionsBackfilled(false);
-  }, [location?.state?.tripId, searchParams]);
+  }, [location?.state?.tripId, location?.state?.editMode, searchParams]);
 
   useEffect(() => {
     if (!tripId) return;
@@ -602,13 +668,30 @@ const ManualTripPage = () => {
       let resolvedTripInfo = draftTripInfo || stateTripInfo;
       let resolvedDays = normalizeDraftDays(draft?.days);
 
-      if (!resolvedTripInfo) {
+      const isEditMode = Boolean(location?.state?.editMode);
+
+      if (!resolvedTripInfo || (isEditMode && resolvedDays.length === 0)) {
         try {
-          const apiTrip = await getTripByIdApi(tripId);
-          resolvedTripInfo = normalizeTripInfo(apiTrip);
+          if (isEditMode) {
+            // Edit mode: load full trip detail (includes days/activities)
+            const apiTrip = await getTripDetailApi(tripId);
+            if (!resolvedTripInfo) {
+              resolvedTripInfo = normalizeTripInfo({
+                ...apiTrip,
+                currencyCode: apiTrip.currency,
+                budgetSummary: apiTrip.tripSummary,
+              });
+            }
+            if (resolvedDays.length === 0 && Array.isArray(apiTrip.tripDays)) {
+              resolvedDays = convertDetailDaysToBuilderDays(apiTrip.tripDays);
+            }
+          } else {
+            const apiTrip = await getTripByIdApi(tripId);
+            resolvedTripInfo = normalizeTripInfo(apiTrip);
+          }
         } catch {
           if (!cancelled) {
-            message.error('Cannot load base trip information.');
+            message.error('Cannot load trip information.');
           }
         }
       }
@@ -630,7 +713,7 @@ const ManualTripPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [location?.state?.tripInfo, tripId]);
+  }, [location?.state?.tripInfo, location?.state?.editMode, tripId]);
 
   useEffect(() => {
     if (!tripId || !tripInfo) return;
@@ -1761,18 +1844,25 @@ const ManualTripPage = () => {
 
     setSavingTrip(true);
     try {
-      const result = await saveTripApi(payload);
-      clearDraftStorage(tripId);
-      message.success('Manual trip saved successfully.');
-      const savedTripId = Number(result?.tripId ?? result?.TripId ?? result?.id ?? result?.Id);
-      if (Number.isFinite(savedTripId) && savedTripId > 0) {
-        navigate(PATHS.TRIP_DETAIL.replace(':id', String(savedTripId)));
-      } else {
+      if (editMode) {
+        await updateSavedTripApi(tripId, payload);
+        clearDraftStorage(tripId);
+        message.success('Trip updated successfully.');
         navigate(PATHS.TRIP_DETAIL.replace(':id', String(tripId)));
+      } else {
+        const result = await saveTripApi(payload);
+        clearDraftStorage(tripId);
+        message.success('Manual trip saved successfully.');
+        const savedTripId = Number(result?.tripId ?? result?.TripId ?? result?.id ?? result?.Id);
+        if (Number.isFinite(savedTripId) && savedTripId > 0) {
+          navigate(PATHS.TRIP_DETAIL.replace(':id', String(savedTripId)));
+        } else {
+          navigate(PATHS.TRIP_DETAIL.replace(':id', String(tripId)));
+        }
       }
     } catch (error) {
       const responseData = error?.response?.data;
-      const errorMessage = responseData?.detail || responseData?.title || responseData?.message || 'Cannot save manual trip.';
+      const errorMessage = responseData?.detail || responseData?.title || responseData?.message || (editMode ? 'Cannot update trip.' : 'Cannot save manual trip.');
       message.error(errorMessage);
     } finally {
       setSavingTrip(false);
@@ -1803,7 +1893,7 @@ const ManualTripPage = () => {
               <Row justify="space-between" align="middle" gutter={[16, 16]}>
                 <Col flex="auto">
                   <Title level={3} style={{ color: 'white', margin: 0 }}>
-                    {tripInfo.tripName}
+                    {editMode ? `Editing: ${tripInfo.tripName}` : tripInfo.tripName}
                   </Title>
                   <Text style={{ color: 'rgba(255,255,255,0.86)' }}>
                     {tripInfo.startDate || 'TBD'} to {tripInfo.endDate || 'TBD'} • {tripInfo.groupSize} people
@@ -1828,8 +1918,14 @@ const ManualTripPage = () => {
             </Card>
 
             <Card bordered={false} className={styles.builderCard}>
-              <Title level={3} style={{ marginTop: 0, marginBottom: 2 }}>Manual Day & Location Builder</Title>
-              <Text type="secondary">Flow independent from Itinerary screen. Add each day and each location, estimate updates automatically.</Text>
+              <Title level={3} style={{ marginTop: 0, marginBottom: 2 }}>
+                {editMode ? 'Edit Itinerary' : 'Manual Day & Location Builder'}
+              </Title>
+              <Text type="secondary">
+                {editMode
+                  ? 'Modify days and locations below. Changes will overwrite the existing itinerary when saved.'
+                  : 'Flow independent from Itinerary screen. Add each day and each location, estimate updates automatically.'}
+              </Text>
 
               <div className={styles.optionalBudgetRow}>
                 <Text strong>Trip budget (optional)</Text>
@@ -2214,13 +2310,20 @@ const ManualTripPage = () => {
               <Button icon={<PlusOutlined />} onClick={addDay}>
                 Add Day
               </Button>
+              {editMode && (
+                <Button
+                  onClick={() => navigate(PATHS.TRIP_DETAIL.replace(':id', String(tripId)))}
+                >
+                  Cancel
+                </Button>
+              )}
               <Button
                 type="primary"
                 icon={<SaveOutlined />}
                 loading={savingTrip}
                 onClick={handleSaveManualTrip}
               >
-                Save Manual Trip
+                {editMode ? 'Save Changes' : 'Save Manual Trip'}
               </Button>
             </div>
           </>

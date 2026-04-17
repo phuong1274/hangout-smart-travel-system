@@ -147,6 +147,7 @@ namespace HSTS.API.Controllers
                 {
                     ErrorType.NotFound => NotFound(result.FirstError.Description),
                     ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    ErrorType.Forbidden => StatusCode(403, result.FirstError.Description),
                     _ => Problem(result.FirstError.Description)
                 };
             }
