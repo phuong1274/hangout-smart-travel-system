@@ -924,9 +924,10 @@ const ManualTripPage = () => {
 
       const activities = Array.isArray(day.activities) ? [...day.activities] : [];
       const currentIndex = activities.findIndex((activity) => activity.id === activityId);
-      if (currentIndex <= 0) return day;
-
-      const previousActivity = activities[currentIndex - 1];
+      if (currentIndex < 0) return day;
+      // For cross-day first activities (currentIndex === 0), previousActivity is undefined;
+      // departureTime and fromName are already captured in travelFromPrevious.
+      const previousActivity = currentIndex > 0 ? activities[currentIndex - 1] : undefined;
       const currentActivity = activities[currentIndex];
       const travel = currentActivity?.travelFromPrevious;
       const options = normalizeTransportOptions(
