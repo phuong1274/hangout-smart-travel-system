@@ -172,6 +172,11 @@ export const createTripApi = (data) => {
   return apiClient.post('/api/trips', data).then(res => res.data);
 };
 
+// Update trip metadata (name, description, dates, currency, status)
+export const updateTripApi = (tripId, data) => {
+  return apiClient.put(`/api/trips/${tripId}`, data).then(res => res.data);
+};
+
 // Update and save manual trip
 export const updateSavedTripApi = (tripId, data) => {
   return apiClient.put(`/api/trips/${tripId}/save`, data).then(res => res.data);

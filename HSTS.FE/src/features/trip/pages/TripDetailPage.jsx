@@ -15,6 +15,8 @@ import {
   Form,
   Input,
   InputNumber,
+  Select,
+  DatePicker,
   message,
   Tooltip,
   Popconfirm,
@@ -23,6 +25,7 @@ import {
   Carousel,
   Image,
 } from 'antd';
+import dayjs from 'dayjs';
 import {
   CalendarOutlined,
   TeamOutlined,
@@ -33,6 +36,8 @@ import {
   ExportOutlined,
   CheckCircleOutlined,
   FilePdfOutlined,
+  EditOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import {
   NavigationArrow,
@@ -44,8 +49,9 @@ import {
 } from '@phosphor-icons/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi, batchUpdateActivityStatusApi, getBudgetVsActualExportApi } from '../api';
+import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi, batchUpdateActivityStatusApi, getBudgetVsActualExportApi, updateTripApi } from '../api';
 import { useAuthStore } from '@/store/authStore';
+import { PATHS } from '@/routes/paths';
 import {
   getProvincesApi,
   getLocationByIdApi,
@@ -128,6 +134,9 @@ const TripDetailPage = () => {
   const [activityExpenses, setActivityExpenses] = useState({});
   const [expenseForm] = Form.useForm();
   const [exporting, setExporting] = useState(false);
+  const [editTripModal, setEditTripModal] = useState(false);
+  const [editTripForm] = Form.useForm();
+  const [savingTripInfo, setSavingTripInfo] = useState(false);
 
   const handleExportItineraryPdf = () => {
     if (!trip) return;
@@ -493,6 +502,44 @@ const TripDetailPage = () => {
     }
   }, [reloadTripAndExpenses]);
 
+  const handleOpenEditTripModal = useCallback(() => {
+    editTripForm.setFieldsValue({
+      tripName: trip?.tripName || '',
+      description: trip?.description || '',
+      dateRange: trip?.startDate && trip?.endDate
+        ? [dayjs(trip.startDate), dayjs(trip.endDate)]
+        : null,
+      currency: trip?.currency || 'VND',
+      status: trip?.status ?? 0,
+    });
+    setEditTripModal(true);
+  }, [trip, editTripForm]);
+
+  const handleUpdateTripInfo = useCallback(async (values) => {
+    setSavingTripInfo(true);
+    try {
+      const [startDate, endDate] = values.dateRange || [];
+      await updateTripApi(trip.id, {
+        tripId: trip.id,
+        tripName: values.tripName,
+        description: values.description || null,
+        startDate: startDate ? startDate.format('YYYY-MM-DD') : trip.startDate,
+        endDate: endDate ? endDate.format('YYYY-MM-DD') : trip.endDate,
+        startingLocation: trip.startingLocation || null,
+        currency: values.currency,
+        status: values.status,
+      });
+      message.success('Trip updated successfully');
+      setEditTripModal(false);
+      editTripForm.resetFields();
+      await refetchTrip();
+    } catch (err) {
+      message.error(err?.response?.data?.detail || err?.response?.data?.message || 'Failed to update trip');
+    } finally {
+      setSavingTripInfo(false);
+    }
+  }, [trip, editTripForm, refetchTrip]);
+
   const handleExportPdf = useCallback(async () => {
     setExporting(true);
     try {
@@ -620,6 +667,26 @@ const TripDetailPage = () => {
                 )}
               </div>
               <Space>
+                {myMember?.role === 'Leader' && (
+                  <>
+                    <Button
+                      className={styles.sectionToggleBtn}
+                      icon={<EditOutlined />}
+                      onClick={handleOpenEditTripModal}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      className={styles.sectionToggleBtn}
+                      icon={<ToolOutlined />}
+                      onClick={() => navigate(PATHS.CREATE_TRIP_MANUAL_BUILDER, {
+                        state: { tripId: trip.id, editMode: true },
+                      })}
+                    >
+                      Edit Itinerary
+                    </Button>
+                  </>
+                )}
                 <Button className={styles.sectionToggleBtn} onClick={() => navigate(-1)}>Back</Button>
               </Space>
             </div>
@@ -1115,6 +1182,78 @@ const TripDetailPage = () => {
             data={accommodationModal.data}
             onClose={() => setAccommodationModal({ open: false, data: null })}
           />
+
+          <Modal
+            title={<span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#1A535C', fontWeight: 800 }}>Edit Trip</span>}
+            open={editTripModal}
+            onCancel={() => { setEditTripModal(false); editTripForm.resetFields(); }}
+            onOk={() => editTripForm.submit()}
+            okText="Save Changes"
+            cancelText="Cancel"
+            confirmLoading={savingTripInfo}
+            okButtonProps={{ className: styles.sectionToggleBtn, style: { background: '#FFE66D', color: '#1A535C', border: 'none' } }}
+            cancelButtonProps={{ className: styles.sectionToggleBtn }}
+          >
+            <Form
+              form={editTripForm}
+              layout="vertical"
+              onFinish={handleUpdateTripInfo}
+              style={{ marginTop: 24 }}
+            >
+              <Form.Item
+                name="tripName"
+                label={<span className={styles.editTimelineLabel}>Trip Name</span>}
+                rules={[{ required: true, message: 'Please enter trip name' }, { max: 200, message: 'Max 200 characters' }]}
+              >
+                <Input className={styles.editTimelineInput} placeholder="e.g., Hanoi Summer Adventure" />
+              </Form.Item>
+              <Form.Item
+                name="description"
+                label={<span className={styles.editTimelineLabel}>Description</span>}
+              >
+                <Input.TextArea className={styles.editTimelineInput} rows={3} placeholder="Optional trip description" />
+              </Form.Item>
+              <Form.Item
+                name="dateRange"
+                label={<span className={styles.editTimelineLabel}>Trip Dates</span>}
+                rules={[{ required: true, message: 'Please select trip dates' }]}
+              >
+                <DatePicker.RangePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+              </Form.Item>
+              <Form.Item
+                name="currency"
+                label={<span className={styles.editTimelineLabel}>Currency</span>}
+                rules={[{ required: true, message: 'Please enter currency' }]}
+              >
+                <Select
+                  options={[
+                    { value: 'VND', label: 'VND — Vietnamese Dong' },
+                    { value: 'USD', label: 'USD — US Dollar' },
+                    { value: 'EUR', label: 'EUR — Euro' },
+                    { value: 'THB', label: 'THB — Thai Baht' },
+                    { value: 'SGD', label: 'SGD — Singapore Dollar' },
+                    { value: 'JPY', label: 'JPY — Japanese Yen' },
+                    { value: 'KRW', label: 'KRW — Korean Won' },
+                  ]}
+                  placeholder="Select currency"
+                />
+              </Form.Item>
+              <Form.Item
+                name="status"
+                label={<span className={styles.editTimelineLabel}>Status</span>}
+                rules={[{ required: true, message: 'Please select status' }]}
+              >
+                <Select
+                  options={[
+                    { value: 0, label: 'Planned' },
+                    { value: 1, label: 'In Progress' },
+                    { value: 2, label: 'Completed' },
+                    { value: 3, label: 'Cancelled' },
+                  ]}
+                />
+              </Form.Item>
+            </Form>
+          </Modal>
 
           <Modal
             title={<span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#1A535C', fontWeight: 800 }}>{expenseModal.editExpense ? `Edit Expense: ${expenseModal.editExpense.title}` : `Log Expense: ${expenseModal.activityTitle}`}</span>}

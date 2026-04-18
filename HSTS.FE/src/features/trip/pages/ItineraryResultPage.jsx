@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Card,
   Typography,
@@ -49,6 +49,19 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { PATHS } from '@/routes/paths';
 import styles from '../styles/ItineraryResultPage.module.css';
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableDayCard } from '../components/SortableDayCard';
+import { SortableActivityCard } from '../components/SortableActivityCard';
+import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -590,6 +603,37 @@ const getTimelineStopEndpointParams = (item, side = 'from') => {
     : { toLat: customLocation.latitude, toLng: customLocation.longitude };
 };
 
+// Extracts the "from" origin endpoint from a travel event (before-segment).
+// The API response (LocalTravelEstimateDto) only echoes back integer FromId/ToId.
+// If FromId <= 0 the origin was coordinates (user GPS); fall back to itinerary.userLocation.
+const extractOriginEndpointFromTravel = (travelEvent, itinerary) => {
+  const travelData = travelEvent?.locationToLocationTravel || travelEvent?.LocationToLocationTravel;
+  if (travelData) {
+    const fromId = Number(travelData?.fromId ?? travelData?.FromId);
+    if (Number.isFinite(fromId) && fromId > 0) {
+      return { fromLocationId: fromId };
+    }
+  }
+  // Fallback: user's GPS stored in itinerary root
+  const userLoc = itinerary?.userLocation || itinerary?.UserLocation;
+  const lat = Number(userLoc?.latitude ?? userLoc?.Latitude);
+  const lng = Number(userLoc?.longitude ?? userLoc?.Longitude);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { fromLat: lat, fromLng: lng };
+  }
+  return null;
+};
+
+const buildTravelCacheKey = (fromEndpoint, toEndpoint, groupSize, currencyCode) => {
+  const fromKey = fromEndpoint.fromLocationId != null
+    ? `L:${fromEndpoint.fromLocationId}`
+    : `C:${fromEndpoint.fromLat},${fromEndpoint.fromLng}`;
+  const toKey = toEndpoint.toLocationId != null
+    ? `L:${toEndpoint.toLocationId}`
+    : `C:${toEndpoint.toLat},${toEndpoint.toLng}`;
+  return `${fromKey}|${toKey}|${groupSize}|${currencyCode}`;
+};
+
 const getTravelDetailEntry = (item) => {
   const candidates = [
     ['locationToLocationTravel', item?.locationToLocationTravel],
@@ -794,6 +838,24 @@ const toCustomGeoPayload = (value) => {
     address: pickFirstText(value?.address, value?.Address) || null,
     description: pickFirstText(value?.description, value?.Description) || null,
     locationTypeId: locationTypeId || null,
+  };
+};
+
+const toCustomLocationPayload = (value, fallbackLocationTypeId = null) => {
+  const base = toCustomGeoPayload(value);
+  if (!base) return null;
+
+  const locationTypeId = toPositiveIntOrNull(
+    value?.locationTypeId
+    ?? value?.LocationTypeId
+    ?? fallbackLocationTypeId,
+  );
+  if (!locationTypeId) return null;
+
+  return {
+    ...base,
+    description: pickFirstText(value?.description, value?.Description) || null,
+    locationTypeId,
   };
 };
 
@@ -1064,6 +1126,15 @@ const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
+  const travelCacheRef = useRef(new Map());
+  const [reorderRecalculating, setReorderRecalculating] = useState(false);
+  const [activeDragItem, setActiveDragItem] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   const [savingTrip, setSavingTrip] = useState(false);
   const [provinceNameById, setProvinceNameById] = useState(new Map());
   const [showAlternativeItems, setShowAlternativeItems] = useState(true);
@@ -1089,6 +1160,8 @@ const ItineraryResultPage = () => {
   const [addBetweenDistrictLoading, setAddBetweenDistrictLoading] = useState(false);
   const [selectedAddBetweenDistrictId, setSelectedAddBetweenDistrictId] = useState(null);
   const [addBetweenCustomName, setAddBetweenCustomName] = useState('');
+  const [selectedAddBetweenCustomLocationTypeId, setSelectedAddBetweenCustomLocationTypeId] = useState(null);
+  const [addBetweenCustomDescription, setAddBetweenCustomDescription] = useState('');
   const [addBetweenCustomAddress, setAddBetweenCustomAddress] = useState('');
   const [addBetweenCustomDescription, setAddBetweenCustomDescription] = useState('');
   const [selectedAddBetweenCustomLocationTypeId, setSelectedAddBetweenCustomLocationTypeId] = useState(null);
@@ -1264,9 +1337,9 @@ const ItineraryResultPage = () => {
     const defaultEnd = addMinutesToTime(normalizedStart, 90);
 
     setAddBetweenCustomName('');
-    setAddBetweenCustomAddress('');
-    setAddBetweenCustomDescription('');
     setSelectedAddBetweenCustomLocationTypeId(null);
+    setAddBetweenCustomDescription('');
+    setAddBetweenCustomAddress('');
     setAddBetweenCustomLat(null);
     setAddBetweenCustomLng(null);
     setAddBetweenCustomStartTime(normalizedStart.slice(0, 5));
@@ -1355,6 +1428,8 @@ const ItineraryResultPage = () => {
 
   const recalculateDayTimeline = useCallback(async (draftItinerary, dayIndex, options = {}) => {
     const preserveExternalSegments = Boolean(options?.preserveExternalSegments);
+    // originEndpoint: { fromLocationId } or { fromLat, fromLng } — travel from origin to first stop
+    const originEndpoint = options?.originEndpoint || null;
     const daysKey = Array.isArray(draftItinerary?.days) ? 'days' : 'Days';
     const days = Array.isArray(draftItinerary?.[daysKey]) ? draftItinerary[daysKey] : [];
     const day = days[dayIndex];
@@ -1362,8 +1437,10 @@ const ItineraryResultPage = () => {
 
     const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
     const sourceTimeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+    // Use !isTravelEvent (not isTimelineStopEvent) so non-geo stops (no locationId/customLocation)
+    // are preserved in the rebuilt timeline instead of being silently dropped.
     const stopIndexes = sourceTimeline
-      .map((item, index) => (isTimelineStopEvent(item) ? index : -1))
+      .map((item, index) => (!isTravelEvent(item) ? index : -1))
       .filter((index) => index >= 0);
 
     if (stopIndexes.length === 0) {
@@ -1399,6 +1476,63 @@ const ItineraryResultPage = () => {
     };
     rebuiltSegment.push(firstStop);
 
+    // If an origin endpoint is provided (e.g. user's GPS location before first stop),
+    // calculate travel from that origin to the new first stop and prepend it.
+    if (originEndpoint) {
+      const toEndpoint = getTimelineStopEndpointParams(firstStop, 'to');
+      const canEstimate = Object.values({ ...originEndpoint, ...toEndpoint }).some((v) => v != null);
+      if (canEstimate) {
+        let originTravelLeg = null;
+        try {
+          const cacheKey = buildTravelCacheKey(originEndpoint, toEndpoint, groupSize, currencyCode);
+          const cached = travelCacheRef.current.get(cacheKey);
+          if (cached) {
+            originTravelLeg = { ...cached, arrivalTime: null, ArrivalTime: null };
+          } else {
+            const guessedDeparture = shiftTimeByMinutes(firstStart, -30);
+            originTravelLeg = await estimateLocalTravelApi({
+              ...originEndpoint,
+              ...toEndpoint,
+              groupSize,
+              departureTime: guessedDeparture,
+              currencyCode,
+            });
+            travelCacheRef.current.set(cacheKey, originTravelLeg);
+          }
+        } catch {
+          // non-fatal: if origin travel can't be estimated, skip it
+        }
+        if (originTravelLeg) {
+          const travelMinutes = Number(
+            originTravelLeg?.selectedTravelTimeMinutes ?? originTravelLeg?.SelectedTravelTimeMinutes ?? 20,
+          );
+          const safeTravelMinutes = Number.isFinite(travelMinutes) && travelMinutes > 0 ? travelMinutes : 20;
+          const originTravelEnd = firstStart;
+          const originTravelStart = shiftTimeByMinutes(firstStart, -safeTravelMinutes);
+          const toName = pickFirstText(
+            originTravelLeg?.toLocationName,
+            originTravelLeg?.ToLocationName,
+            firstStop?.locationName,
+            firstStop?.LocationName,
+            firstStop?.title,
+            firstStop?.Title,
+          ) || 'First Stop';
+          rebuiltSegment.unshift({
+            eventType: 'travel',
+            title: `Move to ${toName}`,
+            startTime: originTravelStart,
+            endTime: originTravelEnd,
+            locationId: 0,
+            tagNames: [],
+            note: 'Updated by local-travel-estimate',
+            score: 0,
+            locationToLocationTravel: originTravelLeg,
+            costForGroup: originTravelLeg?.selectedTotalCost || originTravelLeg?.SelectedTotalCost || null,
+          });
+        }
+      }
+    }
+
     let prevStop = firstStop;
 
     for (let index = 1; index < timelineStops.length; index += 1) {
@@ -1406,10 +1540,29 @@ const ItineraryResultPage = () => {
       const departureTime = pickFirstText(prevStop.endTime, prevStop.EndTime) || firstEnd;
       const fromEndpoint = getTimelineStopEndpointParams(prevStop, 'from');
       const toEndpoint = getTimelineStopEndpointParams(currentStop, 'to');
-      const canEstimate = Object.values({ ...fromEndpoint, ...toEndpoint }).some((value) => value != null);
+      // Both sides must have geo data to call the travel-estimate API. Using some() on the
+      // merged object would return true when only one side has data, causing a broken API call.
+      const fromHasGeo = Object.values(fromEndpoint).some((v) => v != null);
+      const toHasGeo = Object.values(toEndpoint).some((v) => v != null);
+      const canEstimate = fromHasGeo && toHasGeo;
+
+      if (!canEstimate) {
+        // One or both stops have no geo coordinates — chain time directly, no travel event.
+        // This preserves non-geo stops (e.g. custom notes, future event types) without dropping them.
+        const currentDuration = stopDurations[index];
+        const currentEnd = addMinutesToTime(departureTime, currentDuration);
+        const normalizedCurrentStop = { ...currentStop, startTime: departureTime, endTime: currentEnd };
+        rebuiltSegment.push(normalizedCurrentStop);
+        prevStop = normalizedCurrentStop;
+        continue;
+      }
 
       let travelLeg = null;
-      if (canEstimate) {
+      const cacheKey = buildTravelCacheKey(fromEndpoint, toEndpoint, groupSize, currencyCode);
+      const cached = travelCacheRef.current.get(cacheKey);
+      if (cached) {
+        travelLeg = { ...cached, arrivalTime: null, ArrivalTime: null };
+      } else {
         travelLeg = await estimateLocalTravelApi({
           ...fromEndpoint,
           ...toEndpoint,
@@ -1417,6 +1570,7 @@ const ItineraryResultPage = () => {
           departureTime,
           currencyCode,
         });
+        travelCacheRef.current.set(cacheKey, travelLeg);
       }
 
       const estimatedTravelMinutes = Number(
@@ -1496,6 +1650,193 @@ const ItineraryResultPage = () => {
     updateBudgetSummaryFromDays(draftItinerary);
     return draftItinerary;
   }, []);
+
+  const handleDragStart = useCallback((event) => {
+    const { active } = event;
+    const type = active.data.current?.type;
+    if (!itinerary) return;
+
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+    const days = Array.isArray(itinerary?.[daysKey]) ? itinerary[daysKey] : [];
+
+    if (type === 'day') {
+      const dayIdx = Number(active.id.toString().replace('itinerary-day-', ''));
+      const day = days[dayIdx];
+      const dayNum = day?.dayNumber || day?.DayNumber || dayIdx + 1;
+      setActiveDragItem({ type: 'day', label: `Day ${dayNum}` });
+    } else if (type === 'activity') {
+      const dayIdx = active.data.current?.dayId;
+      const stopIdx = Number(active.id.toString().split('-').pop());
+      const day = days[dayIdx];
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? day[timelineKey] : [];
+      const stops = timeline.filter((item) => !isTravelEvent(item));
+      const stop = stops[stopIdx];
+      const label = stop?.locationName || stop?.LocationName || stop?.title || stop?.Title || 'Activity';
+      setActiveDragItem({ type: 'activity', label });
+    }
+  }, [itinerary]);
+
+  const handleDragEnd = useCallback(async (event) => {
+    const { active, over } = event;
+    setActiveDragItem(null);
+
+    if (!over || active.id === over.id || !itinerary) return;
+
+    const type = active.data.current?.type;
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+
+    if (type === 'day') {
+      const oldIdx = Number(active.id.toString().replace('itinerary-day-', ''));
+      // If dragged onto an activity card, resolve to its parent day index
+      const overDayId = over.data.current?.type === 'activity'
+        ? `itinerary-day-${over.data.current?.dayId}`
+        : over.id;
+      const newIdx = Number(overDayId.toString().replace('itinerary-day-', ''));
+      if (oldIdx === newIdx || !Number.isFinite(oldIdx) || !Number.isFinite(newIdx)) return;
+
+      const draft = JSON.parse(JSON.stringify(itinerary));
+      draft[daysKey] = arrayMove(draft[daysKey], oldIdx, newIdx);
+      updateBudgetSummaryFromDays(draft);
+      updateItinerary(draft);
+      return;
+    }
+
+    if (type === 'activity') {
+      const dayIdx = active.data.current?.dayId;
+      if (!Number.isFinite(dayIdx)) return;
+
+      const activeStopIdx = Number(active.id.toString().split('-').pop());
+      const overStopIdx = Number(over.id.toString().split('-').pop());
+      if (activeStopIdx === overStopIdx) return;
+
+      const draft = JSON.parse(JSON.stringify(itinerary));
+      const day = draft[daysKey][dayIdx];
+      if (!day) return;
+
+      const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+      const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+      const stops = timeline.filter((item) => !isTravelEvent(item));
+      if (activeStopIdx >= stops.length || overStopIdx >= stops.length) return;
+
+      // Capture origin endpoint before clearing travel events from the timeline
+      const beforeTravelEvent = timeline[0] && isTravelEvent(timeline[0]) ? timeline[0] : null;
+      const originEndpoint = beforeTravelEvent
+        ? extractOriginEndpointFromTravel(beforeTravelEvent, itinerary)
+        : null;
+
+      const reorderedStops = arrayMove(stops, activeStopIdx, overStopIdx);
+
+      // Anchor the new first stop's start time to the original first stop's start time,
+      // preserving its duration. Prevents the whole day schedule from shifting on reorder.
+      const anchorStartTime = pickFirstText(stops[0]?.startTime, stops[0]?.StartTime);
+      if (anchorStartTime && reorderedStops.length > 0) {
+        const newFirst = reorderedStops[0];
+        const duration = getTimelineDurationMinutes(newFirst);
+        reorderedStops[0] = {
+          ...newFirst,
+          startTime: anchorStartTime,
+          endTime: addMinutesToTime(anchorStartTime, Math.max(30, duration)),
+        };
+      }
+
+      day[timelineKey] = reorderedStops;
+
+      setReorderRecalculating(true);
+      try {
+        await recalculateDayTimeline(draft, dayIdx, { originEndpoint });
+        updateItinerary(draft);
+      } catch {
+        message.error('Unable to recalculate travel estimates after reordering.');
+      } finally {
+        setReorderRecalculating(false);
+      }
+    }
+  }, [itinerary, recalculateDayTimeline, updateItinerary]);
+
+  const moveDayUp = useCallback((dayIdx) => {
+    if (!itinerary || dayIdx <= 0) return;
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+    const draft = JSON.parse(JSON.stringify(itinerary));
+    draft[daysKey] = arrayMove(draft[daysKey], dayIdx, dayIdx - 1);
+    updateBudgetSummaryFromDays(draft);
+    updateItinerary(draft);
+  }, [itinerary, updateItinerary]);
+
+  const moveDayDown = useCallback((dayIdx, totalDays) => {
+    if (!itinerary || dayIdx >= totalDays - 1) return;
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+    const draft = JSON.parse(JSON.stringify(itinerary));
+    draft[daysKey] = arrayMove(draft[daysKey], dayIdx, dayIdx + 1);
+    updateBudgetSummaryFromDays(draft);
+    updateItinerary(draft);
+  }, [itinerary, updateItinerary]);
+
+  const moveStopUp = useCallback(async (dayIdx, stopIdx) => {
+    if (!itinerary || stopIdx <= 0) return;
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+    const draft = JSON.parse(JSON.stringify(itinerary));
+    const day = draft[daysKey][dayIdx];
+    if (!day) return;
+    const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+    const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+    const stops = timeline.filter((item) => !isTravelEvent(item));
+    if (stopIdx >= stops.length) return;
+    const beforeTravelEvent = timeline[0] && isTravelEvent(timeline[0]) ? timeline[0] : null;
+    const originEndpoint = beforeTravelEvent
+      ? extractOriginEndpointFromTravel(beforeTravelEvent, itinerary)
+      : null;
+    const reorderedStops = arrayMove(stops, stopIdx, stopIdx - 1);
+    const anchorStartTime = pickFirstText(stops[0]?.startTime, stops[0]?.StartTime);
+    if (anchorStartTime && reorderedStops.length > 0) {
+      const newFirst = reorderedStops[0];
+      const duration = getTimelineDurationMinutes(newFirst);
+      reorderedStops[0] = { ...newFirst, startTime: anchorStartTime, endTime: addMinutesToTime(anchorStartTime, Math.max(30, duration)) };
+    }
+    day[timelineKey] = reorderedStops;
+    setReorderRecalculating(true);
+    try {
+      await recalculateDayTimeline(draft, dayIdx, { originEndpoint });
+      updateItinerary(draft);
+    } catch {
+      message.error('Unable to recalculate travel estimates after reordering.');
+    } finally {
+      setReorderRecalculating(false);
+    }
+  }, [itinerary, recalculateDayTimeline, updateItinerary]);
+
+  const moveStopDown = useCallback(async (dayIdx, stopIdx, totalStops) => {
+    if (!itinerary || stopIdx >= totalStops - 1) return;
+    const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+    const draft = JSON.parse(JSON.stringify(itinerary));
+    const day = draft[daysKey][dayIdx];
+    if (!day) return;
+    const timelineKey = Array.isArray(day?.timeline) ? 'timeline' : 'Timeline';
+    const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
+    const stops = timeline.filter((item) => !isTravelEvent(item));
+    if (stopIdx >= stops.length) return;
+    const beforeTravelEvent = timeline[0] && isTravelEvent(timeline[0]) ? timeline[0] : null;
+    const originEndpoint = beforeTravelEvent
+      ? extractOriginEndpointFromTravel(beforeTravelEvent, itinerary)
+      : null;
+    const reorderedStops = arrayMove(stops, stopIdx, stopIdx + 1);
+    const anchorStartTime = pickFirstText(stops[0]?.startTime, stops[0]?.StartTime);
+    if (anchorStartTime && reorderedStops.length > 0) {
+      const newFirst = reorderedStops[0];
+      const duration = getTimelineDurationMinutes(newFirst);
+      reorderedStops[0] = { ...newFirst, startTime: anchorStartTime, endTime: addMinutesToTime(anchorStartTime, Math.max(30, duration)) };
+    }
+    day[timelineKey] = reorderedStops;
+    setReorderRecalculating(true);
+    try {
+      await recalculateDayTimeline(draft, dayIdx, { originEndpoint });
+      updateItinerary(draft);
+    } catch {
+      message.error('Unable to recalculate travel estimates after reordering.');
+    } finally {
+      setReorderRecalculating(false);
+    }
+  }, [itinerary, recalculateDayTimeline, updateItinerary]);
 
   const loadProvinceLocations = useCallback(async (
     provinceId,
@@ -2036,8 +2377,8 @@ const ItineraryResultPage = () => {
       return;
     }
 
-    const customLocationTypeId = Number(selectedAddBetweenCustomLocationTypeId);
-    if (!Number.isFinite(customLocationTypeId) || customLocationTypeId <= 0) {
+    const customLocationTypeId = toPositiveIntOrNull(selectedAddBetweenCustomLocationTypeId);
+    if (!customLocationTypeId) {
       message.warning('Please select location type for custom location.');
       return;
     }
@@ -2068,8 +2409,8 @@ const ItineraryResultPage = () => {
     const dayNumber = days[dayIndex]?.dayNumber || days[dayIndex]?.DayNumber || dayIndex + 1;
     const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
     const costAmount = Math.max(0, Math.round(Number(addBetweenCustomCostAmount) || 0));
-    const customAddress = String(addBetweenCustomAddress || '').trim();
     const customDescription = String(addBetweenCustomDescription || '').trim();
+    const customAddress = String(addBetweenCustomAddress || '').trim();
 
     setRecalculatingDayNumber(dayNumber);
     setAddingCustomLocation(true);
@@ -2092,12 +2433,12 @@ const ItineraryResultPage = () => {
         Latitude: Number(addBetweenCustomLat),
         longitude: Number(addBetweenCustomLng),
         Longitude: Number(addBetweenCustomLng),
-        address: customAddress || null,
-        Address: customAddress || null,
         description: customDescription || null,
         Description: customDescription || null,
         locationTypeId: customLocationTypeId,
         LocationTypeId: customLocationTypeId,
+        address: customAddress || null,
+        Address: customAddress || null,
       };
       const groupCost = {
         amount: costAmount,
@@ -2115,6 +2456,8 @@ const ItineraryResultPage = () => {
         EndTime: normalizedEnd,
         locationId: 0,
         LocationId: 0,
+        locationTypeId: customLocationTypeId,
+        LocationTypeId: customLocationTypeId,
         customLocation: customLocationPayload,
         CustomLocation: customLocationPayload,
         tagNames: [],
@@ -2164,9 +2507,9 @@ const ItineraryResultPage = () => {
     itinerary,
     addBetweenModal,
     addBetweenCustomName,
-    addBetweenCustomAddress,
-    addBetweenCustomDescription,
     selectedAddBetweenCustomLocationTypeId,
+    addBetweenCustomDescription,
+    addBetweenCustomAddress,
     addBetweenCustomLat,
     addBetweenCustomLng,
     addBetweenCustomStartTime,
@@ -3805,6 +4148,33 @@ const ItineraryResultPage = () => {
       return;
     }
 
+    for (let dayIndex = 0; dayIndex < days.length; dayIndex += 1) {
+      const day = days[dayIndex];
+      const dayNumber = Number(day?.dayNumber ?? day?.DayNumber);
+      const safeDayNumber = Number.isFinite(dayNumber) && dayNumber > 0 ? Math.round(dayNumber) : dayIndex + 1;
+      const timeline = getDayTimeline(day, tripCurrencyCode);
+
+      for (let itemIndex = 0; itemIndex < timeline.length; itemIndex += 1) {
+        const item = timeline[itemIndex];
+        const locationId = toPositiveIntOrNull(item?.locationId ?? item?.LocationId);
+        const customLocationId = locationId ? null : toPositiveIntOrNull(item?.customLocationId ?? item?.CustomLocationId);
+        if (locationId || customLocationId) continue;
+
+        const rawCustomLocation = item?.customLocation || item?.CustomLocation;
+        if (!rawCustomLocation) continue;
+
+        const customLocationPayload = toCustomLocationPayload(
+          rawCustomLocation,
+          item?.locationTypeId ?? item?.LocationTypeId,
+        );
+        if (!customLocationPayload) {
+          const customName = pickFirstText(rawCustomLocation?.name, rawCustomLocation?.Name, item?.title, item?.Title);
+          message.error(`Day ${safeDayNumber}: custom location "${customName || `Item ${itemIndex + 1}`}" requires location type.`);
+          return;
+        }
+      }
+    }
+
     const mappedDays = days.map((day, dayIndex) => {
       const dayNumber = Number(day?.dayNumber ?? day?.DayNumber);
       const safeDayNumber = Number.isFinite(dayNumber) && dayNumber > 0 ? Math.round(dayNumber) : dayIndex + 1;
@@ -3831,15 +4201,11 @@ const ItineraryResultPage = () => {
         const eventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
         const locationId = toPositiveIntOrNull(item?.locationId ?? item?.LocationId);
         const customLocationId = locationId ? null : toPositiveIntOrNull(item?.customLocationId ?? item?.CustomLocationId);
-        const rawCustomLocation = (!locationId && !customLocationId)
-          ? toCustomGeoPayload(item?.customLocation || item?.CustomLocation)
-          : null;
-        const customLocation = rawCustomLocation
-          ? {
-            ...rawCustomLocation,
-            // Backward compatibility: older custom points may miss LocationTypeId.
-            locationTypeId: toPositiveIntOrNull(rawCustomLocation?.locationTypeId) || 1,
-          }
+        const customLocation = (!locationId && !customLocationId)
+          ? toCustomLocationPayload(
+            item?.customLocation || item?.CustomLocation,
+            item?.locationTypeId ?? item?.LocationTypeId,
+          )
           : null;
 
         return {
@@ -4065,6 +4431,16 @@ const ItineraryResultPage = () => {
             </Card>
           )}
 
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+            <SortableContext
+              items={days.map((_, i) => `itinerary-day-${i}`)}
+              strategy={verticalListSortingStrategy}
+            >
             {days.map((day, dayIdx) => {
               const dayNum = day.dayNumber || day.DayNumber;
               const isDayUpdating = recalculatingDayNumber === dayNum;
@@ -4101,6 +4477,11 @@ const ItineraryResultPage = () => {
                 }
               }
 
+              const dayDragId = `itinerary-day-${dayIdx}`;
+              const dayTimeline = getDayTimeline(day, itinerary?.currencyCode || itinerary?.CurrencyCode || 'VND');
+              const dayStops = dayTimeline.filter((item) => !isTravelEvent(item));
+              const dayStopIds = dayStops.map((_, si) => `itinerary-stop-${dayIdx}-${si}`);
+
               const collapseItems = [
                 {
                   key: '1',
@@ -4131,7 +4512,12 @@ const ItineraryResultPage = () => {
                   children: (
                     <>
                       <div className={styles.timeline}>
-                        {timeline.map((item, idx) => {
+                        <SortableContext items={dayStopIds} strategy={verticalListSortingStrategy}>
+                        {(() => {
+                          let sc = -1;
+                          return timeline.map((item) => ({ item, stopIdx: !isTravelEvent(item) ? (++sc) : -1 }));
+                        })().map(({ item, stopIdx }, idx) => {
+                          const isStopItem = stopIdx >= 0;
                           const eventType = toEventType(item.eventType || item.EventType || item.type || item.Type);
                           const startTime = item.startTime || item.StartTime;
                           const endTime = item.endTime || item.EndTime;
@@ -4317,8 +4703,14 @@ const ItineraryResultPage = () => {
 
                           const badgeConfig = EVENT_BADGES[eventType] || EVENT_BADGES.visit;
 
-                          return (
-                            <div key={idx} className={styles.timelineItem}>
+                          const timelineItemContent = (dragHandle, moveButtons) => (
+                            <div className={styles.timelineItem}>
+                              {isStopItem && (dragHandle || moveButtons) && (
+                                <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 2 }}>
+                                  {moveButtons}
+                                  {dragHandle}
+                                </div>
+                              )}
                               <div className={styles.timelineTime}>
                                 <span className={styles.timelineTimeStart}>{startTimeLabel}</span>
                                 {endTimeLabel && <span className={styles.timelineTimeEnd}>{endTimeLabel}</span>}
@@ -4570,7 +4962,47 @@ const ItineraryResultPage = () => {
                               </div>
                             </div>
                           );
+
+                          if (!isStopItem) {
+                            return <React.Fragment key={idx}>{timelineItemContent(null)}</React.Fragment>;
+                          }
+
+                          return (
+                            <SortableActivityCard
+                              key={idx}
+                              id={`itinerary-stop-${dayIdx}-${stopIdx}`}
+                              dayId={dayIdx}
+                              disabled={reorderRecalculating || isDayUpdating}
+                            >
+                              {({ dragHandle }) => {
+                                const moveButtons = (
+                                  <Space size={0}>
+                                    <Button
+                                      type="text"
+                                      size="small"
+                                      icon={<ArrowUpOutlined />}
+                                      onClick={() => moveStopUp(dayIdx, stopIdx)}
+                                      disabled={stopIdx === 0 || reorderRecalculating || isDayUpdating}
+                                      title="Move up"
+                                      style={{ color: '#8c8c8c' }}
+                                    />
+                                    <Button
+                                      type="text"
+                                      size="small"
+                                      icon={<ArrowDownOutlined />}
+                                      onClick={() => moveStopDown(dayIdx, stopIdx, dayStops.length)}
+                                      disabled={stopIdx === dayStops.length - 1 || reorderRecalculating || isDayUpdating}
+                                      title="Move down"
+                                      style={{ color: '#8c8c8c' }}
+                                    />
+                                  </Space>
+                                );
+                                return timelineItemContent(dragHandle, moveButtons);
+                              }}
+                            </SortableActivityCard>
+                          );
                         })}
+                        </SortableContext>
                       </div>
 
                       {accommodations.length > 0 && (
@@ -4609,16 +5041,51 @@ const ItineraryResultPage = () => {
               ];
 
               return (
-                <Collapse
-                  key={dayNum}
-                  defaultActiveKey={['1']}
-                  className={styles.dayCard}
-                  bordered={false}
-                  expandIconPosition="end"
-                  items={collapseItems}
-                />
+                <SortableDayCard key={dayDragId} id={dayDragId} disabled={reorderRecalculating}>
+                  {({ dragHandle }) => (
+                    <div style={{ position: 'relative' }}>
+                      <div style={{ position: 'absolute', top: 8, left: -56, zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        {dragHandle}
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<ArrowUpOutlined />}
+                          onClick={() => moveDayUp(dayIdx)}
+                          disabled={dayIdx === 0 || reorderRecalculating}
+                          title="Move day up"
+                          style={{ color: '#8c8c8c' }}
+                        />
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<ArrowDownOutlined />}
+                          onClick={() => moveDayDown(dayIdx, days.length)}
+                          disabled={dayIdx === days.length - 1 || reorderRecalculating}
+                          title="Move day down"
+                          style={{ color: '#8c8c8c' }}
+                        />
+                      </div>
+                      <Collapse
+                        defaultActiveKey={['1']}
+                        className={styles.dayCard}
+                        bordered={false}
+                        expandIconPosition="end"
+                        items={collapseItems}
+                      />
+                    </div>
+                  )}
+                </SortableDayCard>
               );
             })}
+            </SortableContext>
+            <DragOverlay>
+              {activeDragItem && (
+                <div style={{ background: '#fff', border: '1px solid #d9d9d9', borderRadius: 6, padding: '8px 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', opacity: 0.95 }}>
+                  {activeDragItem.type === 'day' ? '📅' : '📍'} {activeDragItem.label}
+                </div>
+              )}
+            </DragOverlay>
+            </DndContext>
 
             <div className={styles.actionBar}>
               <Button onClick={handleRegenerate} size="large" className={styles.actionBtnSecondary}>
@@ -4785,6 +5252,33 @@ const ItineraryResultPage = () => {
                   />
                 </div>
 
+                <span className={styles.editTimelineLabel}>Location Type</span>
+                <Select
+                  showSearch
+                  allowClear
+                  className={styles.addBetweenSelect}
+                  placeholder="Select location type"
+                  value={selectedAddBetweenCustomLocationTypeId}
+                  onChange={(value) => setSelectedAddBetweenCustomLocationTypeId(value ?? null)}
+                  loading={addBetweenLocationTypeLoading}
+                  optionFilterProp="label"
+                  options={addBetweenLocationTypeOptions.map((locationType) => ({
+                    label: locationType.name,
+                    value: locationType.id,
+                  }))}
+                  notFoundContent={addBetweenLocationTypeLoading ? <Spin size="small" /> : 'No location types'}
+                />
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Description</span>
+                  <Input
+                    className={styles.editTimelineInput}
+                    placeholder="Describe this custom location"
+                    value={addBetweenCustomDescription}
+                    onChange={(event) => setAddBetweenCustomDescription(event?.target?.value || '')}
+                  />
+                </div>
+
                 <div className={styles.editTimelineField}>
                   <span className={styles.editTimelineLabel}>Address (optional)</span>
                   <Input
@@ -4916,6 +5410,7 @@ const ItineraryResultPage = () => {
                   className={styles.customLocationAddButton}
                   loading={addingCustomLocation}
                   onClick={handleConfirmAddCustomLocation}
+                  disabled={!selectedAddBetweenCustomLocationTypeId}
                 >
                   Add Custom Location
                 </Button>
