@@ -36,8 +36,8 @@ import AccommodationDetailModal from '../components/AccommodationDetailModal';
 import {
   NavigationArrow,
   MapPinLine,
+  ArrowUUpLeft,
   ForkKnife,
-  SignIn,
   SignOut,
   SuitcaseRolling,
   Star,
@@ -72,11 +72,11 @@ const EVENT_BADGES = {
     bg: 'rgba(255, 107, 107, 0.15)'
   },
   'check-in': {
-    badge: <SignIn size={24} weight="bold" color="#1A535C" />,
+    badge: <SuitcaseRolling size={24} weight="bold" color="#1A535C" />,
     bg: 'rgba(26, 83, 92, 0.1)'
   },
   'hotel-return': {
-    badge: <SignIn size={24} weight="bold" color="#1A535C" />,
+    badge: <ArrowUUpLeft size={24} weight="bold" color="#1A535C" />,
     bg: 'rgba(26, 83, 92, 0.1)'
   },
   'check-out': {
@@ -2244,6 +2244,9 @@ const ItineraryResultPage = () => {
         || currentItem?.Type
       );
       const previousCostAmount = Math.round(Math.max(0, getTimelineItemCostAmount(currentItem)));
+      const isCostManuallyEdited = normalizedCostAmount !== previousCostAmount
+        ? true
+        : Boolean(currentItem?.isCostManuallyEdited || currentItem?.IsCostManuallyEdited);
 
       const updatedBaseItem = {
         ...currentItem,
@@ -2255,6 +2258,8 @@ const ItineraryResultPage = () => {
         CostForGroup: updatedCost,
         ticketCost: updatedCost,
         TicketCost: updatedCost,
+        isCostManuallyEdited,
+        IsCostManuallyEdited: isCostManuallyEdited,
       };
 
       const canChangeLocation = isEditableLocationEvent(currentItem) && editTimelineModal?.canChangeLocation;
@@ -3430,18 +3435,6 @@ const ItineraryResultPage = () => {
     ?? (accommodationCostFallback + timelineCostBreakdown.meal + timelineCostBreakdown.other)
   );
   const usableBudgetValue = getMoneyAmount(budgetSummary?.usableBudget || budgetSummary?.UsableBudget) || 0;
-  const mealCostMoney = {
-    amount: Math.round(
-      getMoneyAmount(
-        budgetSummary?.estimatedMealCost
-        || budgetSummary?.EstimatedMealCost
-        || budgetSummary?.mealCost
-        || budgetSummary?.MealCost
-      )
-      ?? timelineCostBreakdown.meal
-    ),
-    currency: tripCurrencyCode,
-  };
   const summaryRemainingValue = getMoneyAmount(budgetSummary?.remainingBudget || budgetSummary?.RemainingBudget);
   const remainingBudgetMoney = {
     amount: Math.round(summaryRemainingValue ?? (usableBudgetValue - estimatedTotalValue)),
@@ -3468,12 +3461,6 @@ const ItineraryResultPage = () => {
         label: 'Estimated Total',
         value: formatMoney({ amount: Math.round(estimatedTotalValue), currency: tripCurrencyCode }),
         className: styles.budgetEstimatedValue,
-      },
-      {
-        key: 'mealCost',
-        label: 'Meal Cost',
-        value: formatMoney(mealCostMoney),
-        className: styles.budgetMealValue,
       },
       {
         key: 'remainingBudget',
@@ -4009,6 +3996,11 @@ const ItineraryResultPage = () => {
                           const canAddPoint = canRemoveLocation;
 
                           const displayCost = costForGroup || ticketCost;
+                          const displayCostAmount = getMoneyAmount(displayCost);
+                          const hasPositiveDisplayCost = displayCostAmount != null && displayCostAmount > 0;
+                          const isEditedZeroCost = (displayCostAmount != null && displayCostAmount <= 0)
+                            && Boolean(item?.isCostManuallyEdited || item?.IsCostManuallyEdited);
+                          const shouldShowFreeCost = !hasPositiveDisplayCost && !isEditedZeroCost;
 
                           const renderActions = () => (
                             <div className={styles.cardActions}>
@@ -4265,11 +4257,11 @@ const ItineraryResultPage = () => {
                                             ))}
                                           </div>
                                         )}
-                                        {displayCost && (displayCost.amount || displayCost.Amount) > 0 ? (
+                                        {hasPositiveDisplayCost ? (
                                           <div className={styles.costAmount} style={{ marginTop: 8 }}>{formatMoney(displayCost)}</div>
-                                        ) : (
+                                        ) : shouldShowFreeCost ? (
                                           <div className={styles.costFree} style={{ marginTop: 8 }}>Free</div>
-                                        )}
+                                        ) : null}
                                         {renderActions()}
                                       </div>
                                       {mediaUrls.length > 0 && (
@@ -4335,11 +4327,11 @@ const ItineraryResultPage = () => {
                                             ))}
                                           </div>
                                         )}
-                                        {displayCost && (displayCost.amount || displayCost.Amount) > 0 ? (
+                                        {hasPositiveDisplayCost ? (
                                           <div className={styles.costAmount} style={{ marginTop: 8 }}>{formatMoney(displayCost)}</div>
-                                        ) : (
+                                        ) : shouldShowFreeCost ? (
                                           <div className={styles.costFree} style={{ marginTop: 8 }}>Free</div>
-                                        )}
+                                        ) : null}
                                         {renderActions()}
                                       </div>
                                       {mediaUrls.length > 0 && (

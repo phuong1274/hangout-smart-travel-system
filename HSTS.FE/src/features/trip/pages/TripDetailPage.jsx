@@ -38,7 +38,6 @@ import {
   NavigationArrow,
   MapPinLine,
   ForkKnife,
-  SignIn,
   SignOut,
   SuitcaseRolling,
   ShoppingBag,
@@ -61,7 +60,7 @@ import styles from '../styles/ItineraryResultPage.module.css';
 const { Title, Text } = Typography;
 
 const EVENT_BADGES = {
-  CheckIn: { badge: <SignIn size={24} weight="bold" color="#1A535C" />, bg: 'rgba(26, 83, 92, 0.1)' },
+  CheckIn: { badge: <SuitcaseRolling size={24} weight="bold" color="#1A535C" />, bg: 'rgba(26, 83, 92, 0.1)' },
   CheckOut: { badge: <SignOut size={24} weight="bold" color="#1A535C" />, bg: 'rgba(26, 83, 92, 0.1)' },
   Travel: { badge: <NavigationArrow size={24} weight="bold" color="#D89A00" />, bg: 'rgba(255, 230, 109, 0.3)' },
   Visit: { badge: <MapPinLine size={24} weight="bold" color="#24A096" />, bg: 'rgba(78, 205, 196, 0.2)' },
