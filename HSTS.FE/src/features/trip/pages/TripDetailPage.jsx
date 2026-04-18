@@ -48,7 +48,10 @@ import {
   deleteExpenseApi, 
   batchUpdateActivityStatusApi, 
   getBudgetVsActualExportApi,
-  updateTripStatusApi
+  updateTripStatusApi,
+  updateTripApi,
+  getProvincesApi,
+  getLocationByIdApi
 } from '../api';
 import {
   NavigationArrow,
@@ -60,13 +63,7 @@ import {
 } from '@phosphor-icons/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi, batchUpdateActivityStatusApi, getBudgetVsActualExportApi, updateTripApi } from '../api';
 import { useAuthStore } from '@/store/authStore';
-import { PATHS } from '@/routes/paths';
-import {
-  getProvincesApi,
-  getLocationByIdApi,
-} from '../api';
 import LocationDetailModal from '../components/LocationDetailModal';
 import TransportDetailModal from '../components/TransportDetailModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
@@ -737,124 +734,10 @@ const TripDetailPage = () => {
           </div>
         </Card>
 
-        {/* Budget Summary */}
         {summary && (
           <Card
             className={styles.budgetCard}
-            title="Budget Summary"
-            extra={
-              <Space size="small">
-                <Button
-                  type="link"
-                  size="small"
-                  icon={<ExportOutlined />}
-                  loading={exporting}
-                  onClick={handleExportPdf}
-                >
-                  Export PDF
-                </Button>
-                <Button
-                  type="link"
-                  size="small"
-                  onClick={() => setShowBudgetDetails((prev) => !prev)}
-                >
-                  {showBudgetDetails ? 'Hide details' : 'Show details'}
-                </Button>
-              </Space>
-            }
-            size="small"
-          >
-            <Row gutter={[16, 16]}>
-              <Col span={6}>
-                <Statistic
-                  title="Total Budget"
-                  value={summary.totalBudget}
-                  precision={0}
-                  valueStyle={{ color: '#1890ff' }}
-                  suffix={currency}
-                />
-              </Col>
-              <Col span={6}>
-                <Statistic
-                  title="Estimated Total"
-                  value={summary.estimatedTotalCost}
-                  precision={0}
-                  valueStyle={{ color: '#faad14' }}
-                  suffix={currency}
-                />
-              </Col>
-              <Col span={6}>
-                <Statistic
-                  title="Total Spent"
-                  value={totalActual}
-                  precision={0}
-                  valueStyle={{ color: budgetStatusColor }}
-                  suffix={currency}
-                />
-              </Col>
-              <Col span={6}>
-                <Statistic
-                  title="Remaining (Usable)"
-                  value={usableRemaining}
-                  precision={0}
-                  valueStyle={{ color: usableRemaining >= 0 ? '#52c41a' : '#ff4d4f' }}
-                  suffix={currency}
-                />
-              </Col>
-            </Row>
-
-            {showCaution && (
-              <div style={{ marginTop: 12, padding: '4px 12px', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 4 }}>
-                <Text type="danger" strong>
-                  <ClockCircleOutlined style={{ marginRight: 8 }} />
-                  Caution: Budget limit reached (80% of usable budget spent)
-                </Text>
-              </div>
-            )}
-
-            {/* Budget Progress Bar */}
-            <div style={{ marginTop: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text type="secondary">Budget Usage (vs Usable Budget)</Text>
-                {usableBudget > 0 ? (
-                  <Text strong style={{ color: budgetUsagePercent > 100 ? '#ff4d4f' : budgetUsagePercent >= 80 ? '#faad14' : '#52c41a' }}>
-                    {budgetUsagePercent.toFixed(1)}%
-                  </Text>
-                ) : (
-                  <Text strong>N/A</Text>
-                )}
-              </div>
-              <Progress
-                percent={usableBudget > 0 ? Math.min(budgetUsagePercent, 100) : 0}
-                strokeColor={budgetUsagePercent > 100 ? '#ff4d4f' : budgetUsagePercent >= 80 ? '#faad14' : '#52c41a'}
-                status={usableBudget > 0 && budgetUsagePercent > 100 ? 'exception' : 'normal'}
-                showInfo={false}
-              />
-            </div>
-            <div className={styles.headerMeta} style={{ marginTop: 16 }}>
-              <span className={styles.headerMetaItem}>
-                <CalendarOutlined style={{ marginRight: 4 }} />
-                {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
-              </span>
-              <span className={styles.headerMetaItem}>
-                <TeamOutlined style={{ marginRight: 4 }} />
-                {trip.tripMembers?.length || 0} member(s)
-              </span>
-              <span className={styles.headerMetaItem}>
-                <DollarOutlined style={{ marginRight: 4 }} />
-                {currency}
-              </span>
-              <span className={styles.headerMetaItem}>
-                Status: <Tag color={getTripStatusConfig(trip.status).color} style={{ borderRadius: 9999, padding: '0 12px', fontWeight: 600, border: 'none' }}>{getTripStatusConfig(trip.status).label}</Tag>
-              </span>
-            </div>
-          </Card>
-
-          {summary && (
-            <Card
-              className={styles.budgetCard}
-              title={<div className={styles.budgetCardHeader}><span>Budget Summary</span></div>}
-              extra={
+            title={<div className={styles.budgetCardHeader}><span>Budget Summary</span></div>}              extra={
                 <div className={styles.sectionToggleRow}>
                   <Button
                     size="small"
@@ -1515,7 +1398,6 @@ const TripDetailPage = () => {
           </Modal>
         </div>
       </div>
-    </ConfigProvider>
   );
 };
 
