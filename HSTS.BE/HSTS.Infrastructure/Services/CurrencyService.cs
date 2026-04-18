@@ -34,11 +34,32 @@ namespace HSTS.Infrastructure.Services
             if (_cache.TryGetValue(CacheKey, out Dictionary<string, decimal>? cached) && cached is not null)
                 return cached;
 
-            var rates = await FetchRatesFromApiAsync(cancellationToken);
+            try
+            {
+                var rates = await FetchRatesFromApiAsync(cancellationToken);
 
-            _cache.Set(CacheKey, rates, TimeSpan.FromMinutes(_settings.CacheMinutes));
+                _cache.Set(CacheKey, rates, TimeSpan.FromMinutes(_settings.CacheMinutes));
 
-            return rates;
+                // Save to fallback cache with NeverRemove priority so it persists beyond normal expiration
+                var fallbackOptions = new MemoryCacheEntryOptions()
+                    .SetPriority(CacheItemPriority.NeverRemove);
+                _cache.Set(CacheKey + "_Fallback", rates, fallbackOptions);
+
+                return rates;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to fetch fresh exchange rates. Attempting to use stale cache fallback.");
+                
+                if (_cache.TryGetValue(CacheKey + "_Fallback", out Dictionary<string, decimal>? staleCached) && staleCached is not null)
+                {
+                    _logger.LogInformation("Using stale exchange rates from fallback cache.");
+                    return staleCached;
+                }
+                
+                _logger.LogError("No stale cache available for exchange rates. Bubbling up exception.");
+                throw;
+            }
         }
 
         public async Task<ConvertedAmount> ConvertFromVndAsync(decimal vndAmount, string targetCurrency, CancellationToken cancellationToken = default)
