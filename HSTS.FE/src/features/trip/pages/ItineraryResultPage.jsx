@@ -1163,8 +1163,6 @@ const ItineraryResultPage = () => {
   const [selectedAddBetweenCustomLocationTypeId, setSelectedAddBetweenCustomLocationTypeId] = useState(null);
   const [addBetweenCustomDescription, setAddBetweenCustomDescription] = useState('');
   const [addBetweenCustomAddress, setAddBetweenCustomAddress] = useState('');
-  const [addBetweenCustomDescription, setAddBetweenCustomDescription] = useState('');
-  const [selectedAddBetweenCustomLocationTypeId, setSelectedAddBetweenCustomLocationTypeId] = useState(null);
   const [addBetweenCustomLat, setAddBetweenCustomLat] = useState(null);
   const [addBetweenCustomLng, setAddBetweenCustomLng] = useState(null);
   const [addBetweenCustomStartTime, setAddBetweenCustomStartTime] = useState('');
