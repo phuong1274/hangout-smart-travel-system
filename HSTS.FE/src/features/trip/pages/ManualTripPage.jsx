@@ -213,7 +213,7 @@ const getPreferredTransportOptionIndex = (options, travel) => {
   }
 
   const indexFromDraft = Number(travel?.selectedOptionIndex);
-  if (Number.isInteger(indexFromDraft) && indexFromDraft >= 0 && indexFromDraft < options.length) {
+  if (travel?.selectedOptionIndex != null && Number.isInteger(indexFromDraft) && indexFromDraft >= 0 && indexFromDraft < options.length) {
     return indexFromDraft;
   }
 
@@ -471,22 +471,26 @@ const convertDetailDaysToBuilderDays = (tripDays) => {
         endTime: normalizeTimeOnly(act.endTime),
         customLocation: null,
         travelFromPrevious: transport
-          ? {
-              distanceKm: Math.max(0, toNumberOrDefault(transport.transport?.distanceKm, 0)),
-              travelMinutes: Math.max(0, toNumberOrDefault(transport.transport?.travelTimeMinutes, 0)),
-              costAmount: Math.max(0, toNumberOrDefault(transport.budget?.estimateCost, 0)),
-              costCurrency: 'VND',
-              transportModeId: toPositiveIntOrNull(transport.transport?.transportModeId),
-              transportModeName: String(transport.transport?.transportModeName || '').trim() || null,
-              departureTime: normalizeTimeOnly(transport.startTime),
-              arrivalTime: normalizeTimeOnly(transport.endTime),
-              fromName: null,
-              toName: null,
-              selectedOptionIndex: null,
-              manualCostOverride: true,
-              isCustomTransport: true,
-              transportOptions: [],
-            }
+          ? (() => {
+              const savedModeId = toPositiveIntOrNull(transport.transport?.transportModeId);
+              const isCustom = savedModeId == null;
+              return {
+                distanceKm: Math.max(0, toNumberOrDefault(transport.transport?.distanceKm, 0)),
+                travelMinutes: Math.max(0, toNumberOrDefault(transport.transport?.travelTimeMinutes, 0)),
+                costAmount: Math.max(0, toNumberOrDefault(transport.budget?.estimateCost, 0)),
+                costCurrency: 'VND',
+                transportModeId: savedModeId,
+                transportModeName: String(transport.transport?.transportModeName || '').trim() || null,
+                departureTime: normalizeTimeOnly(transport.startTime),
+                arrivalTime: normalizeTimeOnly(transport.endTime),
+                fromName: null,
+                toName: null,
+                selectedOptionIndex: null,
+                manualCostOverride: isCustom,
+                isCustomTransport: isCustom,
+                transportOptions: [],
+              };
+            })()
           : null,
         estimatedCost: Math.max(0, toNumberOrDefault(act.budget?.estimateCost, 0)),
       });
@@ -1297,7 +1301,7 @@ const ManualTripPage = () => {
   // Estimates the travel leg from the last activity of the previous day to the first
   // activity of the current day. Returns an updated version of `toActivity` with
   // `travelFromPrevious` populated (or the original if estimation fails/has no endpoints).
-  const estimateCrossDayTravel = useCallback(async (fromActivity, toActivity) => {
+  const estimateCrossDayTravel = useCallback(async (fromActivity, toActivity, existingTravel = null) => {
     if (!tripInfo) return toActivity;
 
     const fromEndpoint = getActivityEndpointForEstimate(fromActivity, 'from');
@@ -1329,7 +1333,9 @@ const ManualTripPage = () => {
         ?? travelLeg?.options ?? travelLeg?.Options,
         currencyCode,
       );
-      const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, null);
+      // Prefer restoring saved selection (by transportModeId/name) over just picking the recommended one
+      const travelHint = existingTravel && !existingTravel.isCustomTransport ? existingTravel : null;
+      const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, travelHint);
       const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
 
       const resolvedTravelMinutes = Math.max(1, toNumberOrDefault(selectedOption?.travelMinutes, travelMinutesFromLeg || 1));
@@ -1338,7 +1344,11 @@ const ManualTripPage = () => {
       const desiredDuration = durationBetweenTimes(toActivity.startTime, toActivity.endTime);
       const autoEnd = addMinutesToTime(autoStart, desiredDuration);
 
-      const resolvedCostAmount = Math.max(0, toNumberOrDefault(selectedOption?.costAmount, travelCostFromLeg));
+      const hasManualCostOverride = Boolean(travelHint?.manualCostOverride);
+      const optionCost = Math.max(0, toNumberOrDefault(selectedOption?.costAmount, travelCostFromLeg));
+      const resolvedCostAmount = hasManualCostOverride && travelHint?.costAmount != null
+        ? Math.max(0, toNumberOrDefault(travelHint.costAmount, optionCost))
+        : optionCost;
       const resolvedTransportModeId = toPositiveIntOrNull(selectedOption?.transportModeId) || transportModeIdFromLeg;
       const resolvedTransportModeName = pickFirstText(
         selectedOption?.method,
@@ -1696,6 +1706,7 @@ const ManualTripPage = () => {
       .map((day, dayIndex) => ({ day, dayIndex }))
       .filter(({ day }) => (day.activities || []).some((activity, activityIndex) => {
         if (activityIndex <= 0 || !activity?.travelFromPrevious) return false;
+        if (activity.travelFromPrevious.isCustomTransport) return false;
         const options = normalizeTransportOptions(
           activity?.travelFromPrevious?.transportOptions
           ?? activity?.travelFromPrevious?.TransportOptions,
@@ -1704,7 +1715,23 @@ const ManualTripPage = () => {
         return options.length === 0;
       }));
 
-    // Days whose first activity is missing cross-day travel (non-first days with activities)
+    // Days whose first activity (non-first day) has travelFromPrevious set but no transport options fetched yet
+    const daysNeedingCrossDayIntraDayBackfill = manualDays
+      .map((day, dayIndex) => ({ day, dayIndex }))
+      .filter(({ day, dayIndex }) => {
+        if (dayIndex === 0) return false;
+        const firstActivity = day.activities?.[0];
+        if (!firstActivity?.travelFromPrevious) return false;
+        if (firstActivity.travelFromPrevious.isCustomTransport) return false;
+        const options = normalizeTransportOptions(
+          firstActivity.travelFromPrevious.transportOptions
+          ?? firstActivity.travelFromPrevious.TransportOptions,
+          currencyCode,
+        );
+        return options.length === 0;
+      });
+
+    // Days whose first activity is missing cross-day travel entirely (non-first days with activities)
     const daysNeedingCrossDayBackfill = manualDays
       .map((day, dayIndex) => ({ day, dayIndex }))
       .filter(({ day, dayIndex }) => {
@@ -1717,8 +1744,12 @@ const ManualTripPage = () => {
 
     const daysNeedingBackfill = [
       ...daysNeedingIntraDayBackfill,
-      ...daysNeedingCrossDayBackfill.filter(
+      ...daysNeedingCrossDayIntraDayBackfill.filter(
         ({ dayIndex }) => !daysNeedingIntraDayBackfill.some((d) => d.dayIndex === dayIndex),
+      ),
+      ...daysNeedingCrossDayBackfill.filter(
+        ({ dayIndex }) => !daysNeedingIntraDayBackfill.some((d) => d.dayIndex === dayIndex)
+          && !daysNeedingCrossDayIntraDayBackfill.some((d) => d.dayIndex === dayIndex),
       ),
     ];
 
@@ -1732,6 +1763,9 @@ const ManualTripPage = () => {
     const backfill = async () => {
       try {
         const updates = await Promise.all(daysNeedingBackfill.map(async ({ dayIndex, day }) => {
+          // Preserve existing cross-day travelFromPrevious before recalculate strips it
+          const originalFirstTravel = dayIndex > 0 ? (day.activities?.[0]?.travelFromPrevious ?? null) : null;
+
           let nextActivities = await recalculateDayTravelAndEstimate(day.activities || []);
 
           // Also apply cross-day travel for the first activity if it's a non-first day
@@ -1740,7 +1774,7 @@ const ManualTripPage = () => {
             const prevLastActivity = prevDay?.activities?.[prevDay.activities.length - 1];
             if (prevLastActivity) {
               nextActivities = [
-                await estimateCrossDayTravel(prevLastActivity, nextActivities[0]),
+                await estimateCrossDayTravel(prevLastActivity, nextActivities[0], originalFirstTravel),
                 ...nextActivities.slice(1),
               ];
             }
