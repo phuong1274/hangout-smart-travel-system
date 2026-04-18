@@ -38,7 +38,17 @@ import {
   PlusOutlined,
   ExportOutlined,
 } from '@ant-design/icons';
-import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi, batchUpdateActivityStatusApi, getBudgetVsActualExportApi } from '../api';
+import { 
+  getTripDetailApi, 
+  updateTripActivityStatusApi, 
+  logActualExpenseApi, 
+  updateExpenseApi, 
+  getExpensesByActivityApi, 
+  deleteExpenseApi, 
+  batchUpdateActivityStatusApi, 
+  getBudgetVsActualExportApi,
+  updateTripStatusApi
+} from '../api';
 import { useAuthStore } from '@/store/authStore';
 import {
   getProvincesApi,
@@ -72,15 +82,15 @@ const ACTIVITY_STATUS_CONFIG = {
 };
 
 const TRIP_STATUS_CONFIG = {
-  0: { label: 'Planned', color: 'default' },
-  1: { label: 'In Progress', color: 'processing' },
-  2: { label: 'Completed', color: 'success' },
-  3: { label: 'Cancelled', color: 'error' },
+  0: { label: 'Planned', color: 'default', nextStatus: 1, nextLabel: 'Start Trip' },
+  1: { label: 'In Progress', color: 'processing', nextStatus: 2, nextLabel: 'Complete Trip' },
+  2: { label: 'Completed', color: 'success', nextStatus: null, nextLabel: null },
+  3: { label: 'Cancelled', color: 'error', nextStatus: null, nextLabel: null },
 };
 
 const getTripStatusConfig = (status) => {
   const key = typeof status === 'number' ? status : Number(status);
-  return TRIP_STATUS_CONFIG[key] || { label: `Unknown (${status})`, color: 'default' };
+  return TRIP_STATUS_CONFIG[key] || { label: `Unknown (${status})`, color: 'default', nextStatus: null, nextLabel: null };
 };
 
 const formatMoney = (amount, currency = 'VND') => {
@@ -109,6 +119,7 @@ const TripDetailPage = () => {
   const { user } = useAuthStore();
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statusUpdating, setStatusUpdating] = useState(false);
   const [provinceNameById, setProvinceNameById] = useState(new Map());
   const [locationNameById, setLocationNameById] = useState(new Map());
   const [locationMediaById, setLocationMediaById] = useState(new Map());
@@ -261,6 +272,27 @@ const TripDetailPage = () => {
   // Find the current user's TripMember id for this trip
   const currentUserId = user?.id;
   const myMember = trip?.tripMembers?.find(m => m.userId === currentUserId);
+  const isLeader = myMember?.role === 'Leader'; // TripRole.Leader
+
+  // Handle manual trip status update
+  const handleUpdateTripStatus = useCallback(async () => {
+    const currentStatus = trip?.status ?? 0;
+    const config = getTripStatusConfig(currentStatus);
+
+    if (config.nextStatus === null) return;
+
+    setStatusUpdating(true);
+    try {
+      await updateTripStatusApi(Number(id), config.nextStatus);
+      message.success(`Trip status updated to "${getTripStatusConfig(config.nextStatus).label}"`);
+      await refetchTrip();
+    } catch (err) {
+      console.error('Failed to update trip status:', err);
+      message.error(err?.response?.data?.message || 'Failed to update trip status');
+    } finally {
+      setStatusUpdating(false);
+    }
+  }, [id, trip, refetchTrip]);
 
   // Handle activity status update
   const handleUpdateActivityStatus = useCallback(async (activityId, skipConfirm = false) => {
@@ -446,11 +478,16 @@ const TripDetailPage = () => {
 
   // Budget status calculation
   const totalBudget = summary?.totalBudget || 0;
+  const usableBudget = summary?.usableBudget || 0;
   // Calculate total spent from all expense logs
   const totalActual = Object.values(activityExpenses).reduce(
     (sum, expenses) => sum + expenses.reduce((a, e) => a + (e.totalAmount || 0), 0), 0
   );
   const totalEstimated = summary?.estimatedTotalCost || 0;
+  const usableRemaining = usableBudget - totalActual;
+  const budgetUsagePercent = usableBudget > 0 ? (totalActual / usableBudget) * 100 : 0;
+  const showCaution = usableBudget > 0 && budgetUsagePercent >= 80;
+
   const variance = totalActual - totalEstimated;
   const hasBudget = totalEstimated > 0;
   const budgetPercent = hasBudget ? (totalActual / totalEstimated) * 100 : 0;
@@ -552,6 +589,18 @@ const TripDetailPage = () => {
             </span>
             <span className={styles.headerMetaItem}>
               Status: <Tag color={getTripStatusConfig(trip.status).color}>{getTripStatusConfig(trip.status).label}</Tag>
+              {isLeader && getTripStatusConfig(trip.status).nextStatus !== null && (
+                <Button 
+                  type="primary" 
+                  size="small" 
+                  loading={statusUpdating}
+                  onClick={handleUpdateTripStatus}
+                  icon={trip.status === 0 ? <PlayCircleOutlined /> : <CheckCircleOutlined />}
+                  style={{ marginLeft: 8 }}
+                >
+                  {getTripStatusConfig(trip.status).nextLabel}
+                </Button>
+              )}
             </span>
           </div>
         </Card>
@@ -613,29 +662,40 @@ const TripDetailPage = () => {
               </Col>
               <Col span={6}>
                 <Statistic
-                  title="Remaining"
-                  value={summary.remainingBudget}
+                  title="Remaining (Usable)"
+                  value={usableRemaining}
                   precision={0}
-                  valueStyle={{ color: summary.remainingBudget >= 0 ? '#52c41a' : '#ff4d4f' }}
+                  valueStyle={{ color: usableRemaining >= 0 ? '#52c41a' : '#ff4d4f' }}
                   suffix={currency}
                 />
               </Col>
             </Row>
 
+            {showCaution && (
+              <div style={{ marginTop: 12, padding: '4px 12px', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 4 }}>
+                <Text type="danger" strong>
+                  <ClockCircleOutlined style={{ marginRight: 8 }} />
+                  Caution: Budget limit reached (80% of usable budget spent)
+                </Text>
+              </div>
+            )}
+
             {/* Budget Progress Bar */}
             <div style={{ marginTop: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text type="secondary">Budget Usage</Text>
-                {hasBudget ? (
-                  <Text strong style={{ color: budgetStatusColor }}>{budgetStatusText} ({budgetPercent.toFixed(1)}%)</Text>
+                <Text type="secondary">Budget Usage (vs Usable Budget)</Text>
+                {usableBudget > 0 ? (
+                  <Text strong style={{ color: budgetUsagePercent > 100 ? '#ff4d4f' : budgetUsagePercent >= 80 ? '#faad14' : '#52c41a' }}>
+                    {budgetUsagePercent.toFixed(1)}%
+                  </Text>
                 ) : (
-                  <Text strong style={{ color: budgetStatusColor }}>{budgetStatusText}</Text>
+                  <Text strong>N/A</Text>
                 )}
               </div>
               <Progress
-                percent={hasBudget ? Math.min(budgetPercent, 100) : 0}
-                strokeColor={budgetStatusColor}
-                status={hasBudget && budgetPercent > 100 ? 'exception' : 'normal'}
+                percent={usableBudget > 0 ? Math.min(budgetUsagePercent, 100) : 0}
+                strokeColor={budgetUsagePercent > 100 ? '#ff4d4f' : budgetUsagePercent >= 80 ? '#faad14' : '#52c41a'}
+                status={usableBudget > 0 && budgetUsagePercent > 100 ? 'exception' : 'normal'}
                 showInfo={false}
               />
             </div>
@@ -755,8 +815,8 @@ const TripDetailPage = () => {
                                       </Text>
                                     </div>
                                   )}
-                                  {/* Show budget info if budget exists */}
-                                  {budget && (
+                                  {/* Show budget info if budget is allocated */}
+                                  {budget && estimatedCost > 0 && (
                                     <div style={{ marginTop: 6 }}>
                                       <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
                                         <span>
@@ -769,14 +829,6 @@ const TripDetailPage = () => {
                                         )}
                                       </div>
                                       {totalExpenses > 0 && (() => {
-                                        const hasBudget = estimatedCost > 0;
-                                        if (!hasBudget) {
-                                          return (
-                                            <div style={{ marginTop: 4 }}>
-                                              <Text strong style={{ color: '#1890ff', fontSize: 11 }}>No Budget Set</Text>
-                                            </div>
-                                          );
-                                        }
                                         const variance = totalExpenses - estimatedCost;
                                         const budgetPercent = (totalExpenses / estimatedCost) * 100;
                                         const isOverBudget = variance > 0;
@@ -801,8 +853,8 @@ const TripDetailPage = () => {
                                       })()}
                                     </div>
                                   )}
-                                  {/* Show spent amount even without budget */}
-                                  {!budget && totalExpenses > 0 && (
+                                  {/* Show spent amount if no budget allocated but expenses exist */}
+                                  {(!budget || estimatedCost <= 0) && totalExpenses > 0 && (
                                     <div style={{ marginTop: 6 }}>
                                       <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
                                         <span>

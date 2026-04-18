@@ -171,6 +171,11 @@ export const deleteTripApi = (id) => {
   return apiClient.delete(`/api/trips/${id}`).then(res => res.data);
 };
 
+// Update trip status
+export const updateTripStatusApi = (id, status) => {
+  return apiClient.patch(`/api/trips/${id}/status`, { status }).then(res => res.data);
+};
+
 // Update trip activity status
 // Status flow: Upcoming (0) -> InProgress (1) -> Completed (2)
 export const updateTripActivityStatusApi = (activityId, status) => {

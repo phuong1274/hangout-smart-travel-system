@@ -27,6 +27,8 @@ namespace HSTS.Infrastructure.Persistence.Configurations
 
             builder.Ignore(t => t.StartingLocation);
 
+            builder.HasQueryFilter(x => !x.IsDeleted);
+
             builder.HasMany(t => t.TripMembers)
                 .WithOne(tm => tm.Trip)
                 .HasForeignKey(tm => tm.TripId)
