@@ -32,6 +32,12 @@ const getStatusLabel = (status) => {
   return status || 'Planned';
 };
 
+const formatDateLocal = (dateString) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+};
+
 const TripsPage = () => {
   const navigate = useNavigate();
   const { data: trips, loading, handleDelete, refetch: refetchTrips } = useTrips();
@@ -208,15 +214,86 @@ const TripsPage = () => {
       ),
       children: (
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
-          <Table
-            className={styles.tropicalTable}
-            columns={columns}
-            dataSource={currentTableData}
-            rowKey="id"
-            loading={loading}
-            scroll={{ x: 800 }}
-            pagination={false}
-          />
+          <div className={styles.tableContainer}>
+            <Table
+              className={styles.tropicalTable}
+              columns={columns}
+              dataSource={currentTableData}
+              rowKey="id"
+              loading={loading}
+              scroll={{ x: 800 }}
+              pagination={false}
+            />
+          </div>
+          
+          <div className={styles.cardContainer}>
+            {currentTableData.map((item) => (
+              <div key={item.id} className={styles.tripMobileCard}>
+                <div className={styles.cardHeader}>
+                  <Link to={PATHS.TRIP_DETAIL.replace(':id', item.id)} className={styles.cardTripName}>
+                    {item.tripName}
+                  </Link>
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.cardInfoRow}>
+                    <div className={styles.infoCol}>
+                      <span className={styles.infoLabel}>Start Date</span>
+                      <span className={styles.infoValue}>{formatDateLocal(item.startDate)}</span>
+                    </div>
+                    <div className={styles.infoCol}>
+                      <span className={styles.infoLabel}>End Date</span>
+                      <span className={styles.infoValue}>{formatDateLocal(item.endDate)}</span>
+                    </div>
+                  </div>
+                  <div className={styles.cardInfoRow}>
+                    <div className={styles.infoCol}>
+                      <span className={styles.infoLabel}>Currency</span>
+                      <span className={styles.infoValue}>{item.currency}</span>
+                    </div>
+                    <div className={styles.infoCol}>
+                      <span className={styles.infoLabel}>Status</span>
+                      <div className={styles.infoValue}>
+                        <Tag 
+                          style={{ 
+                            backgroundColor: statusColors[getStatusLabel(item.status)] || '#E9ECEF', 
+                            color: (getStatusLabel(item.status) === 'InProgress' || getStatusLabel(item.status) === 'Planned' || getStatusLabel(item.status) === 'Completed') ? '#1A535C' : '#FFFFFF',
+                            border: 'none',
+                            borderRadius: 9999, 
+                            padding: '4px 12px', 
+                            fontWeight: 700,
+                            fontSize: '11px',
+                            textTransform: 'uppercase',
+                            margin: 0
+                          }}
+                        >
+                          {getStatusLabel(item.status)}
+                        </Tag>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.cardFooter}>
+                  <Button
+                    className={styles.cardActionBtn}
+                    onClick={() => navigate(PATHS.TRIP_DETAIL.replace(':id', item.id))}
+                  >
+                    View Details
+                  </Button>
+                  <Popconfirm
+                    title="Delete Trip"
+                    onConfirm={() => handleDelete(item.id)}
+                    okText="Yes"
+                    cancelText="No"
+                  >
+                    <Button danger className={styles.cardActionBtnDelete}>
+                      Delete
+                    </Button>
+                  </Popconfirm>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div className={styles.paginationContainer}>
             <AppPagination
               current={currentPage}

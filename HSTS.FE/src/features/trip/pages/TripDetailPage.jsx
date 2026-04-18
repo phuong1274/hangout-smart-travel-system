@@ -33,7 +33,6 @@ import {
   PlayCircleOutlined,
   ClockCircleFilled,
   PlusOutlined,
-  ExportOutlined,
   CheckCircleOutlined,
   FilePdfOutlined,
   EditOutlined,
@@ -742,19 +741,17 @@ const TripDetailPage = () => {
                   <Button
                     size="small"
                     className={styles.sectionToggleBtn}
-                    icon={<FilePdfOutlined />}
                     onClick={handleExportItineraryPdf}
                   >
-                    Export Itinerary PDF
+                    Download Itinerary PDF
                   </Button>
                   <Button
                     size="small"
                     className={styles.sectionToggleBtn}
-                    icon={<ExportOutlined />}
                     loading={exporting}
                     onClick={handleExportPdf}
                   >
-                    Export PDF
+                    Download Budget Report
                   </Button>
                   <Button
                     size="small"
