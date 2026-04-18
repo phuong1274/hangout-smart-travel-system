@@ -80,6 +80,46 @@
   font-weight: 700 !important;
 }
 
+.tripNameEditor {
+  margin-bottom: 10px;
+}
+
+.tripNameLabel {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: rgba(26, 83, 92, 0.78);
+}
+
+.tripNameInput {
+  border-radius: 12px !important;
+  border: 1px solid rgba(26, 83, 92, 0.2) !important;
+  background: rgba(255, 255, 255, 0.45) !important;
+  color: #1A535C !important;
+  font-family: 'Plus Jakarta Sans', 'Poppins', sans-serif !important;
+  font-size: clamp(24px, 4vw, 36px) !important;
+  font-weight: 700 !important;
+  line-height: 1.2;
+  padding: 10px 14px !important;
+}
+
+.tripNameInput::placeholder {
+  color: rgba(26, 83, 92, 0.55);
+}
+
+.tripNameInput:hover {
+  border-color: rgba(26, 83, 92, 0.35) !important;
+}
+
+.tripNameInput:focus,
+.tripNameInput:focus-visible {
+  border-color: rgba(26, 83, 92, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(26, 83, 92, 0.12) !important;
+}
+
 .headerMeta {
   color: rgba(26, 83, 92, 0.85);
   font-size: clamp(13px, 2vw, 15px);

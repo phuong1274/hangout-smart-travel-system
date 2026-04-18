@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Button,
   Card,
@@ -14,10 +14,10 @@ import {
   Typography,
   message,
 } from 'antd';
-import { ArrowRightOutlined, CalendarOutlined, TeamOutlined } from '@ant-design/icons';
+import { ArrowRightOutlined, CalendarOutlined, EnvironmentOutlined, TeamOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
-import { createTripApi } from '../api';
+import { createTripApi, getProvincesApi } from '../api';
 import { PATHS } from '@/routes/paths';
 import { useAuthStore } from '@/store/authStore';
 import styles from './ManualTripSetupPage.module.css';
@@ -29,16 +29,66 @@ const ManualTripSetupPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [submitting, setSubmitting] = useState(false);
+  const [provinces, setProvinces] = useState([]);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProvinces = async () => {
+      setLoadingProvinces(true);
+      try {
+        const response = await getProvincesApi();
+        const items = Array.isArray(response) ? response : response?.items || response?.Items || [];
+        if (!mounted) return;
+
+        const options = items
+          .map((item) => {
+            const id = Number(item?.id ?? item?.Id);
+            if (!Number.isFinite(id) || id <= 0) return null;
+
+            const englishName = String(item?.englishName || item?.EnglishName || '').trim();
+            const localName = String(item?.name || item?.Name || '').trim();
+            const name = englishName || localName || `Province #${id}`;
+
+            return { id, name };
+          })
+          .filter(Boolean);
+
+        setProvinces(options);
+      } catch {
+        if (mounted) {
+          setProvinces([]);
+          message.error('Cannot load provinces.');
+        }
+      } finally {
+        if (mounted) {
+          setLoadingProvinces(false);
+        }
+      }
+    };
+
+    loadProvinces();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSubmit = async (values) => {
     setSubmitting(true);
     try {
+      const selectedProvinceId = Number(values.startProvinceId);
+      const selectedProvince = provinces.find((province) => province.id === selectedProvinceId) || null;
+      const selectedProvinceName = selectedProvince?.name || null;
+
       const payload = {
         tripName: values.tripName.trim(),
         description: values.description?.trim() || null,
         startDate: values.startDate.format('YYYY-MM-DD'),
         endDate: values.endDate.format('YYYY-MM-DD'),
         groupSize: values.groupSize || 1,
+        startingLocation: selectedProvinceName,
         currency: values.currency || 'VND',
         profileId: user?.id,
       };
@@ -53,7 +103,15 @@ const ManualTripSetupPage = () => {
 
       message.success('Trip created. Continue adding day and location details.');
       navigate(`${PATHS.CREATE_TRIP_MANUAL_BUILDER}?tripId=${createdTripId}`, {
-        state: { tripInfo: result, tripId: createdTripId },
+        state: {
+          tripInfo: {
+            ...result,
+            startingLocation: selectedProvinceName,
+            StartingLocation: selectedProvinceName,
+          },
+          tripId: createdTripId,
+          defaultProvinceId: selectedProvince?.id || null,
+        },
       });
     } catch (error) {
       const errorMsg = error?.response?.data?.detail || error?.response?.data?.message || 'Failed to create trip';
@@ -150,7 +208,7 @@ const ManualTripSetupPage = () => {
                   </Form.Item>
                 </Col>
 
-                <Col xs={24} md={12}>
+                <Col xs={24} md={8}>
                   <Form.Item
                     label={<Space><TeamOutlined />Group Size</Space>}
                     name="groupSize"
@@ -160,7 +218,28 @@ const ManualTripSetupPage = () => {
                   </Form.Item>
                 </Col>
 
-                <Col xs={24} md={12}>
+                <Col xs={24} md={8}>
+                  <Form.Item
+                    label={<Space><EnvironmentOutlined />Province</Space>}
+                    name="startProvinceId"
+                    rules={[{ required: true, message: 'Please select province' }]}
+                  >
+                    <Select
+                      showSearch
+                      allowClear
+                      placeholder="Select province"
+                      loading={loadingProvinces}
+                      optionFilterProp="label"
+                      options={provinces.map((province) => ({
+                        label: province.name,
+                        value: province.id,
+                      }))}
+                      notFoundContent={loadingProvinces ? 'Loading provinces...' : 'No provinces'}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col xs={24} md={8}>
                   <Form.Item
                     label="Currency"
                     name="currency"

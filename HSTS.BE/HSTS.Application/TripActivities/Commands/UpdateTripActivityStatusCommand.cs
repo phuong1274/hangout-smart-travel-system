@@ -73,47 +73,6 @@ namespace HSTS.Application.TripActivities.Commands
 
             try
             {
-                // 1. Update trip status when starting any activity
-                if (newActivityStatus == TripActivityStatus.InProgress && trip.Status != TripStatus.InProgress)
-                {
-                    trip.Status = TripStatus.InProgress;
-                    _context.Trips.Update(trip);
-                }
-
-                // 2. When completing an activity, auto-complete remaining and possibly complete the trip
-                if (newActivityStatus == TripActivityStatus.Completed && trip.Status != TripStatus.Completed)
-                {
-                    // Find the "last" activity: highest DayNumber, then highest StartTime
-                    var lastActivity = await _context.TripActivities
-                        .Include(a => a.TripDay)
-                        .Where(a => a.TripDay.TripId == trip.Id)
-                        .OrderByDescending(a => a.TripDay.DayNumber)
-                        .ThenByDescending(a => a.StartTime)
-                        .FirstOrDefaultAsync(cancellationToken);
-
-                    var isLastActivity = lastActivity != null && lastActivity.Id == activity.Id;
-
-                    if (isLastActivity)
-                    {
-                        // Auto-complete any remaining incomplete activities from previous days
-                        var activitiesToAutoComplete = await _context.TripActivities
-                            .Where(a => a.TripDay.TripId == trip.Id
-                                && a.Status != TripActivityStatus.Completed
-                                && a.Id != activity.Id)
-                            .ToListAsync(cancellationToken);
-
-                        foreach (var prevActivity in activitiesToAutoComplete)
-                        {
-                            prevActivity.Status = TripActivityStatus.Completed;
-                            _context.TripActivities.Update(prevActivity);
-                        }
-
-                        // All activities are now completed
-                        trip.Status = TripStatus.Completed;
-                        _context.Trips.Update(trip);
-                    }
-                }
-
                 _context.TripActivities.Update(activity);
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);

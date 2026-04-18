@@ -126,10 +126,6 @@ export const router = createBrowserRouter([
     element: <SuspenseWrapper><AcceptInvitationPage /></SuspenseWrapper>
   },
   {
-    path: 'trips/:id',
-    element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
-  },
-  {
     element: <SuspenseWrapper><HybridTripLayout /></SuspenseWrapper>,
     children: [
       {

@@ -522,7 +522,6 @@ const saveDraftToStorage = (tripId, payload) => {
   try {
     localStorage.setItem(getDraftStorageKey(tripId), JSON.stringify(payload));
   } catch {
-    // Ignore storage write failures.
   }
 };
 
@@ -530,7 +529,6 @@ const clearDraftStorage = (tripId) => {
   try {
     localStorage.removeItem(getDraftStorageKey(tripId));
   } catch {
-    // Ignore storage remove failures.
   }
 };
 
@@ -589,6 +587,7 @@ const ManualTripPage = () => {
   const [savingTrip, setSavingTrip] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [tripId, setTripId] = useState(null);
+  const [defaultProvinceId, setDefaultProvinceId] = useState(null);
   const [tripInfo, setTripInfo] = useState(null);
   const [manualTotalBudget, setManualTotalBudget] = useState(null);
   const [manualDays, setManualDays] = useState([]);
@@ -647,14 +646,18 @@ const ManualTripPage = () => {
   useEffect(() => {
     const queryTripId = Number(searchParams.get('tripId'));
     const stateTripId = Number(location?.state?.tripId);
+    const stateDefaultProvinceId = Number(location?.state?.defaultProvinceId);
     const resolvedTripId = Number.isFinite(queryTripId) && queryTripId > 0
       ? queryTripId
       : (Number.isFinite(stateTripId) && stateTripId > 0 ? stateTripId : 0);
 
     setTripId(resolvedTripId > 0 ? resolvedTripId : null);
+    setDefaultProvinceId(Number.isFinite(stateDefaultProvinceId) && stateDefaultProvinceId > 0
+      ? stateDefaultProvinceId
+      : null);
     setEditMode(Boolean(location?.state?.editMode));
     setTransportOptionsBackfilled(false);
-  }, [location?.state?.tripId, location?.state?.editMode, searchParams]);
+  }, [location?.state?.tripId, location?.state?.defaultProvinceId, location?.state?.editMode, searchParams]);
 
   useEffect(() => {
     if (!tripId) return;
@@ -1052,7 +1055,7 @@ const ManualTripPage = () => {
 
   const resetAddLocationModal = useCallback(() => {
     setExistingLocationTypeId(null);
-    setExistingProvinceId(null);
+    setExistingProvinceId(defaultProvinceId);
     setExistingLocationId(null);
     setExistingLocations([]);
     setExistingLocationSearch('');
@@ -1069,7 +1072,7 @@ const ManualTripPage = () => {
     setCustomStartTime('08:00');
     setCustomEndTime('09:30');
     setCustomBudget(null);
-  }, []);
+  }, [defaultProvinceId]);
 
   const openAddLocationModal = (dayId) => {
     const targetDay = manualDays.find((day) => day.id === dayId);
@@ -2530,6 +2533,7 @@ const ManualTripPage = () => {
         width="min(1100px, 94vw)"
         footer={null}
         destroyOnClose
+        rootClassName={styles.pageShell}
       >
         <div className={styles.addBetweenModalBody}>
           <Text type="secondary" className={styles.addBetweenHint}>
