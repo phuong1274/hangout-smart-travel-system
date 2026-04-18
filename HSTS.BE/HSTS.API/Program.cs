@@ -113,6 +113,19 @@ namespace HSTS.API
             using (var scope = app.Services.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var applied = db.Database.GetAppliedMigrations().ToHashSet();
+                if (applied.Count == 0 && db.Database.CanConnect())
+                {
+                    // DB already has tables but no migration history — mark baseline as applied
+                    db.Database.ExecuteSqlRaw("""
+                        CREATE TABLE IF NOT EXISTS `__EFMigrationsHistory` (
+                            `MigrationId` varchar(150) NOT NULL,
+                            `ProductVersion` varchar(32) NOT NULL,
+                            PRIMARY KEY (`MigrationId`)
+                        );
+                        INSERT IGNORE INTO `__EFMigrationsHistory` VALUES ('20260416204737_BaselineAfterReset', '9.0.0');
+                        """);
+                }
                 db.Database.Migrate();
             }
 
