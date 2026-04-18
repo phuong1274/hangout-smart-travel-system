@@ -654,7 +654,7 @@ const CreateTripPage = () => {
                     {activeParentTagId && (
                       <div className={styles.rootTagBlock}>
                         <button type="button" className={`${styles.rootTagButton} ${selectedTagIds.includes(activeParentTagId) ? styles.rootTagButtonActive : ''}`} onClick={() => handleRootTagToggle(activeParentTagId)}>
-                          <span>{`Choose all: ${getDisplayNameWithEnglish(activeParentTag)}`}</span>
+                          <span>Choose all</span>
                           <span className={styles.rootTagMeta}>{selectedChildrenCount > 0 ? `${selectedChildrenCount} sub-categories` : ''}</span>
                         </button>
                         {activeParentChildren.length > 0 && (
