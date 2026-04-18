@@ -3,6 +3,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using HSTS.API.Middleware;
 using HSTS.Application.Auth.Interfaces;
+using HSTS.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -107,6 +108,12 @@ namespace HSTS.API
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
+
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                db.Database.Migrate();
+            }
 
             app.UseRateLimiter();
 
