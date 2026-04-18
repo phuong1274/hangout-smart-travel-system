@@ -147,6 +147,7 @@ namespace HSTS.API.Controllers
                 {
                     ErrorType.NotFound => NotFound(result.FirstError.Description),
                     ErrorType.Validation => BadRequest(result.FirstError.Description),
+                    ErrorType.Forbidden => StatusCode(403, result.FirstError.Description),
                     _ => Problem(result.FirstError.Description)
                 };
             }
@@ -164,11 +165,35 @@ namespace HSTS.API.Controllers
                 return result.FirstError.Type switch
                 {
                     ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Forbidden => Forbid(result.FirstError.Description),
                     _ => Problem(result.FirstError.Description)
                 };
             }
 
             return NoContent();
+        }
+
+        [HttpPatch("{id}/status")]
+        public async Task<IActionResult> UpdateTripStatus(int id, [FromBody] UpdateTripStatusRequest request, CancellationToken ct)
+        {
+            if (request.Status == null)
+            {
+                return BadRequest("Status is required.");
+            }
+
+            var result = await _mediator.Send(new UpdateTripStatusCommand(id, request.Status.Value), ct);
+
+            if (result.IsError)
+            {
+                return result.FirstError.Type switch
+                {
+                    ErrorType.NotFound => NotFound(result.FirstError.Description),
+                    ErrorType.Forbidden => Forbid(result.FirstError.Description),
+                    _ => Problem(result.FirstError.Description)
+                };
+            }
+
+            return Ok(new { message = "Trip status updated successfully." });
         }
 
         [HttpPatch("activities/{activityId}/status")]
@@ -242,6 +267,7 @@ namespace HSTS.API.Controllers
 
     }
 
+    public record UpdateTripStatusRequest(TripStatus? Status = null);
     public record UpdateTripActivityStatusRequest(TripActivityStatus? Status = null);
     public record BatchUpdateActivityStatusRequest(List<int> ActivityIdsToComplete, int ActivityIdToStart);
 }

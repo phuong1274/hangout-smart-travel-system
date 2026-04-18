@@ -15,6 +15,8 @@ import {
   Form,
   Input,
   InputNumber,
+  Select,
+  DatePicker,
   message,
   Tooltip,
   Popconfirm,
@@ -23,6 +25,7 @@ import {
   Carousel,
   Image,
 } from 'antd';
+import dayjs from 'dayjs';
 import {
   CalendarOutlined,
   TeamOutlined,
@@ -31,24 +34,35 @@ import {
   ClockCircleFilled,
   PlusOutlined,
   CheckCircleOutlined,
+  FilePdfOutlined,
+  EditOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
+import { 
+  getTripDetailApi, 
+  updateTripActivityStatusApi, 
+  logActualExpenseApi, 
+  updateExpenseApi, 
+  getExpensesByActivityApi, 
+  deleteExpenseApi, 
+  batchUpdateActivityStatusApi, 
+  getBudgetVsActualExportApi,
+  updateTripStatusApi,
+  updateTripApi,
+  getProvincesApi,
+  getLocationByIdApi
+} from '../api';
 import {
   NavigationArrow,
   MapPinLine,
   ForkKnife,
-  SignIn,
   SignOut,
   SuitcaseRolling,
   ShoppingBag,
 } from '@phosphor-icons/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi, batchUpdateActivityStatusApi, getBudgetVsActualExportApi } from '../api';
 import { useAuthStore } from '@/store/authStore';
-import {
-  getProvincesApi,
-  getLocationByIdApi,
-} from '../api';
 import LocationDetailModal from '../components/LocationDetailModal';
 import TransportDetailModal from '../components/TransportDetailModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
@@ -59,7 +73,7 @@ import styles from '../styles/ItineraryResultPage.module.css';
 const { Title, Text } = Typography;
 
 const EVENT_BADGES = {
-  CheckIn: { badge: <SignIn size={24} weight="bold" color="#1A535C" />, bg: 'rgba(26, 83, 92, 0.1)' },
+  CheckIn: { badge: <SuitcaseRolling size={24} weight="bold" color="#1A535C" />, bg: 'rgba(26, 83, 92, 0.1)' },
   CheckOut: { badge: <SignOut size={24} weight="bold" color="#1A535C" />, bg: 'rgba(26, 83, 92, 0.1)' },
   Travel: { badge: <NavigationArrow size={24} weight="bold" color="#D89A00" />, bg: 'rgba(255, 230, 109, 0.3)' },
   Visit: { badge: <MapPinLine size={24} weight="bold" color="#24A096" />, bg: 'rgba(78, 205, 196, 0.2)' },
@@ -75,15 +89,15 @@ const ACTIVITY_STATUS_CONFIG = {
 };
 
 const TRIP_STATUS_CONFIG = {
-  0: { label: 'Planned', color: 'default' },
-  1: { label: 'In Progress', color: 'processing' },
-  2: { label: 'Completed', color: 'success' },
-  3: { label: 'Cancelled', color: 'error' },
+  0: { label: 'Planned', color: 'default', nextStatus: 1, nextLabel: 'Start Trip' },
+  1: { label: 'In Progress', color: 'processing', nextStatus: 2, nextLabel: 'Complete Trip' },
+  2: { label: 'Completed', color: 'success', nextStatus: null, nextLabel: null },
+  3: { label: 'Cancelled', color: 'error', nextStatus: null, nextLabel: null },
 };
 
 const getTripStatusConfig = (status) => {
   const key = typeof status === 'number' ? status : Number(status);
-  return TRIP_STATUS_CONFIG[key] || { label: `Unknown (${status})`, color: 'default' };
+  return TRIP_STATUS_CONFIG[key] || { label: `Unknown (${status})`, color: 'default', nextStatus: null, nextLabel: null };
 };
 
 const formatMoney = (amount, currency = 'VND') => {
@@ -112,6 +126,7 @@ const TripDetailPage = () => {
   const { user } = useAuthStore();
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statusUpdating, setStatusUpdating] = useState(false);
   const [provinceNameById, setProvinceNameById] = useState(new Map());
   const [locationNameById, setLocationNameById] = useState(new Map());
   const [locationMediaById, setLocationMediaById] = useState(new Map());
@@ -127,6 +142,9 @@ const TripDetailPage = () => {
   const [activityExpenses, setActivityExpenses] = useState({});
   const [expenseForm] = Form.useForm();
   const [exporting, setExporting] = useState(false);
+  const [editTripModal, setEditTripModal] = useState(false);
+  const [editTripForm] = Form.useForm();
+  const [savingTripInfo, setSavingTripInfo] = useState(false);
 
   const handleExportItineraryPdf = () => {
     if (!trip) return;
@@ -362,6 +380,27 @@ const TripDetailPage = () => {
 
   const currentUserId = user?.id;
   const myMember = trip?.tripMembers?.find(m => m.userId === currentUserId);
+  const isLeader = myMember?.role === 'Leader'; // TripRole.Leader
+
+  // Handle manual trip status update
+  const handleUpdateTripStatus = useCallback(async () => {
+    const currentStatus = trip?.status ?? 0;
+    const config = getTripStatusConfig(currentStatus);
+
+    if (config.nextStatus === null) return;
+
+    setStatusUpdating(true);
+    try {
+      await updateTripStatusApi(Number(id), config.nextStatus);
+      message.success(`Trip status updated to "${getTripStatusConfig(config.nextStatus).label}"`);
+      await refetchTrip();
+    } catch (err) {
+      console.error('Failed to update trip status:', err);
+      message.error(err?.response?.data?.message || 'Failed to update trip status');
+    } finally {
+      setStatusUpdating(false);
+    }
+  }, [id, trip, refetchTrip]);
 
   const handleUpdateActivityStatus = useCallback(async (activityId, skipConfirm = false) => {
     const allActivities = trip?.tripDays?.flatMap(d => d.activities || []) || [];
@@ -492,6 +531,44 @@ const TripDetailPage = () => {
     }
   }, [reloadTripAndExpenses]);
 
+  const handleOpenEditTripModal = useCallback(() => {
+    editTripForm.setFieldsValue({
+      tripName: trip?.tripName || '',
+      description: trip?.description || '',
+      dateRange: trip?.startDate && trip?.endDate
+        ? [dayjs(trip.startDate), dayjs(trip.endDate)]
+        : null,
+      currency: trip?.currency || 'VND',
+      status: trip?.status ?? 0,
+    });
+    setEditTripModal(true);
+  }, [trip, editTripForm]);
+
+  const handleUpdateTripInfo = useCallback(async (values) => {
+    setSavingTripInfo(true);
+    try {
+      const [startDate, endDate] = values.dateRange || [];
+      await updateTripApi(trip.id, {
+        tripId: trip.id,
+        tripName: values.tripName,
+        description: values.description || null,
+        startDate: startDate ? startDate.format('YYYY-MM-DD') : trip.startDate,
+        endDate: endDate ? endDate.format('YYYY-MM-DD') : trip.endDate,
+        startingLocation: trip.startingLocation || null,
+        currency: values.currency,
+        status: values.status,
+      });
+      message.success('Trip updated successfully');
+      setEditTripModal(false);
+      editTripForm.resetFields();
+      await refetchTrip();
+    } catch (err) {
+      message.error(err?.response?.data?.detail || err?.response?.data?.message || 'Failed to update trip');
+    } finally {
+      setSavingTripInfo(false);
+    }
+  }, [trip, editTripForm, refetchTrip]);
+
   const handleExportPdf = useCallback(async () => {
     setExporting(true);
     try {
@@ -531,10 +608,16 @@ const TripDetailPage = () => {
   const summary = trip.tripSummary;
 
   const totalBudget = summary?.totalBudget || 0;
+  const usableBudget = summary?.usableBudget || 0;
+  // Calculate total spent from all expense logs
   const totalActual = Object.values(activityExpenses).reduce(
     (sum, expenses) => sum + expenses.reduce((a, e) => a + (e.totalAmount || 0), 0), 0
   );
   const totalEstimated = summary?.estimatedTotalCost || 0;
+  const usableRemaining = usableBudget - totalActual;
+  const budgetUsagePercent = usableBudget > 0 ? (totalActual / usableBudget) * 100 : 0;
+  const showCaution = usableBudget > 0 && budgetUsagePercent >= 80;
+
   const variance = totalActual - totalEstimated;
   const hasBudget = totalEstimated > 0;
   const budgetPercent = hasBudget ? (totalActual / totalEstimated) * 100 : 0;
@@ -606,46 +689,54 @@ const TripDetailPage = () => {
   ];
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#FFE66D', colorTextBase: '#1A535C', colorInfo: '#4ECDC4', colorSuccess: '#4ECDC4', colorWarning: '#FFE66D', colorError: '#FF6B6B', borderRadius: 16, fontFamily: "'Plus Jakarta Sans', sans-serif" } }}>
-      <div className={styles.itineraryPage}>
-        <div className={styles.container}>
-          
-          <Card className={styles.headerCard} bordered={false}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <Title level={3} className={styles.headerTitle}>{trip.tripName}</Title>
-                {trip.description && (
-                  <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>{trip.description}</Text>
-                )}
-              </div>
-              <Space>
-                <Button className={styles.sectionToggleBtn} onClick={() => navigate(-1)}>Back</Button>
-              </Space>
+    <div className={styles.itineraryPage}>
+      <div className={styles.container}>
+        {/* Header */}
+        <Card className={styles.headerCard} bordered={false}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <Title level={3} style={{ margin: 0 }}>{trip.tripName}</Title>
+              {trip.description && (
+                <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>{trip.description}</Text>
+              )}
             </div>
-            <div className={styles.headerMeta} style={{ marginTop: 16 }}>
-              <span className={styles.headerMetaItem}>
-                <CalendarOutlined style={{ marginRight: 4 }} />
-                {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
-              </span>
-              <span className={styles.headerMetaItem}>
-                <TeamOutlined style={{ marginRight: 4 }} />
-                {trip.tripMembers?.length || 0} member(s)
-              </span>
-              <span className={styles.headerMetaItem}>
-                <DollarOutlined style={{ marginRight: 4 }} />
-                {currency}
-              </span>
-              <span className={styles.headerMetaItem}>
-                Status: <Tag color={getTripStatusConfig(trip.status).color} style={{ borderRadius: 9999, padding: '0 12px', fontWeight: 600, border: 'none' }}>{getTripStatusConfig(trip.status).label}</Tag>
-              </span>
-            </div>
-          </Card>
+            <Button onClick={() => navigate(-1)}>Back</Button>
+          </div>
+          <div className={styles.headerMeta}>
+            <span className={styles.headerMetaItem}>
+              <CalendarOutlined style={{ marginRight: 4 }} />
+              {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+            </span>
+            <span className={styles.headerMetaItem}>
+              <TeamOutlined style={{ marginRight: 4 }} />
+              {trip.tripMembers?.length || 0} member(s)
+            </span>
+            <span className={styles.headerMetaItem}>
+              <DollarOutlined style={{ marginRight: 4 }} />
+              {currency}
+            </span>
+            <span className={styles.headerMetaItem}>
+              Status: <Tag color={getTripStatusConfig(trip.status).color}>{getTripStatusConfig(trip.status).label}</Tag>
+              {isLeader && getTripStatusConfig(trip.status).nextStatus !== null && (
+                <Button 
+                  type="primary" 
+                  size="small" 
+                  loading={statusUpdating}
+                  onClick={handleUpdateTripStatus}
+                  icon={trip.status === 0 ? <PlayCircleOutlined /> : <CheckCircleOutlined />}
+                  style={{ marginLeft: 8 }}
+                >
+                  {getTripStatusConfig(trip.status).nextLabel}
+                </Button>
+              )}
+            </span>
+          </div>
+        </Card>
 
-          {summary && (
-            <Card
-              className={styles.budgetCard}
-              title={<div className={styles.budgetCardHeader}><span>Budget Summary</span></div>}
-              extra={
+        {summary && (
+          <Card
+            className={styles.budgetCard}
+            title={<div className={styles.budgetCardHeader}><span>Budget Summary</span></div>}              extra={
                 <div className={styles.sectionToggleRow}>
                   <Button
                     size="small"
@@ -798,6 +889,75 @@ const TripDetailPage = () => {
                                       <span className={styles.timelineTimeEnd}>{formatTime(endTime)}</span>
                                     )}
                                   </div>
+
+                                  {/* Show Route for Travel */}
+                                  {eventType === 'Travel' && activity.transport && (
+                                    <div style={{ marginTop: 4, fontSize: 13, color: '#434343', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <Text strong style={{ fontSize: 13 }}>
+                                        {activity.transport.customFromTransitHubName || 
+                                         activity.transport.fromTransitHubName || 
+                                         activity.transport.fromLocationName || 
+                                         activity.transport.yourLocationName || 'Start'}
+                                      </Text>
+                                      <span style={{ color: '#bfbfbf', margin: '0 4px' }}>➔</span>
+                                      <Text strong style={{ fontSize: 13 }}>
+                                        {activity.transport.customToTransitHubName || 
+                                         activity.transport.toTransitHubName || 
+                                         activity.transport.toLocationName || 'Destination'}
+                                      </Text>
+                                    </div>
+                                  )}
+                                  {/* Show budget info if budget is allocated */}
+                                  {budget && estimatedCost > 0 && (
+                                    <div style={{ marginTop: 6 }}>
+                                      <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
+                                        <span>
+                                          Est: <strong>{formatMoney(estimatedCost, currency)}</strong>
+                                        </span>
+                                        {totalExpenses > 0 && (
+                                          <span>
+                                            Spent: <strong>{formatMoney(totalExpenses, currency)}</strong>
+                                          </span>
+                                        )}
+                                      </div>
+                                      {totalExpenses > 0 && (() => {
+                                        const variance = totalExpenses - estimatedCost;
+                                        const budgetPercent = (totalExpenses / estimatedCost) * 100;
+                                        const isOverBudget = variance > 0;
+                                        const statusColor = isOverBudget ? '#ff4d4f' : '#52c41a';
+                                        const statusText = isOverBudget ? 'Over Budget' : 'Under Budget';
+                                        return (
+                                          <div style={{ marginTop: 4 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                                              <Text type="secondary" style={{ fontSize: 11 }}>Budget Usage</Text>
+                                              <Text strong style={{ color: statusColor, fontSize: 11 }}>{statusText} ({budgetPercent.toFixed(1)}%)</Text>
+                                            </div>
+                                            <Progress
+                                              percent={Math.min(budgetPercent, 100)}
+                                              strokeColor={statusColor}
+                                              status={budgetPercent > 100 ? 'exception' : 'normal'}
+                                              showInfo={false}
+                                              size="small"
+                                              style={{ marginBottom: 4 }}
+                                            />
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
+                                  {/* Show spent amount if no budget allocated but expenses exist */}
+                                  {(!budget || estimatedCost <= 0) && totalExpenses > 0 && (
+                                    <div style={{ marginTop: 6 }}>
+                                      <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
+                                        <span>
+                                          Spent: <strong>{formatMoney(totalExpenses, currency)}</strong>
+                                        </span>
+                                      </div>
+                                      <div style={{ marginTop: 4 }}>
+                                        <Text strong style={{ color: '#1890ff', fontSize: 11 }}>No Budget Set</Text>
+                                      </div>
+                                    </div>
+                                  )}
                                   <div className={styles.timelineIcon} style={{ background: eventConfig.bg }}>
                                     {eventConfig.badge}
                                   </div>
@@ -1114,6 +1274,78 @@ const TripDetailPage = () => {
           />
 
           <Modal
+            title={<span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#1A535C', fontWeight: 800 }}>Edit Trip</span>}
+            open={editTripModal}
+            onCancel={() => { setEditTripModal(false); editTripForm.resetFields(); }}
+            onOk={() => editTripForm.submit()}
+            okText="Save Changes"
+            cancelText="Cancel"
+            confirmLoading={savingTripInfo}
+            okButtonProps={{ className: styles.sectionToggleBtn, style: { background: '#FFE66D', color: '#1A535C', border: 'none' } }}
+            cancelButtonProps={{ className: styles.sectionToggleBtn }}
+          >
+            <Form
+              form={editTripForm}
+              layout="vertical"
+              onFinish={handleUpdateTripInfo}
+              style={{ marginTop: 24 }}
+            >
+              <Form.Item
+                name="tripName"
+                label={<span className={styles.editTimelineLabel}>Trip Name</span>}
+                rules={[{ required: true, message: 'Please enter trip name' }, { max: 200, message: 'Max 200 characters' }]}
+              >
+                <Input className={styles.editTimelineInput} placeholder="e.g., Hanoi Summer Adventure" />
+              </Form.Item>
+              <Form.Item
+                name="description"
+                label={<span className={styles.editTimelineLabel}>Description</span>}
+              >
+                <Input.TextArea className={styles.editTimelineInput} rows={3} placeholder="Optional trip description" />
+              </Form.Item>
+              <Form.Item
+                name="dateRange"
+                label={<span className={styles.editTimelineLabel}>Trip Dates</span>}
+                rules={[{ required: true, message: 'Please select trip dates' }]}
+              >
+                <DatePicker.RangePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+              </Form.Item>
+              <Form.Item
+                name="currency"
+                label={<span className={styles.editTimelineLabel}>Currency</span>}
+                rules={[{ required: true, message: 'Please enter currency' }]}
+              >
+                <Select
+                  options={[
+                    { value: 'VND', label: 'VND — Vietnamese Dong' },
+                    { value: 'USD', label: 'USD — US Dollar' },
+                    { value: 'EUR', label: 'EUR — Euro' },
+                    { value: 'THB', label: 'THB — Thai Baht' },
+                    { value: 'SGD', label: 'SGD — Singapore Dollar' },
+                    { value: 'JPY', label: 'JPY — Japanese Yen' },
+                    { value: 'KRW', label: 'KRW — Korean Won' },
+                  ]}
+                  placeholder="Select currency"
+                />
+              </Form.Item>
+              <Form.Item
+                name="status"
+                label={<span className={styles.editTimelineLabel}>Status</span>}
+                rules={[{ required: true, message: 'Please select status' }]}
+              >
+                <Select
+                  options={[
+                    { value: 0, label: 'Planned' },
+                    { value: 1, label: 'In Progress' },
+                    { value: 2, label: 'Completed' },
+                    { value: 3, label: 'Cancelled' },
+                  ]}
+                />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          <Modal
             title={<span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#1A535C', fontWeight: 800 }}>{expenseModal.editExpense ? `Edit Expense: ${expenseModal.editExpense.title}` : `Log Expense: ${expenseModal.activityTitle}`}</span>}
             open={expenseModal.open}
             onCancel={() => {
@@ -1163,7 +1395,6 @@ const TripDetailPage = () => {
           </Modal>
         </div>
       </div>
-    </ConfigProvider>
   );
 };
 
