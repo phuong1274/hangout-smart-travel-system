@@ -124,6 +124,14 @@
   background-color: rgba(255, 107, 107, 0.15) !important;
 }
 
+.tableContainer {
+  display: block;
+}
+
+.cardContainer {
+  display: none;
+}
+
 .tropicalTable :global(.ant-table) {
   background: transparent;
 }
@@ -193,6 +201,91 @@
   box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.15) !important;
 }
 
+.tripMobileCard {
+  background: #FFFFFF;
+  border: 1px solid rgba(26, 83, 92, 0.15);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.04);
+  transition: all 0.3s ease;
+}
+
+.cardHeader {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(26, 83, 92, 0.08);
+}
+
+.cardTripName {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1A535C;
+  line-height: 1.3;
+  display: block;
+  word-break: break-word;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cardInfoRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.infoCol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.infoLabel {
+  font-size: 12px;
+  color: rgba(26, 83, 92, 0.5);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.infoValue {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1A535C;
+  display: flex;
+  align-items: center;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(26, 83, 92, 0.08);
+}
+
+.cardActionBtn,
+.cardActionBtnDelete {
+  border-radius: 999px !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  min-height: 36px !important;
+}
+
+.cardActionBtn {
+  color: #4ECDC4 !important;
+  border-color: #4ECDC4 !important;
+}
+
+.cardActionBtn:hover {
+  background: rgba(78, 205, 196, 0.1) !important;
+}
+
 @media (max-width: 767px) {
   .appWrapper {
     padding: clamp(16px, 4vw, 24px);
@@ -206,6 +299,14 @@
   
   .primaryBtn {
     width: 100%;
+  }
+
+  .tableContainer {
+    display: none;
+  }
+
+  .cardContainer {
+    display: block;
   }
 
   :global(.ant-modal.tropicalModal) {
