@@ -783,6 +783,7 @@ const toCustomGeoPayload = (value) => {
   const name = pickFirstText(value?.name, value?.Name);
   const latitude = toFiniteNumber(value?.latitude ?? value?.Latitude);
   const longitude = toFiniteNumber(value?.longitude ?? value?.Longitude);
+  const locationTypeId = toPositiveIntOrNull(value?.locationTypeId ?? value?.LocationTypeId);
 
   if (!name || latitude == null || longitude == null) return null;
 
@@ -791,6 +792,8 @@ const toCustomGeoPayload = (value) => {
     latitude,
     longitude,
     address: pickFirstText(value?.address, value?.Address) || null,
+    description: pickFirstText(value?.description, value?.Description) || null,
+    locationTypeId: locationTypeId || null,
   };
 };
 
@@ -1087,6 +1090,8 @@ const ItineraryResultPage = () => {
   const [selectedAddBetweenDistrictId, setSelectedAddBetweenDistrictId] = useState(null);
   const [addBetweenCustomName, setAddBetweenCustomName] = useState('');
   const [addBetweenCustomAddress, setAddBetweenCustomAddress] = useState('');
+  const [addBetweenCustomDescription, setAddBetweenCustomDescription] = useState('');
+  const [selectedAddBetweenCustomLocationTypeId, setSelectedAddBetweenCustomLocationTypeId] = useState(null);
   const [addBetweenCustomLat, setAddBetweenCustomLat] = useState(null);
   const [addBetweenCustomLng, setAddBetweenCustomLng] = useState(null);
   const [addBetweenCustomStartTime, setAddBetweenCustomStartTime] = useState('');
@@ -1260,6 +1265,8 @@ const ItineraryResultPage = () => {
 
     setAddBetweenCustomName('');
     setAddBetweenCustomAddress('');
+    setAddBetweenCustomDescription('');
+    setSelectedAddBetweenCustomLocationTypeId(null);
     setAddBetweenCustomLat(null);
     setAddBetweenCustomLng(null);
     setAddBetweenCustomStartTime(normalizedStart.slice(0, 5));
@@ -2029,6 +2036,12 @@ const ItineraryResultPage = () => {
       return;
     }
 
+    const customLocationTypeId = Number(selectedAddBetweenCustomLocationTypeId);
+    if (!Number.isFinite(customLocationTypeId) || customLocationTypeId <= 0) {
+      message.warning('Please select location type for custom location.');
+      return;
+    }
+
     if (!Number.isFinite(Number(addBetweenCustomLat)) || !Number.isFinite(Number(addBetweenCustomLng))) {
       message.warning('Please pick custom location on map.');
       return;
@@ -2056,6 +2069,7 @@ const ItineraryResultPage = () => {
     const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
     const costAmount = Math.max(0, Math.round(Number(addBetweenCustomCostAmount) || 0));
     const customAddress = String(addBetweenCustomAddress || '').trim();
+    const customDescription = String(addBetweenCustomDescription || '').trim();
 
     setRecalculatingDayNumber(dayNumber);
     setAddingCustomLocation(true);
@@ -2080,6 +2094,10 @@ const ItineraryResultPage = () => {
         Longitude: Number(addBetweenCustomLng),
         address: customAddress || null,
         Address: customAddress || null,
+        description: customDescription || null,
+        Description: customDescription || null,
+        locationTypeId: customLocationTypeId,
+        LocationTypeId: customLocationTypeId,
       };
       const groupCost = {
         amount: costAmount,
@@ -2147,6 +2165,8 @@ const ItineraryResultPage = () => {
     addBetweenModal,
     addBetweenCustomName,
     addBetweenCustomAddress,
+    addBetweenCustomDescription,
+    selectedAddBetweenCustomLocationTypeId,
     addBetweenCustomLat,
     addBetweenCustomLng,
     addBetweenCustomStartTime,
@@ -3811,8 +3831,15 @@ const ItineraryResultPage = () => {
         const eventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
         const locationId = toPositiveIntOrNull(item?.locationId ?? item?.LocationId);
         const customLocationId = locationId ? null : toPositiveIntOrNull(item?.customLocationId ?? item?.CustomLocationId);
-        const customLocation = (!locationId && !customLocationId)
+        const rawCustomLocation = (!locationId && !customLocationId)
           ? toCustomGeoPayload(item?.customLocation || item?.CustomLocation)
+          : null;
+        const customLocation = rawCustomLocation
+          ? {
+            ...rawCustomLocation,
+            // Backward compatibility: older custom points may miss LocationTypeId.
+            locationTypeId: toPositiveIntOrNull(rawCustomLocation?.locationTypeId) || 1,
+          }
           : null;
 
         return {
@@ -4765,6 +4792,37 @@ const ItineraryResultPage = () => {
                     placeholder="Address or short note"
                     value={addBetweenCustomAddress}
                     onChange={(event) => setAddBetweenCustomAddress(event?.target?.value || '')}
+                  />
+                </div>
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Location Type</span>
+                  <Select
+                    showSearch
+                    allowClear
+                    className={styles.addBetweenSelect}
+                    placeholder="Select location type"
+                    value={selectedAddBetweenCustomLocationTypeId}
+                    onChange={(value) => setSelectedAddBetweenCustomLocationTypeId(value ?? null)}
+                    loading={addBetweenLocationTypeLoading}
+                    optionFilterProp="label"
+                    options={addBetweenLocationTypeOptions.map((locationType) => ({
+                      label: locationType.name,
+                      value: locationType.id,
+                    }))}
+                    notFoundContent={addBetweenLocationTypeLoading ? <Spin size="small" /> : 'No location types'}
+                  />
+                </div>
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Description</span>
+                  <Input.TextArea
+                    className={styles.editTimelineInput}
+                    placeholder="Add a short description for this custom location"
+                    rows={3}
+                    maxLength={1000}
+                    value={addBetweenCustomDescription}
+                    onChange={(event) => setAddBetweenCustomDescription(event?.target?.value || '')}
                   />
                 </div>
 
