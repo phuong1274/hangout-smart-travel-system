@@ -18,6 +18,14 @@ namespace HSTS.API.Controllers
             return result.Match<IActionResult>(Ok, MapErrors);
         }
 
+        [HttpGet("/api/locations/{locationId:int}/reviews/eligibility")]
+        [Authorize(Roles = "TRAVELER")]
+        public async Task<IActionResult> GetEligibility(int locationId)
+        {
+            var result = await Mediator.Send(new GetReviewEligibilityQuery(locationId));
+            return result.Match<IActionResult>(Ok, MapErrors);
+        }
+
         [HttpGet("/api/locations/{locationId:int}/reviews/me")]
         [Authorize]
         public async Task<IActionResult> GetMyReview(int locationId)

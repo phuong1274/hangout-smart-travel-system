@@ -124,14 +124,14 @@ public class GetPublicLocationsQueryHandler : IRequestHandler<GetPublicLocations
 
         var locationIds = pageItems.Select(x => x.Id).ToList();
 
-        var reviewCounts = await _context.LocationReviews
+        var reviewStats = await _context.LocationReviews
             .AsNoTracking()
             .Where(x => !x.IsDeleted
                 && x.Status == LocationReviewStatus.Visible
                 && locationIds.Contains(x.LocationId))
             .GroupBy(x => x.LocationId)
-            .Select(x => new { LocationId = x.Key, Count = x.Count() })
-            .ToDictionaryAsync(x => x.LocationId, x => x.Count, cancellationToken);
+            .Select(x => new { LocationId = x.Key, Count = x.Count(), Average = x.Average(r => (decimal?)r.Rating) })
+            .ToDictionaryAsync(x => x.LocationId, x => x, cancellationToken);
 
         var items = pageItems
             .Select(x => new PublicLocationCardDto(
@@ -141,8 +141,8 @@ public class GetPublicLocationsQueryHandler : IRequestHandler<GetPublicLocations
                 x.District!.Name,
                 x.Address,
                 x.Description,
-                x.Score,
-                reviewCounts.GetValueOrDefault(x.Id),
+                reviewStats.TryGetValue(x.Id, out var stats) ? stats.Average : null,
+                reviewStats.TryGetValue(x.Id, out var statsCnt) ? statsCnt.Count : 0,
                 x.LocationMedias
                     .Where(m => !m.IsDeleted)
                     .OrderBy(m => m.Id)

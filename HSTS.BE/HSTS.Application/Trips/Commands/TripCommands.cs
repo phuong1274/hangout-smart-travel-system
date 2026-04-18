@@ -94,21 +94,29 @@ namespace HSTS.Application.Trips.Commands
 
     public class UpdateTripCommandHandler : IRequestHandler<UpdateTripCommand, ErrorOr<TripDto>>
     {
-        private readonly IRepository<Trip> _tripRepository;
+        private readonly IAppDbContext _context;
+        private readonly ICurrentUserService _currentUser;
 
-        public UpdateTripCommandHandler(IRepository<Trip> tripRepository)
+        public UpdateTripCommandHandler(IAppDbContext context, ICurrentUserService currentUser)
         {
-            _tripRepository = tripRepository;
+            _context = context;
+            _currentUser = currentUser;
         }
 
         public async Task<ErrorOr<TripDto>> Handle(UpdateTripCommand request, CancellationToken cancellationToken)
         {
-            var trip = await _tripRepository.GetAsync(request.TripId, cancellationToken);
+            var trip = await _context.Trips
+                .Include(t => t.TripMembers)
+                .FirstOrDefaultAsync(t => t.Id == request.TripId && !t.IsDeleted, cancellationToken);
 
             if (trip == null)
-            {
                 return Error.NotFound("Trip.NotFound", "Trip not found.");
-            }
+
+            var isLeader = trip.TripMembers
+                .Any(tm => tm.UserId == _currentUser.UserId && tm.Role == TripRole.Leader);
+
+            if (!isLeader)
+                return Error.Forbidden("Trip.Forbidden", "Only the trip leader can update this trip.");
 
             trip.TripName = request.TripName;
             trip.Description = request.Description;
@@ -118,7 +126,7 @@ namespace HSTS.Application.Trips.Commands
             trip.Status = request.Status;
             trip.Currency = request.Currency;
 
-            await _tripRepository.UpdateAsync(trip, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
 
             return trip.ToDto();
         }

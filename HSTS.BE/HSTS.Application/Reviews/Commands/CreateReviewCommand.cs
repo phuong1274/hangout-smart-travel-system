@@ -24,6 +24,17 @@ namespace HSTS.Application.Reviews.Commands
             if (!locationExists)
                 return Error.NotFound("Location.NotFound", "Location not found.");
 
+            var hasVisited = await _ctx.TripActivities
+                .AnyAsync(a => !a.IsDeleted
+                    && a.LocationId == request.LocationId
+                    && a.Status == TripActivityStatus.Completed
+                    && a.TripDay!.Trip!.Status == TripStatus.Completed
+                    && a.TripDay.Trip.TripMembers.Any(m => !m.IsDeleted && m.UserId == _currentUser.UserId),
+                    cancellationToken);
+
+            if (!hasVisited)
+                return Error.Forbidden("Review.NotEligible", "You can only review locations you have visited on a completed trip.");
+
             var duplicate = await _ctx.LocationReviews.AnyAsync(r => !r.IsDeleted && r.LocationId == request.LocationId && r.UserId == _currentUser.UserId && r.Status != LocationReviewStatus.Deleted, cancellationToken);
             if (duplicate)
                 return Error.Conflict("Review.AlreadyExists", "You already reviewed this location.");

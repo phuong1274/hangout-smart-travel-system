@@ -9,7 +9,8 @@ namespace HSTS.Domain.Enums
         Shopping = 4,
         LuggageRefresh = 5,
         Meal = 6,
-        LuggageStorage = 7,
+        LuggageDrop = 7,
+        HotelReturn = 8
 
     }
 }

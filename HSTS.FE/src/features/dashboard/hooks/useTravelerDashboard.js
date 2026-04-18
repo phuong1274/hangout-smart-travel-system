@@ -6,7 +6,6 @@ const PREVIEW_LIMIT = 5;
 
 const INITIAL_SUMMARY = {
   submissionCount: 0,
-  travelProfileCount: 0,
   hasPassword: false,
 };
 
@@ -20,22 +19,18 @@ export const useTravelerDashboard = () => {
       setLoading(true);
 
       try {
-        const [myInfoResult, myProfilesResult, mySubmissionsResult] = await Promise.allSettled([
+        const [myInfoResult, mySubmissionsResult] = await Promise.allSettled([
           usersApi.getMyInfo(),
-          usersApi.getMyProfiles(),
           getMySubmissionsApi({ pageIndex: 1, pageSize: PREVIEW_LIMIT }),
         ]);
 
         const myInfo = myInfoResult.status === 'fulfilled' ? myInfoResult.value?.data : null;
-        const myProfilesPayload = myProfilesResult.status === 'fulfilled' ? myProfilesResult.value?.data : null;
         const mySubmissionsPayload = mySubmissionsResult.status === 'fulfilled' ? mySubmissionsResult.value : null;
 
-        const profiles = Array.isArray(myProfilesPayload) ? myProfilesPayload : [];
         const submissions = Array.isArray(mySubmissionsPayload?.items) ? mySubmissionsPayload.items : [];
 
         setSummary({
           submissionCount: typeof mySubmissionsPayload?.totalCount === 'number' ? mySubmissionsPayload.totalCount : submissions.length,
-          travelProfileCount: profiles.length,
           hasPassword: Boolean(myInfo?.hasPassword),
         });
 

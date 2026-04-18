@@ -554,7 +554,7 @@ const CreateTripPage = () => {
               <Card className={styles.sectionCard} title={<span className={styles.sectionTitle}>Where are you starting from?</span>}>
                 <div className={styles.mapInlineWrapper}>
                   <MapContainer center={mapCenter} zoom={12} style={{ width: '100%', height: 280, borderRadius: 16 }}>
-                    <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <TileLayer url="http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" subdomains={['mt0', 'mt1', 'mt2', 'mt3']} attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>' maxZoom={20} />
                     {userLocation && <Marker position={[userLocation.latitude, userLocation.longitude]} />}
                     <InlineMapClickHandler onPick={(lat, lng) => { setUserLocation({ latitude: lat, longitude: lng }); form.setFieldsValue({ latitude: lat, longitude: lng }); }} />
                     <InlineMapCenterSync center={mapCenter} />
