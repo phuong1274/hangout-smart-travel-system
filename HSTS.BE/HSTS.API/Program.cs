@@ -5,6 +5,7 @@ using HSTS.API.Middleware;
 using HSTS.Application.Auth.Interfaces;
 using HSTS.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 
