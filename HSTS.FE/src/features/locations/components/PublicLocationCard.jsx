@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Card, Rate, Space, Tag, Typography } from 'antd';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PATHS } from '@/routes/paths';
 
 const { Paragraph, Text, Title } = Typography;
@@ -51,6 +51,7 @@ const getImageUrl = (location) => {
 };
 
 const PublicLocationCard = ({ location, variant = 'default' }) => {
+  const navigate = useNavigate();
   const id = resolveLocationId(location);
   const isHomeVariant = variant === 'home';
   const isFeatured = variant === 'featured';
@@ -74,6 +75,8 @@ const PublicLocationCard = ({ location, variant = 'default' }) => {
   return (
     <Card
       hoverable
+      onClick={id ? () => navigate(PATHS.PUBLIC_LOCATION_DETAIL(id)) : undefined}
+      style={{ cursor: id ? 'pointer' : 'default' }}
       cover={
         imageUrl ? (
           <img src={imageUrl} alt={name} style={{ height: isFeatured ? 300 : 220, objectFit: 'cover' }} />

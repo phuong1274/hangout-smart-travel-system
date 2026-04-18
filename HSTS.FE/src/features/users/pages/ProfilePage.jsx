@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Tabs, Typography } from 'antd';
 import ProfileHeader from '../components/ProfileHeader';
 import UserInfoCard from '../components/UserInfoCard';
-import ProfileList from '../components/ProfileList';
 import ChangePasswordForm from '../components/ChangePasswordForm';
 import { useMyInfo } from '../hooks/useUserProfile';
 import styles from '../styles/ProfilePage.module.css';
@@ -18,11 +17,6 @@ const ProfilePage = () => {
       key: 'personal',
       label: 'Personal Info',
       children: <UserInfoCard user={myInfo} loading={loading} refetch={refetch} />,
-    },
-    {
-      key: 'profiles',
-      label: 'Travel Profiles',
-      children: <ProfileList />,
     },
     ...(myInfo?.hasPassword
       ? [{

@@ -63,13 +63,21 @@ export const getLocationsByDistrictIdsApi = ({ districtIds, pageIndex = 1, pageS
 };
 
 // Lookup all locations of a province via new endpoint: GET /api/locations?provinceId=...
-export const getLocationsByProvinceApi = async ({ provinceId, searchTerm, pageSize = 200, pageIndex = 1, locationTypeId }) => {
+export const getLocationsByProvinceApi = async ({
+  provinceId,
+  searchTerm,
+  pageSize = 200,
+  pageIndex = 1,
+  locationTypeId,
+  districtId,
+}) => {
   const targetProvinceId = Number(provinceId);
   if (!Number.isFinite(targetProvinceId) || targetProvinceId <= 0) {
     return { items: [], totalCount: 0 };
   }
 
   const targetLocationTypeId = Number(locationTypeId);
+  const targetDistrictId = Number(districtId);
 
   const response = await apiClient.get('/api/locations', {
     params: {
@@ -77,6 +85,9 @@ export const getLocationsByProvinceApi = async ({ provinceId, searchTerm, pageSi
       searchTerm,
       locationTypeIds: Number.isFinite(targetLocationTypeId) && targetLocationTypeId > 0
         ? targetLocationTypeId
+        : undefined,
+      districtIds: Number.isFinite(targetDistrictId) && targetDistrictId > 0
+        ? targetDistrictId
         : undefined,
       pageIndex,
       pageSize,
@@ -159,6 +170,11 @@ export const getTripsApi = (userId) => {
 // Create a new trip (returns created trip with id)
 export const createTripApi = (data) => {
   return apiClient.post('/api/trips', data).then(res => res.data);
+};
+
+// Update trip metadata (name, description, dates, currency, status)
+export const updateTripApi = (tripId, data) => {
+  return apiClient.put(`/api/trips/${tripId}`, data).then(res => res.data);
 };
 
 // Update and save manual trip

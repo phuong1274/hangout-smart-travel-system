@@ -177,14 +177,14 @@ const PublicLocationFilterBar = ({
             </Col>
             <Col xs={24} sm={12} md={7} lg={4}>
               <div className="explore-control-card">
-                <Form.Item label="Min spend (USD)" name="minBudget" style={fieldStyle}>
+                <Form.Item label="Min spend" name="minBudget" style={fieldStyle}>
                   <InputNumber placeholder="No min" {...budgetInputProps} />
                 </Form.Item>
               </div>
             </Col>
             <Col xs={24} sm={12} md={7} lg={4}>
               <div className="explore-control-card">
-                <Form.Item label="Max spend (USD)" name="maxBudget" style={fieldStyle}>
+                <Form.Item label="Max spend" name="maxBudget" style={fieldStyle}>
                   <InputNumber placeholder="No max" {...budgetInputProps} />
                 </Form.Item>
               </div>

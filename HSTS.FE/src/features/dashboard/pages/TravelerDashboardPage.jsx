@@ -33,13 +33,6 @@ const TravelerDashboardPage = () => {
       <DashboardMetricCards
         items={[
           {
-            key: 'travel-profiles',
-            label: 'Travel profiles',
-            value: summary.travelProfileCount,
-            tone: 'core',
-            helper: 'Saved profiles ready for trip planning',
-          },
-          {
             key: 'my-submissions',
             label: 'My submissions',
             value: summary.submissionCount,
@@ -90,11 +83,6 @@ const TravelerDashboardPage = () => {
                 {
                   key: 'profile',
                   label: 'My profile',
-                  onClick: () => navigate(PATHS.PROFILE),
-                },
-                {
-                  key: 'travel-profiles',
-                  label: 'Travel profiles',
                   onClick: () => navigate(PATHS.PROFILE),
                 },
                 {

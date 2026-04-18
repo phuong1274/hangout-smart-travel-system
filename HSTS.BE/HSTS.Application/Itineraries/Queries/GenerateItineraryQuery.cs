@@ -2322,11 +2322,11 @@ namespace HSTS.Application.Itineraries.Queries
                                     return hotel is not null && hotel.District != null && hotel.District.ProvinceId.HasValue && hotel.District.ProvinceId.Value == currentProvince.Id;
                                 }).ToList();
 
-                            timeline.Add(new ItineraryTimelineItemDto("check-in",
-                                $"Check in at {destAccommodation.Name}",
+                            timeline.Add(new ItineraryTimelineItemDto("hotel-return",
+                                $"Return to {destAccommodation.Name}",
                                 TimeOnly.FromDateTime(eveningCheckInStart), TimeOnly.FromDateTime(ciEnd),
                                 destAccommodation.Id, eveningTagNames,
-                                toMoney(0), toMoney(0), toMoney(0), "Evening rest",
+                                toMoney(0), toMoney(0), toMoney(0), "Return to hotel for evening rest",
                                 Math.Round((double)(destAccommodation.Score ?? 0), 2),
                                 Alternatives: eveningAlts is { Count: > 0 } ? eveningAlts : null,
                                 AccommodationRecommendations: eveningAccomRecs.Count > 0 ? eveningAccomRecs : null));
@@ -2869,7 +2869,7 @@ namespace HSTS.Application.Itineraries.Queries
             // across ALL days (not just the current day)
             var allMainLocationIdsInTrip = days
                 .SelectMany(d => d.Timeline)
-                .Where(t => t.EventType is "visit" or "shopping" or "meal" or "check-in" or "check-out")
+                .Where(t => t.EventType is "visit" or "shopping" or "meal" or "check-in" or "check-out" or "hotel-return")
                 .Select(t => t.LocationId)
                 .Where(id => id > 0)
                 .ToHashSet();

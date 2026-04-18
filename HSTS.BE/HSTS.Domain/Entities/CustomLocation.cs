@@ -9,6 +9,11 @@ namespace HSTS.Domain.Entities
     /// </summary>
     public class CustomLocation : BaseEntity
     {
+        [Required]
+        [ForeignKey("LocationType")]
+        public int LocationTypeId { get; set; }
+
+        public LocationType LocationType { get; set; } = null!;
         [Key]
         [Column("Id")]
         public int Id { get; set; }
@@ -29,6 +34,10 @@ namespace HSTS.Domain.Entities
         [MaxLength(500)]
         [Column("Address")]
         public string? Address { get; set; }
+
+        [MaxLength(1000)]
+        [Column("Description")]
+        public string? Description { get; set; }
 
         // Navigation property
         public ICollection<TripActivity> TripActivities { get; set; } = new List<TripActivity>();

@@ -12,6 +12,9 @@ export const reviewsApi = {
   report: ({ reviewId, ...data }) =>
     apiClient.post(`/api/reviews/${reviewId}/reports`, { reviewId, ...data }),
 
+  getEligibility: (locationId) =>
+    apiClient.get(`/api/locations/${locationId}/reviews/eligibility`),
+
   getReportedReviews: (params) =>
     apiClient.get('/api/admin/review-reports', { params }),
   getReportedReviewDetail: (reviewId) =>

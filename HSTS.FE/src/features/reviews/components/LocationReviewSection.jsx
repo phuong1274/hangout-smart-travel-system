@@ -5,6 +5,7 @@ import { ROLES } from '@/config/constants';
 import { useLocationReviews } from '../hooks/useLocationReviews';
 import { useMyLocationReview } from '../hooks/useMyLocationReview';
 import { useReviewActions } from '../hooks/useReviewActions';
+import { useReviewEligibility } from '../hooks/useReviewEligibility';
 import { ReviewList } from './ReviewList';
 import { ReviewForm } from './ReviewForm';
 import { ReportReviewModal } from './ReportReviewModal';
@@ -18,6 +19,7 @@ export const LocationReviewSection = ({ locationId }) => {
 
   const { items, totalCount, loading, pageIndex, pageSize, setPageIndex, refresh } = useLocationReviews(locationId);
   const { myReview, refresh: refreshMine } = useMyLocationReview(locationId, isAuthenticated);
+  const { canReview } = useReviewEligibility(locationId, isTraveler);
 
   const [editing, setEditing] = useState(false);
   const [reportTarget, setReportTarget] = useState(null);
@@ -65,13 +67,15 @@ export const LocationReviewSection = ({ locationId }) => {
             onEdit={() => setEditing(true)}
             onDelete={(review) => remove(review.id)}
           />
-        ) : (
+        ) : canReview ? (
           <ReviewForm
             initialValues={myReview ?? undefined}
             submitting={submitting}
             onSubmit={handleSubmit}
             onCancel={editing ? () => setEditing(false) : undefined}
           />
+        ) : (
+          <Empty description="You can only review locations you have visited on a completed trip." />
         )
       ) : (
         !isAuthenticated && <Empty description="Sign in as a traveler to share your experience." />

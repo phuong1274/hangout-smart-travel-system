@@ -1,12 +1,23 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, Divider, List, Modal, Rate, Skeleton, Space, Tag, Typography } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { buildCreateTripPath, PATHS } from '@/routes/paths';
 import { ROLES } from '@/config/constants';
 import { useAuthStore } from '@/store/authStore';
+import { DAYS_OF_WEEK } from '@/utils/locationConstants';
 import { usePublicLocationDetail } from '../hooks/usePublicLocationDetail';
 import { LocationReviewSection } from '@/features/reviews/components/LocationReviewSection';
 import styles from '../styles/PublicLocationDetailPage.module.css';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -40,6 +51,13 @@ const formatMinimumAge = (minimumAge) => {
 const formatTime = (value) => {
   if (!value) return 'Closed';
   return String(value).slice(0, 5);
+};
+
+const getDayName = (dayOfWeek) => {
+  if (dayOfWeek === null || dayOfWeek === undefined) return 'N/A';
+  const dayNum = typeof dayOfWeek === 'string' ? parseInt(dayOfWeek, 10) : Number(dayOfWeek);
+  if (!Number.isFinite(dayNum) || dayNum < 1 || dayNum > 7) return `Day ${dayOfWeek}`;
+  return DAYS_OF_WEEK.find((day) => day.value === dayNum)?.label || `Day ${dayNum}`;
 };
 
 const formatStatusLabel = (status) => {
@@ -206,6 +224,73 @@ const GalleryMosaic = ({ images = [], name }) => {
   );
 };
 
+const AutoOpenPopup = () => {
+  const map = useMap();
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current) return;
+    // Open the first popup (location marker) after map is ready
+    const timer = setTimeout(() => {
+      map.eachLayer((layer) => {
+        if (!opened.current && layer instanceof L.Marker) {
+          layer.openPopup();
+          opened.current = true;
+        }
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [map]);
+  return null;
+};
+
+const LocationMap = ({ latitude, longitude, name, firstImage }) => {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  const locationPos = [lat, lng];
+  const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+
+  return (
+    <Card className={styles.sectionCard}>
+      <span className={styles.sectionEyebrow}>Map reference</span>
+      <Title level={4} className={styles.sectionTitle}>Location on map</Title>
+      <div className={styles.mapWrapper}>
+        <MapContainer
+          center={locationPos}
+          zoom={15}
+          style={{ width: '100%', height: '280px' }}
+          scrollWheelZoom={false}
+          zoomControl
+          attributionControl={false}
+        >
+          <TileLayer
+            url="http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+            attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+            maxZoom={20}
+          />
+          <Marker position={locationPos}>
+            <Popup closeButton={false} autoClose={false} closeOnClick={false}>
+              {firstImage ? (
+                <img src={firstImage} alt={name} className={styles.mapPopupImage} />
+              ) : null}
+              <div className={styles.mapPopupName}>{name}</div>
+              <div className={styles.mapPopupCoords}>{lat.toFixed(5)}, {lng.toFixed(5)}</div>
+            </Popup>
+          </Marker>
+          <AutoOpenPopup />
+        </MapContainer>
+      </div>
+      <div className={styles.mapCoords}>{lat.toFixed(6)}, {lng.toFixed(6)}</div>
+      <a href={googleMapsUrl} target="_blank" rel="noreferrer" className={styles.mapExternalLink}>
+        <Button className={styles.mapOpenButton}>Open in Google Maps</Button>
+      </a>
+    </Card>
+  );
+};
+
 const PublicLocationDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -322,7 +407,7 @@ const PublicLocationDetailPage = () => {
                       renderItem={(item) => (
                         <List.Item>
                           <Text>
-                            {item?.dayOfWeek || item?.DayOfWeek}: {formatTime(item?.openTime || item?.OpenTime)} - {formatTime(item?.closeTime || item?.CloseTime)}
+                            {item?.dayName || item?.DayName || getDayName(item?.dayOfWeek ?? item?.DayOfWeek)}: {formatTime(item?.openTime || item?.OpenTime)} - {formatTime(item?.closeTime || item?.CloseTime)}
                             {(item?.note || item?.Note) ? ` (${item?.note || item?.Note})` : ''}
                           </Text>
                         </List.Item>
@@ -369,7 +454,6 @@ const PublicLocationDetailPage = () => {
                   <FactCard label="Typical spend" value={formatBudget(priceMinUsd, priceMaxUsd, ticketPrice)} />
                   <FactCard label="Suggested stay" value={formatDuration(recommendedDurationMinutes)} />
                   <FactCard label="Who it suits" value={formatMinimumAge(minimumAge)} />
-                  <FactCard label="Map reference" value={formatCoordinates(latitude, longitude)} />
                 </div>
                 {showCta ? (
                   <Button type="primary" className={styles.primaryCta} onClick={() => navigate(ctaPath)}>
@@ -377,6 +461,8 @@ const PublicLocationDetailPage = () => {
                   </Button>
                 ) : null}
               </Card>
+
+              <LocationMap latitude={latitude} longitude={longitude} name={name} firstImage={imageUrls[0]} />
 
               {amenities.length > 0 ? (
                 <DetailSection eyebrow="Comfort" title="Comfort highlights">

@@ -70,7 +70,7 @@ const AppHeader = ({ destinations = [] }) => {
   const menuItems = (
     <>
       {locationLink}
-      <Link to="/">
+      <Link to={PATHS.DASHBOARD}>
         <Text className={styles.navLink}>Home</Text>
       </Link>
       <Link to={PATHS.CREATE_TRIP}>
