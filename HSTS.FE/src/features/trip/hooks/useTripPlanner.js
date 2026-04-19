@@ -5,6 +5,22 @@ import { convertBudgetToVnd } from '../constants/currency';
 
 const STORAGE_KEY = 'trip-itinerary-result';
 
+const clearItineraryPersistence = () => {
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+  }
+
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+  }
+
+  if (typeof document !== 'undefined') {
+    document.cookie = `${STORAGE_KEY}=; Max-Age=0; path=/`;
+  }
+};
+
 export const useTripPlanner = () => {
   const [loading, setLoading] = useState(false);
   const [itinerary, setItinerary] = useState(() => {
@@ -62,7 +78,11 @@ export const useTripPlanner = () => {
 
   const clearItinerary = useCallback(() => {
     setItinerary(null);
-    sessionStorage.removeItem(STORAGE_KEY);
+    clearItineraryPersistence();
+  }, []);
+
+  const clearPersistedItinerary = useCallback(() => {
+    clearItineraryPersistence();
   }, []);
 
   const updateItinerary = useCallback((nextItinerary) => {
@@ -74,5 +94,12 @@ export const useTripPlanner = () => {
     }
   }, []);
 
-  return { itinerary, loading, generateItinerary, clearItinerary, updateItinerary };
+  return {
+    itinerary,
+    loading,
+    generateItinerary,
+    clearItinerary,
+    clearPersistedItinerary,
+    updateItinerary,
+  };
 };
