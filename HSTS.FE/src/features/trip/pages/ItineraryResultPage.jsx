@@ -4148,6 +4148,10 @@ const ItineraryResultPage = () => {
         sessionStorage.setItem('post-login-redirect', PATHS.ITINERARY);
       } catch {
       }
+      try {
+        localStorage.setItem('post-login-redirect', PATHS.ITINERARY);
+      } catch {
+      }
       message.info('Please sign in to save this trip.');
       navigate(`${PATHS.AUTH.LOGIN}?redirect=${encodeURIComponent(PATHS.ITINERARY)}`);
       return;
