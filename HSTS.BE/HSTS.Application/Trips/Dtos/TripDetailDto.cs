@@ -12,6 +12,7 @@ namespace HSTS.Application.Trips.Dtos
         TripStatus Status,
         string Currency,
         DateTime CreatedAt,
+        DateTime? UpdatedAt,
         int GroupSize,
         TripSummaryDto? TripSummary,
         List<TripDayDto> TripDays,

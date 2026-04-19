@@ -134,6 +134,14 @@ const TripsPage = () => {
       sorter: (a, b) => new Date(a.endDate) - new Date(b.endDate),
     },
     {
+      title: 'Updated At',
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      width: 150,
+      render: (date) => date ? new Date(date).toLocaleString() : 'Never',
+      sorter: (a, b) => new Date(a.updatedAt || 0) - new Date(b.updatedAt || 0),
+    },
+    {
       title: 'Currency',
       dataIndex: 'currency',
       key: 'currency',
@@ -250,6 +258,12 @@ const TripsPage = () => {
                       <span className={styles.infoLabel}>Currency</span>
                       <span className={styles.infoValue}>{item.currency}</span>
                     </div>
+                    <div className={styles.infoCol}>
+                      <span className={styles.infoLabel}>Updated At</span>
+                      <span className={styles.infoValue}>{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : 'Never'}</span>
+                    </div>
+                  </div>
+                  <div className={styles.cardInfoRow}>
                     <div className={styles.infoCol}>
                       <span className={styles.infoLabel}>Status</span>
                       <div className={styles.infoValue}>

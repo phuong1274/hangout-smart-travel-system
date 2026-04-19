@@ -59,6 +59,10 @@ const getLoginRedirectUrl = () => {
       sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, currentPath);
     } catch {
     }
+    try {
+      localStorage.setItem(POST_LOGIN_REDIRECT_KEY, currentPath);
+    } catch {
+    }
     return `${loginPath}?redirect=${encodeURIComponent(currentPath)}`;
   }
 

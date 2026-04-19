@@ -716,6 +716,12 @@ const TripDetailPage = () => {
               <DollarOutlined style={{ marginRight: 4 }} />
               {currency}
             </span>
+            {trip.updatedAt && (
+              <span className={styles.headerMetaItem}>
+                <EditOutlined style={{ marginRight: 4 }} />
+                Last updated: {new Date(trip.updatedAt).toLocaleString()}
+              </span>
+            )}
             <span className={styles.headerMetaItem}>
               Status: <Tag color={getTripStatusConfig(trip.status).color}>{getTripStatusConfig(trip.status).label}</Tag>
               {isLeader && getTripStatusConfig(trip.status).nextStatus !== null && (

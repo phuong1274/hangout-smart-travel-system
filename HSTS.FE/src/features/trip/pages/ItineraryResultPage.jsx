@@ -144,7 +144,10 @@ const toEventType = (value) => {
     if (mapped) return mapped;
   }
 
-  return normalizedText.toLowerCase();
+  const normalizedEventType = normalizedText.toLowerCase();
+  if (normalizedEventType === 'luggage-drop') return 'luggage-refresh';
+
+  return normalizedEventType;
 };
 
 const normalizeTitle = (text) => String(text || '')
@@ -1125,7 +1128,7 @@ const CustomLocationMapInvalidate = ({ activeKey }) => {
 const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
-  const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
+  const { itinerary, clearItinerary, clearPersistedItinerary, updateItinerary } = useTripPlanner();
   const travelCacheRef = useRef(new Map());
   const [reorderRecalculating, setReorderRecalculating] = useState(false);
   const [activeDragItem, setActiveDragItem] = useState(null);
@@ -2078,7 +2081,7 @@ const ItineraryResultPage = () => {
       timeline[timelineIndex] = replacedItem;
       day[timelineKey] = timeline;
 
-      await recalculateDayTimeline(draft, dayIndex);
+      await recalculateDayTimeline(draft, dayIndex, { preserveExternalSegments: true });
       updateItinerary(draft);
       message.success('Swapped main location with selected alternative.');
     } catch {
@@ -2324,7 +2327,7 @@ const ItineraryResultPage = () => {
       timeline.splice(Math.min(timeline.length, insertAfterIndex + 1), 0, insertedItem);
       day[timelineKey] = timeline;
 
-      await recalculateDayTimeline(draft, dayIndex);
+      await recalculateDayTimeline(draft, dayIndex, { preserveExternalSegments: true });
       if (summarySnapshot) {
         draft[summaryKey] = summarySnapshot;
       }
@@ -3745,25 +3748,133 @@ const ItineraryResultPage = () => {
         }
       }
 
+      const leftAdjacentTravelIndex = timelineIndex > 0 && isTravelEvent(timeline[timelineIndex - 1])
+        ? timelineIndex - 1
+        : -1;
+      const leftTravelReconnectIndex = leftTravelIndex >= 0 ? leftTravelIndex : leftAdjacentTravelIndex;
+      const leftTravelReconnect = leftTravelReconnectIndex >= 0 ? timeline[leftTravelReconnectIndex] : null;
+      const [, leftTravelReconnectDetail] = getTravelDetailEntry(leftTravelReconnect);
+
+      const rightAdjacentTravelIndex = timelineIndex < timeline.length - 1 && isTravelEvent(timeline[timelineIndex + 1])
+        ? timelineIndex + 1
+        : -1;
+      const rightTravelReconnectIndex = rightTravelIndex >= 0 ? rightTravelIndex : rightAdjacentTravelIndex;
+      const rightTravelReconnect = rightTravelReconnectIndex >= 0 ? timeline[rightTravelReconnectIndex] : null;
+      const [rightTravelReconnectKey, rightTravelReconnectDetail] = getTravelDetailEntry(rightTravelReconnect);
+
+      const getFromEndpointFromTravel = (travelDetail) => {
+        if (!travelDetail) return null;
+
+        const fromLocationId = toPositiveIntOrNull(travelDetail?.fromLocationId ?? travelDetail?.FromLocationId);
+        if (fromLocationId) {
+          return {
+            request: { fromLocationId },
+            name: pickFirstText(travelDetail?.fromLocationName, travelDetail?.FromLocationName) || `Location #${fromLocationId}`,
+          };
+        }
+
+        const fromTransitHubId = toPositiveIntOrNull(travelDetail?.fromTransitHubId ?? travelDetail?.FromTransitHubId);
+        if (fromTransitHubId) {
+          return {
+            request: { fromTransitHubId },
+            name: pickFirstText(
+              travelDetail?.fromTransitHubName,
+              travelDetail?.FromTransitHubName,
+              travelDetail?.fromName,
+              travelDetail?.FromName,
+            ) || `Transit hub #${fromTransitHubId}`,
+          };
+        }
+
+        const customFromTransitHub = toCustomGeoPayload(travelDetail?.customFromTransitHub || travelDetail?.CustomFromTransitHub);
+        if (customFromTransitHub) {
+          return {
+            request: { fromLat: customFromTransitHub.latitude, fromLng: customFromTransitHub.longitude },
+            name: customFromTransitHub.name || 'Start point',
+          };
+        }
+
+        return null;
+      };
+
+      const getToEndpointFromTravel = (travelDetail) => {
+        if (!travelDetail) return null;
+
+        const toLocationId = toPositiveIntOrNull(travelDetail?.toLocationId ?? travelDetail?.ToLocationId);
+        if (toLocationId) {
+          return {
+            request: { toLocationId },
+            name: pickFirstText(travelDetail?.toLocationName, travelDetail?.ToLocationName) || `Location #${toLocationId}`,
+          };
+        }
+
+        const toTransitHubId = toPositiveIntOrNull(travelDetail?.toTransitHubId ?? travelDetail?.ToTransitHubId);
+        if (toTransitHubId) {
+          return {
+            request: { toTransitHubId },
+            name: pickFirstText(
+              travelDetail?.toTransitHubName,
+              travelDetail?.ToTransitHubName,
+              travelDetail?.toName,
+              travelDetail?.ToName,
+            ) || `Transit hub #${toTransitHubId}`,
+          };
+        }
+
+        const customToTransitHub = toCustomGeoPayload(travelDetail?.customToTransitHub || travelDetail?.CustomToTransitHub);
+        if (customToTransitHub) {
+          return {
+            request: { toLat: customToTransitHub.latitude, toLng: customToTransitHub.longitude },
+            name: customToTransitHub.name || 'Transit hub',
+          };
+        }
+
+        return null;
+      };
+
       let mergedTravelItem = null;
       const prevLocationId = getItemLocationId(prevLocation);
       const nextLocationId = getItemLocationId(nextLocation);
-      const canConnectPreviousAndNext = Number.isFinite(prevLocationId) && prevLocationId > 0
-        && Number.isFinite(nextLocationId) && nextLocationId > 0;
+      const reconnectFromTravelEndpoint = getFromEndpointFromTravel(leftTravelReconnectDetail);
+      const reconnectToTravelEndpoint = getToEndpointFromTravel(rightTravelReconnectDetail);
 
-      if (canConnectPreviousAndNext) {
-        const leftTravel = leftTravelIndex >= 0 ? timeline[leftTravelIndex] : null;
-        const rightTravel = rightTravelIndex >= 0 ? timeline[rightTravelIndex] : null;
+      const reconnectFromEndpoint = Number.isFinite(prevLocationId) && prevLocationId > 0
+        ? {
+          request: { fromLocationId: prevLocationId },
+          name: pickFirstText(
+            prevLocation?.locationName,
+            prevLocation?.LocationName,
+            prevLocation?.title,
+            prevLocation?.Title,
+          ) || `Location #${prevLocationId}`,
+        }
+        : reconnectFromTravelEndpoint;
+
+      const reconnectToEndpoint = Number.isFinite(nextLocationId) && nextLocationId > 0
+        ? {
+          request: { toLocationId: nextLocationId },
+          name: pickFirstText(
+            nextLocation?.locationName,
+            nextLocation?.LocationName,
+            nextLocation?.title,
+            nextLocation?.Title,
+          ) || `Location #${nextLocationId}`,
+        }
+        : reconnectToTravelEndpoint;
+
+      const canReconnect = Boolean(reconnectFromEndpoint && reconnectToEndpoint);
+
+      if (canReconnect) {
         const departureTime = pickFirstText(
-          leftTravel?.startTime,
-          leftTravel?.StartTime,
+          leftTravelReconnect?.startTime,
+          leftTravelReconnect?.StartTime,
           prevLocation?.endTime,
           prevLocation?.EndTime,
           '08:00:00',
         );
         const arrivalTime = pickFirstText(
-          rightTravel?.endTime,
-          rightTravel?.EndTime,
+          rightTravelReconnect?.endTime,
+          rightTravelReconnect?.EndTime,
           nextLocation?.startTime,
           nextLocation?.StartTime,
           addMinutesToTime(departureTime, 20),
@@ -3778,8 +3889,8 @@ const ItineraryResultPage = () => {
         let travelLeg = null;
         try {
           travelLeg = await estimateLocalTravelApi({
-            fromLocationId: prevLocationId,
-            toLocationId: nextLocationId,
+            ...reconnectFromEndpoint.request,
+            ...reconnectToEndpoint.request,
             groupSize,
             departureTime,
             currencyCode,
@@ -3804,19 +3915,40 @@ const ItineraryResultPage = () => {
         const fromName = pickFirstText(
           travelLeg?.fromLocationName,
           travelLeg?.FromLocationName,
-          prevLocation?.locationName,
-          prevLocation?.LocationName,
-          prevLocation?.title,
-          prevLocation?.Title,
-        ) || `Location #${prevLocationId}`;
+          travelLeg?.fromTransitHubName,
+          travelLeg?.FromTransitHubName,
+          reconnectFromEndpoint?.name,
+        ) || 'Start point';
         const toName = pickFirstText(
           travelLeg?.toLocationName,
           travelLeg?.ToLocationName,
-          nextLocation?.locationName,
-          nextLocation?.LocationName,
-          nextLocation?.title,
-          nextLocation?.Title,
-        ) || `Location #${nextLocationId}`;
+          travelLeg?.toTransitHubName,
+          travelLeg?.ToTransitHubName,
+          reconnectToEndpoint?.name,
+        ) || 'Destination';
+
+        const sourceIsLocation = Boolean(reconnectFromEndpoint?.request?.fromLocationId);
+        const targetIsLocation = Boolean(reconnectToEndpoint?.request?.toLocationId);
+        const mergedTravelDetailKey = sourceIsLocation && targetIsLocation
+          ? 'locationToLocationTravel'
+          : (sourceIsLocation
+            ? 'locationToTransitHubTravel'
+            : (targetIsLocation
+              ? 'transitHubToLocationTravel'
+              : (rightTravelReconnectKey || 'provinceToProvinceTravel')));
+        const mergedTravelDetail = travelLeg
+          ? {
+            ...travelLeg,
+            departureTime,
+            DepartureTime: departureTime,
+            arrivalTime,
+            ArrivalTime: arrivalTime,
+            selectedTotalCost: mergedTravelCostMoney,
+            SelectedTotalCost: mergedTravelCostMoney,
+            costForGroup: mergedTravelCostMoney,
+            CostForGroup: mergedTravelCostMoney,
+          }
+          : null;
 
         mergedTravelItem = {
           eventType: 'travel',
@@ -3827,29 +3959,17 @@ const ItineraryResultPage = () => {
           tagNames: [],
           note: 'Updated after removing location',
           score: 0,
-          locationToLocationTravel: travelLeg
-            ? {
-              ...travelLeg,
-              departureTime,
-              DepartureTime: departureTime,
-              arrivalTime,
-              ArrivalTime: arrivalTime,
-              selectedTotalCost: mergedTravelCostMoney,
-              SelectedTotalCost: mergedTravelCostMoney,
-              costForGroup: mergedTravelCostMoney,
-              CostForGroup: mergedTravelCostMoney,
-            }
-            : null,
+          [mergedTravelDetailKey]: mergedTravelDetail,
           costForGroup: mergedTravelCostMoney,
           CostForGroup: mergedTravelCostMoney,
         };
       }
 
       const indexesToRemove = new Set([timelineIndex]);
-      if (leftTravelIndex >= 0) indexesToRemove.add(leftTravelIndex);
-      if (rightTravelIndex >= 0) indexesToRemove.add(rightTravelIndex);
+      if (leftTravelReconnectIndex >= 0) indexesToRemove.add(leftTravelReconnectIndex);
+      if (rightTravelReconnectIndex >= 0) indexesToRemove.add(rightTravelReconnectIndex);
 
-      const rawInsertAt = leftTravelIndex >= 0 ? leftTravelIndex : timelineIndex;
+      const rawInsertAt = leftTravelReconnectIndex >= 0 ? leftTravelReconnectIndex : timelineIndex;
       const insertAt = timeline
         .slice(0, rawInsertAt)
         .filter((_, index) => !indexesToRemove.has(index))
@@ -3860,12 +3980,12 @@ const ItineraryResultPage = () => {
         nextTimeline.splice(Math.max(0, Math.min(insertAt, nextTimeline.length)), 0, mergedTravelItem);
       }
 
-      const leftTravelCostAmount = leftTravelIndex >= 0
-        ? getStrictTravelCostAmount(timeline[leftTravelIndex])
+      const leftTravelCostAmount = leftTravelReconnectIndex >= 0
+        ? getStrictTravelCostAmount(timeline[leftTravelReconnectIndex])
         : 0;
       const rightTravelCostAmount = rightTravelIndex >= 0
         ? getStrictTravelCostAmount(timeline[rightTravelIndex])
-        : 0;
+        : (rightTravelReconnectIndex >= 0 ? getStrictTravelCostAmount(timeline[rightTravelReconnectIndex]) : 0);
       const mergedTravelCostAmount = mergedTravelItem
         ? getStrictTravelCostAmount(mergedTravelItem)
         : 0;
@@ -3971,6 +4091,10 @@ const ItineraryResultPage = () => {
     ?? (accommodationCostFallback + timelineCostBreakdown.meal + timelineCostBreakdown.other)
   );
   const usableBudgetValue = getMoneyAmount(budgetSummary?.usableBudget || budgetSummary?.UsableBudget) || 0;
+  const summaryContingencyValue = Math.round(
+    getMoneyAmount(budgetSummary?.contingencyFund || budgetSummary?.ContingencyFund)
+    ?? Math.max(0, totalBudgetValue - usableBudgetValue)
+  );
   const summaryRemainingValue = getMoneyAmount(budgetSummary?.remainingBudget || budgetSummary?.RemainingBudget);
   const remainingBudgetMoney = {
     amount: Math.round(summaryRemainingValue ?? (usableBudgetValue - estimatedTotalValue)),
@@ -3992,6 +4116,14 @@ const ItineraryResultPage = () => {
         value: formatMoney(budgetSummary.usableBudget || budgetSummary.UsableBudget),
         className: styles.budgetUsableValue,
       },
+      ...(summaryContingencyValue > 0
+        ? [{
+          key: 'contingencyFund',
+          label: 'Contingency Fund',
+          value: formatMoney({ amount: summaryContingencyValue, currency: tripCurrencyCode }),
+          className: styles.budgetContingencyValue,
+        }]
+        : []),
       {
         key: 'estimatedTotal',
         label: 'Estimated Total',
@@ -4014,6 +4146,10 @@ const ItineraryResultPage = () => {
       updateItinerary(itinerary);
       try {
         sessionStorage.setItem('post-login-redirect', PATHS.ITINERARY);
+      } catch {
+      }
+      try {
+        localStorage.setItem('post-login-redirect', PATHS.ITINERARY);
       } catch {
       }
       message.info('Please sign in to save this trip.');
@@ -4309,6 +4445,7 @@ const ItineraryResultPage = () => {
     setSavingTrip(true);
     try {
       const result = await saveTripApi(payload);
+      clearPersistedItinerary();
       const savedTripId = Number(result?.tripId ?? result?.TripId ?? result?.id ?? result?.Id);
       message.success('Trip saved successfully.');
       if (Number.isFinite(savedTripId) && savedTripId > 0) {
