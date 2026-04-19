@@ -355,19 +355,36 @@ namespace HSTS.Application.Itineraries.Queries
             if (destinationProvinces.Count == 0)
                 return Error.NotFound("Itinerary.Attraction", "No attractions in any destination province.");
 
+            const int maxAttempts = 3;
+            var initialNotes = notes.ToList();
+
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                notes = initialNotes.ToList();
+                var randomTieBreaker = attempt > 1 ? Guid.NewGuid() : Guid.Empty;
+
             var scoredAttractions = attractions
                 .Select(x => new ScoredLocation(x, ComputeCompositeScore(x, favoriteTagIds)))
-                .OrderByDescending(x => x.CompositeScore).ToList();
+                .OrderByDescending(x => x.CompositeScore)
+                .ThenByDescending(x => attempt == 1 ? (x.Location.Score ?? 0) : 0)
+                .ThenBy(x => attempt == 1 ? x.Location.Id.ToString() : (randomTieBreaker.ToString() + x.Location.Id).GetHashCode().ToString())
+                .ToList();
 
             // Score shopping locations (mixed with attractions, compete naturally by score)
             var scoredShopping = shoppingLocations
                 .Select(x => new ScoredLocation(x, ComputeCompositeScore(x, favoriteTagIds)))
-                .OrderByDescending(x => x.CompositeScore).ToList();
+                .OrderByDescending(x => x.CompositeScore)
+                .ThenByDescending(x => attempt == 1 ? (x.Location.Score ?? 0) : 0)
+                .ThenBy(x => attempt == 1 ? x.Location.Id.ToString() : (randomTieBreaker.ToString() + x.Location.Id).GetHashCode().ToString())
+                .ToList();
 
             // Score restaurant locations separately for meal picker
             var scoredRestaurants = restaurantLocations
                 .Select(x => new ScoredLocation(x, ComputeCompositeScore(x, favoriteTagIds)))
-                .OrderByDescending(x => x.CompositeScore).ToList();
+                .OrderByDescending(x => x.CompositeScore)
+                .ThenByDescending(x => attempt == 1 ? (x.Location.Score ?? 0) : 0)
+                .ThenBy(x => attempt == 1 ? x.Location.Id.ToString() : (randomTieBreaker.ToString() + x.Location.Id).GetHashCode().ToString())
+                .ToList();
 
             // Combined scored list for activity picking (attractions + shopping mixed together)
             var scoredForActivities = scoredAttractions.Concat(scoredShopping).ToList();
@@ -2887,6 +2904,13 @@ namespace HSTS.Application.Itineraries.Queries
                     $"Estimated cost ({estimatedTotal:N0} VND) exceeds usable budget ({usableBudget:N0} VND) by {deficit:N0} VND.",
                     "Suggestions: increase your budget, reduce the number of destinations/days, choose cheaper accommodations, or remove expensive locations."
                 };
+                
+                if (attempt < maxAttempts)
+                {
+                    notes.Add($"Attempt {attempt} failed due to budget overrun of {deficit:N0} VND. Retrying...");
+                    continue;
+                }
+                
                 return Error.Validation(
                     "Itinerary.BudgetInsufficient",
                     string.Join(" ", suggestions));
@@ -2921,6 +2945,9 @@ namespace HSTS.Application.Itineraries.Queries
                 isLuxuryTrip ? "Luxury" : ClassifyBudgetLevel(request.TotalBudget, groupSize, totalDays),
                 budgetSummary,
                 days, new List<string>());
+            } // END RETRY LOOP
+            
+            return Error.Unexpected("Itinerary.GenerationFailed", "Itinerary generation failed unpredictably.");
         }
 
         // === WEATHER-BASED SCORING ===
