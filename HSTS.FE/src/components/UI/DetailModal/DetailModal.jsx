@@ -1,10 +1,16 @@
 import React from 'react';
 import { Modal, Descriptions, Tag, Space, Image, Divider } from 'antd';
-import { MONTH_NAMES } from '@/utils/locationConstants';
+import { MONTH_NAMES, SOCIAL_PLATFORMS } from '@/utils/locationConstants';
 import styles from './DetailModal.module.css';
 
 const DetailModal = ({ open, onClose, data, type, children }) => {
   if (!data) return null;
+
+  const getPlatformLabel = (platform) => {
+    if (!platform) return '';
+    const platformObj = SOCIAL_PLATFORMS.find(p => p.enumValue === platform || p.value === platform);
+    return platformObj ? platformObj.label : platform;
+  };
 
   const renderContent = () => {
     switch (type) {
@@ -80,7 +86,9 @@ const DetailModal = ({ open, onClose, data, type, children }) => {
                 {data.socialLinks && data.socialLinks.length > 0 ? (
                   data.socialLinks.map((link, index) => (
                     <div key={link.id || index} className={styles.socialLinkRow}>
-                      <Tag className={styles.customTag} color="blue">{link.platformName || link.platform}</Tag>
+                      <Tag className={styles.customTag} color="blue">
+                        {link.platformName || getPlatformLabel(link.platform)}
+                      </Tag>
                       <a href={link.url} target="_blank" rel="noopener noreferrer" className={styles.hoverLink}>
                         {link.url}
                       </a>

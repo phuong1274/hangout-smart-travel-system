@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Descriptions, Tag, Space, Image, Divider, Table } from 'antd';
 import { EnvironmentOutlined, DollarOutlined, UserOutlined, CalendarOutlined, LinkOutlined, PhoneOutlined, MailOutlined, ClockCircleOutlined, PictureOutlined, CloudOutlined } from '@ant-design/icons';
-import { MONTH_NAMES, DAYS_OF_WEEK } from '@/utils/locationConstants';
+import { MONTH_NAMES, DAYS_OF_WEEK, SOCIAL_PLATFORMS } from '@/utils/locationConstants';
 
 // Helper to convert dayOfWeek number to name
 const getDayName = (dayOfWeek) => {
@@ -17,6 +17,13 @@ const getDayName = (dayOfWeek) => {
   
   const day = DAYS_OF_WEEK.find(d => d.value === dayNum);
   return day ? day.label : `Day ${dayNum}`;
+};
+
+// Helper to get platform label from enum value or string
+const getPlatformLabel = (platform) => {
+  if (!platform) return '';
+  const platformObj = SOCIAL_PLATFORMS.find(p => p.enumValue === platform || p.value === platform);
+  return platformObj ? platformObj.label : platform;
 };
 
 /**
@@ -96,7 +103,7 @@ const DetailModal = ({ open, onClose, data, type }) => {
                 {data.socialLinks && data.socialLinks.length > 0 ? (
                   data.socialLinks.map((link, index) => (
                     <div key={link.id || index}>
-                      <Tag color="blue">{link.platformName || link.platform}</Tag>
+                      <Tag color="blue">{link.platformName || getPlatformLabel(link.platform)}</Tag>
                       <a href={link.url} target="_blank" rel="noopener noreferrer">
                         <LinkOutlined /> {link.url}
                       </a>

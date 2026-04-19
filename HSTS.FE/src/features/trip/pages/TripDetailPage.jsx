@@ -111,6 +111,34 @@ const formatTime = (timeStr) => {
   return `${parts[0]}:${parts[1]}`;
 };
 
+const toPositiveIntOrNull = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+};
+
+const getTransportPointLabel = (transport, isFrom) => {
+  if (!transport || typeof transport !== 'object') {
+    return isFrom ? 'Start' : 'Destination';
+  }
+
+  if (isFrom) {
+    return transport.customFromTransitHubName
+      || transport.fromTransitHubName
+      || transport.fromLocationName
+      || transport.yourLocationName
+      || (toPositiveIntOrNull(transport.fromTransitHubId) ? `Hub #${transport.fromTransitHubId}` : '')
+      || (toPositiveIntOrNull(transport.fromLocationId) ? `Location #${transport.fromLocationId}` : '')
+      || 'Start';
+  }
+
+  return transport.customToTransitHubName
+    || transport.toTransitHubName
+    || transport.toLocationName
+    || (toPositiveIntOrNull(transport.toTransitHubId) ? `Hub #${transport.toTransitHubId}` : '')
+    || (toPositiveIntOrNull(transport.toLocationId) ? `Location #${transport.toLocationId}` : '')
+    || 'Destination';
+};
+
 const formatMinutesAsHourMinute = (minutes) => {
   const totalMinutes = Number(minutes);
   if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return '';
@@ -901,16 +929,11 @@ const TripDetailPage = () => {
                                   {eventType === 'Travel' && activity.transport && (
                                     <div style={{ marginTop: 4, fontSize: 13, color: '#434343', display: 'flex', alignItems: 'center', gap: 4 }}>
                                       <Text strong style={{ fontSize: 13 }}>
-                                        {activity.transport.customFromTransitHubName || 
-                                         activity.transport.fromTransitHubName || 
-                                         activity.transport.fromLocationName || 
-                                         activity.transport.yourLocationName || 'Start'}
+                                        {getTransportPointLabel(activity.transport, true)}
                                       </Text>
                                       <span style={{ color: '#bfbfbf', margin: '0 4px' }}>➔</span>
                                       <Text strong style={{ fontSize: 13 }}>
-                                        {activity.transport.customToTransitHubName || 
-                                         activity.transport.toTransitHubName || 
-                                         activity.transport.toLocationName || 'Destination'}
+                                        {getTransportPointLabel(activity.transport, false)}
                                       </Text>
                                     </div>
                                   )}
@@ -984,16 +1007,11 @@ const TripDetailPage = () => {
                                           {eventType === 'Travel' && activity.transport && (
                                             <div style={{ marginTop: 8, fontSize: 14, color: '#1A535C', display: 'flex', alignItems: 'center', gap: 8 }}>
                                               <Text strong>
-                                                {activity.transport.customFromTransitHubName || 
-                                                 activity.transport.fromTransitHubName || 
-                                                 activity.transport.fromLocationName || 
-                                                 activity.transport.yourLocationName || 'Start'}
+                                                {getTransportPointLabel(activity.transport, true)}
                                               </Text>
                                               <span style={{ color: '#4ECDC4' }}>➔</span>
                                               <Text strong>
-                                                {activity.transport.customToTransitHubName || 
-                                                 activity.transport.toTransitHubName || 
-                                                 activity.transport.toLocationName || 'Destination'}
+                                                {getTransportPointLabel(activity.transport, false)}
                                               </Text>
                                             </div>
                                           )}
