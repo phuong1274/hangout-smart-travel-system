@@ -192,6 +192,7 @@ namespace HSTS.Application.Trips.Queries
                 trip.Status,
                 trip.Currency,
                 trip.CreatedAt,
+                trip.UpdatedAt,
                 trip.GroupSize,
                 tripSummary,
                 tripDays,
