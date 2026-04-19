@@ -434,6 +434,8 @@ const normalizeDraftDays = (rawDays) => {
   }));
 };
 
+// Converts a saved TripDetail's days (interleaved Travel+Visit) into the builder's
+// Visit-only format where travel legs are stored as travelFromPrevious on the next activity.
 const convertDetailDaysToBuilderDays = (tripDays) => {
   if (!Array.isArray(tripDays)) return [];
   return tripDays.map((day, dayIndex) => {
@@ -668,6 +670,7 @@ const ManualTripPage = () => {
       if (!resolvedTripInfo || (isEditMode && resolvedDays.length === 0)) {
         try {
           if (isEditMode) {
+            // Edit mode: load full trip detail (includes days/activities)
             const apiTrip = await getTripDetailApi(tripId);
             if (!resolvedTripInfo) {
               resolvedTripInfo = normalizeTripInfo({
@@ -919,6 +922,8 @@ const ManualTripPage = () => {
       const activities = Array.isArray(day.activities) ? [...day.activities] : [];
       const currentIndex = activities.findIndex((activity) => activity.id === activityId);
       if (currentIndex < 0) return day;
+      // For cross-day first activities (currentIndex === 0), previousActivity is undefined;
+      // departureTime and fromName are already captured in travelFromPrevious.
       const previousActivity = currentIndex > 0 ? activities[currentIndex - 1] : undefined;
       const currentActivity = activities[currentIndex];
       const travel = currentActivity?.travelFromPrevious;
@@ -1286,6 +1291,9 @@ const ManualTripPage = () => {
     return normalized;
   }, [tripInfo, transportModeNameById]);
 
+  // Estimates the travel leg from the last activity of the previous day to the first
+  // activity of the current day. Returns an updated version of `toActivity` with
+  // `travelFromPrevious` populated (or the original if estimation fails/has no endpoints).
   const estimateCrossDayTravel = useCallback(async (fromActivity, toActivity, existingTravel = null) => {
     if (!tripInfo) return toActivity;
 
@@ -1318,6 +1326,7 @@ const ManualTripPage = () => {
         ?? travelLeg?.options ?? travelLeg?.Options,
         currencyCode,
       );
+      // Prefer restoring saved selection (by transportModeId/name) over just picking the recommended one
       const travelHint = existingTravel && !existingTravel.isCustomTransport ? existingTravel : null;
       const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, travelHint);
       const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
@@ -1421,6 +1430,8 @@ const ManualTripPage = () => {
 
       let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended]);
 
+      // If this is the first location added to a non-first day, estimate travel from
+      // the last activity of the previous day.
       if (recalculated.length > 0 && dayIndex > 0 && day.activities.length === 0) {
         const prevDay = manualDays[dayIndex - 1];
         const prevLastActivity = prevDay?.activities?.[prevDay.activities.length - 1];
@@ -1502,6 +1513,8 @@ const ManualTripPage = () => {
 
       let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended]);
 
+      // If this is the first location added to a non-first day, estimate travel from
+      // the last activity of the previous day.
       if (recalculated.length > 0 && dayIndex > 0 && day.activities.length === 0) {
         const prevDay = manualDays[dayIndex - 1];
         const prevLastActivity = prevDay?.activities?.[prevDay.activities.length - 1];
@@ -1560,12 +1573,15 @@ const ManualTripPage = () => {
     }
   };
 
+  // Shared helper: reorder activities within a day by index and recalculate travel.
   const reorderActivitiesInDay = useCallback(async (dayIdx, oldIdx, newIdx) => {
     const day = manualDays[dayIdx];
     if (!day || oldIdx === newIdx) return;
 
     const reordered = arrayMove(day.activities, oldIdx, newIdx);
 
+    // Anchor the new first activity's start time to the day's original anchor time so
+    // the whole day schedule doesn't shift when activities are reordered.
     const anchorStartTime = normalizeTimeOnly(day.activities[0]?.startTime);
     if (anchorStartTime && reordered.length > 0) {
       const newFirst = reordered[0];
@@ -1582,6 +1598,7 @@ const ManualTripPage = () => {
     try {
       let recalculated = await recalculateDayTravelAndEstimate(reordered);
 
+      // If the first activity of a non-first day changed, re-estimate cross-day travel.
       if (dayIdx > 0 && recalculated.length > 0 && (oldIdx === 0 || newIdx === 0)) {
         const prevDay = manualDays[dayIdx - 1];
         const prevLastActivity = prevDay?.activities?.[prevDay.activities.length - 1];
@@ -1644,6 +1661,8 @@ const ManualTripPage = () => {
     const type = active.data.current?.type;
 
     if (type === 'day') {
+      // When dragging a day, over.id may resolve to an activity inside the target day
+      // (because activity cards have more DOM area). Resolve to the parent day ID.
       const overDayId = over.data.current?.type === 'activity'
         ? over.data.current?.dayId
         : over.id;
@@ -1675,6 +1694,7 @@ const ManualTripPage = () => {
 
     const currencyCode = tripInfo.currencyCode || 'VND';
 
+    // Days that need intra-day travel backfill (activities[>0] with travelFromPrevious but no options)
     const daysNeedingIntraDayBackfill = manualDays
       .map((day, dayIndex) => ({ day, dayIndex }))
       .filter(({ day }) => (day.activities || []).some((activity, activityIndex) => {
@@ -1688,6 +1708,7 @@ const ManualTripPage = () => {
         return options.length === 0;
       }));
 
+    // Days whose first activity (non-first day) has travelFromPrevious set but no transport options fetched yet
     const daysNeedingCrossDayIntraDayBackfill = manualDays
       .map((day, dayIndex) => ({ day, dayIndex }))
       .filter(({ day, dayIndex }) => {
@@ -1703,6 +1724,7 @@ const ManualTripPage = () => {
         return options.length === 0;
       });
 
+    // Days whose first activity is missing cross-day travel entirely (non-first days with activities)
     const daysNeedingCrossDayBackfill = manualDays
       .map((day, dayIndex) => ({ day, dayIndex }))
       .filter(({ day, dayIndex }) => {
@@ -1734,8 +1756,11 @@ const ManualTripPage = () => {
     const backfill = async () => {
       try {
         const updates = await Promise.all(daysNeedingBackfill.map(async ({ dayIndex, day }) => {
+          // Preserve existing cross-day travelFromPrevious before recalculate strips it
           const originalFirstTravel = dayIndex > 0 ? (day.activities?.[0]?.travelFromPrevious ?? null) : null;
           let nextActivities = await recalculateDayTravelAndEstimate(day.activities || []);
+          
+          // Also apply cross-day travel for the first activity if it's a non-first day
           if (dayIndex > 0 && nextActivities.length > 0 && nextActivities[0].travelFromPrevious == null) {
             const prevDay = manualDays[dayIndex - 1];
             const prevLastActivity = prevDay?.activities?.[prevDay.activities.length - 1];
@@ -1858,6 +1883,7 @@ const ManualTripPage = () => {
         const visitStartTime = normalizeTimeOnly(activity.startTime);
         const visitEndTime = normalizeTimeOnly(activity.endTime);
 
+        // Cross-day first activity: activityIndex === 0 but travelFromPrevious is set (from previous day's last stop)
         const isCrossDayFirst = activityIndex === 0 && dayIndex > 0;
         const previousActivity = activityIndex > 0
           ? sourceActivities[activityIndex - 1]
