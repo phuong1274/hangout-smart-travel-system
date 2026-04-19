@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace HSTS.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class BaselineAfterReset : Migration
+    public partial class BaselineFromCurrentCode : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
