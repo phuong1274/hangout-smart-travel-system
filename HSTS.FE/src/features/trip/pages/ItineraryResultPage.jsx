@@ -1325,6 +1325,130 @@ const ItineraryResultPage = () => {
     }
   }, [itinerary, updateItinerary]);
 
+  useEffect(() => {
+    if (!itinerary) return;
+
+    const daysKey = Array.isArray(itinerary?.days)
+      ? 'days'
+      : (Array.isArray(itinerary?.Days) ? 'Days' : null);
+    if (!daysKey) return;
+
+    const sourceDays = itinerary?.[daysKey];
+    if (!Array.isArray(sourceDays) || sourceDays.length < 2) return;
+
+    const currencyCode = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+    const draft = clonePlainObject(itinerary);
+    const draftDays = draft?.[daysKey];
+    if (!Array.isArray(draftDays)) return;
+
+    let changed = false;
+
+    for (let dayIndex = 1; dayIndex < draftDays.length; dayIndex += 1) {
+      const previousDay = draftDays[dayIndex - 1];
+      const currentDay = draftDays[dayIndex];
+      if (!previousDay || !currentDay) continue;
+
+      const previousTimeline = getDayTimeline(previousDay, currencyCode);
+      const previousDayLastStop = [...previousTimeline].reverse().find((item) => !isTravelEvent(item));
+
+      const currentTimelineKey = Array.isArray(currentDay?.timeline) ? 'timeline' : 'Timeline';
+      const currentTimeline = Array.isArray(currentDay?.[currentTimelineKey])
+        ? [...currentDay[currentTimelineKey]]
+        : getDayTimeline(currentDay, currencyCode);
+      if (!Array.isArray(currentDay?.[currentTimelineKey])) {
+        currentDay[currentTimelineKey] = currentTimeline;
+        changed = true;
+      }
+
+      const firstTravelIndex = currentTimeline.findIndex((item) => isTravelEvent(item));
+      if (firstTravelIndex !== 0) continue;
+
+      const firstTravelItem = currentTimeline[firstTravelIndex];
+      const [firstTravelDetailKey, firstTravelDetail] = getTravelDetailEntry(firstTravelItem);
+      if (!firstTravelDetailKey || !firstTravelDetail) continue;
+
+      const expectedFrom = (() => {
+        if (previousDayLastStop) {
+          const locationId = toPositiveIntOrNull(getItemLocationId(previousDayLastStop));
+          const name = pickFirstText(
+            previousDayLastStop?.locationName,
+            previousDayLastStop?.LocationName,
+            previousDayLastStop?.title,
+            previousDayLastStop?.Title,
+          ) || 'Start point';
+
+          const customLocation = toCustomGeoPayload(previousDayLastStop?.customLocation || previousDayLastStop?.CustomLocation);
+          if (locationId) return { name, fromLocationId: locationId };
+          if (customLocation) return { name, fromLat: customLocation.latitude, fromLng: customLocation.longitude };
+        }
+
+        const itineraryUserLocation = draft?.userLocation || draft?.UserLocation;
+        const userLat = toFiniteNumber(itineraryUserLocation?.latitude ?? itineraryUserLocation?.Latitude);
+        const userLng = toFiniteNumber(itineraryUserLocation?.longitude ?? itineraryUserLocation?.Longitude);
+        if (userLat != null && userLng != null) {
+          return { name: 'Your location', fromLat: userLat, fromLng: userLng };
+        }
+
+        return null;
+      })();
+
+      if (!expectedFrom) continue;
+
+      const currentFromLocationId = toPositiveIntOrNull(
+        firstTravelDetail?.fromLocationId
+        ?? firstTravelDetail?.FromLocationId
+        ?? firstTravelDetail?.fromId
+        ?? firstTravelDetail?.FromId
+      );
+      const currentFromName = pickFirstText(
+        firstTravelDetail?.fromLocationName,
+        firstTravelDetail?.FromLocationName,
+        firstTravelDetail?.fromTransitHubName,
+        firstTravelDetail?.FromTransitHubName,
+        firstTravelDetail?.fromName,
+        firstTravelDetail?.FromName,
+        firstTravelDetail?.from,
+        firstTravelDetail?.From,
+      );
+
+      const matchesExpectedFrom = expectedFrom.fromLocationId
+        ? currentFromLocationId === expectedFrom.fromLocationId
+        : normalizeTitle(currentFromName) === normalizeTitle(expectedFrom.name);
+      if (matchesExpectedFrom) continue;
+
+      const toName = getTravelPointName(firstTravelDetail, false) || 'Destination';
+      const updatedTravelDetail = {
+        ...firstTravelDetail,
+        fromLocationId: expectedFrom.fromLocationId ?? null,
+        FromLocationId: expectedFrom.fromLocationId ?? null,
+        fromLocationName: expectedFrom.name,
+        FromLocationName: expectedFrom.name,
+        fromName: expectedFrom.name,
+        FromName: expectedFrom.name,
+        from: expectedFrom.name,
+        From: expectedFrom.name,
+        fromLat: expectedFrom.fromLat ?? null,
+        FromLat: expectedFrom.fromLat ?? null,
+        fromLng: expectedFrom.fromLng ?? null,
+        FromLng: expectedFrom.fromLng ?? null,
+      };
+
+      currentTimeline[firstTravelIndex] = {
+        ...firstTravelItem,
+        title: `Move from ${expectedFrom.name} to ${toName}`,
+        Title: `Move from ${expectedFrom.name} to ${toName}`,
+        [firstTravelDetailKey]: updatedTravelDetail,
+      };
+
+      currentDay[currentTimelineKey] = currentTimeline;
+      changed = true;
+    }
+
+    if (changed) {
+      updateItinerary(draft);
+    }
+  }, [itinerary, updateItinerary]);
+
   const handleViewLocation = useCallback((locationId) => {
     setLocationModal({ open: true, locationId });
   }, []);
@@ -3763,34 +3887,48 @@ const ItineraryResultPage = () => {
       const [rightTravelReconnectKey, rightTravelReconnectDetail] = getTravelDetailEntry(rightTravelReconnect);
 
       const getFromEndpointFromTravel = (travelDetail) => {
-        if (!travelDetail) return null;
+        const safeTravelDetail = travelDetail || {};
 
-        const fromLocationId = toPositiveIntOrNull(travelDetail?.fromLocationId ?? travelDetail?.FromLocationId);
+        const fromLocationId = toPositiveIntOrNull(
+          safeTravelDetail?.fromLocationId
+          ?? safeTravelDetail?.FromLocationId
+          ?? safeTravelDetail?.fromId
+          ?? safeTravelDetail?.FromId
+        );
         if (fromLocationId) {
           return {
             request: { fromLocationId },
-            name: pickFirstText(travelDetail?.fromLocationName, travelDetail?.FromLocationName) || `Location #${fromLocationId}`,
+            name: pickFirstText(safeTravelDetail?.fromLocationName, safeTravelDetail?.FromLocationName) || `Location #${fromLocationId}`,
           };
         }
 
-        const fromTransitHubId = toPositiveIntOrNull(travelDetail?.fromTransitHubId ?? travelDetail?.FromTransitHubId);
+        const fromTransitHubId = toPositiveIntOrNull(safeTravelDetail?.fromTransitHubId ?? safeTravelDetail?.FromTransitHubId);
         if (fromTransitHubId) {
           return {
             request: { fromTransitHubId },
             name: pickFirstText(
-              travelDetail?.fromTransitHubName,
-              travelDetail?.FromTransitHubName,
-              travelDetail?.fromName,
-              travelDetail?.FromName,
+              safeTravelDetail?.fromTransitHubName,
+              safeTravelDetail?.FromTransitHubName,
+              safeTravelDetail?.fromName,
+              safeTravelDetail?.FromName,
             ) || `Transit hub #${fromTransitHubId}`,
           };
         }
 
-        const customFromTransitHub = toCustomGeoPayload(travelDetail?.customFromTransitHub || travelDetail?.CustomFromTransitHub);
+        const customFromTransitHub = toCustomGeoPayload(safeTravelDetail?.customFromTransitHub || safeTravelDetail?.CustomFromTransitHub);
         if (customFromTransitHub) {
           return {
             request: { fromLat: customFromTransitHub.latitude, fromLng: customFromTransitHub.longitude },
             name: customFromTransitHub.name || 'Start point',
+          };
+        }
+
+        const directFromLat = toFiniteNumber(safeTravelDetail?.fromLat ?? safeTravelDetail?.FromLat);
+        const directFromLng = toFiniteNumber(safeTravelDetail?.fromLng ?? safeTravelDetail?.FromLng);
+        if (directFromLat != null && directFromLng != null) {
+          return {
+            request: { fromLat: directFromLat, fromLng: directFromLng },
+            name: pickFirstText(safeTravelDetail?.fromName, safeTravelDetail?.FromName) || 'Start point',
           };
         }
 
@@ -3800,7 +3938,12 @@ const ItineraryResultPage = () => {
       const getToEndpointFromTravel = (travelDetail) => {
         if (!travelDetail) return null;
 
-        const toLocationId = toPositiveIntOrNull(travelDetail?.toLocationId ?? travelDetail?.ToLocationId);
+        const toLocationId = toPositiveIntOrNull(
+          travelDetail?.toLocationId
+          ?? travelDetail?.ToLocationId
+          ?? travelDetail?.toId
+          ?? travelDetail?.ToId
+        );
         if (toLocationId) {
           return {
             request: { toLocationId },
@@ -3829,6 +3972,16 @@ const ItineraryResultPage = () => {
           };
         }
 
+        const itineraryUserLocation = draft?.userLocation || draft?.UserLocation;
+        const userLat = toFiniteNumber(itineraryUserLocation?.latitude ?? itineraryUserLocation?.Latitude);
+        const userLng = toFiniteNumber(itineraryUserLocation?.longitude ?? itineraryUserLocation?.Longitude);
+        if (userLat != null && userLng != null) {
+          return {
+            request: { toLat: userLat, toLng: userLng },
+            name: 'Your location',
+          };
+        }
+
         return null;
       };
 
@@ -3837,6 +3990,40 @@ const ItineraryResultPage = () => {
       const nextLocationId = getItemLocationId(nextLocation);
       const reconnectFromTravelEndpoint = getFromEndpointFromTravel(leftTravelReconnectDetail);
       const reconnectToTravelEndpoint = getToEndpointFromTravel(rightTravelReconnectDetail);
+
+      const previousDay = draftDays[dayIndex - 1];
+      const reconnectFromPreviousDayEndpoint = (() => {
+        if (!previousDay || typeof previousDay !== 'object') return null;
+
+        const previousDayTimelineKey = Array.isArray(previousDay?.timeline) ? 'timeline' : 'Timeline';
+        const previousDayTimeline = Array.isArray(previousDay?.[previousDayTimelineKey]) ? previousDay[previousDayTimelineKey] : [];
+        const previousDayLastStop = [...previousDayTimeline].reverse().find((candidate) => !isTravelEvent(candidate));
+        if (!previousDayLastStop) return null;
+
+        const request = getTimelineStopEndpointParams(previousDayLastStop, 'from');
+        if (!Object.values(request).some((value) => value != null)) return null;
+
+        return {
+          request,
+          name: pickFirstText(
+            previousDayLastStop?.locationName,
+            previousDayLastStop?.LocationName,
+            previousDayLastStop?.title,
+            previousDayLastStop?.Title,
+          ) || 'Start point',
+        };
+      })();
+
+      const reconnectFromUserEndpoint = (() => {
+        const itineraryUserLocation = draft?.userLocation || draft?.UserLocation;
+        const userLat = toFiniteNumber(itineraryUserLocation?.latitude ?? itineraryUserLocation?.Latitude);
+        const userLng = toFiniteNumber(itineraryUserLocation?.longitude ?? itineraryUserLocation?.Longitude);
+        if (userLat == null || userLng == null) return null;
+        return {
+          request: { fromLat: userLat, fromLng: userLng },
+          name: 'Your location',
+        };
+      })();
 
       const reconnectFromEndpoint = Number.isFinite(prevLocationId) && prevLocationId > 0
         ? {
@@ -3848,7 +4035,7 @@ const ItineraryResultPage = () => {
             prevLocation?.Title,
           ) || `Location #${prevLocationId}`,
         }
-        : reconnectFromTravelEndpoint;
+        : (reconnectFromTravelEndpoint || reconnectFromPreviousDayEndpoint || reconnectFromUserEndpoint);
 
       const reconnectToEndpoint = Number.isFinite(nextLocationId) && nextLocationId > 0
         ? {
@@ -3980,6 +4167,172 @@ const ItineraryResultPage = () => {
         nextTimeline.splice(Math.max(0, Math.min(insertAt, nextTimeline.length)), 0, mergedTravelItem);
       }
 
+      let interDayTransportCostDelta = 0;
+      const removedLocationId = toPositiveIntOrNull(getItemLocationId(item));
+      const nextDay = draftDays[dayIndex + 1];
+
+      if (removedLocationId && nextDay && typeof nextDay === 'object') {
+        const nextDayTimelineKey = Array.isArray(nextDay?.timeline) ? 'timeline' : 'Timeline';
+        const nextDayTimeline = Array.isArray(nextDay?.[nextDayTimelineKey]) ? [...nextDay[nextDayTimelineKey]] : [];
+        const firstTravelIndexNextDay = nextDayTimeline.findIndex((candidate) => isTravelEvent(candidate));
+
+        if (firstTravelIndexNextDay >= 0) {
+          const firstTravelItemNextDay = nextDayTimeline[firstTravelIndexNextDay];
+          const [firstTravelDetailKeyNextDay, firstTravelDetailNextDay] = getTravelDetailEntry(firstTravelItemNextDay);
+          const firstTravelFromLocationId = toPositiveIntOrNull(
+            firstTravelDetailNextDay?.fromLocationId
+            ?? firstTravelDetailNextDay?.FromLocationId
+            ?? firstTravelDetailNextDay?.fromId
+            ?? firstTravelDetailNextDay?.FromId
+          );
+
+          const removedLocationName = pickFirstText(item?.locationName, item?.LocationName, item?.title, item?.Title);
+          const firstTravelFromName = pickFirstText(
+            firstTravelDetailNextDay?.fromLocationName,
+            firstTravelDetailNextDay?.FromLocationName,
+            firstTravelDetailNextDay?.fromTransitHubName,
+            firstTravelDetailNextDay?.FromTransitHubName,
+            firstTravelDetailNextDay?.fromName,
+            firstTravelDetailNextDay?.FromName,
+          );
+          const matchesRemovedSource = firstTravelFromLocationId === removedLocationId
+            || (normalizeTitle(firstTravelFromName) && normalizeTitle(firstTravelFromName) === normalizeTitle(removedLocationName));
+
+          if (firstTravelDetailKeyNextDay && firstTravelDetailNextDay && matchesRemovedSource) {
+            const lastStopAfterRemoval = [...nextTimeline].reverse().find((candidate) => !isTravelEvent(candidate)) || null;
+
+            let reconnectFromEndpointInterDay = null;
+            if (lastStopAfterRemoval) {
+              const request = getTimelineStopEndpointParams(lastStopAfterRemoval, 'from');
+              if (Object.values(request).some((value) => value != null)) {
+                reconnectFromEndpointInterDay = {
+                  request,
+                  name: pickFirstText(
+                    lastStopAfterRemoval?.locationName,
+                    lastStopAfterRemoval?.LocationName,
+                    lastStopAfterRemoval?.title,
+                    lastStopAfterRemoval?.Title,
+                  ) || 'Start point',
+                };
+              }
+            }
+
+            if (!reconnectFromEndpointInterDay) {
+              const itineraryUserLocation = draft?.userLocation || draft?.UserLocation;
+              const userLat = toFiniteNumber(itineraryUserLocation?.latitude ?? itineraryUserLocation?.Latitude);
+              const userLng = toFiniteNumber(itineraryUserLocation?.longitude ?? itineraryUserLocation?.Longitude);
+              if (userLat != null && userLng != null) {
+                reconnectFromEndpointInterDay = {
+                  request: { fromLat: userLat, fromLng: userLng },
+                  name: 'Your location',
+                };
+              }
+            }
+
+            const reconnectToEndpointInterDay = getToEndpointFromTravel(firstTravelDetailNextDay);
+            if (reconnectFromEndpointInterDay && reconnectToEndpointInterDay) {
+              const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+              const departureTime = pickFirstText(
+                firstTravelItemNextDay?.startTime,
+                firstTravelItemNextDay?.StartTime,
+                firstTravelDetailNextDay?.departureTime,
+                firstTravelDetailNextDay?.DepartureTime,
+                '08:00:00',
+              );
+              const fallbackEndTime = pickFirstText(
+                firstTravelItemNextDay?.endTime,
+                firstTravelItemNextDay?.EndTime,
+                firstTravelDetailNextDay?.arrivalTime,
+                firstTravelDetailNextDay?.ArrivalTime,
+                addMinutesToTime(departureTime, 20),
+              );
+
+              const groupSizeValue = Number(draft?.groupSize ?? draft?.GroupSize);
+              const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0
+                ? Math.round(groupSizeValue)
+                : 1;
+
+              const oldInterDayTravelCostAmount = getStrictTravelCostAmount(firstTravelItemNextDay);
+
+              let recalculatedInterDayTravel = null;
+              try {
+                recalculatedInterDayTravel = await estimateLocalTravelApi({
+                  ...reconnectFromEndpointInterDay.request,
+                  ...reconnectToEndpointInterDay.request,
+                  groupSize,
+                  departureTime,
+                  currencyCode,
+                });
+              } catch {
+                recalculatedInterDayTravel = null;
+              }
+
+              if (recalculatedInterDayTravel) {
+                const nextInterDayTravelCostAmount = Math.max(0, Math.round(
+                  getMoneyAmount(
+                    recalculatedInterDayTravel?.selectedTotalCost
+                    ?? recalculatedInterDayTravel?.SelectedTotalCost
+                    ?? recalculatedInterDayTravel?.costForGroup
+                    ?? recalculatedInterDayTravel?.CostForGroup
+                  ) ?? 0
+                ));
+                const nextInterDayTravelCostMoney = {
+                  amount: nextInterDayTravelCostAmount,
+                  currency: currencyCode,
+                };
+
+                interDayTransportCostDelta = nextInterDayTravelCostAmount - oldInterDayTravelCostAmount;
+
+                const fromName = pickFirstText(
+                  recalculatedInterDayTravel?.fromLocationName,
+                  recalculatedInterDayTravel?.FromLocationName,
+                  recalculatedInterDayTravel?.fromTransitHubName,
+                  recalculatedInterDayTravel?.FromTransitHubName,
+                  reconnectFromEndpointInterDay?.name,
+                ) || 'Start point';
+                const toName = pickFirstText(
+                  recalculatedInterDayTravel?.toLocationName,
+                  recalculatedInterDayTravel?.ToLocationName,
+                  recalculatedInterDayTravel?.toTransitHubName,
+                  recalculatedInterDayTravel?.ToTransitHubName,
+                  reconnectToEndpointInterDay?.name,
+                ) || 'Destination';
+
+                const updatedFirstTravelDetailNextDay = {
+                  ...firstTravelDetailNextDay,
+                  ...recalculatedInterDayTravel,
+                  departureTime,
+                  DepartureTime: departureTime,
+                  arrivalTime: fallbackEndTime,
+                  ArrivalTime: fallbackEndTime,
+                  selectedTotalCost: nextInterDayTravelCostMoney,
+                  SelectedTotalCost: nextInterDayTravelCostMoney,
+                  costForGroup: nextInterDayTravelCostMoney,
+                  CostForGroup: nextInterDayTravelCostMoney,
+                };
+
+                nextDayTimeline[firstTravelIndexNextDay] = {
+                  ...firstTravelItemNextDay,
+                  title: `Move from ${fromName} to ${toName}`,
+                  startTime: departureTime,
+                  StartTime: departureTime,
+                  endTime: fallbackEndTime,
+                  EndTime: fallbackEndTime,
+                  ticketCost: null,
+                  TicketCost: null,
+                  costForGroup: nextInterDayTravelCostMoney,
+                  CostForGroup: nextInterDayTravelCostMoney,
+                  [firstTravelDetailKeyNextDay]: updatedFirstTravelDetailNextDay,
+                };
+
+                nextDay[nextDayTimelineKey] = nextDayTimeline;
+                updateDayEstimatedCost(nextDay, nextDayTimelineKey, currencyCode);
+              }
+            }
+          }
+        }
+      }
+
       const leftTravelCostAmount = leftTravelReconnectIndex >= 0
         ? getStrictTravelCostAmount(timeline[leftTravelReconnectIndex])
         : 0;
@@ -4002,6 +4355,9 @@ const ItineraryResultPage = () => {
       }
       if (transportCostDelta !== 0) {
         updateBudgetSummaryForTimelineItemCostDelta(draft, 'travel', transportCostDelta);
+      }
+      if (interDayTransportCostDelta !== 0) {
+        updateBudgetSummaryForTimelineItemCostDelta(draft, 'travel', interDayTransportCostDelta);
       }
       updateItinerary(draft);
       message.success('Location removed and adjacent locations were reconnected.');
