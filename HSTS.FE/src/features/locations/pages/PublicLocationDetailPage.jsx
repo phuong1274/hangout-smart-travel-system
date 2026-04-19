@@ -7,10 +7,16 @@ import 'leaflet/dist/leaflet.css';
 import { buildCreateTripPath, PATHS } from '@/routes/paths';
 import { ROLES } from '@/config/constants';
 import { useAuthStore } from '@/store/authStore';
-import { DAYS_OF_WEEK } from '@/utils/locationConstants';
+import { DAYS_OF_WEEK, SOCIAL_PLATFORMS } from '@/utils/locationConstants';
 import { usePublicLocationDetail } from '../hooks/usePublicLocationDetail';
 import { LocationReviewSection } from '@/features/reviews/components/LocationReviewSection';
 import styles from '../styles/PublicLocationDetailPage.module.css';
+
+const getPlatformLabel = (platform) => {
+  if (!platform) return '';
+  const platformObj = SOCIAL_PLATFORMS.find(p => p.enumValue === platform || p.value === platform);
+  return platformObj ? platformObj.label : platform;
+};
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -510,7 +516,19 @@ const PublicLocationDetailPage = () => {
                       dataSource={socialLinks}
                       renderItem={(item) => (
                         <List.Item>
-                          <a href={item?.url || item?.Url} target="_blank" rel="noreferrer">{item?.platform || item?.Platform}</a>
+                          <Space direction="vertical" size={0}>
+                            <Tag color="blue" style={{ marginBottom: 4 }}>
+                              {getPlatformLabel(item?.platform || item?.Platform)}
+                            </Tag>
+                            <a
+                              href={item?.url || item?.Url}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ wordBreak: 'break-all' }}
+                            >
+                              {item?.url || item?.Url}
+                            </a>
+                          </Space>
                         </List.Item>
                       )}
                     />
