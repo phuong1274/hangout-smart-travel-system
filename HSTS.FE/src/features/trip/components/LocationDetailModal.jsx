@@ -184,13 +184,6 @@ const safePlaceName = (value) => {
   return text;
 };
 
-const statusLabel = (status) => {
-  const value = Number(status);
-  if (value === 1) return 'Active';
-  if (value === 0) return 'Inactive';
-  return 'Unknown';
-};
-
 const LocationDetailModal = ({ open, locationId, currencyCode = 'VND', onClose }) => {
   const [loading, setLoading] = useState(false);
   const [location, setLocation] = useState(null);
@@ -281,8 +274,6 @@ const LocationDetailModal = ({ open, locationId, currencyCode = 'VND', onClose }
     ? convertCurrencyAmount(maxPriceVnd, 'VND', normalizedCurrencyCode)
     : null;
   const tripToVndRate = convertCurrencyAmount(1, normalizedCurrencyCode, 'VND');
-  const status = toFiniteNumber(location?.status ?? location?.Status);
-  const effectiveStatus = toFiniteNumber(location?.effectiveStatus ?? location?.EffectiveStatus);
   const displayRating = formatRatingOutOfFive(score);
 
   return (
@@ -367,23 +358,13 @@ const LocationDetailModal = ({ open, locationId, currencyCode = 'VND', onClose }
             </Descriptions.Item>
           </Descriptions>
 
-          <Divider orientation="left" plain>Contact and Status</Divider>
+          <Divider orientation="left" plain>Contact</Divider>
           <Descriptions size="small" column={2} bordered>
             {telephone && (
               <Descriptions.Item label="Phone">{telephone}</Descriptions.Item>
             )}
             {email && (
               <Descriptions.Item label="Email">{email}</Descriptions.Item>
-            )}
-            {status != null && (
-              <Descriptions.Item label="Status">
-                <Tag color={status === 1 ? 'green' : 'default'}>{statusLabel(status)}</Tag>
-              </Descriptions.Item>
-            )}
-            {effectiveStatus != null && (
-              <Descriptions.Item label="Effective Status">
-                <Tag color={effectiveStatus === 1 ? 'green' : 'default'}>{statusLabel(effectiveStatus)}</Tag>
-              </Descriptions.Item>
             )}
           </Descriptions>
 
