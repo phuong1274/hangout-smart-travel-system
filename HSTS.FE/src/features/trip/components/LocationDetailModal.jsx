@@ -278,8 +278,6 @@ const LocationDetailModal = ({ open, locationId, currencyCode = 'VND', onClose }
   const tripToVndRate = convertCurrencyAmount(1, normalizedCurrencyCode, 'VND');
   const status = toFiniteNumber(location?.status ?? location?.Status);
   const effectiveStatus = toFiniteNumber(location?.effectiveStatus ?? location?.EffectiveStatus);
-  const createdAt = formatDateTime(location?.createdAt || location?.CreatedAt);
-  const updatedAt = formatDateTime(location?.updatedAt || location?.UpdatedAt);
   const displayRating = formatRatingOutOfFive(score);
 
   return (
@@ -381,12 +379,6 @@ const LocationDetailModal = ({ open, locationId, currencyCode = 'VND', onClose }
               <Descriptions.Item label="Effective Status">
                 <Tag color={effectiveStatus === 1 ? 'green' : 'default'}>{statusLabel(effectiveStatus)}</Tag>
               </Descriptions.Item>
-            )}
-            {createdAt && (
-              <Descriptions.Item label="Created At">{createdAt}</Descriptions.Item>
-            )}
-            {updatedAt && (
-              <Descriptions.Item label="Updated At">{updatedAt}</Descriptions.Item>
             )}
           </Descriptions>
 

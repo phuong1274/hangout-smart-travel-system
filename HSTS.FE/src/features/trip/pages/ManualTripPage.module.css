@@ -1,25 +1,72 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
 
-.pageShell {
+.appWrapper {
+  position: relative;
   min-height: 100vh;
   background-color: #F7F9F9;
+  overflow: hidden;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #1A535C;
+  z-index: 0;
   padding-bottom: 100px;
 }
 
-.pageContent {
+.floatingCircle1, .floatingCircle2 {
+  position: fixed;
+  border-radius: 50%;
+  z-index: -1;
+  filter: blur(80px);
+  opacity: 0.6;
+  animation: floating 6s infinite alternate cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.floatingCircle1 {
+  width: 400px;
+  height: 400px;
+  background: linear-gradient(135deg, rgba(78, 205, 196, 0.4), rgba(255, 230, 109, 0.2));
+  top: -100px;
+  left: -100px;
+}
+
+.floatingCircle2 {
+  width: 500px;
+  height: 500px;
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(78, 205, 196, 0.3));
+  bottom: -150px;
+  right: -100px;
+  animation-duration: 7s;
+  animation-direction: alternate-reverse;
+}
+
+@keyframes floating {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-30px) scale(1.05); }
+}
+
+.content {
   max-width: 1200px;
   margin: 0 auto;
-  padding: clamp(24px, 5vw, 48px) 24px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  color: #1A535C;
+  padding: clamp(40px, 8vw, 100px) 24px;
+  animation: fadeUp 0.8s ease-out forwards;
+  animation-delay: 0.1s;
+  opacity: 0;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.headerCard, .overviewCard, .builderCard, .loadingCard {
+  border-radius: 20px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  border: none !important;
+  background: #FFFFFF !important;
+  margin-bottom: 24px;
 }
 
 .headerCard {
-  background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%);
-  border-radius: 16px;
-  margin-bottom: 24px;
-  border: none;
-  box-shadow: 0 8px 24px rgba(78, 205, 196, 0.15);
+  background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%) !important;
   padding: 24px;
 }
 
@@ -36,23 +83,7 @@
   font-size: 14px !important;
 }
 
-.overviewCard {
-  border-radius: 16px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.overviewCard :global(.ant-card-head) {
-  border-bottom: 1px solid #F0F0F0;
-  font-weight: 600;
-}
-
-.builderCard {
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.builderCard :global(.ant-card-head) {
+.overviewCard :global(.ant-card-head), .builderCard :global(.ant-card-head) {
   border-bottom: 1px solid #F0F0F0;
   font-weight: 600;
 }
@@ -88,46 +119,32 @@
 }
 
 .dayCard {
-  border-radius: 12px;
-  border: 1px solid #E8E8E8;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-radius: 12px !important;
+  border: 1px solid #E8E8E8 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
   margin-bottom: 16px;
   transition: all 0.3s ease;
+  background: #FFFFFF !important;
+  overflow: hidden;
 }
 
 .dayCard:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
 }
 
-.dayCard :global(.ant-card-head) {
-  background-color: #FAFAFA;
-  border-bottom: 1px solid #F0F0F0;
-  border-radius: 12px 12px 0 0;
-  font-weight: 600;
-  color: #1A535C;
+.dayCard :global(.ant-collapse-header) {
+  background-color: #FAFAFA !important;
+  border-bottom: 1px solid #F0F0F0 !important;
+  align-items: center !important;
+  padding: 12px 16px !important;
 }
 
-.activityCard {
-  border-radius: 8px;
-  border: 1px solid #F0F0F0;
-  background-color: #FAFAFA;
+.dayCard :global(.ant-collapse-content) {
+  border-top: none !important;
 }
 
-.activityCard :global(.ant-card-head) {
-  background-color: #FFF;
-  border-bottom: 1px solid #F0F0F0;
-  font-weight: 500;
-  color: #1A535C;
-}
-
-.destinationDivider {
-  color: #1A535C;
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.destinationDivider :global(.ant-divider-inner-text) {
-  color: #1A535C;
+.dayCard :global(.ant-collapse-content-box) {
+  padding: 16px !important;
 }
 
 .activityList {
@@ -144,17 +161,8 @@
 }
 
 .loadingCard {
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   padding: 60px 40px;
   text-align: center;
-}
-
-.activityMetaRow {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
 }
 
 .activityConfigGrid {
@@ -174,63 +182,8 @@
   flex-wrap: wrap;
 }
 
-.travelInfoBox {
-  margin-top: 12px;
-  border-radius: 12px;
-  border: 1px dashed rgba(26, 83, 92, 0.2);
-  background: rgba(78, 205, 196, 0.08);
-  padding: 12px;
-}
-
-.betweenTravelCard {
-  margin: 4px 0;
-}
-
-.travelRoute {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.travelPoint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #1A535C;
-  font-weight: 700;
-}
-
-.travelDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  border: 2px solid #4ECDC4;
-  background: #FFFFFF;
-  flex-shrink: 0;
-}
-
-.travelRouteConnector {
-  margin-left: 4px;
-  width: 2px;
-  min-height: 16px;
-  background: linear-gradient(180deg, rgba(78, 205, 196, 0.75), rgba(26, 83, 92, 0.2));
-}
-
-.travelMetaLine {
-  margin-top: 10px;
-}
-
 .transportOptionsSection {
   margin-top: 10px;
-}
-
-.transportOptionsTitle {
-  display: block;
-  font-size: 12px;
-  color: rgba(26, 83, 92, 0.7);
-  margin-bottom: 8px;
-  font-weight: 700;
 }
 
 .transportOptionList {
@@ -247,12 +200,13 @@
   background: #FFFFFF;
   padding: 10px 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .transportOptionItem:hover {
   border-color: #4ECDC4;
   box-shadow: 0 8px 20px rgba(26, 83, 92, 0.08);
+  transform: scale(1.02);
 }
 
 .transportOptionItemSelected {
@@ -289,13 +243,6 @@
   font-size: 12px;
   color: rgba(26, 83, 92, 0.68);
   font-weight: 600;
-}
-
-.transportOptionNote {
-  display: block;
-  margin-top: 4px;
-  font-size: 11px;
-  color: rgba(26, 83, 92, 0.6);
 }
 
 .customTransportEditor {
@@ -447,8 +394,363 @@
   width: 100%;
 }
 
-@media (max-width: 768px) {
-  .pageContent {
+.timeline {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.timelineItem {
+  display: flex;
+  gap: 20px;
+  position: relative;
+  padding-bottom: 24px;
+}
+
+.timelineLine {
+  position: absolute;
+  left: 109px;
+  top: 48px;
+  bottom: 0;
+  width: 2px;
+  background: rgba(78, 205, 196, 0.3);
+  z-index: 0;
+}
+
+.timelineTime {
+  min-width: 68px;
+  font-weight: 700;
+  font-size: 15px;
+  color: #1A535C;
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: right;
+}
+
+.timelineTimeStart {
+  line-height: 1.1;
+}
+
+.timelineTimeEnd {
+  line-height: 1.1;
+  font-size: 14px;
+  color: rgba(26, 83, 92, 0.5);
+}
+
+.timelineDuration {
+  font-size: 12px;
+  color: #D89A00;
+  font-weight: 600;
+}
+
+.timelineIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  z-index: 1;
+  box-shadow: 0 4px 12px rgba(26, 83, 92, 0.08);
+}
+
+.timelineContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.card {
+  border-radius: 20px;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+  position: relative;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+.cardFloatingActions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.dragHandleWrapper {
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  color: #8c8c8c;
+}
+
+.dragHandleWrapper:active {
+  cursor: grabbing;
+}
+
+.visitInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1A535C;
+}
+
+.address {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(26, 83, 92, 0.6);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.visitCard {
+  background: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.05);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(78, 205, 196, 0.2);
+  padding: 20px;
+}
+
+.visitTop {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-right: 120px;
+}
+
+.visitDetails {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.travelCard {
+  background: rgba(255, 230, 109, 0.1);
+  border: 1px dashed rgba(216, 154, 0, 0.3);
+  padding: 20px;
+}
+
+.travelRoute {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.travelPoint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1A535C;
+  text-align: center;
+  flex-shrink: 0;
+  max-width: 40%;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #D89A00;
+  border: 3px solid #FFF;
+  box-shadow: 0 0 0 1px rgba(216, 154, 0, 0.3);
+}
+
+.travelLine {
+  flex: 1;
+  height: 2px;
+  min-width: 40px;
+  background: repeating-linear-gradient(90deg, rgba(216, 154, 0, 0.3) 0, rgba(216, 154, 0, 0.3) 4px, transparent 4px, transparent 8px);
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 16px;
+}
+
+.travelIconWrapper {
+  background: #FFF;
+  padding: 6px;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(216, 154, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.travelMetaLine {
+  margin-top: 10px;
+}
+
+.travelMeta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #D89A00;
+}
+
+.travelCost {
+  text-align: center;
+  margin-top: 8px;
+}
+
+.costAmount {
+  font-weight: 700;
+  color: #FF6B6B;
+}
+
+.innerCollapse {
+  background: #F7F9F9 !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.innerCollapse :global(.ant-collapse-header) {
+  padding: 12px 16px !important;
+  align-items: center !important;
+}
+
+.innerCollapseLabel {
+  font-size: 13px;
+  color: #1A535C;
+  font-weight: 700;
+}
+
+.innerCollapse :global(.ant-collapse-content) {
+  background: transparent !important;
+  border-top: none !important;
+}
+
+.innerCollapse :global(.ant-collapse-content-box) {
+  padding: 0 16px 16px 16px !important;
+}
+
+.innerCollapsePanel {
+  border-bottom: none !important;
+}
+
+.appWrapper :global(.ant-btn) {
+  border-radius: 9999px !important;
+  height: auto !important;
+  min-height: 44px !important;
+  font-weight: 600 !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.appWrapper :global(.ant-btn-primary) {
+  background: #FFE66D !important;
+  border-color: #FFE66D !important;
+  color: #1A535C !important;
+}
+
+.appWrapper :global(.ant-btn-primary:hover) {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(255, 230, 109, 0.4) !important;
+  background: #FFD166 !important;
+  border-color: #FFD166 !important;
+}
+
+.appWrapper :global(.ant-btn-dangerous), .appWrapper :global(.ant-btn-text[danger]) {
+  color: #FF6B6B !important;
+}
+
+.appWrapper :global(.ant-btn-dangerous:hover), .appWrapper :global(.ant-btn-text[danger]:hover) {
+  background: rgba(255, 107, 107, 0.1) !important;
+  color: #FF5252 !important;
+  transform: scale(1.05);
+}
+
+.appWrapper :global(.ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dashed):hover) {
+  background: #F7F9F9 !important;
+  border-color: #FF6B6B !important;
+  color: #FF6B6B !important;
+}
+
+.appWrapper :global(.ant-btn-icon-only), .appWrapper :global(.ant-btn-text:not([danger])) {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.appWrapper :global(.ant-btn-icon-only:hover), .appWrapper :global(.ant-btn-text:not([danger]):hover) {
+  transform: scale(1.2);
+  background: rgba(78, 205, 196, 0.15) !important;
+  color: #4ECDC4 !important;
+}
+
+.appWrapper :global(.ant-input),
+.appWrapper :global(.ant-input-number),
+.appWrapper :global(.ant-picker),
+.appWrapper :global(.ant-select-selector) {
+  border-radius: 8px !important;
+  min-height: 44px !important;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.appWrapper :global(.ant-input:focus),
+.appWrapper :global(.ant-input-focused),
+.appWrapper :global(.ant-input-number-focused),
+.appWrapper :global(.ant-picker-focused),
+.appWrapper :global(.ant-select-focused) :global(.ant-select-selector) {
+  border-color: #4ECDC4 !important;
+  box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.15) !important;
+}
+
+.appWrapper :global(.ant-btn-dashed) {
+  color: #4ECDC4 !important;
+  border-color: #4ECDC4 !important;
+}
+
+.appWrapper :global(.ant-btn-dashed:hover) {
+  color: #44A08D !important;
+  border-color: #44A08D !important;
+}
+
+.appWrapper :global(.ant-empty) {
+  color: #95A5A6 !important;
+}
+
+.btnSm {
+  min-height: 32px !important;
+  padding: 0 8px !important;
+}
+
+:global(.tropicalModal) :global(.ant-modal-content) {
+  border-radius: 20px !important;
+  padding: 24px !important;
+}
+
+@media (max-width: 767px) {
+  .content {
     padding: 16px 12px;
   }
 
@@ -485,40 +787,68 @@
     grid-template-columns: 1fr;
   }
 
-}
+  .timeline {
+    padding: 16px;
+    gap: 16px;
+  }
 
-.pageShell :global(.ant-input),
-.pageShell :global(.ant-input-number),
-.pageShell :global(.ant-picker),
-.pageShell :global(.ant-select) {
-  border-radius: 6px !important;
-}
+  .timelineItem {
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 0;
+  }
 
-.pageShell :global(.ant-btn) {
-  border-radius: 6px !important;
-  font-weight: 500 !important;
-}
+  .timelineLine {
+    display: none;
+  }
 
-.pageShell :global(.ant-btn-primary) {
-  background: #FF6B6B !important;
-  border-color: #FF6B6B !important;
-}
+  .timelineTime {
+    text-align: left;
+    padding-top: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
 
-.pageShell :global(.ant-btn-primary:hover) {
-  background: #FF5252 !important;
-  border-color: #FF5252 !important;
-}
+  .timelineIcon {
+    display: none;
+  }
 
-.pageShell :global(.ant-btn-dashed) {
-  color: #4ECDC4 !important;
-  border-color: #4ECDC4 !important;
-}
+  .cardFloatingActions {
+    position: static;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: flex-end;
+    background: none;
+    padding: 0;
+  }
 
-.pageShell :global(.ant-btn-dashed:hover) {
-  color: #44A08D !important;
-  border-color: #44A08D !important;
-}
+  .visitTop {
+    padding-right: 0;
+  }
 
-.pageShell :global(.ant-empty) {
-  color: #95A5A6 !important;
+  :global(.tropicalModal) :global(.ant-modal) {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: absolute !important;
+    bottom: 0 !important;
+    width: 100% !important;
+  }
+
+  :global(.tropicalModal) :global(.ant-modal-content) {
+    border-radius: 24px 24px 0 0 !important;
+    padding-bottom: env(safe-area-inset-bottom, 24px) !important;
+  }
+
+  :global(.tropicalModal) .addBetweenFooterActions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  :global(.tropicalModal) .addBetweenFooterActions :global(.ant-btn) {
+    width: 100%;
+    margin-left: 0 !important;
+    margin-top: 12px;
+  }
 }

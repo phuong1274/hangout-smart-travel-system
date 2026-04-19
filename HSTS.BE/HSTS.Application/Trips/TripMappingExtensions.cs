@@ -15,7 +15,8 @@ namespace HSTS.Application.Trips
                 trip.StartingLocation,
                 trip.Status,
                 trip.Currency,
-                trip.CreatedAt
+                trip.CreatedAt,
+                trip.UpdatedAt
             );
         }
     }

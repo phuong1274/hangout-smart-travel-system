@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { LeftOutlined } from '@ant-design/icons';
 import { useVerifyEmail, useResendOtp } from '../hooks/useAuth';
 import OtpVerificationStep from './OtpVerificationStep';
@@ -8,7 +8,12 @@ import styles from '../styles/VerifyEmailForm.module.css';
 
 const VerifyEmailForm = () => {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const email = location.state?.email;
+  const redirect = searchParams.get('redirect') || location.state?.redirect;
+  const loginPath = redirect
+    ? `${PATHS.AUTH.LOGIN}?redirect=${encodeURIComponent(redirect)}`
+    : PATHS.AUTH.LOGIN;
   const { verifyEmail, loading: verifyLoading } = useVerifyEmail();
   const { resendOtp, loading: resendLoading } = useResendOtp();
 
@@ -35,7 +40,7 @@ const VerifyEmailForm = () => {
       />
       
       <div className={styles.floatingBackLink}>
-        <Link to={PATHS.AUTH.LOGIN} className={styles.backLink}>
+        <Link to={loginPath} className={styles.backLink}>
           <LeftOutlined className={styles.backIcon} /> BACK TO LOGIN
         </Link>
       </div>

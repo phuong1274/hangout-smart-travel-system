@@ -9,6 +9,8 @@ namespace HSTS.Application.Trips.Dtos
         int GroupSize,
         string CurrencyCode,
         int Status,
+        DateTime CreatedAt,
+        DateTime? UpdatedAt,
         List<TripDayDto> Days,
         TripSummaryDto? BudgetSummary
     );
