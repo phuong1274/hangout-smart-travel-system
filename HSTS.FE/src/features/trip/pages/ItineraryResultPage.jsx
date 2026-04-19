@@ -606,6 +606,117 @@ const getTimelineStopEndpointParams = (item, side = 'from') => {
     : { toLat: customLocation.latitude, toLng: customLocation.longitude };
 };
 
+const normalizeFromEndpoint = (endpoint) => {
+  if (!endpoint || typeof endpoint !== 'object') return null;
+
+  const fromLocationId = toPositiveIntOrNull(endpoint?.fromLocationId);
+  if (fromLocationId) return { fromLocationId };
+
+  const fromTransitHubId = toPositiveIntOrNull(endpoint?.fromTransitHubId);
+  if (fromTransitHubId) return { fromTransitHubId };
+
+  const fromLat = toFiniteNumber(endpoint?.fromLat);
+  const fromLng = toFiniteNumber(endpoint?.fromLng);
+  if (fromLat != null && fromLng != null) {
+    return { fromLat, fromLng };
+  }
+
+  return null;
+};
+
+const hasValidFromEndpoint = (endpoint) => Boolean(normalizeFromEndpoint(endpoint));
+
+const hasValidToEndpoint = (endpoint) => {
+  if (!endpoint || typeof endpoint !== 'object') return false;
+
+  const toLocationId = toPositiveIntOrNull(endpoint?.toLocationId);
+  if (toLocationId) return true;
+
+  const toTransitHubId = toPositiveIntOrNull(endpoint?.toTransitHubId);
+  if (toTransitHubId) return true;
+
+  const toLat = toFiniteNumber(endpoint?.toLat);
+  const toLng = toFiniteNumber(endpoint?.toLng);
+  return toLat != null && toLng != null;
+};
+
+const getFromEndpointFromTravelDestination = (travelItem) => {
+  const [, travelDetail] = getTravelDetailEntry(travelItem);
+  if (!travelDetail || typeof travelDetail !== 'object') return null;
+
+  const toLocationId = toPositiveIntOrNull(
+    travelDetail?.toLocationId
+    ?? travelDetail?.ToLocationId
+    ?? travelDetail?.toId
+    ?? travelDetail?.ToId
+  );
+  if (toLocationId) {
+    return { fromLocationId: toLocationId };
+  }
+
+  const toTransitHubId = toPositiveIntOrNull(
+    travelDetail?.toTransitHubId
+    ?? travelDetail?.ToTransitHubId
+  );
+  if (toTransitHubId) {
+    return { fromTransitHubId: toTransitHubId };
+  }
+
+  const customToTransitHub = toCustomGeoPayload(
+    travelDetail?.customToTransitHub
+    || travelDetail?.CustomToTransitHub
+  );
+  if (customToTransitHub) {
+    return {
+      fromLat: customToTransitHub.latitude,
+      fromLng: customToTransitHub.longitude,
+    };
+  }
+
+  const toLat = toFiniteNumber(travelDetail?.toLat ?? travelDetail?.ToLat);
+  const toLng = toFiniteNumber(travelDetail?.toLng ?? travelDetail?.ToLng);
+  if (toLat != null && toLng != null) {
+    return { fromLat: toLat, fromLng: toLng };
+  }
+
+  return null;
+};
+
+const resolveInterDayOriginEndpoint = (itinerary, dayIndex) => {
+  const normalizedDayIndex = Number(dayIndex);
+  if (!Number.isFinite(normalizedDayIndex) || normalizedDayIndex <= 0) return null;
+
+  const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+  const days = Array.isArray(itinerary?.[daysKey]) ? itinerary[daysKey] : [];
+  const previousDay = days[normalizedDayIndex - 1];
+
+  if (previousDay && typeof previousDay === 'object') {
+    const currencyCode = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+    const previousTimeline = getDayTimeline(previousDay, currencyCode);
+
+    for (let index = previousTimeline.length - 1; index >= 0; index -= 1) {
+      const item = previousTimeline[index];
+      if (!item) continue;
+
+      const candidate = isTravelEvent(item)
+        ? getFromEndpointFromTravelDestination(item)
+        : getTimelineStopEndpointParams(item, 'from');
+
+      const normalized = normalizeFromEndpoint(candidate);
+      if (normalized) return normalized;
+    }
+  }
+
+  const userLoc = itinerary?.userLocation || itinerary?.UserLocation;
+  const fromLat = toFiniteNumber(userLoc?.latitude ?? userLoc?.Latitude);
+  const fromLng = toFiniteNumber(userLoc?.longitude ?? userLoc?.Longitude);
+  if (fromLat != null && fromLng != null) {
+    return { fromLat, fromLng };
+  }
+
+  return null;
+};
+
 // Extracts the "from" origin endpoint from a travel event (before-segment).
 // The API response (LocalTravelEstimateDto) only echoes back integer FromId/ToId.
 // If FromId <= 0 the origin was coordinates (user GPS); fall back to itinerary.userLocation.
@@ -630,10 +741,14 @@ const extractOriginEndpointFromTravel = (travelEvent, itinerary) => {
 const buildTravelCacheKey = (fromEndpoint, toEndpoint, groupSize, currencyCode) => {
   const fromKey = fromEndpoint.fromLocationId != null
     ? `L:${fromEndpoint.fromLocationId}`
-    : `C:${fromEndpoint.fromLat},${fromEndpoint.fromLng}`;
+    : (fromEndpoint.fromTransitHubId != null
+      ? `H:${fromEndpoint.fromTransitHubId}`
+      : `C:${fromEndpoint.fromLat},${fromEndpoint.fromLng}`);
   const toKey = toEndpoint.toLocationId != null
     ? `L:${toEndpoint.toLocationId}`
-    : `C:${toEndpoint.toLat},${toEndpoint.toLng}`;
+    : (toEndpoint.toTransitHubId != null
+      ? `H:${toEndpoint.toTransitHubId}`
+      : `C:${toEndpoint.toLat},${toEndpoint.toLng}`);
   return `${fromKey}|${toKey}|${groupSize}|${currencyCode}`;
 };
 
@@ -1592,6 +1707,13 @@ const ItineraryResultPage = () => {
     const stopDurations = timelineStops.map(getTimelineDurationMinutes);
     const rebuiltSegment = [];
 
+    const hasLeadingTravelSegment = sourceTimeline
+      .slice(0, stopIndexes[0])
+      .some((item) => isTravelEvent(item));
+    const normalizedOriginEndpoint = normalizeFromEndpoint(originEndpoint);
+    const resolvedOriginEndpoint = normalizedOriginEndpoint
+      || (!hasLeadingTravelSegment ? resolveInterDayOriginEndpoint(draftItinerary, dayIndex) : null);
+
     const firstStart = pickFirstText(timelineStops[0]?.startTime, timelineStops[0]?.StartTime) || '08:00:00';
     const firstEnd = addMinutesToTime(firstStart, stopDurations[0]);
     const firstStop = {
@@ -1603,20 +1725,20 @@ const ItineraryResultPage = () => {
 
     // If an origin endpoint is provided (e.g. user's GPS location before first stop),
     // calculate travel from that origin to the new first stop and prepend it.
-    if (originEndpoint) {
+    if (resolvedOriginEndpoint) {
       const toEndpoint = getTimelineStopEndpointParams(firstStop, 'to');
-      const canEstimate = Object.values({ ...originEndpoint, ...toEndpoint }).some((v) => v != null);
+      const canEstimate = hasValidFromEndpoint(resolvedOriginEndpoint) && hasValidToEndpoint(toEndpoint);
       if (canEstimate) {
         let originTravelLeg = null;
         try {
-          const cacheKey = buildTravelCacheKey(originEndpoint, toEndpoint, groupSize, currencyCode);
+          const cacheKey = buildTravelCacheKey(resolvedOriginEndpoint, toEndpoint, groupSize, currencyCode);
           const cached = travelCacheRef.current.get(cacheKey);
           if (cached) {
             originTravelLeg = { ...cached, arrivalTime: null, ArrivalTime: null };
           } else {
             const guessedDeparture = shiftTimeByMinutes(firstStart, -30);
             originTravelLeg = await estimateLocalTravelApi({
-              ...originEndpoint,
+              ...resolvedOriginEndpoint,
               ...toEndpoint,
               groupSize,
               departureTime: guessedDeparture,
@@ -1665,11 +1787,7 @@ const ItineraryResultPage = () => {
       const departureTime = pickFirstText(prevStop.endTime, prevStop.EndTime) || firstEnd;
       const fromEndpoint = getTimelineStopEndpointParams(prevStop, 'from');
       const toEndpoint = getTimelineStopEndpointParams(currentStop, 'to');
-      // Both sides must have geo data to call the travel-estimate API. Using some() on the
-      // merged object would return true when only one side has data, causing a broken API call.
-      const fromHasGeo = Object.values(fromEndpoint).some((v) => v != null);
-      const toHasGeo = Object.values(toEndpoint).some((v) => v != null);
-      const canEstimate = fromHasGeo && toHasGeo;
+      const canEstimate = hasValidFromEndpoint(fromEndpoint) && hasValidToEndpoint(toEndpoint);
 
       if (!canEstimate) {
         // One or both stops have no geo coordinates — chain time directly, no travel event.
@@ -4590,18 +4708,121 @@ const ItineraryResultPage = () => {
         || 1
       ));
 
+      const resolveLocationId = (isFrom) => toPositiveIntOrNull(
+        isFrom
+          ? (
+            travelDetail?.fromLocationId
+            ?? travelDetail?.FromLocationId
+            ?? travelDetail?.fromId
+            ?? travelDetail?.FromId
+            ?? recommended?.fromLocationId
+            ?? recommended?.FromLocationId
+            ?? recommended?.fromId
+            ?? recommended?.FromId
+          )
+          : (
+            travelDetail?.toLocationId
+            ?? travelDetail?.ToLocationId
+            ?? travelDetail?.toId
+            ?? travelDetail?.ToId
+            ?? recommended?.toLocationId
+            ?? recommended?.ToLocationId
+            ?? recommended?.toId
+            ?? recommended?.ToId
+          )
+      );
+
+      const resolveTransitHubId = (isFrom) => toPositiveIntOrNull(
+        isFrom
+          ? (
+            travelDetail?.fromTransitHubId
+            ?? travelDetail?.FromTransitHubId
+            ?? recommended?.fromTransitHubId
+            ?? recommended?.FromTransitHubId
+            ?? recommended?.fromHubId
+            ?? recommended?.FromHubId
+          )
+          : (
+            travelDetail?.toTransitHubId
+            ?? travelDetail?.ToTransitHubId
+            ?? recommended?.toTransitHubId
+            ?? recommended?.ToTransitHubId
+            ?? recommended?.toHubId
+            ?? recommended?.ToHubId
+          )
+      );
+
+      const resolveCustomTransitHub = (isFrom, resolvedLocationId, resolvedTransitHubId, resolvedCustomTransitHubId) => {
+        if (resolvedLocationId || resolvedTransitHubId || resolvedCustomTransitHubId) return null;
+
+        const fromCustom = toCustomGeoPayload(travelDetail?.customFromTransitHub || travelDetail?.CustomFromTransitHub);
+        const toCustom = toCustomGeoPayload(travelDetail?.customToTransitHub || travelDetail?.CustomToTransitHub);
+        const existingCustom = isFrom ? fromCustom : toCustom;
+        if (existingCustom) return existingCustom;
+
+        const directLat = toFiniteNumber(
+          isFrom
+            ? (travelDetail?.fromLat ?? travelDetail?.FromLat)
+            : (travelDetail?.toLat ?? travelDetail?.ToLat)
+        );
+        const directLng = toFiniteNumber(
+          isFrom
+            ? (travelDetail?.fromLng ?? travelDetail?.FromLng)
+            : (travelDetail?.toLng ?? travelDetail?.ToLng)
+        );
+
+        if (directLat == null || directLng == null) return null;
+
+        const fallbackName = pickFirstText(
+          isFrom ? travelDetail?.customFromTransitHub?.name : travelDetail?.customToTransitHub?.name,
+          isFrom ? travelDetail?.customFromTransitHub?.Name : travelDetail?.customToTransitHub?.Name,
+          isFrom ? travelDetail?.CustomFromTransitHub?.name : travelDetail?.CustomToTransitHub?.name,
+          isFrom ? travelDetail?.CustomFromTransitHub?.Name : travelDetail?.CustomToTransitHub?.Name,
+          isFrom ? travelDetail?.fromTransitHubName : travelDetail?.toTransitHubName,
+          isFrom ? travelDetail?.FromTransitHubName : travelDetail?.ToTransitHubName,
+          isFrom ? travelDetail?.fromLocationName : travelDetail?.toLocationName,
+          isFrom ? travelDetail?.FromLocationName : travelDetail?.ToLocationName,
+          isFrom ? travelDetail?.fromProvinceName : travelDetail?.toProvinceName,
+          isFrom ? travelDetail?.FromProvinceName : travelDetail?.ToProvinceName,
+          isFrom ? travelDetail?.fromName : travelDetail?.toName,
+          isFrom ? travelDetail?.FromName : travelDetail?.ToName,
+          isFrom ? 'Custom start point' : 'Custom destination',
+        );
+
+        return {
+          name: fallbackName,
+          latitude: directLat,
+          longitude: directLng,
+          address: null,
+          description: null,
+          locationTypeId: null,
+        };
+      };
+
+      const fromLocationId = resolveLocationId(true);
+      const fromTransitHubId = resolveTransitHubId(true);
+      const fromCustomTransitHubId = toPositiveIntOrNull(
+        travelDetail?.customFromTransitHubId ?? travelDetail?.CustomFromTransitHubId
+      );
+
+      const toLocationId = resolveLocationId(false);
+      const toTransitHubId = resolveTransitHubId(false);
+      const toCustomTransitHubId = toPositiveIntOrNull(
+        travelDetail?.customToTransitHubId ?? travelDetail?.CustomToTransitHubId
+      );
+
       const fromEndpoint = sanitizeTransportEndpoint({
-        locationId: toPositiveIntOrNull(travelDetail?.fromLocationId ?? travelDetail?.FromLocationId),
-        transitHubId: toPositiveIntOrNull(travelDetail?.fromTransitHubId ?? travelDetail?.FromTransitHubId),
-        customTransitHubId: toPositiveIntOrNull(travelDetail?.customFromTransitHubId ?? travelDetail?.CustomFromTransitHubId),
-        customTransitHub: toCustomGeoPayload(travelDetail?.customFromTransitHub || travelDetail?.CustomFromTransitHub),
+        locationId: fromLocationId,
+        transitHubId: fromTransitHubId,
+        customTransitHubId: fromCustomTransitHubId,
+        customTransitHub: resolveCustomTransitHub(true, fromLocationId, fromTransitHubId, fromCustomTransitHubId),
       });
 
       const toEndpoint = sanitizeTransportEndpoint({
-        locationId: toPositiveIntOrNull(travelDetail?.toLocationId ?? travelDetail?.ToLocationId),
-        transitHubId: toPositiveIntOrNull(travelDetail?.toTransitHubId ?? travelDetail?.ToTransitHubId),
-        customTransitHubId: toPositiveIntOrNull(travelDetail?.customToTransitHubId ?? travelDetail?.CustomToTransitHubId),
-        customTransitHub: toCustomGeoPayload(travelDetail?.customToTransitHub || travelDetail?.CustomToTransitHub),
+        locationId: toLocationId,
+        transitHubId: toTransitHubId,
+        customTransitHubId: toCustomTransitHubId,
+        customTransitHub: resolveCustomTransitHub(false, toLocationId, toTransitHubId, toCustomTransitHubId),
       });
 
       return {
