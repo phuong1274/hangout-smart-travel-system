@@ -689,8 +689,9 @@ const TripDetailPage = () => {
   ];
 
   return (
-    <div className={styles.itineraryPage}>
-      <div className={styles.container}>
+    <>
+      <div className={styles.itineraryPage}>
+        <div className={styles.container}>
         {/* Header */}
         <Card className={styles.headerCard} bordered={false}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -1395,6 +1396,7 @@ const TripDetailPage = () => {
           </Modal>
         </div>
       </div>
+    </>
   );
 };
 
