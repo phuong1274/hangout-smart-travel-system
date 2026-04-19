@@ -11,6 +11,7 @@ import {
 } from 'antd';
 import { getLocationByIdApi } from '../api';
 import { convertCurrencyAmount } from '../constants/currency';
+import { SOCIAL_PLATFORMS } from '@/utils/locationConstants';
 
 const { Text, Paragraph } = Typography;
 
@@ -144,23 +145,27 @@ const normalizeSocialLink = (item) => {
   if (typeof item === 'string') {
     const text = item.trim();
     if (!text) return null;
-    return { label: text, url: text };
+    return { label: null, url: text };
   }
 
   const url = String(item?.url || item?.Url || item?.link || item?.Link || '').trim();
   if (!url) return null;
 
-  const label = String(
+  // Try to map platform enum or value to a readable label
+  const platformVal = item?.platform ?? item?.Platform;
+  const platformMapping = SOCIAL_PLATFORMS.find(
+    (p) => p.enumValue === platformVal || p.value === platformVal
+  );
+
+  const label = platformMapping?.label || String(
     item?.platformName
     || item?.PlatformName
-    || item?.platform
-    || item?.Platform
     || item?.name
     || item?.Name
-    || url
+    || ''
   ).trim();
 
-  return { label: label || url, url };
+  return { label: label || null, url };
 };
 
 const toHref = (url) => {
@@ -447,11 +452,23 @@ const LocationDetailModal = ({ open, locationId, currencyCode = 'VND', onClose }
           {socialLinks.length > 0 && (
             <>
               <Divider orientation="left" plain>Social Links</Divider>
-              <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
                 {socialLinks.map((link) => (
-                  <a key={link.url} href={toHref(link.url)} target="_blank" rel="noreferrer">
-                    {link.label}
-                  </a>
+                  <div key={link.url}>
+                    {link.label && (
+                      <Tag color="blue" style={{ marginBottom: 4 }}>
+                        {link.label}
+                      </Tag>
+                    )}
+                    <a
+                      href={toHref(link.url)}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ display: 'block', wordBreak: 'break-all', fontSize: 13 }}
+                    >
+                      {link.url}
+                    </a>
+                  </div>
                 ))}
               </Space>
             </>
