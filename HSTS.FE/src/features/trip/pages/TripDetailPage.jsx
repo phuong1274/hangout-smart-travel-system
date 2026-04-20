@@ -105,6 +105,34 @@ const formatTime = (timeStr) => {
   return `${parts[0]}:${parts[1]}`;
 };
 
+const toPositiveIntOrNull = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+};
+
+const getTransportPointLabel = (transport, isFrom) => {
+  if (!transport || typeof transport !== 'object') {
+    return isFrom ? 'Start' : 'Destination';
+  }
+
+  if (isFrom) {
+    return transport.customFromTransitHubName
+      || transport.fromTransitHubName
+      || transport.fromLocationName
+      || transport.yourLocationName
+      || (toPositiveIntOrNull(transport.fromTransitHubId) ? `Hub #${transport.fromTransitHubId}` : '')
+      || (toPositiveIntOrNull(transport.fromLocationId) ? `Location #${transport.fromLocationId}` : '')
+      || 'Start';
+  }
+
+  return transport.customToTransitHubName
+    || transport.toTransitHubName
+    || transport.toLocationName
+    || (toPositiveIntOrNull(transport.toTransitHubId) ? `Hub #${transport.toTransitHubId}` : '')
+    || (toPositiveIntOrNull(transport.toLocationId) ? `Location #${transport.toLocationId}` : '')
+    || 'Destination';
+};
+
 const formatMinutesAsHourMinute = (minutes) => {
   const totalMinutes = Number(minutes);
   if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return '';
@@ -850,6 +878,70 @@ const TripDetailPage = () => {
                                       <span className={styles.timelineTimeEnd}>{formatTime(endTime)}</span>
                                     )}
                                   </div>
+
+                                  {/* Show Route for Travel */}
+                                  {eventType === 'Travel' && activity.transport && (
+                                    <div style={{ marginTop: 4, fontSize: 13, color: '#434343', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <Text strong style={{ fontSize: 13 }}>
+                                        {getTransportPointLabel(activity.transport, true)}
+                                      </Text>
+                                      <span style={{ color: '#bfbfbf', margin: '0 4px' }}>➔</span>
+                                      <Text strong style={{ fontSize: 13 }}>
+                                        {getTransportPointLabel(activity.transport, false)}
+                                      </Text>
+                                    </div>
+                                  )}
+                                  {/* Show budget info if budget is allocated */}
+                                  {budget && estimatedCost > 0 && (
+                                    <div style={{ marginTop: 6 }}>
+                                      <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
+                                        <span>
+                                          Est: <strong>{formatMoney(estimatedCost, currency)}</strong>
+                                        </span>
+                                        {totalExpenses > 0 && (
+                                          <span>
+                                            Spent: <strong>{formatMoney(totalExpenses, currency)}</strong>
+                                          </span>
+                                        )}
+                                      </div>
+                                      {totalExpenses > 0 && (() => {
+                                        const variance = totalExpenses - estimatedCost;
+                                        const budgetPercent = (totalExpenses / estimatedCost) * 100;
+                                        const isOverBudget = variance > 0;
+                                        const statusColor = isOverBudget ? '#ff4d4f' : '#52c41a';
+                                        const statusText = isOverBudget ? 'Over Budget' : 'Under Budget';
+                                        return (
+                                          <div style={{ marginTop: 4 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                                              <Text type="secondary" style={{ fontSize: 11 }}>Budget Usage</Text>
+                                              <Text strong style={{ color: statusColor, fontSize: 11 }}>{statusText} ({budgetPercent.toFixed(1)}%)</Text>
+                                            </div>
+                                            <Progress
+                                              percent={Math.min(budgetPercent, 100)}
+                                              strokeColor={statusColor}
+                                              status={budgetPercent > 100 ? 'exception' : 'normal'}
+                                              showInfo={false}
+                                              size="small"
+                                              style={{ marginBottom: 4 }}
+                                            />
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
+                                  {/* Show spent amount if no budget allocated but expenses exist */}
+                                  {(!budget || estimatedCost <= 0) && totalExpenses > 0 && (
+                                    <div style={{ marginTop: 6 }}>
+                                      <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
+                                        <span>
+                                          Spent: <strong>{formatMoney(totalExpenses, currency)}</strong>
+                                        </span>
+                                      </div>
+                                      <div style={{ marginTop: 4 }}>
+                                        <Text strong style={{ color: '#1890ff', fontSize: 11 }}>No Budget Set</Text>
+                                      </div>
+                                    </div>
+                                  )}
                                   <div className={styles.timelineIcon} style={{ background: eventConfig.bg }}>
                                     {eventConfig.badge}
                                   </div>
@@ -869,16 +961,11 @@ const TripDetailPage = () => {
                                           {eventType === 'Travel' && activity.transport && (
                                             <div style={{ marginTop: 8, fontSize: 14, color: '#1A535C', display: 'flex', alignItems: 'center', gap: 8 }}>
                                               <Text strong>
-                                                {activity.transport.customFromTransitHubName || 
-                                                 activity.transport.fromTransitHubName || 
-                                                 activity.transport.fromLocationName || 
-                                                 activity.transport.yourLocationName || 'Start'}
+                                                {getTransportPointLabel(activity.transport, true)}
                                               </Text>
                                               <span style={{ color: '#4ECDC4' }}>➔</span>
                                               <Text strong>
-                                                {activity.transport.customToTransitHubName || 
-                                                 activity.transport.toTransitHubName || 
-                                                 activity.transport.toLocationName || 'Destination'}
+                                                {getTransportPointLabel(activity.transport, false)}
                                               </Text>
                                             </div>
                                           )}
