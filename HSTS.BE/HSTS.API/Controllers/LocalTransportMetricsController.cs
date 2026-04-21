@@ -65,8 +65,16 @@ namespace HSTS.API.Controllers
         public async Task<IActionResult> Create(CreateLocalTransportMetricsRequest request, CancellationToken ct = default)
         {
             var command = new CreateLocalTransportMetricsCommand(
-                request.TransportationId, request.CostPerKm,
-                request.SpeedKmh, request.MaxRecommendedDistance);
+                request.TransportationId,
+                request.BaseFare,
+                request.BaseDistance,
+                request.PricePerKm,
+                request.LongDistanceThreshold,
+                request.LongDistancePricePerKm,
+                request.CongestionFeePerMinute,
+                request.PeakHourMultiplier,
+                request.SpeedKmh,
+                request.MaxRecommendedDistance);
             var result = await _mediator.Send(command, ct);
 
             return result.Match(
@@ -89,8 +97,16 @@ namespace HSTS.API.Controllers
             if (transportationId <= 0) return BadRequest("TransportationId must be a positive integer.");
 
             var command = new UpdateLocalTransportMetricsCommand(
-                transportationId, request.CostPerKm,
-                request.SpeedKmh, request.MaxRecommendedDistance);
+                transportationId,
+                request.BaseFare,
+                request.BaseDistance,
+                request.PricePerKm,
+                request.LongDistanceThreshold,
+                request.LongDistancePricePerKm,
+                request.CongestionFeePerMinute,
+                request.PeakHourMultiplier,
+                request.SpeedKmh,
+                request.MaxRecommendedDistance);
             var result = await _mediator.Send(command, ct);
 
             return result.Match(
