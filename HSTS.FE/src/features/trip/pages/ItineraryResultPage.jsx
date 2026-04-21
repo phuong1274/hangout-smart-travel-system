@@ -866,10 +866,19 @@ const getTimelineDetailedCostBreakdown = (timeline) => {
   const safeTimeline = Array.isArray(timeline) ? timeline : [];
 
   return safeTimeline.reduce((acc, item) => {
+    const eventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
+    // Accommodation events (check-out, luggage-refresh, etc.) are already captured in
+    // estimatedAccommodationCost; skip them here to prevent double-counting in budget totals.
+    if (
+      eventType === 'check-out'
+      || eventType === 'check-in'
+      || eventType === 'luggage-refresh'
+      || eventType === 'hotel-return'
+    ) return acc;
+
     const amount = getTimelineItemCostAmount(item);
     if (amount <= 0) return acc;
 
-    const eventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
     if (eventType === 'meal') {
       acc.meal += amount;
     } else if (eventType === 'travel') {

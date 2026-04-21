@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ErrorOr;
 using FluentValidation;
+using HSTS.Application.Common;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Entities;
 using HSTS.Domain.Enums;
@@ -14,15 +15,19 @@ using Microsoft.EntityFrameworkCore;
 namespace HSTS.Application.Itineraries.Queries
 {
     public record EstimateLocalTravelQuery(
-        // FROM: priority LocationId > HubId > Lat/Lng
+        // FROM: priority LocationId > HubId > CustomLocationId > CustomHubId > Lat/Lng
         int? FromLocationId,
         int? FromTransitHubId,
+        int? FromCustomLocationId,
+        int? FromCustomTransitHubId,
         double? FromLat,
         double? FromLng,
 
-        // TO: priority LocationId > HubId > Lat/Lng
+        // TO: priority LocationId > HubId > CustomLocationId > CustomHubId > Lat/Lng
         int? ToLocationId,
         int? ToTransitHubId,
+        int? ToCustomLocationId,
+        int? ToCustomTransitHubId,
         double? ToLat,
         double? ToLng,
 
@@ -40,20 +45,22 @@ namespace HSTS.Application.Itineraries.Queries
 
             RuleFor(x => x).Must(x =>
                     x.FromLocationId > 0 || x.FromTransitHubId > 0 ||
+                    x.FromCustomLocationId > 0 || x.FromCustomTransitHubId > 0 ||
                     (x.FromLat.HasValue && x.FromLng.HasValue))
-                .WithMessage("Either FromLocationId, FromTransitHubId, or FromLat/FromLng is required.");
+                .WithMessage("Either FromLocationId, FromTransitHubId, FromCustomLocationId, FromCustomTransitHubId, or FromLat/FromLng is required.");
 
             RuleFor(x => x).Must(x =>
                     x.ToLocationId > 0 || x.ToTransitHubId > 0 ||
+                    x.ToCustomLocationId > 0 || x.ToCustomTransitHubId > 0 ||
                     (x.ToLat.HasValue && x.ToLng.HasValue))
-                .WithMessage("Either ToLocationId, ToTransitHubId, or ToLat/ToLng is required.");
+                .WithMessage("Either ToLocationId, ToTransitHubId, ToCustomLocationId, ToCustomTransitHubId, or ToLat/ToLng is required.");
         }
     }
 
     public class EstimateLocalTravelQueryHandler : IRequestHandler<EstimateLocalTravelQuery, ErrorOr<LocalTravelEstimateDto>>
     {
         private const double DefaultSpeedKmh = 35.0;
-        private const double IntercityThresholdKm = 70.0;
+        private const double IntercityThresholdKm = 100.0;
 
         private readonly IAppDbContext _context;
         private readonly IRouteMatrixService _routeMatrixService;
@@ -137,7 +144,7 @@ namespace HSTS.Application.Itineraries.Queries
             }
 
             // CASE: Location <-> Location, Location <-> Hub, Lat/Lng <-> Location, Lat/Lng <-> Hub (local)
-            // Also Lat/Lng -> Lat/Lng < 70km
+            // Also Lat/Lng -> Lat/Lng < 100km
             return await HandleLocalTransportAsync(request, fromId, fromName, toId, toName,
                 fromLat, fromLng, toLat, toLng, distanceKm, departureTime, toMoney, cancellationToken);
         }
@@ -170,6 +177,30 @@ namespace HSTS.Application.Itineraries.Queries
                     return Error.NotFound("TransitHub.NotFound", $"FromTransitHubId {request.FromTransitHubId} not found.");
 
                 return (hub.Id, hub.Name, hub.Latitude, hub.Longitude, false);
+            }
+
+            if (request.FromCustomLocationId > 0)
+            {
+                var customLoc = await _context.CustomLocations
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == request.FromCustomLocationId, ct);
+
+                if (customLoc is null)
+                    return Error.NotFound("CustomLocation.NotFound", $"FromCustomLocationId {request.FromCustomLocationId} not found.");
+
+                return (customLoc.Id, customLoc.Name, customLoc.Latitude, customLoc.Longitude, false);
+            }
+
+            if (request.FromCustomTransitHubId > 0)
+            {
+                var customHub = await _context.CustomTransitHubs
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == request.FromCustomTransitHubId, ct);
+
+                if (customHub is null)
+                    return Error.NotFound("CustomTransitHub.NotFound", $"FromCustomTransitHubId {request.FromCustomTransitHubId} not found.");
+
+                return (customHub.Id, customHub.Name, customHub.Latitude, customHub.Longitude, false);
             }
 
             if (request.FromLat.HasValue && request.FromLng.HasValue)
@@ -206,6 +237,30 @@ namespace HSTS.Application.Itineraries.Queries
                     return Error.NotFound("TransitHub.NotFound", $"ToTransitHubId {request.ToTransitHubId} not found.");
 
                 return (hub.Id, hub.Name, hub.Latitude, hub.Longitude, false);
+            }
+
+            if (request.ToCustomLocationId > 0)
+            {
+                var customLoc = await _context.CustomLocations
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == request.ToCustomLocationId, ct);
+
+                if (customLoc is null)
+                    return Error.NotFound("CustomLocation.NotFound", $"ToCustomLocationId {request.ToCustomLocationId} not found.");
+
+                return (customLoc.Id, customLoc.Name, customLoc.Latitude, customLoc.Longitude, false);
+            }
+
+            if (request.ToCustomTransitHubId > 0)
+            {
+                var customHub = await _context.CustomTransitHubs
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == request.ToCustomTransitHubId, ct);
+
+                if (customHub is null)
+                    return Error.NotFound("CustomTransitHub.NotFound", $"ToCustomTransitHubId {request.ToCustomTransitHubId} not found.");
+
+                return (customHub.Id, customHub.Name, customHub.Latitude, customHub.Longitude, false);
             }
 
             if (request.ToLat.HasValue && request.ToLng.HasValue)
@@ -271,7 +326,7 @@ namespace HSTS.Application.Itineraries.Queries
             // Determine transport type from TransportMode.Name
             var transportTypeName = fromHub.TransportMode?.Name ?? "";
             var departDate = DateOnly.FromDateTime(DateTime.Today);
-            var options = new List<(int TransportModeId, string Method, int Minutes, decimal Cost, string Note, int? FromHubId, string? FromHubName, int? ToHubId, string? ToHubName)>();
+            var options = new List<TransportOptionDto>();
 
             bool IsMatch(string keyword) => transportTypeName.Contains(keyword, StringComparison.OrdinalIgnoreCase);
 
@@ -284,14 +339,14 @@ namespace HSTS.Application.Itineraries.Queries
                         request.FromTransitHubId!.Value, fromLat, fromLng,
                         request.ToTransitHubId!.Value, toLat, toLng,
                         departDate, null, 1, 5);
-                    var busResult = await _fixedIntercityTransportService.SearchBusAsync(busReq, ct);
+                    var busResult = await _fixedIntercityTransportService.SearchBusWithDateFallbackAsync(busReq, ct);
                     if (busResult.IsSuccess && busResult.RecommendedOption is not null)
                     {
                         var opt = busResult.RecommendedOption;
-                        options.Add((7, "Bus",
-                            opt.EstimatedTravelMinutes > 0 ? opt.EstimatedTravelMinutes : Math.Max(30, (int)(distanceKm / 50.0 * 60)),
-                            opt.EstimatedTotalCost, opt.Note,
-                            opt.FromHubId, opt.FromHubName, opt.ToHubId, opt.ToHubName));
+                        var mins = opt.EstimatedTravelMinutes > 0 ? opt.EstimatedTravelMinutes : Math.Max(30, (int)(distanceKm / 50.0 * 60));
+                        options.Add(new TransportOptionDto(7, "Bus", mins, toMoney(opt.EstimatedTotalCost), false, opt.Note,
+                            opt.FromHubId, opt.FromHubName, opt.ToHubId, opt.ToHubName,
+                            1, toMoney(opt.EstimatedTotalCost * request.GroupSize), false, busResult.ErrorMessage));
                     }
                 }
                 catch { /* bus search failed */ }
@@ -307,14 +362,14 @@ namespace HSTS.Application.Itineraries.Queries
                         var trainReq = new TrainRouteSearchRequest(
                             fromHub.Code, toHub.Code, departDate, null, null,
                             request.GroupSize, 0, 0, 0, 0, 1, 5);
-                        var trainResult = await _fixedIntercityTransportService.SearchTrainAsync(trainReq, ct);
+                        var trainResult = await _fixedIntercityTransportService.SearchTrainWithDateFallbackAsync(trainReq, ct);
                         if (trainResult.IsSuccess && trainResult.RecommendedOption is not null)
                         {
                             var opt = trainResult.RecommendedOption;
-                            options.Add((6, "Train",
-                                opt.EstimatedTravelMinutes > 0 ? opt.EstimatedTravelMinutes : Math.Max(30, (int)(distanceKm / 50.0 * 60)),
-                                opt.EstimatedTotalCost, opt.Note,
-                                fromHub.Id, fromHub.Name, toHub.Id, toHub.Name));
+                            var mins = opt.EstimatedTravelMinutes > 0 ? opt.EstimatedTravelMinutes : Math.Max(30, (int)(distanceKm / 50.0 * 60));
+                            options.Add(new TransportOptionDto(6, "Train", mins, toMoney(opt.EstimatedTotalCost), false, opt.Note,
+                                fromHub.Id, FormatTransitHubName(fromHub, "Train"), toHub.Id, FormatTransitHubName(toHub, "Train"),
+                                1, toMoney(opt.EstimatedTotalCost * request.GroupSize), false, trainResult.ErrorMessage));
                         }
                     }
                     catch { /* train search failed */ }
@@ -331,62 +386,36 @@ namespace HSTS.Application.Itineraries.Queries
                         var flightReq = new FlightRouteSearchRequest(
                             fromHub.Code, toHub.Code, departDate, null, null,
                             request.GroupSize, 0, 0, 1, 5);
-                        var flightResult = await _fixedIntercityTransportService.SearchFlightAsync(flightReq, ct);
+                        var flightResult = await _fixedIntercityTransportService.SearchFlightWithDateFallbackAsync(flightReq, ct);
                         if (flightResult.IsSuccess && flightResult.RecommendedOption is not null)
                         {
                             var opt = flightResult.RecommendedOption;
-                            options.Add((5, "Plane",
-                                opt.EstimatedTravelMinutes > 0 ? opt.EstimatedTravelMinutes : Math.Max(30, (int)(distanceKm / 50.0 * 60)),
-                                opt.EstimatedTotalCost, opt.Note,
-                                fromHub.Id, fromHub.Name, toHub.Id, toHub.Name));
+                            var mins = opt.EstimatedTravelMinutes > 0 ? opt.EstimatedTravelMinutes : Math.Max(30, (int)(distanceKm / 50.0 * 60));
+                            options.Add(new TransportOptionDto(5, "Plane", mins, toMoney(opt.EstimatedTotalCost), false, opt.Note,
+                                fromHub.Id, FormatTransitHubName(fromHub, "Plane"), toHub.Id, FormatTransitHubName(toHub, "Plane"),
+                                1, toMoney(opt.EstimatedTotalCost * request.GroupSize), false, flightResult.ErrorMessage));
                         }
                     }
                     catch { /* flight search failed */ }
                 }
             }
 
-            // Ferry search (if applicable)
-            if (IsMatch("Ferry"))
-            {
-                // Ferry: use fixed intercity with fallback
-                try
-                {
-                    var ferryReq = new FixedIntercitySearchRequest(
-                        request.FromTransitHubId!.Value, fromLat, fromLng,
-                        request.ToTransitHubId!.Value, toLat, toLng,
-                        departDate, null, 1, 5);
-                    var busResult = await _fixedIntercityTransportService.SearchBusAsync(ferryReq, ct); // Reuse bus API for ferry as fallback
-                    if (busResult.IsSuccess && busResult.RecommendedOption is not null)
-                    {
-                        var opt = busResult.RecommendedOption;
-                        options.Add((8, "Ferry",
-                            opt.EstimatedTravelMinutes > 0 ? opt.EstimatedTravelMinutes : Math.Max(30, (int)(distanceKm / 30.0 * 60)),
-                            opt.EstimatedTotalCost, opt.Note,
-                            opt.FromHubId, opt.FromHubName, opt.ToHubId, opt.ToHubName));
-                    }
-                }
-                catch { /* ferry search failed */ }
-            }
-
             if (options.Count > 0)
             {
-                // Build transport options
+                // Mark best as recommended
+                var recommended = options.OrderBy(o => o.EstimatedTotalCost.BaseAmount).First();
                 var transportOptions = options
-                    .Select((o, idx) => new TransportOptionDto(
-                        o.TransportModeId, o.Method, o.Minutes, toMoney(o.Cost),
-                        idx == 0, o.Note, o.FromHubId, o.FromHubName, o.ToHubId, o.ToHubName,
-                        1, toMoney(o.Cost * request.GroupSize)))
+                    .Select(o => o with { Recommended = ReferenceEquals(o, recommended) })
                     .ToList();
 
-                var selected = transportOptions.First();
-                var arrivalTime = departureTime.Add(TimeSpan.FromMinutes(selected.EstimatedTravelMinutes));
+                var arrivalTime = departureTime.Add(TimeSpan.FromMinutes(recommended.EstimatedTravelMinutes));
 
                 return new LocalTravelEstimateDto(
                     fromId, fromName, toId, toName,
                     departureTime, arrivalTime,
                     Math.Round(distanceKm, 2),
-                    selected.Method, selected.EstimatedTravelMinutes,
-                    selected.EstimatedTotalCost,
+                    recommended.Method, recommended.EstimatedTravelMinutes,
+                    recommended.EstimatedTotalCost,
                     transportOptions);
             }
 
@@ -403,7 +432,7 @@ namespace HSTS.Application.Itineraries.Queries
             double distanceKm, TimeOnly departureTime, Func<decimal, MoneyDto> toMoney,
             CancellationToken ct)
         {
-            // For Lat/Lng -> Lat/Lng < 70km, still calculate full local
+            // For Lat/Lng -> Lat/Lng < 100km, still calculate full local
             var transportModes = await _context.TransportModes
                 .AsNoTracking()
                 .Include(x => x.LocalTransportMetrics)
@@ -416,14 +445,40 @@ namespace HSTS.Application.Itineraries.Queries
                 .Select(x =>
                 {
                     var metrics = x.LocalTransportMetrics!;
-                    var speedKmh = Math.Max(1d, (double)metrics.SpeedKmh);
-                    var timeMinutes = Math.Max(5, (int)Math.Round(distanceKm / speedKmh * 60d));
+                    var timeMinutes = TransportUtils.CalculateTravelDuration(distanceKm, metrics.SpeedKmh, departureTime, metrics.PeakHourMultiplier);
                     var vehicleCount = (int)Math.Ceiling(request.GroupSize / (double)Math.Max(1, x.Capacity));
-                    var totalCost = (decimal)distanceKm * metrics.CostPerKm * vehicleCount;
+                    
+                    var totalCost = TransportUtils.CalculateLocalTransportCost(
+                        metrics.BaseFare,
+                        metrics.BaseDistance,
+                        metrics.PricePerKm,
+                        metrics.LongDistanceThreshold,
+                        metrics.LongDistancePricePerKm,
+                        metrics.CongestionFeePerMinute,
+                        metrics.PeakHourMultiplier,
+                        distanceKm,
+                        timeMinutes,
+                        departureTime,
+                        vehicleCount);
+
                     var maxDist = metrics.MaxRecommendedDistance.HasValue ? (double)metrics.MaxRecommendedDistance.Value : double.PositiveInfinity;
                     var over = distanceKm - maxDist;
-                    var penalty = over > 0 ? over * over * 5d : 0d;
-                    var score = timeMinutes * 0.55d + (double)totalCost * 0.00035d + penalty;
+                    
+                    double penalty = 0;
+                    if (over > 0 && metrics.SpeedKmh < 15) // Only punish Walking/Cycling for long distances
+                    {
+                        penalty = (double)(over * over * 1000000d);
+                    }
+                    
+                    // EXTRA BONUS FOR WALKING: If distance < 1.5km, give a huge boost to walking (0 cost)
+                    if (distanceKm < 1.5 && metrics.SpeedKmh < 8) 
+                    {
+                        penalty -= 50000; // 50k bonus for choosing to walk short distance
+                    }
+
+                    // SCORE LOGIC: 1 minute ~ 1000 VND (Realistic value of time).
+                    // This matches the logic in GenerateItineraryQuery.
+                    var score = (double)timeMinutes * 1000d + (double)totalCost + penalty;
                     var note = over > 0 ? "Exceeds recommended distance" : "Within recommended distance";
 
                     return new
@@ -439,9 +494,6 @@ namespace HSTS.Application.Itineraries.Queries
                 })
                 .OrderBy(x => x.Score)
                 .ToList();
-
-            var inRange = candidates.Where(c => c.Note == "Within recommended distance").ToList();
-            if (inRange.Count > 0) candidates = inRange.Concat(candidates.Except(inRange)).ToList();
 
             var transportOptions = new List<TransportOptionDto>();
 
@@ -586,9 +638,20 @@ namespace HSTS.Application.Itineraries.Queries
 
         private static string SelectTransportCategory(double distanceKm, int groupSize)
         {
-            if (distanceKm > 600) return "Intercity express";
-            if (distanceKm > 150) return "Intercity transport";
-            return "Regional transport";
+            if (distanceKm > 1000) return "Airplane";
+            if (distanceKm > 600) return groupSize > 4 ? "Airplane" : "Train";
+            if (distanceKm > 300) return "Train";
+            return "Bus";
+        }
+
+        private static string? FormatTransitHubName(TransitHubs? hub, string method)
+        {
+            if (hub is null) return null;
+            // Bus: name only; Train/Plane: CODE - Name
+            var typeName = hub.TransportMode?.Name?.ToLowerInvariant() ?? "";
+            if (typeName.Contains("bus"))
+                return hub.Name;
+            return string.IsNullOrEmpty(hub.Code) ? hub.Name : $"{hub.Code} - {hub.Name}";
         }
 
         private static double HaversineKm(double lat1, double lng1, double lat2, double lng2)

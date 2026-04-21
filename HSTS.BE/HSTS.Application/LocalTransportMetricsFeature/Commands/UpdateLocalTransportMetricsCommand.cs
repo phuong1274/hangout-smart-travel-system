@@ -5,7 +5,13 @@ namespace HSTS.Application.LocalTransportMetricsFeature.Commands
 {
     public record UpdateLocalTransportMetricsCommand(
         int TransportationId,
-        decimal CostPerKm,
+        decimal BaseFare,
+        decimal BaseDistance,
+        decimal PricePerKm,
+        decimal? LongDistanceThreshold,
+        decimal? LongDistancePricePerKm,
+        decimal CongestionFeePerMinute,
+        decimal PeakHourMultiplier,
         decimal SpeedKmh,
         decimal? MaxRecommendedDistance) : IRequest<ErrorOr<LocalTransportMetricsDto>>;
 
@@ -29,7 +35,13 @@ namespace HSTS.Application.LocalTransportMetricsFeature.Commands
                 return Error.NotFound("LocalTransportMetrics.NotFound",
                     $"Local transport metrics with TransportationId {request.TransportationId} not found.");
 
-            entity.CostPerKm = request.CostPerKm;
+            entity.BaseFare = request.BaseFare;
+            entity.BaseDistance = request.BaseDistance;
+            entity.PricePerKm = request.PricePerKm;
+            entity.LongDistanceThreshold = request.LongDistanceThreshold;
+            entity.LongDistancePricePerKm = request.LongDistancePricePerKm;
+            entity.CongestionFeePerMinute = request.CongestionFeePerMinute;
+            entity.PeakHourMultiplier = request.PeakHourMultiplier;
             entity.SpeedKmh = request.SpeedKmh;
             entity.MaxRecommendedDistance = request.MaxRecommendedDistance;
             entity.UpdatedAt = DateTime.UtcNow;
@@ -45,7 +57,11 @@ namespace HSTS.Application.LocalTransportMetricsFeature.Commands
         public UpdateLocalTransportMetricsCommandValidator()
         {
             RuleFor(x => x.TransportationId).GreaterThan(0);
-            RuleFor(x => x.CostPerKm).GreaterThanOrEqualTo(0);
+            RuleFor(x => x.BaseFare).GreaterThanOrEqualTo(0);
+            RuleFor(x => x.BaseDistance).GreaterThanOrEqualTo(0);
+            RuleFor(x => x.PricePerKm).GreaterThanOrEqualTo(0);
+            RuleFor(x => x.CongestionFeePerMinute).GreaterThanOrEqualTo(0);
+            RuleFor(x => x.PeakHourMultiplier).GreaterThanOrEqualTo(0);
             RuleFor(x => x.SpeedKmh).GreaterThan(0);
             RuleFor(x => x.MaxRecommendedDistance).GreaterThan(0)
                 .When(x => x.MaxRecommendedDistance.HasValue);

@@ -16,7 +16,13 @@ namespace HSTS.Application.TransportModes
                 entity.LocalTransportMetrics is not null
                     ? new LocalTransportMetricsSummaryDto(
                         entity.LocalTransportMetrics.TransportationId,
-                        entity.LocalTransportMetrics.CostPerKm,
+                        entity.LocalTransportMetrics.BaseFare,
+                        entity.LocalTransportMetrics.BaseDistance,
+                        entity.LocalTransportMetrics.PricePerKm,
+                        entity.LocalTransportMetrics.LongDistanceThreshold,
+                        entity.LocalTransportMetrics.LongDistancePricePerKm,
+                        entity.LocalTransportMetrics.CongestionFeePerMinute,
+                        entity.LocalTransportMetrics.PeakHourMultiplier,
                         entity.LocalTransportMetrics.SpeedKmh,
                         entity.LocalTransportMetrics.MaxRecommendedDistance)
                     : null);
