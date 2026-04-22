@@ -636,16 +636,21 @@ const ManualTripPage = () => {
   useEffect(() => {
     const queryTripId = Number(searchParams.get('tripId'));
     const stateTripId = Number(location?.state?.tripId);
+    const isEditMode = Boolean(location?.state?.editMode);
     const stateDefaultProvinceId = Number(location?.state?.defaultProvinceId);
-    const resolvedTripId = Number.isFinite(queryTripId) && queryTripId > 0
-      ? queryTripId
-      : (Number.isFinite(stateTripId) && stateTripId > 0 ? stateTripId : 0);
+    const resolvedTripId = isEditMode
+      ? (Number.isFinite(stateTripId) && stateTripId > 0
+          ? stateTripId
+          : (Number.isFinite(queryTripId) && queryTripId > 0 ? queryTripId : 0))
+      : (Number.isFinite(queryTripId) && queryTripId > 0
+          ? queryTripId
+          : (Number.isFinite(stateTripId) && stateTripId > 0 ? stateTripId : 0));
 
     setTripId(resolvedTripId > 0 ? resolvedTripId : null);
     setDefaultProvinceId(Number.isFinite(stateDefaultProvinceId) && stateDefaultProvinceId > 0
       ? stateDefaultProvinceId
       : null);
-    setEditMode(Boolean(location?.state?.editMode));
+    setEditMode(isEditMode);
     setTransportOptionsBackfilled(false);
   }, [location?.state?.tripId, location?.state?.defaultProvinceId, location?.state?.editMode, searchParams]);
 
