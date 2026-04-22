@@ -1,4 +1,5 @@
 using System.Globalization;
+using HSTS.Application.Common;
 using HSTS.Application.Interfaces;
 using HSTS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -189,6 +190,15 @@ namespace HSTS.Application.Itineraries.Queries
                 Math.Round(vndAmount * vndToTargetRate, 2), resolvedCurrency, Math.Round(vndAmount, 2), "VND");
 
             // STAGE 1: Validation and Data Loading
+            if (request.TotalBudget <= 0)
+                return Error.Validation("Itinerary.Budget", "Total budget must be greater than zero.");
+
+            if (request.UserLocation.Latitude < -90 || request.UserLocation.Latitude > 90 ||
+                request.UserLocation.Longitude < -180 || request.UserLocation.Longitude > 180)
+            {
+                return Error.Validation("Itinerary.UserLocation", "Invalid user location coordinates.");
+            }
+
             var totalDays = request.EndDate.DayNumber - request.StartDate.DayNumber + 1;
             if (totalDays <= 0)
                 return Error.Validation("Itinerary.Dates", "Trip duration is invalid.");
@@ -1210,7 +1220,7 @@ namespace HSTS.Application.Itineraries.Queries
 #pragma warning disable CS0219 // Variable is assigned but never used
                         bool _lateLunchInjected = false; // tracked for debugging
 #pragma warning restore CS0219
-                        if (!lunchInserted && currentTimeOnly >= new TimeOnly(11, 0) && currentTimeOnly < new TimeOnly(14, 30))
+                        if (!lunchInserted && currentTimeOnly >= new TimeOnly(11, 0) && currentTimeOnly < new TimeOnly(16, 0))
                         {
                             // Determine lunch duration based on arrival time
                             int lunchDurationMinutes;
@@ -1663,7 +1673,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 {
                                     var restaurantPoint = GeoPoint.FromLocation(rLoc);
                                     var mealTransport = await BuildLocalTransportAsync(
-                                        currentPoint, restaurantPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                        currentPoint, restaurantPoint, groupSize, transportModes, toMoney, cancellationToken, currentTime);
                                     var mealArrival = AddMinutes(currentTime, mealTransport.SelectedTravelTimeMinutes);
 
                                     // Add travel leg
@@ -1881,7 +1891,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 {
                                     var restaurantPoint = GeoPoint.FromLocation(rLoc);
                                     var mealTransport = await BuildLocalTransportAsync(
-                                        currentPoint, restaurantPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                        currentPoint, restaurantPoint, groupSize, transportModes, toMoney, cancellationToken, currentTime);
                                     var mealArrival = AddMinutes(currentTime, mealTransport.SelectedTravelTimeMinutes);
 
                                     var mealLeg = new LocationToLocationTravelLegDto(
@@ -1954,7 +1964,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 {
                                     var restaurantPoint = GeoPoint.FromLocation(rLoc);
                                     var mealTransport = await BuildLocalTransportAsync(
-                                        currentPoint, restaurantPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                        currentPoint, restaurantPoint, groupSize, transportModes, toMoney, cancellationToken, currentTime);
                                     var mealArrival = AddMinutes(currentTime, mealTransport.SelectedTravelTimeMinutes);
 
                                     var mealLeg = new LocationToLocationTravelLegDto(
@@ -2944,7 +2954,7 @@ namespace HSTS.Application.Itineraries.Queries
                 resolvedCurrency,
                 isLuxuryTrip ? "Luxury" : ClassifyBudgetLevel(request.TotalBudget, groupSize, totalDays),
                 budgetSummary,
-                days, new List<string>());
+                days, notes);
             } // END RETRY LOOP
             
             return Error.Unexpected("Itinerary.GenerationFailed", "Itinerary generation failed unpredictably.");
@@ -3945,7 +3955,7 @@ namespace HSTS.Application.Itineraries.Queries
 
         private async Task<LocalTransportResult> BuildLocalTransportAsync(
             GeoPoint from, GeoPoint to, int groupSize, IList<TransportMode> transportModes,
-            Func<decimal, MoneyDto> toMoney, CancellationToken cancellationToken)
+            Func<decimal, MoneyDto> toMoney, CancellationToken cancellationToken, DateTime? departureTime = null)
         {
             RouteEstimate? routeEstimate = null;
             try
@@ -3965,22 +3975,44 @@ namespace HSTS.Application.Itineraries.Queries
                 .Select(x =>
                 {
                     var metrics = x.LocalTransportMetrics!;
-                    var speedKmh = Math.Max(1d, (double)metrics.SpeedKmh);
-                    var timeMinutes = Math.Max(5, (int)Math.Round(distanceKm / speedKmh * 60d));
+                    var timeMinutes = TransportUtils.CalculateTravelDuration(distanceKm, metrics.SpeedKmh);
                     var vehicleCount = (int)Math.Ceiling(groupSize / (double)Math.Max(1, x.Capacity));
-                    var totalCost = (decimal)distanceKm * metrics.CostPerKm * vehicleCount;
+                    
+                    var totalCost = TransportUtils.CalculateLocalTransportCost(
+                        metrics.BaseFare,
+                        metrics.BaseDistance,
+                        metrics.PricePerKm,
+                        metrics.LongDistanceThreshold,
+                        metrics.LongDistancePricePerKm,
+                        metrics.CongestionFeePerMinute,
+                        distanceKm,
+                        timeMinutes,
+                        vehicleCount);
+
                     var maxDist = metrics.MaxRecommendedDistance.HasValue ? (double)metrics.MaxRecommendedDistance.Value : double.PositiveInfinity;
                     var over = distanceKm - maxDist;
-                    var penalty = over > 0 ? over * over * 5d : 0d;
-                    var score = timeMinutes * 0.55d + (double)totalCost * 0.00035d + penalty;
+                    
+                    double penalty = 0;
+                    if (over > 0 && metrics.SpeedKmh < 15) // Only punish Walking/Cycling for long distances
+                    {
+                        penalty = (double)(over * over * 1000000d);
+                    }
+                    
+                    // EXTRA BONUS FOR WALKING: If distance < 1.5km, give a huge boost to walking (0 cost)
+                    if (distanceKm < 1.5 && metrics.SpeedKmh < 8) 
+                    {
+                        penalty -= 50000; // 50k bonus for choosing to walk short distance
+                    }
+
+                    // SCORE LOGIC: 1 minute ~ 1000 VND (Realistic value of time).
+                    // This favors cost-effective methods heavily.
+                    var score = (double)timeMinutes * 1000d + (double)totalCost + penalty;
+                    
                     return new TransportCandidate(x.Id, x.Name, timeMinutes, decimal.Round(totalCost, 2), score,
                         over > 0 ? "Exceeds recommended distance" : "Within recommended distance", vehicleCount);
                 })
                 .OrderBy(x => x.RankScore)
                 .ToList();
-
-            var inRange = candidates.Where(c => c.Note == "Within recommended distance").ToList();
-            if (inRange.Count > 0) candidates = inRange.Concat(candidates.Except(inRange)).ToList();
 
             if (candidates.Count == 0)
             {
@@ -4118,7 +4150,7 @@ namespace HSTS.Application.Itineraries.Queries
             if (transitHubs.Count == 0) return fallbackProvinceId;
 
             var nearest = transitHubs
-                .Where(h => h.District.ProvinceId.HasValue)
+                .Where(h => h.District != null && h.District.ProvinceId.HasValue)
                 .Select(h => new { h.District.ProvinceId, Distance = HaversineKm(latitude, longitude, h.Latitude, h.Longitude) })
                 .OrderBy(h => h.Distance)
                 .FirstOrDefault();

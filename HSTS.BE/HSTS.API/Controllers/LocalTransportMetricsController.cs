@@ -61,12 +61,19 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
+        [Authorize(Roles = "ADMIN")]
         public async Task<IActionResult> Create(CreateLocalTransportMetricsRequest request, CancellationToken ct = default)
         {
             var command = new CreateLocalTransportMetricsCommand(
-                request.TransportationId, request.CostPerKm,
-                request.SpeedKmh, request.MaxRecommendedDistance);
+                request.TransportationId,
+                request.BaseFare,
+                request.BaseDistance,
+                request.PricePerKm,
+                request.LongDistanceThreshold,
+                request.LongDistancePricePerKm,
+                request.CongestionFeePerMinute,
+                request.SpeedKmh,
+                request.MaxRecommendedDistance);
             var result = await _mediator.Send(command, ct);
 
             return result.Match(
@@ -82,15 +89,22 @@ namespace HSTS.API.Controllers
         }
 
         [HttpPut("{transportationId}")]
-        [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
+        [Authorize(Roles = "ADMIN")]
         public async Task<IActionResult> Update(
             int transportationId, UpdateLocalTransportMetricsRequest request, CancellationToken ct = default)
         {
             if (transportationId <= 0) return BadRequest("TransportationId must be a positive integer.");
 
             var command = new UpdateLocalTransportMetricsCommand(
-                transportationId, request.CostPerKm,
-                request.SpeedKmh, request.MaxRecommendedDistance);
+                transportationId,
+                request.BaseFare,
+                request.BaseDistance,
+                request.PricePerKm,
+                request.LongDistanceThreshold,
+                request.LongDistancePricePerKm,
+                request.CongestionFeePerMinute,
+                request.SpeedKmh,
+                request.MaxRecommendedDistance);
             var result = await _mediator.Send(command, ct);
 
             return result.Match(
@@ -105,7 +119,7 @@ namespace HSTS.API.Controllers
         }
 
         [HttpDelete("{transportationId}")]
-        [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
+        [Authorize(Roles = "ADMIN")]
         public async Task<IActionResult> Delete(int transportationId, CancellationToken ct = default)
         {
             if (transportationId <= 0) return BadRequest("TransportationId must be a positive integer.");

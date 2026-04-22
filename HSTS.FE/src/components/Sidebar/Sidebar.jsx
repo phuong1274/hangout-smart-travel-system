@@ -177,7 +177,7 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen }) => {
         navigate(PATHS.TRANSPORTATION);
         setMobileMenuOpen?.(false);
       },
-      hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
+      hidden: !hasRole([ROLES.ADMIN]),
     },
   ].filter((item) => !item.hidden);
 

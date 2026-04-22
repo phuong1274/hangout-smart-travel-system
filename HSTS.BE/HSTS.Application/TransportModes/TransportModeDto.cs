@@ -13,7 +13,12 @@ namespace HSTS.Application.TransportModes
 
     public record LocalTransportMetricsSummaryDto(
         int TransportationId,
-        decimal CostPerKm,
+        decimal BaseFare,
+        decimal BaseDistance,
+        decimal PricePerKm,
+        decimal? LongDistanceThreshold,
+        decimal? LongDistancePricePerKm,
+        decimal CongestionFeePerMinute,
         decimal SpeedKmh,
         decimal? MaxRecommendedDistance);
 }

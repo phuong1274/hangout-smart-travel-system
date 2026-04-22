@@ -4531,7 +4531,10 @@ const ItineraryResultPage = () => {
   const budgetSummary = itinerary.budgetSummary || itinerary.BudgetSummary;
   const startDate = itinerary.startDate || itinerary.StartDate;
   const endDate = itinerary.endDate || itinerary.EndDate;
-  const groupSize = itinerary.groupSize || itinerary.GroupSize;
+  const groupSizeValue = Number(itinerary?.groupSize ?? itinerary?.GroupSize);
+  const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0
+    ? Math.round(groupSizeValue)
+    : 1;
   const budgetLevel = itinerary.budgetLevel || itinerary.BudgetLevel;
   const tripCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
 
@@ -4966,6 +4969,37 @@ const ItineraryResultPage = () => {
         activities,
       };
     });
+
+    // Persist user's start point as custom from-hub on the first travel activity.
+    // This keeps the trip origin in saved payload without backend schema changes.
+    const itineraryUserLocation = itinerary?.userLocation || itinerary?.UserLocation;
+    const userStartLat = toFiniteNumber(itineraryUserLocation?.latitude ?? itineraryUserLocation?.Latitude);
+    const userStartLng = toFiniteNumber(itineraryUserLocation?.longitude ?? itineraryUserLocation?.Longitude);
+    if (userStartLat != null && userStartLng != null && mappedDays.length > 0) {
+      const firstDayActivities = Array.isArray(mappedDays[0]?.activities) ? mappedDays[0].activities : [];
+      const firstTravelActivity = firstDayActivities.find((activity) => activity?.transport);
+
+      if (firstTravelActivity?.transport) {
+        firstTravelActivity.transport.fromLocationId = null;
+        firstTravelActivity.transport.fromTransitHubId = null;
+        firstTravelActivity.transport.customFromTransitHubId = null;
+        firstTravelActivity.transport.customFromTransitHub = {
+          name: pickFirstText(
+            itineraryUserLocation?.name,
+            itineraryUserLocation?.Name,
+            itineraryUserLocation?.locationName,
+            itineraryUserLocation?.LocationName,
+            'Your location',
+          ),
+          latitude: userStartLat,
+          longitude: userStartLng,
+          address: pickFirstText(
+            itineraryUserLocation?.address,
+            itineraryUserLocation?.Address,
+          ) || null,
+        };
+      }
+    }
 
     const summary = budgetSummary || {};
     const totalBudget = Math.round(getNonNegativeAmount(summary.totalBudget || summary.TotalBudget, totalBudgetValue));
