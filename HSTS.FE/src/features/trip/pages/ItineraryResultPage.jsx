@@ -4531,7 +4531,10 @@ const ItineraryResultPage = () => {
   const budgetSummary = itinerary.budgetSummary || itinerary.BudgetSummary;
   const startDate = itinerary.startDate || itinerary.StartDate;
   const endDate = itinerary.endDate || itinerary.EndDate;
-  const groupSize = itinerary.groupSize || itinerary.GroupSize;
+  const groupSizeValue = Number(itinerary?.groupSize ?? itinerary?.GroupSize);
+  const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0
+    ? Math.round(groupSizeValue)
+    : 1;
   const budgetLevel = itinerary.budgetLevel || itinerary.BudgetLevel;
   const tripCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
 
