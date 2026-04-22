@@ -72,7 +72,6 @@ namespace HSTS.API.Controllers
                 request.LongDistanceThreshold,
                 request.LongDistancePricePerKm,
                 request.CongestionFeePerMinute,
-                request.PeakHourMultiplier,
                 request.SpeedKmh,
                 request.MaxRecommendedDistance);
             var result = await _mediator.Send(command, ct);
@@ -104,7 +103,6 @@ namespace HSTS.API.Controllers
                 request.LongDistanceThreshold,
                 request.LongDistancePricePerKm,
                 request.CongestionFeePerMinute,
-                request.PeakHourMultiplier,
                 request.SpeedKmh,
                 request.MaxRecommendedDistance);
             var result = await _mediator.Send(command, ct);

@@ -19,7 +19,6 @@ namespace HSTS.Application.TransportModes
         decimal? LongDistanceThreshold,
         decimal? LongDistancePricePerKm,
         decimal CongestionFeePerMinute,
-        decimal PeakHourMultiplier,
         decimal SpeedKmh,
         decimal? MaxRecommendedDistance);
 }

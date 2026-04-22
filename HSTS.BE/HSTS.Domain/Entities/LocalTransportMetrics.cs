@@ -9,7 +9,6 @@ namespace HSTS.Domain.Entities
         public decimal? LongDistanceThreshold { get; set; }
         public decimal? LongDistancePricePerKm { get; set; }
         public decimal CongestionFeePerMinute { get; set; }
-        public decimal PeakHourMultiplier { get; set; }
         public decimal SpeedKmh { get; set; }
         public decimal? MaxRecommendedDistance { get; set; }
 

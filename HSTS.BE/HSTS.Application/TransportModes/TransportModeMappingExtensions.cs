@@ -22,7 +22,6 @@ namespace HSTS.Application.TransportModes
                         entity.LocalTransportMetrics.LongDistanceThreshold,
                         entity.LocalTransportMetrics.LongDistancePricePerKm,
                         entity.LocalTransportMetrics.CongestionFeePerMinute,
-                        entity.LocalTransportMetrics.PeakHourMultiplier,
                         entity.LocalTransportMetrics.SpeedKmh,
                         entity.LocalTransportMetrics.MaxRecommendedDistance)
                     : null);

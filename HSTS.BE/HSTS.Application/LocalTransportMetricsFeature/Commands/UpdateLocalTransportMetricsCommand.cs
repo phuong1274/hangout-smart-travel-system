@@ -11,7 +11,6 @@ namespace HSTS.Application.LocalTransportMetricsFeature.Commands
         decimal? LongDistanceThreshold,
         decimal? LongDistancePricePerKm,
         decimal CongestionFeePerMinute,
-        decimal PeakHourMultiplier,
         decimal SpeedKmh,
         decimal? MaxRecommendedDistance) : IRequest<ErrorOr<LocalTransportMetricsDto>>;
 
@@ -41,7 +40,6 @@ namespace HSTS.Application.LocalTransportMetricsFeature.Commands
             entity.LongDistanceThreshold = request.LongDistanceThreshold;
             entity.LongDistancePricePerKm = request.LongDistancePricePerKm;
             entity.CongestionFeePerMinute = request.CongestionFeePerMinute;
-            entity.PeakHourMultiplier = request.PeakHourMultiplier;
             entity.SpeedKmh = request.SpeedKmh;
             entity.MaxRecommendedDistance = request.MaxRecommendedDistance;
             entity.UpdatedAt = DateTime.UtcNow;
@@ -61,7 +59,6 @@ namespace HSTS.Application.LocalTransportMetricsFeature.Commands
             RuleFor(x => x.BaseDistance).GreaterThanOrEqualTo(0);
             RuleFor(x => x.PricePerKm).GreaterThanOrEqualTo(0);
             RuleFor(x => x.CongestionFeePerMinute).GreaterThanOrEqualTo(0);
-            RuleFor(x => x.PeakHourMultiplier).GreaterThanOrEqualTo(0);
             RuleFor(x => x.SpeedKmh).GreaterThan(0);
             RuleFor(x => x.MaxRecommendedDistance).GreaterThan(0)
                 .When(x => x.MaxRecommendedDistance.HasValue);

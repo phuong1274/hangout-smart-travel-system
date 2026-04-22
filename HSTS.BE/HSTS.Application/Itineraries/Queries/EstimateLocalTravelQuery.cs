@@ -445,7 +445,7 @@ namespace HSTS.Application.Itineraries.Queries
                 .Select(x =>
                 {
                     var metrics = x.LocalTransportMetrics!;
-                    var timeMinutes = TransportUtils.CalculateTravelDuration(distanceKm, metrics.SpeedKmh, departureTime, metrics.PeakHourMultiplier);
+                    var timeMinutes = TransportUtils.CalculateTravelDuration(distanceKm, metrics.SpeedKmh);
                     var vehicleCount = (int)Math.Ceiling(request.GroupSize / (double)Math.Max(1, x.Capacity));
                     
                     var totalCost = TransportUtils.CalculateLocalTransportCost(
@@ -455,10 +455,8 @@ namespace HSTS.Application.Itineraries.Queries
                         metrics.LongDistanceThreshold,
                         metrics.LongDistancePricePerKm,
                         metrics.CongestionFeePerMinute,
-                        metrics.PeakHourMultiplier,
                         distanceKm,
                         timeMinutes,
-                        departureTime,
                         vehicleCount);
 
                     var maxDist = metrics.MaxRecommendedDistance.HasValue ? (double)metrics.MaxRecommendedDistance.Value : double.PositiveInfinity;
