@@ -237,7 +237,7 @@ export const router = createBrowserRouter([
           },
           {
             path: PATHS.TRANSPORTATION,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
             children: [
               { index: true, element: <TransportManagementPage /> },
             ]
