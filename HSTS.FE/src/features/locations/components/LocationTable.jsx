@@ -22,7 +22,6 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      width: 180,
       render: (text, record) => (
         <div className={styles.nameCell}>
           <strong className={styles.cellTitle}>{text}</strong>
@@ -40,7 +39,6 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
       title: 'Address',
       dataIndex: 'address',
       key: 'address',
-      width: 120,
       ellipsis: true,
       render: (text) => <span className={styles.bodyText}>{text}</span>,
     },
@@ -93,7 +91,7 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
     {
       title: 'Actions',
       key: 'actions',
-      width: 200,
+      width: 100,
       fixed: 'right',
       render: (_, record) => {
         const status = record.effectiveStatus || LocationStatus.Active;
@@ -101,61 +99,60 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
         const isInactive = status === LocationStatus.Inactive;
 
         return (
-          <Space direction="vertical" size="small">
+          <Space direction="vertical" size="small" className={styles.actionSpace}>
             <Tooltip title="View details & reviews">
               <Button
                 type="text"
-                className={styles.actionBtnInfo}
+                className={styles.actionIconView}
                 icon={<EyeOutlined />}
                 onClick={() => onView(record)}
                 aria-label="View details & reviews"
-              >
-                VIEW
-              </Button>
+              />
             </Tooltip>
             {!isInactive && (
               <Tooltip title="Edit location">
                 <Button
                   type="text"
-                  className={styles.actionBtnPrimary}
+                  className={styles.actionIconEdit}
                   icon={<EditOutlined />}
                   onClick={() => onEdit(record)}
                   aria-label="Edit location"
-                >
-                  EDIT
-                </Button>
+                />
               </Tooltip>
             )}
             {!isInactive && (
               <Tooltip title="View closure history">
                 <Button
                   type="text"
-                  className={styles.actionBtnInfo}
+                  className={styles.actionIconHistory}
                   icon={<HistoryOutlined />}
                   onClick={() => onViewClosureHistory?.(record)}
                   aria-label="View closure history"
-                >
-                  HISTORY
-                </Button>
+                />
               </Tooltip>
             )}
             {isClosed ? (
-              <Popconfirm title="Open Location" onConfirm={() => onOpenLocation(record)} okText="Yes, Open" cancelText="Cancel">
-                <Button type="text" className={styles.actionBtnSuccess} icon={<UnlockOutlined />} aria-label="Open location">
-                  OPEN
-                </Button>
+              <Popconfirm
+                title="Open Location"
+                onConfirm={() => onOpenLocation(record)}
+                okText="Yes, Open"
+                cancelText="Cancel"
+                okButtonProps={{ className: styles.popConfirmSuccess }}
+                cancelButtonProps={{ className: styles.popConfirmCancel }}
+              >
+                <Tooltip title="Open location">
+                  <Button type="text" className={styles.actionIconSuccess} icon={<UnlockOutlined />} aria-label="Open location" />
+                </Tooltip>
               </Popconfirm>
             ) : !isInactive ? (
               <Tooltip title="Temporarily close location">
                 <Button
                   type="text"
-                  className={styles.actionBtnWarning}
+                  className={styles.actionIconWarning}
                   icon={<LockOutlined />}
                   onClick={() => onCloseLocation(record)}
                   aria-label="Temporarily close location"
-                >
-                  CLOSE
-                </Button>
+                />
               </Tooltip>
             ) : null}
             <Popconfirm
@@ -164,11 +161,11 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
               onConfirm={() => onDelete(record)}
               okText="Yes"
               cancelText="No"
+              okButtonProps={{ className: styles.popConfirmOk }}
+              cancelButtonProps={{ className: styles.popConfirmCancel }}
             >
               <Tooltip title="Delete location">
-                <Button type="text" className={styles.actionBtnDanger} icon={<DeleteOutlined />} aria-label="Delete location">
-                  DELETE
-                </Button>
+                <Button type="text" className={styles.actionIconDelete} icon={<DeleteOutlined />} aria-label="Delete location" />
               </Tooltip>
             </Popconfirm>
           </Space>
@@ -189,9 +186,12 @@ const LocationTable = ({ data, loading, pagination, onTableChange, onEdit, onDel
         className={styles.tropicalTable}
         columns={columns}
         dataSource={data}
-        loading={loading}
+        loading={{
+          spinning: loading,
+          indicator: <div className={styles.skeletonLoader}></div>
+        }}
         rowKey="id"
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: 1020 }}
         pagination={false}
         onChange={onTableChange}
       />

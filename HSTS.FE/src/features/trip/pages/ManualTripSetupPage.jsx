@@ -14,7 +14,7 @@ import {
   Typography,
   message,
 } from 'antd';
-import { ArrowRightOutlined, CalendarOutlined, EnvironmentOutlined, TeamOutlined } from '@ant-design/icons';
+import { CalendarOutlined, EnvironmentOutlined, TeamOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { createTripApi, getProvincesApi } from '../api';
@@ -23,6 +23,7 @@ import { useAuthStore } from '@/store/authStore';
 import styles from './ManualTripSetupPage.module.css';
 
 const { Title, Text } = Typography;
+const { RangePicker } = DatePicker;
 
 const ManualTripSetupPage = () => {
   const [form] = Form.useForm();
@@ -81,12 +82,13 @@ const ManualTripSetupPage = () => {
       const selectedProvinceId = Number(values.startProvinceId);
       const selectedProvince = provinces.find((province) => province.id === selectedProvinceId) || null;
       const selectedProvinceName = selectedProvince?.name || null;
+      const [startDate, endDate] = values.dateRange;
 
       const payload = {
         tripName: values.tripName.trim(),
         description: values.description?.trim() || null,
-        startDate: values.startDate.format('YYYY-MM-DD'),
-        endDate: values.endDate.format('YYYY-MM-DD'),
+        startDate: startDate.format('YYYY-MM-DD'),
+        endDate: endDate.format('YYYY-MM-DD'),
         groupSize: values.groupSize || 1,
         startingLocation: selectedProvinceName,
         currency: values.currency || 'VND',
@@ -125,17 +127,18 @@ const ManualTripSetupPage = () => {
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: '#FF6B6B',
+          colorPrimary: '#0077B6',
           colorText: '#1A535C',
           borderRadius: 16,
           fontFamily: "'Plus Jakarta Sans', sans-serif",
+          controlHeight: 44,
         },
       }}
     >
       <div className={styles.pageShell}>
         <div className={styles.pageContent}>
           <Card className={styles.heroCard} bordered={false}>
-            <Space direction="vertical" size={6}>
+            <Space direction="vertical" size={12}>
               <Text className={styles.heroEyebrow}>Manual Trip Flow</Text>
               <Title level={2} className={styles.heroTitle}>Create trip and add each day/location manually</Title>
               <Text className={styles.heroSubtitle}>
@@ -151,8 +154,8 @@ const ManualTripSetupPage = () => {
               onFinish={handleSubmit}
               initialValues={{ groupSize: 1, currency: 'VND' }}
             >
-              <Row gutter={[16, 12]}>
-                <Col xs={24}>
+              <Row gutter={[24, 24]}>
+                <Col xs={24} lg={12} className={styles.staggerItem1}>
                   <Form.Item
                     label="Trip Name"
                     name="tripName"
@@ -166,49 +169,32 @@ const ManualTripSetupPage = () => {
                   </Form.Item>
                 </Col>
 
-                <Col xs={24}>
+                <Col xs={24} lg={12} className={styles.staggerItem2}>
                   <Form.Item
                     label="Description"
                     name="description"
                     rules={[{ max: 2000, message: 'Description cannot exceed 2000 characters' }]}
                   >
-                    <Input.TextArea rows={3} placeholder="Optional" />
+                    <Input.TextArea rows={1} placeholder="Optional" style={{ minHeight: 44 }} />
                   </Form.Item>
                 </Col>
 
-                <Col xs={24} md={12}>
+                {/* Đã tinh chỉnh lg={10} để chừa thêm chỗ cho Province và Currency */}
+                <Col xs={24} md={16} lg={10} className={styles.staggerItem3}>
                   <Form.Item
-                    label={<Space><CalendarOutlined />Start Date</Space>}
-                    name="startDate"
-                    rules={[{ required: true, message: 'Please select start date' }]}
+                    label={<Space><CalendarOutlined />Trip Duration (Start - End)</Space>}
+                    name="dateRange"
+                    rules={[{ required: true, message: 'Please select a date range' }]}
                   >
-                    <DatePicker
+                    <RangePicker
                       style={{ width: '100%' }}
                       disabledDate={(current) => current && current.isBefore(dayjs().startOf('day'))}
+                      format="DD/MM/YYYY"
                     />
                   </Form.Item>
                 </Col>
 
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label={<Space><CalendarOutlined />End Date</Space>}
-                    name="endDate"
-                    rules={[{ required: true, message: 'Please select end date' }]}
-                  >
-                    <DatePicker
-                      style={{ width: '100%' }}
-                      disabledDate={(current) => {
-                        const startDate = form.getFieldValue('startDate');
-                        return current && (
-                          current.isBefore(dayjs().startOf('day')) ||
-                          (startDate && current.isBefore(startDate, 'day'))
-                        );
-                      }}
-                    />
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} md={8}>
+                <Col xs={24} md={8} lg={4} className={styles.staggerItem4}>
                   <Form.Item
                     label={<Space><TeamOutlined />Group Size</Space>}
                     name="groupSize"
@@ -218,7 +204,8 @@ const ManualTripSetupPage = () => {
                   </Form.Item>
                 </Col>
 
-                <Col xs={24} md={8}>
+                {/* Tăng từ lg={4} lên lg={5} */}
+                <Col xs={24} md={12} lg={5} className={styles.staggerItem5}>
                   <Form.Item
                     label={<Space><EnvironmentOutlined />Province</Space>}
                     name="startProvinceId"
@@ -230,6 +217,7 @@ const ManualTripSetupPage = () => {
                       placeholder="Select province"
                       loading={loadingProvinces}
                       optionFilterProp="label"
+                      popupMatchSelectWidth={false}
                       options={provinces.map((province) => ({
                         label: province.name,
                         value: province.id,
@@ -239,13 +227,15 @@ const ManualTripSetupPage = () => {
                   </Form.Item>
                 </Col>
 
-                <Col xs={24} md={8}>
+                {/* Tăng từ lg={4} lên lg={5} và thêm popupMatchSelectWidth */}
+                <Col xs={24} md={12} lg={5} className={styles.staggerItem6}>
                   <Form.Item
                     label="Currency"
                     name="currency"
                     rules={[{ required: true, message: 'Please select currency' }]}
                   >
                     <Select
+                      popupMatchSelectWidth={false}
                       options={[
                         { label: 'VND (Vietnamese Dong)', value: 'VND' },
                         { label: 'USD (US Dollar)', value: 'USD' },
@@ -257,7 +247,12 @@ const ManualTripSetupPage = () => {
               </Row>
 
               <div className={styles.footerAction}>
-                <Button type="primary" htmlType="submit" loading={submitting} icon={<ArrowRightOutlined />}>
+                <Button 
+                  type="primary" 
+                  htmlType="submit" 
+                  loading={submitting} 
+                  className={styles.ctaButton}
+                >
                   Continue to Day/Location Builder
                 </Button>
               </div>
