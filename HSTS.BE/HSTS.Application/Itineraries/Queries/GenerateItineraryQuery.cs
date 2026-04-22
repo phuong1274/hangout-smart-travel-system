@@ -190,6 +190,15 @@ namespace HSTS.Application.Itineraries.Queries
                 Math.Round(vndAmount * vndToTargetRate, 2), resolvedCurrency, Math.Round(vndAmount, 2), "VND");
 
             // STAGE 1: Validation and Data Loading
+            if (request.TotalBudget <= 0)
+                return Error.Validation("Itinerary.Budget", "Total budget must be greater than zero.");
+
+            if (request.UserLocation.Latitude < -90 || request.UserLocation.Latitude > 90 ||
+                request.UserLocation.Longitude < -180 || request.UserLocation.Longitude > 180)
+            {
+                return Error.Validation("Itinerary.UserLocation", "Invalid user location coordinates.");
+            }
+
             var totalDays = request.EndDate.DayNumber - request.StartDate.DayNumber + 1;
             if (totalDays <= 0)
                 return Error.Validation("Itinerary.Dates", "Trip duration is invalid.");
@@ -2945,7 +2954,7 @@ namespace HSTS.Application.Itineraries.Queries
                 resolvedCurrency,
                 isLuxuryTrip ? "Luxury" : ClassifyBudgetLevel(request.TotalBudget, groupSize, totalDays),
                 budgetSummary,
-                days, new List<string>());
+                days, notes);
             } // END RETRY LOOP
             
             return Error.Unexpected("Itinerary.GenerationFailed", "Itinerary generation failed unpredictably.");
@@ -3966,8 +3975,7 @@ namespace HSTS.Application.Itineraries.Queries
                 .Select(x =>
                 {
                     var metrics = x.LocalTransportMetrics!;
-                    var depTime = departureTime.HasValue ? TimeOnly.FromDateTime(departureTime.Value) : new TimeOnly(12, 0);
-                    var timeMinutes = TransportUtils.CalculateTravelDuration(distanceKm, metrics.SpeedKmh, depTime, metrics.PeakHourMultiplier);
+                    var timeMinutes = TransportUtils.CalculateTravelDuration(distanceKm, metrics.SpeedKmh);
                     var vehicleCount = (int)Math.Ceiling(groupSize / (double)Math.Max(1, x.Capacity));
                     
                     var totalCost = TransportUtils.CalculateLocalTransportCost(
@@ -3977,10 +3985,8 @@ namespace HSTS.Application.Itineraries.Queries
                         metrics.LongDistanceThreshold,
                         metrics.LongDistancePricePerKm,
                         metrics.CongestionFeePerMinute,
-                        metrics.PeakHourMultiplier,
                         distanceKm,
                         timeMinutes,
-                        depTime,
                         vehicleCount);
 
                     var maxDist = metrics.MaxRecommendedDistance.HasValue ? (double)metrics.MaxRecommendedDistance.Value : double.PositiveInfinity;
@@ -4144,7 +4150,7 @@ namespace HSTS.Application.Itineraries.Queries
             if (transitHubs.Count == 0) return fallbackProvinceId;
 
             var nearest = transitHubs
-                .Where(h => h.District.ProvinceId.HasValue)
+                .Where(h => h.District != null && h.District.ProvinceId.HasValue)
                 .Select(h => new { h.District.ProvinceId, Distance = HaversineKm(latitude, longitude, h.Latitude, h.Longitude) })
                 .OrderBy(h => h.Distance)
                 .FirstOrDefault();

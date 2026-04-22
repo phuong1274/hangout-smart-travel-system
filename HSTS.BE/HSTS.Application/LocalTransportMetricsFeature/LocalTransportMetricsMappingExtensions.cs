@@ -15,7 +15,6 @@ namespace HSTS.Application.LocalTransportMetricsFeature
                 entity.LongDistanceThreshold,
                 entity.LongDistancePricePerKm,
                 entity.CongestionFeePerMinute,
-                entity.PeakHourMultiplier,
                 entity.SpeedKmh,
                 entity.MaxRecommendedDistance,
                 entity.CreatedAt,

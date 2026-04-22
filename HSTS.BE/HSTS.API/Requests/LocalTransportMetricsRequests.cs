@@ -8,7 +8,6 @@ namespace HSTS.API.Requests
         decimal? LongDistanceThreshold,
         decimal? LongDistancePricePerKm,
         decimal CongestionFeePerMinute,
-        decimal PeakHourMultiplier,
         decimal SpeedKmh,
         decimal? MaxRecommendedDistance);
 
@@ -19,7 +18,6 @@ namespace HSTS.API.Requests
         decimal? LongDistanceThreshold,
         decimal? LongDistancePricePerKm,
         decimal CongestionFeePerMinute,
-        decimal PeakHourMultiplier,
         decimal SpeedKmh,
         decimal? MaxRecommendedDistance);
 }

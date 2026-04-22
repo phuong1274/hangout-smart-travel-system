@@ -9,7 +9,6 @@ namespace HSTS.Application.LocalTransportMetricsFeature
         decimal? LongDistanceThreshold,
         decimal? LongDistancePricePerKm,
         decimal CongestionFeePerMinute,
-        decimal PeakHourMultiplier,
         decimal SpeedKmh,
         decimal? MaxRecommendedDistance,
         DateTime CreatedAt,

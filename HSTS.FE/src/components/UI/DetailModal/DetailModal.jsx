@@ -331,9 +331,7 @@ const DetailModal = ({ open, onClose, data, type, children }) => {
             <Descriptions.Item label="Long Dist. Threshold (km)">{data.longDistanceThreshold?.toLocaleString() ?? 'N/A'}</Descriptions.Item>
             <Descriptions.Item label="Long Dist. Price/Km (VND)">{data.longDistancePricePerKm !== null && data.longDistancePricePerKm !== undefined ? `${data.longDistancePricePerKm.toLocaleString()} ₫` : 'N/A'}</Descriptions.Item>
             <Descriptions.Item label="Congestion Fee (VND/min)">{data.congestionFeePerMinute !== null && data.congestionFeePerMinute !== undefined ? `${data.congestionFeePerMinute.toLocaleString()} ₫` : 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Peak Hour Multiplier">{data.peakHourMultiplier?.toLocaleString() ?? 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Max Rec. Distance (km)">{data.maxRecommendedDistance?.toLocaleString() ?? 'Unlimited'}</Descriptions.Item>
-            <Descriptions.Item label="Created At">
+            <Descriptions.Item label="Max Rec. Distance (km)">{data.maxRecommendedDistance?.toLocaleString() ?? 'Unlimited'}</Descriptions.Item>            <Descriptions.Item label="Created At">
               <div className={styles.iconText}>{data.createdAt ? new Date(data.createdAt).toLocaleString() : 'N/A'}</div>
             </Descriptions.Item>
             <Descriptions.Item label="Updated At">

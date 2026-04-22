@@ -29,10 +29,6 @@ namespace HSTS.Infrastructure.Persistence.Configurations
                 .HasPrecision(18, 2)
                 .IsRequired();
 
-            builder.Property(x => x.PeakHourMultiplier)
-                .HasPrecision(18, 2)
-                .IsRequired();
-
             builder.Property(x => x.SpeedKmh)
                 .HasPrecision(18, 2)
                 .IsRequired();

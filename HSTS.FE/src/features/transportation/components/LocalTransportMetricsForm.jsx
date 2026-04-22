@@ -18,7 +18,6 @@ const LocalTransportMetricsForm = ({ open, metric, onClose, onSuccess, transport
         longDistanceThreshold: metric.longDistanceThreshold,
         longDistancePricePerKm: metric.longDistancePricePerKm,
         congestionFeePerMinute: metric.congestionFeePerMinute,
-        peakHourMultiplier: metric.peakHourMultiplier,
         speedKmh: metric.speedKmh,
         maxRecommendedDistance: metric.maxRecommendedDistance,
       });
@@ -31,7 +30,7 @@ const LocalTransportMetricsForm = ({ open, metric, onClose, onSuccess, transport
     setLoading(true);
     try {
       if (isEdit) {
-        const { transportationId, ...updateData } = values;
+        const { transportationId: _transportationId, ...updateData } = values;
         await updateLocalTransportMetricApi(metric.transportationId, updateData);
       } else {
         await createLocalTransportMetricApi(values);
@@ -159,14 +158,6 @@ const LocalTransportMetricsForm = ({ open, metric, onClose, onSuccess, transport
               formatter={(value) => value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' ₫' : ''}
               parser={(value) => value.replace(/\s?₫|(,*)/g, '')}
             />
-          </Form.Item>
-
-          <Form.Item
-            name="peakHourMultiplier"
-            label="Peak Hour Multiplier"
-            rules={[{ required: true, message: 'Please enter peak hour multiplier' }]}
-          >
-            <InputNumber min={1} step={0.1} style={{ width: '100%' }} placeholder="e.g., 1.2" className={styles.inputField} />
           </Form.Item>
 
           <Form.Item
