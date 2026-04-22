@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Space, Button, message } from 'antd';
+import { Card, Typography, Button, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import LocationFilter from '@/components/UI/LocationFilter';
 import { useLocations } from '../hooks/useLocations';
@@ -150,20 +150,24 @@ const LocationsPage = () => {
       <div className={styles.floatingCircle2}></div>
       
       <div className={styles.content}>
-        <Space direction="vertical" size="large" className={styles.mainContainer}>
+        <div className={styles.mainContainer}>
           <div className={styles.pageHeader}>
             <Title level={2} className={styles.pageTitle}>Location Management</Title>
           </div>
-          <Card className={styles.mainCard} bordered={false}>
-            <LocationFilter
-              onSearch={handleSearch}
-              loading={loading}
-              actionButton={
-                <Button className={styles.btnCreate} icon={<PlusOutlined />} onClick={handleCreate}>
-                  ADD LOCATION
-                </Button>
-              }
-            />
+          
+          <Card className={styles.dataCard} bordered={false}>
+            <div className={styles.toolbarWrapper}>
+              <div className={styles.searchSection}>
+                <LocationFilter
+                  onSearch={handleSearch}
+                  loading={loading}
+                />
+              </div>
+              <Button className={styles.ctaBtn} icon={<PlusOutlined />} onClick={handleCreate}>
+                ADD LOCATION
+              </Button>
+            </div>
+
             <LocationTable
               data={data}
               loading={loading}
@@ -177,7 +181,7 @@ const LocationsPage = () => {
               onViewClosureHistory={handleViewClosureHistory}
             />
           </Card>
-        </Space>
+        </div>
       </div>
 
       <LocationForm

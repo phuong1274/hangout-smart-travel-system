@@ -12,6 +12,7 @@ namespace HSTS.Application.Trips
         string? StartingLocation,
         TripStatus Status,
         string Currency,
-        DateTime CreatedAt
+        DateTime CreatedAt,
+        DateTime? UpdatedAt
     );
 }

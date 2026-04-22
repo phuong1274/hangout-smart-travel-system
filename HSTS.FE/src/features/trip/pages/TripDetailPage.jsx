@@ -660,34 +660,30 @@ const TripDetailPage = () => {
         <div className={styles.container}>
           
           <Card className={styles.headerCard} bordered={false}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <Title level={3} className={styles.headerTitle}>{trip.tripName}</Title>
+            <div className={styles.headerTopRow}>
+              <div className={styles.headerTitleContainer}>
+                <div className={styles.headerTitleWrapper}>
+                  <Title level={3} className={styles.headerTitle} style={{ margin: 0, wordBreak: 'break-word' }}>{trip.tripName}</Title>
+                  {myMember?.role === 'Leader' && (
+                    <Button
+                      type="text"
+                      className={styles.editTitleBtn}
+                      icon={<EditOutlined />}
+                      onClick={handleOpenEditTripModal}
+                    />
+                  )}
+                </div>
                 {trip.description && (
                   <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>{trip.description}</Text>
                 )}
               </div>
-              <Space>
-                {myMember?.role === 'Leader' && (
-                  <>
-                    <Button
-                      className={styles.sectionToggleBtn}
-                      icon={<EditOutlined />}
-                      onClick={handleOpenEditTripModal}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      className={styles.sectionToggleBtn}
-                      icon={<ToolOutlined />}
-                      onClick={() => navigate(PATHS.CREATE_TRIP_MANUAL_BUILDER, {
-                        state: { tripId: trip.id, editMode: true },
-                      })}
-                    >
-                      Edit Itinerary
-                    </Button>
-                  </>
-                )}
+              <Space wrap className={styles.headerActions}>
+                <Button
+                  className={styles.sectionToggleBtn}
+                  onClick={handleExportItineraryPdf}
+                >
+                  Export Itinerary PDF
+                </Button>
                 <Button className={styles.sectionToggleBtn} onClick={() => navigate(-1)}>Back</Button>
               </Space>
             </div>
@@ -719,19 +715,10 @@ const TripDetailPage = () => {
                   <Button
                     size="small"
                     className={styles.sectionToggleBtn}
-                    icon={<FilePdfOutlined />}
-                    onClick={handleExportItineraryPdf}
-                  >
-                    Export Itinerary PDF
-                  </Button>
-                  <Button
-                    size="small"
-                    className={styles.sectionToggleBtn}
-                    icon={<ExportOutlined />}
                     loading={exporting}
                     onClick={handleExportPdf}
                   >
-                    Export PDF
+                    Export Budget PDF
                   </Button>
                   <Button
                     size="small"
@@ -824,12 +811,6 @@ const TripDetailPage = () => {
                                 )}
                                 {isDayUpdating && (
                                   <span className={styles.dayRecalculate}>Recalculating...</span>
-                                )}
-                                {day.weatherSummary && (
-                                  <span className={styles.dayWeather} title={day.weatherSummary}>
-                                    <span className={styles.dayWeatherLabel}>Weather</span>
-                                    <span className={styles.dayWeatherValue}>{day.weatherSummary}</span>
-                                  </span>
                                 )}
                               </div>
                             </div>
@@ -1167,6 +1148,17 @@ const TripDetailPage = () => {
               },
             ]}
           />
+
+          {myMember?.role === 'Leader' && (
+            <Button
+              className={styles.saveTripFloatingBtn}
+              onClick={() => navigate(PATHS.CREATE_TRIP_MANUAL_BUILDER, {
+                state: { tripId: trip.id, editMode: true },
+              })}
+            >
+              Edit Itinerary
+            </Button>
+          )}
 
           <LocationDetailModal
             open={locationModal.open}

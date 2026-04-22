@@ -126,10 +126,6 @@ export const router = createBrowserRouter([
     element: <SuspenseWrapper><AcceptInvitationPage /></SuspenseWrapper>
   },
   {
-    path: 'trips/:id',
-    element: <SuspenseWrapper><TripDetailPage /></SuspenseWrapper>
-  },
-  {
     element: <SuspenseWrapper><HybridTripLayout /></SuspenseWrapper>,
     children: [
       {
@@ -241,7 +237,7 @@ export const router = createBrowserRouter([
           },
           {
             path: PATHS.TRANSPORTATION,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
+            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
             children: [
               { index: true, element: <TransportManagementPage /> },
             ]

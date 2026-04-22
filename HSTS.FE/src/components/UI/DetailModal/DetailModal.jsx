@@ -1,10 +1,16 @@
 import React from 'react';
 import { Modal, Descriptions, Tag, Space, Image, Divider } from 'antd';
-import { MONTH_NAMES } from '@/utils/locationConstants';
+import { MONTH_NAMES, SOCIAL_PLATFORMS } from '@/utils/locationConstants';
 import styles from './DetailModal.module.css';
 
 const DetailModal = ({ open, onClose, data, type, children }) => {
   if (!data) return null;
+
+  const getPlatformLabel = (platform) => {
+    if (!platform) return '';
+    const platformObj = SOCIAL_PLATFORMS.find(p => p.enumValue === platform || p.value === platform);
+    return platformObj ? platformObj.label : platform;
+  };
 
   const renderContent = () => {
     switch (type) {
@@ -80,7 +86,9 @@ const DetailModal = ({ open, onClose, data, type, children }) => {
                 {data.socialLinks && data.socialLinks.length > 0 ? (
                   data.socialLinks.map((link, index) => (
                     <div key={link.id || index} className={styles.socialLinkRow}>
-                      <Tag className={styles.customTag} color="blue">{link.platformName || link.platform}</Tag>
+                      <Tag className={styles.customTag} color="blue">
+                        {link.platformName || getPlatformLabel(link.platform)}
+                      </Tag>
                       <a href={link.url} target="_blank" rel="noopener noreferrer" className={styles.hoverLink}>
                         {link.url}
                       </a>
@@ -314,12 +322,16 @@ const DetailModal = ({ open, onClose, data, type, children }) => {
 
       case 'localTransportMetrics':
         return (
-          <Descriptions column={1} size="small" bordered className={styles.tropicalDescriptions}>
-            <Descriptions.Item label="Transport Mode">{data.transportModeName || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Cost per Km">{data.costPerKm?.toLocaleString() ?? 'N/A'}</Descriptions.Item>
+          <Descriptions column={2} size="small" bordered className={styles.tropicalDescriptions}>
+            <Descriptions.Item label="Transport Mode" span={2}>{data.transportModeName || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Base Fare (VND)">{data.baseFare !== null && data.baseFare !== undefined ? `${data.baseFare.toLocaleString()} ₫` : 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Base Distance (km)">{data.baseDistance?.toLocaleString() ?? 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Price per Km (VND)">{data.pricePerKm !== null && data.pricePerKm !== undefined ? `${data.pricePerKm.toLocaleString()} ₫` : 'N/A'}</Descriptions.Item>
             <Descriptions.Item label="Speed (km/h)">{data.speedKmh?.toLocaleString() ?? 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="Max Recommended Distance">{data.maxRecommendedDistance?.toLocaleString() ?? 'Unlimited'}</Descriptions.Item>
-            <Descriptions.Item label="Created At">
+            <Descriptions.Item label="Long Dist. Threshold (km)">{data.longDistanceThreshold?.toLocaleString() ?? 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Long Dist. Price/Km (VND)">{data.longDistancePricePerKm !== null && data.longDistancePricePerKm !== undefined ? `${data.longDistancePricePerKm.toLocaleString()} ₫` : 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Congestion Fee (VND/min)">{data.congestionFeePerMinute !== null && data.congestionFeePerMinute !== undefined ? `${data.congestionFeePerMinute.toLocaleString()} ₫` : 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Max Rec. Distance (km)">{data.maxRecommendedDistance?.toLocaleString() ?? 'Unlimited'}</Descriptions.Item>            <Descriptions.Item label="Created At">
               <div className={styles.iconText}>{data.createdAt ? new Date(data.createdAt).toLocaleString() : 'N/A'}</div>
             </Descriptions.Item>
             <Descriptions.Item label="Updated At">

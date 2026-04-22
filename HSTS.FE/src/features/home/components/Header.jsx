@@ -70,26 +70,37 @@ const AppHeader = ({ destinations = [] }) => {
   const menuItems = (
     <>
       {locationLink}
-      <Link to={PATHS.DASHBOARD}>
-        <Text className={styles.navLink}>Home</Text>
-      </Link>
-      <Link to={PATHS.CREATE_TRIP}>
-        <Text className={styles.navLink}>Plan a Trip</Text>
-      </Link>
-      
       {user ? (
-        <Dropdown menu={{ items: userDropdownItems }} placement="bottomRight" trigger={['click']}>
-          <div className={styles.headerAvatarWrapper}>
-            <Avatar 
-              size={40} 
-              src={user?.avatarUrl}
-              className={styles.headerAvatar}
+        <div className={styles.userActionGroup}>
+          <Link to={PATHS.DASHBOARD} className={styles.fullWidthMobile}>
+            <Button 
+              type="primary" 
+              size="large"
+              className={styles.ctaButton}
+              style={{ width: '100%' }}
             >
-              {!user?.avatarUrl && initials}
-            </Avatar>
-            <span className={styles.headerUsername}>{user.username}</span>
-          </div>
-        </Dropdown>
+              Travel Space
+            </Button>
+          </Link>
+          <Dropdown menu={{ items: userDropdownItems }} placement="bottomRight" trigger={['click']}>
+            <div className={styles.headerAvatarWrapper}>
+              <Avatar 
+                size={40} 
+                src={user?.avatarUrl}
+                className={styles.headerAvatar}
+                style={{
+                  backgroundColor: '#FFE66D',
+                  color: '#FF6B6B',
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontWeight: 700
+                }}
+              >
+                {!user?.avatarUrl && initials}
+              </Avatar>
+              <span className={styles.headerUsername}>{user.username}</span>
+            </div>
+          </Dropdown>
+        </div>
       ) : (
         <Space size="middle" className={styles.authButtons}>
           <Link to={PATHS.AUTH.REGISTER}>

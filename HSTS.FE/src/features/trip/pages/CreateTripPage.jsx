@@ -64,7 +64,7 @@ const InlineMapCenterSync = ({ center }) => {
 
 const uiTheme = {
   token: {
-    colorPrimary: '#F4CB8C',
+    colorPrimary: '#0077B6',
     colorInfo: '#4ECDC4',
     colorTextBase: '#1A535C',
     fontFamily: "'Plus Jakarta Sans', 'Poppins', sans-serif",
@@ -554,7 +554,7 @@ const CreateTripPage = () => {
               <Card className={styles.sectionCard} title={<span className={styles.sectionTitle}>Where are you starting from?</span>}>
                 <div className={styles.mapInlineWrapper}>
                   <MapContainer center={mapCenter} zoom={12} style={{ width: '100%', height: 280, borderRadius: 16 }}>
-                    <TileLayer url="http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" subdomains={['mt0', 'mt1', 'mt2', 'mt3']} attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>' maxZoom={20} />
+                    <TileLayer url="http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" subdomains={['mt0', 'mt1', 'mt2', 'mt3']} attribution='© <a href="https://www.google.com/maps">Google Maps</a>' maxZoom={20} />
                     {userLocation && <Marker position={[userLocation.latitude, userLocation.longitude]} />}
                     <InlineMapClickHandler onPick={(lat, lng) => { setUserLocation({ latitude: lat, longitude: lng }); form.setFieldsValue({ latitude: lat, longitude: lng }); }} />
                     <InlineMapCenterSync center={mapCenter} />
@@ -654,7 +654,7 @@ const CreateTripPage = () => {
                     {activeParentTagId && (
                       <div className={styles.rootTagBlock}>
                         <button type="button" className={`${styles.rootTagButton} ${selectedTagIds.includes(activeParentTagId) ? styles.rootTagButtonActive : ''}`} onClick={() => handleRootTagToggle(activeParentTagId)}>
-                          <span>{getDisplayNameWithEnglish(activeParentTag)}</span>
+                          <span>Choose all</span>
                           <span className={styles.rootTagMeta}>{selectedChildrenCount > 0 ? `${selectedChildrenCount} sub-categories` : ''}</span>
                         </button>
                         {activeParentChildren.length > 0 && (

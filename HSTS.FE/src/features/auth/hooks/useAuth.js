@@ -22,21 +22,61 @@ const isSafeInternalRedirect = (path) => {
   return true;
 };
 
-const getPostLoginRedirect = (searchParams) => {
-  const redirectFromQuery = searchParams.get('redirect');
+const setPostLoginRedirect = (path) => {
+  if (!isSafeInternalRedirect(path)) return;
 
+  try {
+    sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, path);
+  } catch {
+  }
+
+  try {
+    localStorage.setItem(POST_LOGIN_REDIRECT_KEY, path);
+  } catch {
+  }
+};
+
+const clearPostLoginRedirect = () => {
+  try {
+    sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+  } catch {
+  }
+
+  try {
+    localStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+  } catch {
+  }
+};
+
+const getStoredPostLoginRedirect = () => {
   let redirectFromSession = null;
   try {
     redirectFromSession = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
-    if (redirectFromSession) {
-      sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
-    }
   } catch {
     redirectFromSession = null;
   }
 
-  const redirect = redirectFromQuery || redirectFromSession;
+  let redirectFromLocal = null;
+  try {
+    redirectFromLocal = localStorage.getItem(POST_LOGIN_REDIRECT_KEY);
+  } catch {
+    redirectFromLocal = null;
+  }
+
+  const redirect = redirectFromSession || redirectFromLocal;
   return isSafeInternalRedirect(redirect) ? redirect : null;
+};
+
+const getPostLoginRedirect = (searchParams) => {
+  const redirectFromQuery = searchParams.get('redirect');
+  const redirectFromStorage = getStoredPostLoginRedirect();
+  const redirect = isSafeInternalRedirect(redirectFromQuery) ? redirectFromQuery : redirectFromStorage;
+
+  if (redirect) {
+    clearPostLoginRedirect();
+  }
+
+  return redirect;
 };
 
 export const useLogin = () => {
@@ -64,8 +104,16 @@ export const useLogin = () => {
       const code = err?.response?.data?.code;
       if (code === 'Account.EmailNotVerified') {
         const msg = err?.response?.data?.message || 'Please verify your email first.';
+        const redirect = searchParams.get('redirect');
+        const safeRedirect = isSafeInternalRedirect(redirect) ? redirect : getStoredPostLoginRedirect();
+        if (safeRedirect) {
+          setPostLoginRedirect(safeRedirect);
+        }
+        const verifyPath = safeRedirect
+          ? `${PATHS.AUTH.VERIFY_EMAIL}?redirect=${encodeURIComponent(safeRedirect)}`
+          : PATHS.AUTH.VERIFY_EMAIL;
         message.warning(msg);
-        navigate(PATHS.AUTH.VERIFY_EMAIL, { state: { email: data.email } });
+        navigate(verifyPath, { state: { email: data.email, redirect: safeRedirect } });
         return;
       }
       // Other errors shown by axios interceptor
@@ -80,19 +128,29 @@ export const useLogin = () => {
 export const useRegister = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const register = useCallback(async (data) => {
     setLoading(true);
     try {
+      const redirect = searchParams.get('redirect');
+      const safeRedirect = isSafeInternalRedirect(redirect) ? redirect : getStoredPostLoginRedirect();
+      if (safeRedirect) {
+        setPostLoginRedirect(safeRedirect);
+      }
+
       await authApi.register(data);
       message.success('Registration successful! Please verify your email.');
-      navigate(PATHS.AUTH.VERIFY_EMAIL, { state: { email: data.email } });
+      const verifyPath = safeRedirect
+        ? `${PATHS.AUTH.VERIFY_EMAIL}?redirect=${encodeURIComponent(safeRedirect)}`
+        : PATHS.AUTH.VERIFY_EMAIL;
+      navigate(verifyPath, { state: { email: data.email, redirect: safeRedirect } });
     } catch {
       // handled by interceptor
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   return { register, loading };
 };
@@ -100,19 +158,29 @@ export const useRegister = () => {
 export const useVerifyEmail = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const verifyEmail = useCallback(async (data) => {
     setLoading(true);
     try {
+      const redirect = searchParams.get('redirect');
+      const safeRedirect = isSafeInternalRedirect(redirect) ? redirect : getStoredPostLoginRedirect();
+      if (safeRedirect) {
+        setPostLoginRedirect(safeRedirect);
+      }
+
       await authApi.verifyEmail(data);
       message.success('Email verified! You can now log in.');
-      navigate(PATHS.AUTH.LOGIN);
+      const loginPath = safeRedirect
+        ? `${PATHS.AUTH.LOGIN}?redirect=${encodeURIComponent(safeRedirect)}`
+        : PATHS.AUTH.LOGIN;
+      navigate(loginPath);
     } catch {
       // handled by interceptor
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   return { verifyEmail, loading };
 };

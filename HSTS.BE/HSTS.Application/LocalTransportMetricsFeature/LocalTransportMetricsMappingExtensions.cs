@@ -9,7 +9,12 @@ namespace HSTS.Application.LocalTransportMetricsFeature
             return new LocalTransportMetricsDto(
                 entity.TransportationId,
                 entity.TransportMode?.Name,
-                entity.CostPerKm,
+                entity.BaseFare,
+                entity.BaseDistance,
+                entity.PricePerKm,
+                entity.LongDistanceThreshold,
+                entity.LongDistancePricePerKm,
+                entity.CongestionFeePerMinute,
                 entity.SpeedKmh,
                 entity.MaxRecommendedDistance,
                 entity.CreatedAt,

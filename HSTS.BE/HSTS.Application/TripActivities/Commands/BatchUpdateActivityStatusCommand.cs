@@ -69,14 +69,7 @@ namespace HSTS.Application.TripActivities.Commands
 
             try
             {
-                // 1. Ensure trip is Active when starting any activity
-                if (trip.Status != TripStatus.InProgress)
-                {
-                    trip.Status = TripStatus.InProgress;
-                    _context.Trips.Update(trip);
-                }
-
-                // 2. Complete all previous activities
+                // 1. Complete all previous activities
                 foreach (var activityId in request.ActivityIdsToComplete)
                 {
                     var activity = activityLookup[activityId];
@@ -84,7 +77,7 @@ namespace HSTS.Application.TripActivities.Commands
                     _context.TripActivities.Update(activity);
                 }
 
-                // 3. Start the current activity
+                // 2. Start the current activity
                 activityToStart.Status = TripActivityStatus.InProgress;
                 _context.TripActivities.Update(activityToStart);
 

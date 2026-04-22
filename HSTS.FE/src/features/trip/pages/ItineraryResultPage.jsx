@@ -5,6 +5,7 @@ import {
   Button,
   Input,
   InputNumber,
+  TimePicker,
   Tag,
   Empty,
   Space,
@@ -24,9 +25,11 @@ import {
   getProvincesApi,
   estimateLocalTravelApi,
   getLocationsByProvinceApi,
+  getDistrictsByProvinceApi,
   getLocationTypesApi,
   saveTripApi,
 } from '../api';
+import dayjs from 'dayjs';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -36,8 +39,8 @@ import AccommodationDetailModal from '../components/AccommodationDetailModal';
 import {
   NavigationArrow,
   MapPinLine,
+  ArrowUUpLeft,
   ForkKnife,
-  SignIn,
   SignOut,
   SuitcaseRolling,
   Star,
@@ -85,11 +88,11 @@ const EVENT_BADGES = {
     bg: 'rgba(255, 107, 107, 0.15)'
   },
   'check-in': {
-    badge: <SignIn size={24} weight="bold" color="#1A535C" />,
+    badge: <SuitcaseRolling size={24} weight="bold" color="#1A535C" />,
     bg: 'rgba(26, 83, 92, 0.1)'
   },
   'hotel-return': {
-    badge: <SignIn size={24} weight="bold" color="#1A535C" />,
+    badge: <ArrowUUpLeft size={24} weight="bold" color="#1A535C" />,
     bg: 'rgba(26, 83, 92, 0.1)'
   },
   'check-out': {
@@ -141,7 +144,10 @@ const toEventType = (value) => {
     if (mapped) return mapped;
   }
 
-  return normalizedText.toLowerCase();
+  const normalizedEventType = normalizedText.toLowerCase();
+  if (normalizedEventType === 'luggage-drop') return 'luggage-refresh';
+
+  return normalizedEventType;
 };
 
 const normalizeTitle = (text) => String(text || '')
@@ -600,6 +606,117 @@ const getTimelineStopEndpointParams = (item, side = 'from') => {
     : { toLat: customLocation.latitude, toLng: customLocation.longitude };
 };
 
+const normalizeFromEndpoint = (endpoint) => {
+  if (!endpoint || typeof endpoint !== 'object') return null;
+
+  const fromLocationId = toPositiveIntOrNull(endpoint?.fromLocationId);
+  if (fromLocationId) return { fromLocationId };
+
+  const fromTransitHubId = toPositiveIntOrNull(endpoint?.fromTransitHubId);
+  if (fromTransitHubId) return { fromTransitHubId };
+
+  const fromLat = toFiniteNumber(endpoint?.fromLat);
+  const fromLng = toFiniteNumber(endpoint?.fromLng);
+  if (fromLat != null && fromLng != null) {
+    return { fromLat, fromLng };
+  }
+
+  return null;
+};
+
+const hasValidFromEndpoint = (endpoint) => Boolean(normalizeFromEndpoint(endpoint));
+
+const hasValidToEndpoint = (endpoint) => {
+  if (!endpoint || typeof endpoint !== 'object') return false;
+
+  const toLocationId = toPositiveIntOrNull(endpoint?.toLocationId);
+  if (toLocationId) return true;
+
+  const toTransitHubId = toPositiveIntOrNull(endpoint?.toTransitHubId);
+  if (toTransitHubId) return true;
+
+  const toLat = toFiniteNumber(endpoint?.toLat);
+  const toLng = toFiniteNumber(endpoint?.toLng);
+  return toLat != null && toLng != null;
+};
+
+const getFromEndpointFromTravelDestination = (travelItem) => {
+  const [, travelDetail] = getTravelDetailEntry(travelItem);
+  if (!travelDetail || typeof travelDetail !== 'object') return null;
+
+  const toLocationId = toPositiveIntOrNull(
+    travelDetail?.toLocationId
+    ?? travelDetail?.ToLocationId
+    ?? travelDetail?.toId
+    ?? travelDetail?.ToId
+  );
+  if (toLocationId) {
+    return { fromLocationId: toLocationId };
+  }
+
+  const toTransitHubId = toPositiveIntOrNull(
+    travelDetail?.toTransitHubId
+    ?? travelDetail?.ToTransitHubId
+  );
+  if (toTransitHubId) {
+    return { fromTransitHubId: toTransitHubId };
+  }
+
+  const customToTransitHub = toCustomGeoPayload(
+    travelDetail?.customToTransitHub
+    || travelDetail?.CustomToTransitHub
+  );
+  if (customToTransitHub) {
+    return {
+      fromLat: customToTransitHub.latitude,
+      fromLng: customToTransitHub.longitude,
+    };
+  }
+
+  const toLat = toFiniteNumber(travelDetail?.toLat ?? travelDetail?.ToLat);
+  const toLng = toFiniteNumber(travelDetail?.toLng ?? travelDetail?.ToLng);
+  if (toLat != null && toLng != null) {
+    return { fromLat: toLat, fromLng: toLng };
+  }
+
+  return null;
+};
+
+const resolveInterDayOriginEndpoint = (itinerary, dayIndex) => {
+  const normalizedDayIndex = Number(dayIndex);
+  if (!Number.isFinite(normalizedDayIndex) || normalizedDayIndex <= 0) return null;
+
+  const daysKey = Array.isArray(itinerary?.days) ? 'days' : 'Days';
+  const days = Array.isArray(itinerary?.[daysKey]) ? itinerary[daysKey] : [];
+  const previousDay = days[normalizedDayIndex - 1];
+
+  if (previousDay && typeof previousDay === 'object') {
+    const currencyCode = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+    const previousTimeline = getDayTimeline(previousDay, currencyCode);
+
+    for (let index = previousTimeline.length - 1; index >= 0; index -= 1) {
+      const item = previousTimeline[index];
+      if (!item) continue;
+
+      const candidate = isTravelEvent(item)
+        ? getFromEndpointFromTravelDestination(item)
+        : getTimelineStopEndpointParams(item, 'from');
+
+      const normalized = normalizeFromEndpoint(candidate);
+      if (normalized) return normalized;
+    }
+  }
+
+  const userLoc = itinerary?.userLocation || itinerary?.UserLocation;
+  const fromLat = toFiniteNumber(userLoc?.latitude ?? userLoc?.Latitude);
+  const fromLng = toFiniteNumber(userLoc?.longitude ?? userLoc?.Longitude);
+  if (fromLat != null && fromLng != null) {
+    return { fromLat, fromLng };
+  }
+
+  return null;
+};
+
 // Extracts the "from" origin endpoint from a travel event (before-segment).
 // The API response (LocalTravelEstimateDto) only echoes back integer FromId/ToId.
 // If FromId <= 0 the origin was coordinates (user GPS); fall back to itinerary.userLocation.
@@ -624,10 +741,14 @@ const extractOriginEndpointFromTravel = (travelEvent, itinerary) => {
 const buildTravelCacheKey = (fromEndpoint, toEndpoint, groupSize, currencyCode) => {
   const fromKey = fromEndpoint.fromLocationId != null
     ? `L:${fromEndpoint.fromLocationId}`
-    : `C:${fromEndpoint.fromLat},${fromEndpoint.fromLng}`;
+    : (fromEndpoint.fromTransitHubId != null
+      ? `H:${fromEndpoint.fromTransitHubId}`
+      : `C:${fromEndpoint.fromLat},${fromEndpoint.fromLng}`);
   const toKey = toEndpoint.toLocationId != null
     ? `L:${toEndpoint.toLocationId}`
-    : `C:${toEndpoint.toLat},${toEndpoint.toLng}`;
+    : (toEndpoint.toTransitHubId != null
+      ? `H:${toEndpoint.toTransitHubId}`
+      : `C:${toEndpoint.toLat},${toEndpoint.toLng}`);
   return `${fromKey}|${toKey}|${groupSize}|${currencyCode}`;
 };
 
@@ -745,10 +866,19 @@ const getTimelineDetailedCostBreakdown = (timeline) => {
   const safeTimeline = Array.isArray(timeline) ? timeline : [];
 
   return safeTimeline.reduce((acc, item) => {
+    const eventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
+    // Accommodation events (check-out, luggage-refresh, etc.) are already captured in
+    // estimatedAccommodationCost; skip them here to prevent double-counting in budget totals.
+    if (
+      eventType === 'check-out'
+      || eventType === 'check-in'
+      || eventType === 'luggage-refresh'
+      || eventType === 'hotel-return'
+    ) return acc;
+
     const amount = getTimelineItemCostAmount(item);
     if (amount <= 0) return acc;
 
-    const eventType = toEventType(item?.eventType || item?.EventType || item?.type || item?.Type);
     if (eventType === 'meal') {
       acc.meal += amount;
     } else if (eventType === 'travel') {
@@ -772,6 +902,15 @@ const normalizeTimeOnly = (value) => {
   if (/^\d{2}:\d{2}:\d{2}$/.test(text)) return text;
   if (/^\d{2}:\d{2}$/.test(text)) return `${text}:00`;
   return null;
+};
+
+const toTimePickerValue = (value) => {
+  const normalizedTime = normalizeTimeOnly(value);
+  if (!normalizedTime) return null;
+
+  const hhmm = normalizedTime.slice(0, 5);
+  const parsed = dayjs(`2000-01-01T${hhmm}:00`);
+  return parsed.isValid() ? parsed : null;
 };
 
 const toIsoDateTimeString = (value, fallbackValue) => {
@@ -815,6 +954,7 @@ const toCustomGeoPayload = (value) => {
   const name = pickFirstText(value?.name, value?.Name);
   const latitude = toFiniteNumber(value?.latitude ?? value?.Latitude);
   const longitude = toFiniteNumber(value?.longitude ?? value?.Longitude);
+  const locationTypeId = toPositiveIntOrNull(value?.locationTypeId ?? value?.LocationTypeId);
 
   if (!name || latitude == null || longitude == null) return null;
 
@@ -823,6 +963,8 @@ const toCustomGeoPayload = (value) => {
     latitude,
     longitude,
     address: pickFirstText(value?.address, value?.Address) || null,
+    description: pickFirstText(value?.description, value?.Description) || null,
+    locationTypeId: locationTypeId || null,
   };
 };
 
@@ -1072,6 +1214,20 @@ const findPreviousPrimaryLocationIndex = (timeline, fromIndex) => {
   return -1;
 };
 
+const getFallbackTripName = (sourceItinerary) => {
+  const startDate = pickFirstText(sourceItinerary?.startDate, sourceItinerary?.StartDate);
+  const endDate = pickFirstText(sourceItinerary?.endDate, sourceItinerary?.EndDate);
+  return `Trip ${String(startDate || '').slice(0, 10)} - ${String(endDate || '').slice(0, 10)}`;
+};
+
+const getItineraryTripName = (sourceItinerary) => pickFirstText(
+  sourceItinerary?.tripName,
+  sourceItinerary?.TripName,
+  sourceItinerary?.name,
+  sourceItinerary?.Name,
+  getFallbackTripName(sourceItinerary),
+);
+
 const CustomLocationMapClickHandler = ({ onPick }) => {
   useMapEvents({
     click(event) {
@@ -1096,7 +1252,7 @@ const CustomLocationMapInvalidate = ({ activeKey }) => {
 const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
-  const { itinerary, clearItinerary, updateItinerary } = useTripPlanner();
+  const { itinerary, clearItinerary, clearPersistedItinerary, updateItinerary } = useTripPlanner();
   const travelCacheRef = useRef(new Map());
   const [reorderRecalculating, setReorderRecalculating] = useState(false);
   const [activeDragItem, setActiveDragItem] = useState(null);
@@ -1127,6 +1283,9 @@ const ItineraryResultPage = () => {
   const [addBetweenLocationTypeOptions, setAddBetweenLocationTypeOptions] = useState([]);
   const [addBetweenLocationTypeLoading, setAddBetweenLocationTypeLoading] = useState(false);
   const [selectedAddBetweenLocationTypeId, setSelectedAddBetweenLocationTypeId] = useState(null);
+  const [addBetweenDistrictOptions, setAddBetweenDistrictOptions] = useState([]);
+  const [addBetweenDistrictLoading, setAddBetweenDistrictLoading] = useState(false);
+  const [selectedAddBetweenDistrictId, setSelectedAddBetweenDistrictId] = useState(null);
   const [addBetweenCustomName, setAddBetweenCustomName] = useState('');
   const [selectedAddBetweenCustomLocationTypeId, setSelectedAddBetweenCustomLocationTypeId] = useState(null);
   const [addBetweenCustomDescription, setAddBetweenCustomDescription] = useState('');
@@ -1159,6 +1318,7 @@ const ItineraryResultPage = () => {
   const [customTransportMethod, setCustomTransportMethod] = useState('');
   const [customTransportMinutes, setCustomTransportMinutes] = useState(30);
   const [customTransportCostAmount, setCustomTransportCostAmount] = useState(0);
+  const [editableTripName, setEditableTripName] = useState('');
 
   const [locationModal, setLocationModal] = useState({ open: false, locationId: null });
   const [transportModal, setTransportModal] = useState({ open: false, data: null });
@@ -1214,6 +1374,42 @@ const ItineraryResultPage = () => {
   }, []);
 
   useEffect(() => {
+    if (!itinerary) {
+      setEditableTripName('');
+      return;
+    }
+
+    setEditableTripName(getItineraryTripName(itinerary));
+  }, [
+    itinerary?.tripName,
+    itinerary?.TripName,
+    itinerary?.name,
+    itinerary?.Name,
+    itinerary?.startDate,
+    itinerary?.StartDate,
+    itinerary?.endDate,
+    itinerary?.EndDate,
+  ]);
+
+  const commitTripNameToItinerary = useCallback((rawTripName) => {
+    if (!itinerary) return '';
+
+    const normalizedTripName = String(rawTripName || '').trim() || getFallbackTripName(itinerary);
+    const currentTripName = getItineraryTripName(itinerary);
+
+    setEditableTripName(normalizedTripName);
+
+    if (normalizedTripName === currentTripName) return normalizedTripName;
+
+    const draft = clonePlainObject(itinerary);
+    draft.tripName = normalizedTripName;
+    draft.TripName = normalizedTripName;
+    updateItinerary(draft);
+
+    return normalizedTripName;
+  }, [itinerary, updateItinerary]);
+
+  useEffect(() => {
     if (!itinerary) return;
 
     const daysKey = Array.isArray(itinerary?.days)
@@ -1247,6 +1443,130 @@ const ItineraryResultPage = () => {
         }
       }
     });
+
+    if (changed) {
+      updateItinerary(draft);
+    }
+  }, [itinerary, updateItinerary]);
+
+  useEffect(() => {
+    if (!itinerary) return;
+
+    const daysKey = Array.isArray(itinerary?.days)
+      ? 'days'
+      : (Array.isArray(itinerary?.Days) ? 'Days' : null);
+    if (!daysKey) return;
+
+    const sourceDays = itinerary?.[daysKey];
+    if (!Array.isArray(sourceDays) || sourceDays.length < 2) return;
+
+    const currencyCode = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
+    const draft = clonePlainObject(itinerary);
+    const draftDays = draft?.[daysKey];
+    if (!Array.isArray(draftDays)) return;
+
+    let changed = false;
+
+    for (let dayIndex = 1; dayIndex < draftDays.length; dayIndex += 1) {
+      const previousDay = draftDays[dayIndex - 1];
+      const currentDay = draftDays[dayIndex];
+      if (!previousDay || !currentDay) continue;
+
+      const previousTimeline = getDayTimeline(previousDay, currencyCode);
+      const previousDayLastStop = [...previousTimeline].reverse().find((item) => !isTravelEvent(item));
+
+      const currentTimelineKey = Array.isArray(currentDay?.timeline) ? 'timeline' : 'Timeline';
+      const currentTimeline = Array.isArray(currentDay?.[currentTimelineKey])
+        ? [...currentDay[currentTimelineKey]]
+        : getDayTimeline(currentDay, currencyCode);
+      if (!Array.isArray(currentDay?.[currentTimelineKey])) {
+        currentDay[currentTimelineKey] = currentTimeline;
+        changed = true;
+      }
+
+      const firstTravelIndex = currentTimeline.findIndex((item) => isTravelEvent(item));
+      if (firstTravelIndex !== 0) continue;
+
+      const firstTravelItem = currentTimeline[firstTravelIndex];
+      const [firstTravelDetailKey, firstTravelDetail] = getTravelDetailEntry(firstTravelItem);
+      if (!firstTravelDetailKey || !firstTravelDetail) continue;
+
+      const expectedFrom = (() => {
+        if (previousDayLastStop) {
+          const locationId = toPositiveIntOrNull(getItemLocationId(previousDayLastStop));
+          const name = pickFirstText(
+            previousDayLastStop?.locationName,
+            previousDayLastStop?.LocationName,
+            previousDayLastStop?.title,
+            previousDayLastStop?.Title,
+          ) || 'Start point';
+
+          const customLocation = toCustomGeoPayload(previousDayLastStop?.customLocation || previousDayLastStop?.CustomLocation);
+          if (locationId) return { name, fromLocationId: locationId };
+          if (customLocation) return { name, fromLat: customLocation.latitude, fromLng: customLocation.longitude };
+        }
+
+        const itineraryUserLocation = draft?.userLocation || draft?.UserLocation;
+        const userLat = toFiniteNumber(itineraryUserLocation?.latitude ?? itineraryUserLocation?.Latitude);
+        const userLng = toFiniteNumber(itineraryUserLocation?.longitude ?? itineraryUserLocation?.Longitude);
+        if (userLat != null && userLng != null) {
+          return { name: 'Your location', fromLat: userLat, fromLng: userLng };
+        }
+
+        return null;
+      })();
+
+      if (!expectedFrom) continue;
+
+      const currentFromLocationId = toPositiveIntOrNull(
+        firstTravelDetail?.fromLocationId
+        ?? firstTravelDetail?.FromLocationId
+        ?? firstTravelDetail?.fromId
+        ?? firstTravelDetail?.FromId
+      );
+      const currentFromName = pickFirstText(
+        firstTravelDetail?.fromLocationName,
+        firstTravelDetail?.FromLocationName,
+        firstTravelDetail?.fromTransitHubName,
+        firstTravelDetail?.FromTransitHubName,
+        firstTravelDetail?.fromName,
+        firstTravelDetail?.FromName,
+        firstTravelDetail?.from,
+        firstTravelDetail?.From,
+      );
+
+      const matchesExpectedFrom = expectedFrom.fromLocationId
+        ? currentFromLocationId === expectedFrom.fromLocationId
+        : normalizeTitle(currentFromName) === normalizeTitle(expectedFrom.name);
+      if (matchesExpectedFrom) continue;
+
+      const toName = getTravelPointName(firstTravelDetail, false) || 'Destination';
+      const updatedTravelDetail = {
+        ...firstTravelDetail,
+        fromLocationId: expectedFrom.fromLocationId ?? null,
+        FromLocationId: expectedFrom.fromLocationId ?? null,
+        fromLocationName: expectedFrom.name,
+        FromLocationName: expectedFrom.name,
+        fromName: expectedFrom.name,
+        FromName: expectedFrom.name,
+        from: expectedFrom.name,
+        From: expectedFrom.name,
+        fromLat: expectedFrom.fromLat ?? null,
+        FromLat: expectedFrom.fromLat ?? null,
+        fromLng: expectedFrom.fromLng ?? null,
+        FromLng: expectedFrom.fromLng ?? null,
+      };
+
+      currentTimeline[firstTravelIndex] = {
+        ...firstTravelItem,
+        title: `Move from ${expectedFrom.name} to ${toName}`,
+        Title: `Move from ${expectedFrom.name} to ${toName}`,
+        [firstTravelDetailKey]: updatedTravelDetail,
+      };
+
+      currentDay[currentTimelineKey] = currentTimeline;
+      changed = true;
+    }
 
     if (changed) {
       updateItinerary(draft);
@@ -1396,6 +1716,13 @@ const ItineraryResultPage = () => {
     const stopDurations = timelineStops.map(getTimelineDurationMinutes);
     const rebuiltSegment = [];
 
+    const hasLeadingTravelSegment = sourceTimeline
+      .slice(0, stopIndexes[0])
+      .some((item) => isTravelEvent(item));
+    const normalizedOriginEndpoint = normalizeFromEndpoint(originEndpoint);
+    const resolvedOriginEndpoint = normalizedOriginEndpoint
+      || (!hasLeadingTravelSegment ? resolveInterDayOriginEndpoint(draftItinerary, dayIndex) : null);
+
     const firstStart = pickFirstText(timelineStops[0]?.startTime, timelineStops[0]?.StartTime) || '08:00:00';
     const firstEnd = addMinutesToTime(firstStart, stopDurations[0]);
     const firstStop = {
@@ -1407,20 +1734,20 @@ const ItineraryResultPage = () => {
 
     // If an origin endpoint is provided (e.g. user's GPS location before first stop),
     // calculate travel from that origin to the new first stop and prepend it.
-    if (originEndpoint) {
+    if (resolvedOriginEndpoint) {
       const toEndpoint = getTimelineStopEndpointParams(firstStop, 'to');
-      const canEstimate = Object.values({ ...originEndpoint, ...toEndpoint }).some((v) => v != null);
+      const canEstimate = hasValidFromEndpoint(resolvedOriginEndpoint) && hasValidToEndpoint(toEndpoint);
       if (canEstimate) {
         let originTravelLeg = null;
         try {
-          const cacheKey = buildTravelCacheKey(originEndpoint, toEndpoint, groupSize, currencyCode);
+          const cacheKey = buildTravelCacheKey(resolvedOriginEndpoint, toEndpoint, groupSize, currencyCode);
           const cached = travelCacheRef.current.get(cacheKey);
           if (cached) {
             originTravelLeg = { ...cached, arrivalTime: null, ArrivalTime: null };
           } else {
             const guessedDeparture = shiftTimeByMinutes(firstStart, -30);
             originTravelLeg = await estimateLocalTravelApi({
-              ...originEndpoint,
+              ...resolvedOriginEndpoint,
               ...toEndpoint,
               groupSize,
               departureTime: guessedDeparture,
@@ -1469,11 +1796,7 @@ const ItineraryResultPage = () => {
       const departureTime = pickFirstText(prevStop.endTime, prevStop.EndTime) || firstEnd;
       const fromEndpoint = getTimelineStopEndpointParams(prevStop, 'from');
       const toEndpoint = getTimelineStopEndpointParams(currentStop, 'to');
-      // Both sides must have geo data to call the travel-estimate API. Using some() on the
-      // merged object would return true when only one side has data, causing a broken API call.
-      const fromHasGeo = Object.values(fromEndpoint).some((v) => v != null);
-      const toHasGeo = Object.values(toEndpoint).some((v) => v != null);
-      const canEstimate = fromHasGeo && toHasGeo;
+      const canEstimate = hasValidFromEndpoint(fromEndpoint) && hasValidToEndpoint(toEndpoint);
 
       if (!canEstimate) {
         // One or both stops have no geo coordinates — chain time directly, no travel event.
@@ -1767,10 +2090,20 @@ const ItineraryResultPage = () => {
     }
   }, [itinerary, recalculateDayTimeline, updateItinerary]);
 
-  const loadProvinceLocations = useCallback(async (provinceId, dayIndex, searchTerm = '', locationTypeId = null) => {
+  const loadProvinceLocations = useCallback(async (
+    provinceId,
+    dayIndex,
+    searchTerm = '',
+    locationTypeId = null,
+    districtId = null,
+  ) => {
     if (!itinerary) return;
 
     const normalizedLocationTypeId = Number(locationTypeId);
+    const normalizedDistrictId = Number(districtId);
+    const resolvedDistrictId = Number.isFinite(normalizedDistrictId) && normalizedDistrictId > 0
+      ? normalizedDistrictId
+      : null;
     if (!Number.isFinite(normalizedLocationTypeId) || normalizedLocationTypeId <= 0) {
       setProvinceLocationOptions([]);
       return;
@@ -1793,6 +2126,7 @@ const ItineraryResultPage = () => {
         countryId: 'VN',
         searchTerm: searchTerm || undefined,
         locationTypeId: normalizedLocationTypeId,
+        districtId: resolvedDistrictId,
         pageSize: 300,
       });
 
@@ -1853,6 +2187,45 @@ const ItineraryResultPage = () => {
       message.error('Unable to load location types.');
     } finally {
       setAddBetweenLocationTypeLoading(false);
+    }
+  }, []);
+
+  const loadAddBetweenDistricts = useCallback(async (provinceId) => {
+    const normalizedProvinceId = Number(provinceId);
+    if (!Number.isFinite(normalizedProvinceId) || normalizedProvinceId <= 0) {
+      setAddBetweenDistrictOptions([]);
+      return;
+    }
+
+    setAddBetweenDistrictLoading(true);
+    try {
+      const response = await getDistrictsByProvinceApi(normalizedProvinceId);
+      const items = Array.isArray(response)
+        ? response
+        : response?.items || response?.Items || [];
+
+      const options = items
+        .map((district) => {
+          const id = Number(district?.id ?? district?.Id);
+          if (!Number.isFinite(id) || id <= 0) return null;
+
+          const name = pickFirstText(
+            district?.englishName,
+            district?.EnglishName,
+            district?.name,
+            district?.Name,
+          ) || `District #${id}`;
+
+          return { id, name };
+        })
+        .filter(Boolean);
+
+      setAddBetweenDistrictOptions(options);
+    } catch {
+      setAddBetweenDistrictOptions([]);
+      message.error('Unable to load districts for this province.');
+    } finally {
+      setAddBetweenDistrictLoading(false);
     }
   }, []);
 
@@ -1959,7 +2332,7 @@ const ItineraryResultPage = () => {
       timeline[timelineIndex] = replacedItem;
       day[timelineKey] = timeline;
 
-      await recalculateDayTimeline(draft, dayIndex);
+      await recalculateDayTimeline(draft, dayIndex, { preserveExternalSegments: true });
       updateItinerary(draft);
       message.success('Swapped main location with selected alternative.');
     } catch {
@@ -1989,14 +2362,25 @@ const ItineraryResultPage = () => {
     setSelectedProvinceLocationId(null);
     setProvinceLocationSearch('');
     setSelectedAddBetweenLocationTypeId(null);
+    setSelectedAddBetweenDistrictId(null);
+    setAddBetweenDistrictOptions([]);
     setProvinceLocationOptions([]);
     resetAddBetweenExistingForm(defaultStartTime);
     resetAddBetweenCustomForm(defaultStartTime);
     setAddBetweenModal({ open: true, dayIndex, insertAfterIndex, provinceId: normalizedProvinceId });
     setRecalculatingDayNumber(dayNum);
-    await loadAddBetweenLocationTypes();
+    await Promise.all([
+      loadAddBetweenLocationTypes(),
+      loadAddBetweenDistricts(normalizedProvinceId),
+    ]);
     setRecalculatingDayNumber(null);
-  }, [itinerary, loadAddBetweenLocationTypes, resetAddBetweenCustomForm, resetAddBetweenExistingForm]);
+  }, [
+    itinerary,
+    loadAddBetweenDistricts,
+    loadAddBetweenLocationTypes,
+    resetAddBetweenCustomForm,
+    resetAddBetweenExistingForm,
+  ]);
 
   const handlePickCustomLocationOnMap = useCallback((latitude, longitude) => {
     const safeLat = toFiniteNumber(latitude);
@@ -2027,6 +2411,7 @@ const ItineraryResultPage = () => {
 
   const handleChangeAddBetweenLocationType = useCallback(async (value) => {
     const locationTypeId = Number(value);
+    const districtId = Number(selectedAddBetweenDistrictId);
 
     setSelectedAddBetweenLocationTypeId(Number.isFinite(locationTypeId) && locationTypeId > 0
       ? locationTypeId
@@ -2044,12 +2429,47 @@ const ItineraryResultPage = () => {
       return;
     }
 
-    await loadProvinceLocations(addBetweenModal.provinceId, addBetweenModal.dayIndex, '', locationTypeId);
-  }, [addBetweenModal, loadProvinceLocations]);
+    await loadProvinceLocations(
+      addBetweenModal.provinceId,
+      addBetweenModal.dayIndex,
+      '',
+      locationTypeId,
+      Number.isFinite(districtId) && districtId > 0 ? districtId : null,
+    );
+  }, [addBetweenModal, loadProvinceLocations, selectedAddBetweenDistrictId]);
+
+  const handleChangeAddBetweenDistrict = useCallback(async (value) => {
+    const districtId = Number(value);
+    const resolvedDistrictId = Number.isFinite(districtId) && districtId > 0 ? districtId : null;
+
+    setSelectedAddBetweenDistrictId(resolvedDistrictId);
+    setSelectedProvinceLocationId(null);
+    setProvinceLocationSearch('');
+
+    if (!addBetweenModal?.open || !Number.isFinite(Number(addBetweenModal?.provinceId))) {
+      setProvinceLocationOptions([]);
+      return;
+    }
+
+    const locationTypeId = Number(selectedAddBetweenLocationTypeId);
+    if (!Number.isFinite(locationTypeId) || locationTypeId <= 0) {
+      setProvinceLocationOptions([]);
+      return;
+    }
+
+    await loadProvinceLocations(
+      addBetweenModal.provinceId,
+      addBetweenModal.dayIndex,
+      '',
+      locationTypeId,
+      resolvedDistrictId,
+    );
+  }, [addBetweenModal, loadProvinceLocations, selectedAddBetweenLocationTypeId]);
 
   const handleSearchProvinceLocations = useCallback(async (searchTerm) => {
     if (!addBetweenModal?.open || !Number.isFinite(Number(addBetweenModal?.provinceId))) return;
     const locationTypeId = Number(selectedAddBetweenLocationTypeId);
+    const districtId = Number(selectedAddBetweenDistrictId);
     if (!Number.isFinite(locationTypeId) || locationTypeId <= 0) return;
     setProvinceLocationSearch(searchTerm);
     await loadProvinceLocations(
@@ -2057,8 +2477,14 @@ const ItineraryResultPage = () => {
       addBetweenModal.dayIndex,
       searchTerm,
       locationTypeId,
+      Number.isFinite(districtId) && districtId > 0 ? districtId : null,
     );
-  }, [addBetweenModal, loadProvinceLocations, selectedAddBetweenLocationTypeId]);
+  }, [
+    addBetweenModal,
+    loadProvinceLocations,
+    selectedAddBetweenDistrictId,
+    selectedAddBetweenLocationTypeId,
+  ]);
 
   const handleConfirmAddBetween = useCallback(async () => {
     if (!itinerary) return;
@@ -2152,7 +2578,7 @@ const ItineraryResultPage = () => {
       timeline.splice(Math.min(timeline.length, insertAfterIndex + 1), 0, insertedItem);
       day[timelineKey] = timeline;
 
-      await recalculateDayTimeline(draft, dayIndex);
+      await recalculateDayTimeline(draft, dayIndex, { preserveExternalSegments: true });
       if (summarySnapshot) {
         draft[summaryKey] = summarySnapshot;
       }
@@ -2166,6 +2592,8 @@ const ItineraryResultPage = () => {
       setSelectedProvinceLocationId(null);
       setProvinceLocationSearch('');
       setSelectedAddBetweenLocationTypeId(null);
+      setSelectedAddBetweenDistrictId(null);
+      setAddBetweenDistrictOptions([]);
       resetAddBetweenExistingForm('08:00:00');
     } catch {
       message.error('Unable to add location.');
@@ -2317,6 +2745,8 @@ const ItineraryResultPage = () => {
       setSelectedProvinceLocationId(null);
       setProvinceLocationSearch('');
       setSelectedAddBetweenLocationTypeId(null);
+      setSelectedAddBetweenDistrictId(null);
+      setAddBetweenDistrictOptions([]);
       resetAddBetweenExistingForm('08:00:00');
       resetAddBetweenCustomForm('08:00:00');
     } catch {
@@ -2349,6 +2779,8 @@ const ItineraryResultPage = () => {
     setSelectedProvinceLocationId(null);
     setProvinceLocationSearch('');
     setSelectedAddBetweenLocationTypeId(null);
+    setSelectedAddBetweenDistrictId(null);
+    setAddBetweenDistrictOptions([]);
     resetAddBetweenExistingForm('08:00:00');
     resetAddBetweenCustomForm('08:00:00');
   }, [resetAddBetweenCustomForm, resetAddBetweenExistingForm]);
@@ -2602,6 +3034,9 @@ const ItineraryResultPage = () => {
         || currentItem?.Type
       );
       const previousCostAmount = Math.round(Math.max(0, getTimelineItemCostAmount(currentItem)));
+      const isCostManuallyEdited = normalizedCostAmount !== previousCostAmount
+        ? true
+        : Boolean(currentItem?.isCostManuallyEdited || currentItem?.IsCostManuallyEdited);
 
       const updatedBaseItem = {
         ...currentItem,
@@ -2613,6 +3048,8 @@ const ItineraryResultPage = () => {
         CostForGroup: updatedCost,
         ticketCost: updatedCost,
         TicketCost: updatedCost,
+        isCostManuallyEdited,
+        IsCostManuallyEdited: isCostManuallyEdited,
       };
 
       const canChangeLocation = isEditableLocationEvent(currentItem) && editTimelineModal?.canChangeLocation;
@@ -3562,25 +3999,196 @@ const ItineraryResultPage = () => {
         }
       }
 
+      const leftAdjacentTravelIndex = timelineIndex > 0 && isTravelEvent(timeline[timelineIndex - 1])
+        ? timelineIndex - 1
+        : -1;
+      const leftTravelReconnectIndex = leftTravelIndex >= 0 ? leftTravelIndex : leftAdjacentTravelIndex;
+      const leftTravelReconnect = leftTravelReconnectIndex >= 0 ? timeline[leftTravelReconnectIndex] : null;
+      const [, leftTravelReconnectDetail] = getTravelDetailEntry(leftTravelReconnect);
+
+      const rightAdjacentTravelIndex = timelineIndex < timeline.length - 1 && isTravelEvent(timeline[timelineIndex + 1])
+        ? timelineIndex + 1
+        : -1;
+      const rightTravelReconnectIndex = rightTravelIndex >= 0 ? rightTravelIndex : rightAdjacentTravelIndex;
+      const rightTravelReconnect = rightTravelReconnectIndex >= 0 ? timeline[rightTravelReconnectIndex] : null;
+      const [rightTravelReconnectKey, rightTravelReconnectDetail] = getTravelDetailEntry(rightTravelReconnect);
+
+      const getFromEndpointFromTravel = (travelDetail) => {
+        const safeTravelDetail = travelDetail || {};
+
+        const fromLocationId = toPositiveIntOrNull(
+          safeTravelDetail?.fromLocationId
+          ?? safeTravelDetail?.FromLocationId
+          ?? safeTravelDetail?.fromId
+          ?? safeTravelDetail?.FromId
+        );
+        if (fromLocationId) {
+          return {
+            request: { fromLocationId },
+            name: pickFirstText(safeTravelDetail?.fromLocationName, safeTravelDetail?.FromLocationName) || `Location #${fromLocationId}`,
+          };
+        }
+
+        const fromTransitHubId = toPositiveIntOrNull(safeTravelDetail?.fromTransitHubId ?? safeTravelDetail?.FromTransitHubId);
+        if (fromTransitHubId) {
+          return {
+            request: { fromTransitHubId },
+            name: pickFirstText(
+              safeTravelDetail?.fromTransitHubName,
+              safeTravelDetail?.FromTransitHubName,
+              safeTravelDetail?.fromName,
+              safeTravelDetail?.FromName,
+            ) || `Transit hub #${fromTransitHubId}`,
+          };
+        }
+
+        const customFromTransitHub = toCustomGeoPayload(safeTravelDetail?.customFromTransitHub || safeTravelDetail?.CustomFromTransitHub);
+        if (customFromTransitHub) {
+          return {
+            request: { fromLat: customFromTransitHub.latitude, fromLng: customFromTransitHub.longitude },
+            name: customFromTransitHub.name || 'Start point',
+          };
+        }
+
+        const directFromLat = toFiniteNumber(safeTravelDetail?.fromLat ?? safeTravelDetail?.FromLat);
+        const directFromLng = toFiniteNumber(safeTravelDetail?.fromLng ?? safeTravelDetail?.FromLng);
+        if (directFromLat != null && directFromLng != null) {
+          return {
+            request: { fromLat: directFromLat, fromLng: directFromLng },
+            name: pickFirstText(safeTravelDetail?.fromName, safeTravelDetail?.FromName) || 'Start point',
+          };
+        }
+
+        return null;
+      };
+
+      const getToEndpointFromTravel = (travelDetail) => {
+        if (!travelDetail) return null;
+
+        const toLocationId = toPositiveIntOrNull(
+          travelDetail?.toLocationId
+          ?? travelDetail?.ToLocationId
+          ?? travelDetail?.toId
+          ?? travelDetail?.ToId
+        );
+        if (toLocationId) {
+          return {
+            request: { toLocationId },
+            name: pickFirstText(travelDetail?.toLocationName, travelDetail?.ToLocationName) || `Location #${toLocationId}`,
+          };
+        }
+
+        const toTransitHubId = toPositiveIntOrNull(travelDetail?.toTransitHubId ?? travelDetail?.ToTransitHubId);
+        if (toTransitHubId) {
+          return {
+            request: { toTransitHubId },
+            name: pickFirstText(
+              travelDetail?.toTransitHubName,
+              travelDetail?.ToTransitHubName,
+              travelDetail?.toName,
+              travelDetail?.ToName,
+            ) || `Transit hub #${toTransitHubId}`,
+          };
+        }
+
+        const customToTransitHub = toCustomGeoPayload(travelDetail?.customToTransitHub || travelDetail?.CustomToTransitHub);
+        if (customToTransitHub) {
+          return {
+            request: { toLat: customToTransitHub.latitude, toLng: customToTransitHub.longitude },
+            name: customToTransitHub.name || 'Transit hub',
+          };
+        }
+
+        const itineraryUserLocation = draft?.userLocation || draft?.UserLocation;
+        const userLat = toFiniteNumber(itineraryUserLocation?.latitude ?? itineraryUserLocation?.Latitude);
+        const userLng = toFiniteNumber(itineraryUserLocation?.longitude ?? itineraryUserLocation?.Longitude);
+        if (userLat != null && userLng != null) {
+          return {
+            request: { toLat: userLat, toLng: userLng },
+            name: 'Your location',
+          };
+        }
+
+        return null;
+      };
+
       let mergedTravelItem = null;
       const prevLocationId = getItemLocationId(prevLocation);
       const nextLocationId = getItemLocationId(nextLocation);
-      const canConnectPreviousAndNext = Number.isFinite(prevLocationId) && prevLocationId > 0
-        && Number.isFinite(nextLocationId) && nextLocationId > 0;
+      const reconnectFromTravelEndpoint = getFromEndpointFromTravel(leftTravelReconnectDetail);
+      const reconnectToTravelEndpoint = getToEndpointFromTravel(rightTravelReconnectDetail);
 
-      if (canConnectPreviousAndNext) {
-        const leftTravel = leftTravelIndex >= 0 ? timeline[leftTravelIndex] : null;
-        const rightTravel = rightTravelIndex >= 0 ? timeline[rightTravelIndex] : null;
+      const previousDay = draftDays[dayIndex - 1];
+      const reconnectFromPreviousDayEndpoint = (() => {
+        if (!previousDay || typeof previousDay !== 'object') return null;
+
+        const previousDayTimelineKey = Array.isArray(previousDay?.timeline) ? 'timeline' : 'Timeline';
+        const previousDayTimeline = Array.isArray(previousDay?.[previousDayTimelineKey]) ? previousDay[previousDayTimelineKey] : [];
+        const previousDayLastStop = [...previousDayTimeline].reverse().find((candidate) => !isTravelEvent(candidate));
+        if (!previousDayLastStop) return null;
+
+        const request = getTimelineStopEndpointParams(previousDayLastStop, 'from');
+        if (!Object.values(request).some((value) => value != null)) return null;
+
+        return {
+          request,
+          name: pickFirstText(
+            previousDayLastStop?.locationName,
+            previousDayLastStop?.LocationName,
+            previousDayLastStop?.title,
+            previousDayLastStop?.Title,
+          ) || 'Start point',
+        };
+      })();
+
+      const reconnectFromUserEndpoint = (() => {
+        const itineraryUserLocation = draft?.userLocation || draft?.UserLocation;
+        const userLat = toFiniteNumber(itineraryUserLocation?.latitude ?? itineraryUserLocation?.Latitude);
+        const userLng = toFiniteNumber(itineraryUserLocation?.longitude ?? itineraryUserLocation?.Longitude);
+        if (userLat == null || userLng == null) return null;
+        return {
+          request: { fromLat: userLat, fromLng: userLng },
+          name: 'Your location',
+        };
+      })();
+
+      const reconnectFromEndpoint = Number.isFinite(prevLocationId) && prevLocationId > 0
+        ? {
+          request: { fromLocationId: prevLocationId },
+          name: pickFirstText(
+            prevLocation?.locationName,
+            prevLocation?.LocationName,
+            prevLocation?.title,
+            prevLocation?.Title,
+          ) || `Location #${prevLocationId}`,
+        }
+        : (reconnectFromTravelEndpoint || reconnectFromPreviousDayEndpoint || reconnectFromUserEndpoint);
+
+      const reconnectToEndpoint = Number.isFinite(nextLocationId) && nextLocationId > 0
+        ? {
+          request: { toLocationId: nextLocationId },
+          name: pickFirstText(
+            nextLocation?.locationName,
+            nextLocation?.LocationName,
+            nextLocation?.title,
+            nextLocation?.Title,
+          ) || `Location #${nextLocationId}`,
+        }
+        : reconnectToTravelEndpoint;
+
+      const canReconnect = Boolean(reconnectFromEndpoint && reconnectToEndpoint);
+
+      if (canReconnect) {
         const departureTime = pickFirstText(
-          leftTravel?.startTime,
-          leftTravel?.StartTime,
+          leftTravelReconnect?.startTime,
+          leftTravelReconnect?.StartTime,
           prevLocation?.endTime,
           prevLocation?.EndTime,
           '08:00:00',
         );
         const arrivalTime = pickFirstText(
-          rightTravel?.endTime,
-          rightTravel?.EndTime,
+          rightTravelReconnect?.endTime,
+          rightTravelReconnect?.EndTime,
           nextLocation?.startTime,
           nextLocation?.StartTime,
           addMinutesToTime(departureTime, 20),
@@ -3595,8 +4203,8 @@ const ItineraryResultPage = () => {
         let travelLeg = null;
         try {
           travelLeg = await estimateLocalTravelApi({
-            fromLocationId: prevLocationId,
-            toLocationId: nextLocationId,
+            ...reconnectFromEndpoint.request,
+            ...reconnectToEndpoint.request,
             groupSize,
             departureTime,
             currencyCode,
@@ -3621,19 +4229,40 @@ const ItineraryResultPage = () => {
         const fromName = pickFirstText(
           travelLeg?.fromLocationName,
           travelLeg?.FromLocationName,
-          prevLocation?.locationName,
-          prevLocation?.LocationName,
-          prevLocation?.title,
-          prevLocation?.Title,
-        ) || `Location #${prevLocationId}`;
+          travelLeg?.fromTransitHubName,
+          travelLeg?.FromTransitHubName,
+          reconnectFromEndpoint?.name,
+        ) || 'Start point';
         const toName = pickFirstText(
           travelLeg?.toLocationName,
           travelLeg?.ToLocationName,
-          nextLocation?.locationName,
-          nextLocation?.LocationName,
-          nextLocation?.title,
-          nextLocation?.Title,
-        ) || `Location #${nextLocationId}`;
+          travelLeg?.toTransitHubName,
+          travelLeg?.ToTransitHubName,
+          reconnectToEndpoint?.name,
+        ) || 'Destination';
+
+        const sourceIsLocation = Boolean(reconnectFromEndpoint?.request?.fromLocationId);
+        const targetIsLocation = Boolean(reconnectToEndpoint?.request?.toLocationId);
+        const mergedTravelDetailKey = sourceIsLocation && targetIsLocation
+          ? 'locationToLocationTravel'
+          : (sourceIsLocation
+            ? 'locationToTransitHubTravel'
+            : (targetIsLocation
+              ? 'transitHubToLocationTravel'
+              : (rightTravelReconnectKey || 'provinceToProvinceTravel')));
+        const mergedTravelDetail = travelLeg
+          ? {
+            ...travelLeg,
+            departureTime,
+            DepartureTime: departureTime,
+            arrivalTime,
+            ArrivalTime: arrivalTime,
+            selectedTotalCost: mergedTravelCostMoney,
+            SelectedTotalCost: mergedTravelCostMoney,
+            costForGroup: mergedTravelCostMoney,
+            CostForGroup: mergedTravelCostMoney,
+          }
+          : null;
 
         mergedTravelItem = {
           eventType: 'travel',
@@ -3644,29 +4273,17 @@ const ItineraryResultPage = () => {
           tagNames: [],
           note: 'Updated after removing location',
           score: 0,
-          locationToLocationTravel: travelLeg
-            ? {
-              ...travelLeg,
-              departureTime,
-              DepartureTime: departureTime,
-              arrivalTime,
-              ArrivalTime: arrivalTime,
-              selectedTotalCost: mergedTravelCostMoney,
-              SelectedTotalCost: mergedTravelCostMoney,
-              costForGroup: mergedTravelCostMoney,
-              CostForGroup: mergedTravelCostMoney,
-            }
-            : null,
+          [mergedTravelDetailKey]: mergedTravelDetail,
           costForGroup: mergedTravelCostMoney,
           CostForGroup: mergedTravelCostMoney,
         };
       }
 
       const indexesToRemove = new Set([timelineIndex]);
-      if (leftTravelIndex >= 0) indexesToRemove.add(leftTravelIndex);
-      if (rightTravelIndex >= 0) indexesToRemove.add(rightTravelIndex);
+      if (leftTravelReconnectIndex >= 0) indexesToRemove.add(leftTravelReconnectIndex);
+      if (rightTravelReconnectIndex >= 0) indexesToRemove.add(rightTravelReconnectIndex);
 
-      const rawInsertAt = leftTravelIndex >= 0 ? leftTravelIndex : timelineIndex;
+      const rawInsertAt = leftTravelReconnectIndex >= 0 ? leftTravelReconnectIndex : timelineIndex;
       const insertAt = timeline
         .slice(0, rawInsertAt)
         .filter((_, index) => !indexesToRemove.has(index))
@@ -3677,12 +4294,178 @@ const ItineraryResultPage = () => {
         nextTimeline.splice(Math.max(0, Math.min(insertAt, nextTimeline.length)), 0, mergedTravelItem);
       }
 
-      const leftTravelCostAmount = leftTravelIndex >= 0
-        ? getStrictTravelCostAmount(timeline[leftTravelIndex])
+      let interDayTransportCostDelta = 0;
+      const removedLocationId = toPositiveIntOrNull(getItemLocationId(item));
+      const nextDay = draftDays[dayIndex + 1];
+
+      if (removedLocationId && nextDay && typeof nextDay === 'object') {
+        const nextDayTimelineKey = Array.isArray(nextDay?.timeline) ? 'timeline' : 'Timeline';
+        const nextDayTimeline = Array.isArray(nextDay?.[nextDayTimelineKey]) ? [...nextDay[nextDayTimelineKey]] : [];
+        const firstTravelIndexNextDay = nextDayTimeline.findIndex((candidate) => isTravelEvent(candidate));
+
+        if (firstTravelIndexNextDay >= 0) {
+          const firstTravelItemNextDay = nextDayTimeline[firstTravelIndexNextDay];
+          const [firstTravelDetailKeyNextDay, firstTravelDetailNextDay] = getTravelDetailEntry(firstTravelItemNextDay);
+          const firstTravelFromLocationId = toPositiveIntOrNull(
+            firstTravelDetailNextDay?.fromLocationId
+            ?? firstTravelDetailNextDay?.FromLocationId
+            ?? firstTravelDetailNextDay?.fromId
+            ?? firstTravelDetailNextDay?.FromId
+          );
+
+          const removedLocationName = pickFirstText(item?.locationName, item?.LocationName, item?.title, item?.Title);
+          const firstTravelFromName = pickFirstText(
+            firstTravelDetailNextDay?.fromLocationName,
+            firstTravelDetailNextDay?.FromLocationName,
+            firstTravelDetailNextDay?.fromTransitHubName,
+            firstTravelDetailNextDay?.FromTransitHubName,
+            firstTravelDetailNextDay?.fromName,
+            firstTravelDetailNextDay?.FromName,
+          );
+          const matchesRemovedSource = firstTravelFromLocationId === removedLocationId
+            || (normalizeTitle(firstTravelFromName) && normalizeTitle(firstTravelFromName) === normalizeTitle(removedLocationName));
+
+          if (firstTravelDetailKeyNextDay && firstTravelDetailNextDay && matchesRemovedSource) {
+            const lastStopAfterRemoval = [...nextTimeline].reverse().find((candidate) => !isTravelEvent(candidate)) || null;
+
+            let reconnectFromEndpointInterDay = null;
+            if (lastStopAfterRemoval) {
+              const request = getTimelineStopEndpointParams(lastStopAfterRemoval, 'from');
+              if (Object.values(request).some((value) => value != null)) {
+                reconnectFromEndpointInterDay = {
+                  request,
+                  name: pickFirstText(
+                    lastStopAfterRemoval?.locationName,
+                    lastStopAfterRemoval?.LocationName,
+                    lastStopAfterRemoval?.title,
+                    lastStopAfterRemoval?.Title,
+                  ) || 'Start point',
+                };
+              }
+            }
+
+            if (!reconnectFromEndpointInterDay) {
+              const itineraryUserLocation = draft?.userLocation || draft?.UserLocation;
+              const userLat = toFiniteNumber(itineraryUserLocation?.latitude ?? itineraryUserLocation?.Latitude);
+              const userLng = toFiniteNumber(itineraryUserLocation?.longitude ?? itineraryUserLocation?.Longitude);
+              if (userLat != null && userLng != null) {
+                reconnectFromEndpointInterDay = {
+                  request: { fromLat: userLat, fromLng: userLng },
+                  name: 'Your location',
+                };
+              }
+            }
+
+            const reconnectToEndpointInterDay = getToEndpointFromTravel(firstTravelDetailNextDay);
+            if (reconnectFromEndpointInterDay && reconnectToEndpointInterDay) {
+              const currencyCode = pickFirstText(draft?.currencyCode, draft?.CurrencyCode) || 'VND';
+              const departureTime = pickFirstText(
+                firstTravelItemNextDay?.startTime,
+                firstTravelItemNextDay?.StartTime,
+                firstTravelDetailNextDay?.departureTime,
+                firstTravelDetailNextDay?.DepartureTime,
+                '08:00:00',
+              );
+              const fallbackEndTime = pickFirstText(
+                firstTravelItemNextDay?.endTime,
+                firstTravelItemNextDay?.EndTime,
+                firstTravelDetailNextDay?.arrivalTime,
+                firstTravelDetailNextDay?.ArrivalTime,
+                addMinutesToTime(departureTime, 20),
+              );
+
+              const groupSizeValue = Number(draft?.groupSize ?? draft?.GroupSize);
+              const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0
+                ? Math.round(groupSizeValue)
+                : 1;
+
+              const oldInterDayTravelCostAmount = getStrictTravelCostAmount(firstTravelItemNextDay);
+
+              let recalculatedInterDayTravel = null;
+              try {
+                recalculatedInterDayTravel = await estimateLocalTravelApi({
+                  ...reconnectFromEndpointInterDay.request,
+                  ...reconnectToEndpointInterDay.request,
+                  groupSize,
+                  departureTime,
+                  currencyCode,
+                });
+              } catch {
+                recalculatedInterDayTravel = null;
+              }
+
+              if (recalculatedInterDayTravel) {
+                const nextInterDayTravelCostAmount = Math.max(0, Math.round(
+                  getMoneyAmount(
+                    recalculatedInterDayTravel?.selectedTotalCost
+                    ?? recalculatedInterDayTravel?.SelectedTotalCost
+                    ?? recalculatedInterDayTravel?.costForGroup
+                    ?? recalculatedInterDayTravel?.CostForGroup
+                  ) ?? 0
+                ));
+                const nextInterDayTravelCostMoney = {
+                  amount: nextInterDayTravelCostAmount,
+                  currency: currencyCode,
+                };
+
+                interDayTransportCostDelta = nextInterDayTravelCostAmount - oldInterDayTravelCostAmount;
+
+                const fromName = pickFirstText(
+                  recalculatedInterDayTravel?.fromLocationName,
+                  recalculatedInterDayTravel?.FromLocationName,
+                  recalculatedInterDayTravel?.fromTransitHubName,
+                  recalculatedInterDayTravel?.FromTransitHubName,
+                  reconnectFromEndpointInterDay?.name,
+                ) || 'Start point';
+                const toName = pickFirstText(
+                  recalculatedInterDayTravel?.toLocationName,
+                  recalculatedInterDayTravel?.ToLocationName,
+                  recalculatedInterDayTravel?.toTransitHubName,
+                  recalculatedInterDayTravel?.ToTransitHubName,
+                  reconnectToEndpointInterDay?.name,
+                ) || 'Destination';
+
+                const updatedFirstTravelDetailNextDay = {
+                  ...firstTravelDetailNextDay,
+                  ...recalculatedInterDayTravel,
+                  departureTime,
+                  DepartureTime: departureTime,
+                  arrivalTime: fallbackEndTime,
+                  ArrivalTime: fallbackEndTime,
+                  selectedTotalCost: nextInterDayTravelCostMoney,
+                  SelectedTotalCost: nextInterDayTravelCostMoney,
+                  costForGroup: nextInterDayTravelCostMoney,
+                  CostForGroup: nextInterDayTravelCostMoney,
+                };
+
+                nextDayTimeline[firstTravelIndexNextDay] = {
+                  ...firstTravelItemNextDay,
+                  title: `Move from ${fromName} to ${toName}`,
+                  startTime: departureTime,
+                  StartTime: departureTime,
+                  endTime: fallbackEndTime,
+                  EndTime: fallbackEndTime,
+                  ticketCost: null,
+                  TicketCost: null,
+                  costForGroup: nextInterDayTravelCostMoney,
+                  CostForGroup: nextInterDayTravelCostMoney,
+                  [firstTravelDetailKeyNextDay]: updatedFirstTravelDetailNextDay,
+                };
+
+                nextDay[nextDayTimelineKey] = nextDayTimeline;
+                updateDayEstimatedCost(nextDay, nextDayTimelineKey, currencyCode);
+              }
+            }
+          }
+        }
+      }
+
+      const leftTravelCostAmount = leftTravelReconnectIndex >= 0
+        ? getStrictTravelCostAmount(timeline[leftTravelReconnectIndex])
         : 0;
       const rightTravelCostAmount = rightTravelIndex >= 0
         ? getStrictTravelCostAmount(timeline[rightTravelIndex])
-        : 0;
+        : (rightTravelReconnectIndex >= 0 ? getStrictTravelCostAmount(timeline[rightTravelReconnectIndex]) : 0);
       const mergedTravelCostAmount = mergedTravelItem
         ? getStrictTravelCostAmount(mergedTravelItem)
         : 0;
@@ -3699,6 +4482,9 @@ const ItineraryResultPage = () => {
       }
       if (transportCostDelta !== 0) {
         updateBudgetSummaryForTimelineItemCostDelta(draft, 'travel', transportCostDelta);
+      }
+      if (interDayTransportCostDelta !== 0) {
+        updateBudgetSummaryForTimelineItemCostDelta(draft, 'travel', interDayTransportCostDelta);
       }
       updateItinerary(draft);
       message.success('Location removed and adjacent locations were reconnected.');
@@ -3745,7 +4531,10 @@ const ItineraryResultPage = () => {
   const budgetSummary = itinerary.budgetSummary || itinerary.BudgetSummary;
   const startDate = itinerary.startDate || itinerary.StartDate;
   const endDate = itinerary.endDate || itinerary.EndDate;
-  const groupSize = itinerary.groupSize || itinerary.GroupSize;
+  const groupSizeValue = Number(itinerary?.groupSize ?? itinerary?.GroupSize);
+  const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0
+    ? Math.round(groupSizeValue)
+    : 1;
   const budgetLevel = itinerary.budgetLevel || itinerary.BudgetLevel;
   const tripCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
 
@@ -3788,18 +4577,10 @@ const ItineraryResultPage = () => {
     ?? (accommodationCostFallback + timelineCostBreakdown.meal + timelineCostBreakdown.other)
   );
   const usableBudgetValue = getMoneyAmount(budgetSummary?.usableBudget || budgetSummary?.UsableBudget) || 0;
-  const mealCostMoney = {
-    amount: Math.round(
-      getMoneyAmount(
-        budgetSummary?.estimatedMealCost
-        || budgetSummary?.EstimatedMealCost
-        || budgetSummary?.mealCost
-        || budgetSummary?.MealCost
-      )
-      ?? timelineCostBreakdown.meal
-    ),
-    currency: tripCurrencyCode,
-  };
+  const summaryContingencyValue = Math.round(
+    getMoneyAmount(budgetSummary?.contingencyFund || budgetSummary?.ContingencyFund)
+    ?? Math.max(0, totalBudgetValue - usableBudgetValue)
+  );
   const summaryRemainingValue = getMoneyAmount(budgetSummary?.remainingBudget || budgetSummary?.RemainingBudget);
   const remainingBudgetMoney = {
     amount: Math.round(summaryRemainingValue ?? (usableBudgetValue - estimatedTotalValue)),
@@ -3821,17 +4602,19 @@ const ItineraryResultPage = () => {
         value: formatMoney(budgetSummary.usableBudget || budgetSummary.UsableBudget),
         className: styles.budgetUsableValue,
       },
+      ...(summaryContingencyValue > 0
+        ? [{
+          key: 'contingencyFund',
+          label: 'Contingency Fund',
+          value: formatMoney({ amount: summaryContingencyValue, currency: tripCurrencyCode }),
+          className: styles.budgetContingencyValue,
+        }]
+        : []),
       {
         key: 'estimatedTotal',
         label: 'Estimated Total',
         value: formatMoney({ amount: Math.round(estimatedTotalValue), currency: tripCurrencyCode }),
         className: styles.budgetEstimatedValue,
-      },
-      {
-        key: 'mealCost',
-        label: 'Meal Cost',
-        value: formatMoney(mealCostMoney),
-        className: styles.budgetMealValue,
       },
       {
         key: 'remainingBudget',
@@ -3849,6 +4632,10 @@ const ItineraryResultPage = () => {
       updateItinerary(itinerary);
       try {
         sessionStorage.setItem('post-login-redirect', PATHS.ITINERARY);
+      } catch {
+      }
+      try {
+        localStorage.setItem('post-login-redirect', PATHS.ITINERARY);
       } catch {
       }
       message.info('Please sign in to save this trip.');
@@ -3933,18 +4720,121 @@ const ItineraryResultPage = () => {
         || 1
       ));
 
+      const resolveLocationId = (isFrom) => toPositiveIntOrNull(
+        isFrom
+          ? (
+            travelDetail?.fromLocationId
+            ?? travelDetail?.FromLocationId
+            ?? travelDetail?.fromId
+            ?? travelDetail?.FromId
+            ?? recommended?.fromLocationId
+            ?? recommended?.FromLocationId
+            ?? recommended?.fromId
+            ?? recommended?.FromId
+          )
+          : (
+            travelDetail?.toLocationId
+            ?? travelDetail?.ToLocationId
+            ?? travelDetail?.toId
+            ?? travelDetail?.ToId
+            ?? recommended?.toLocationId
+            ?? recommended?.ToLocationId
+            ?? recommended?.toId
+            ?? recommended?.ToId
+          )
+      );
+
+      const resolveTransitHubId = (isFrom) => toPositiveIntOrNull(
+        isFrom
+          ? (
+            travelDetail?.fromTransitHubId
+            ?? travelDetail?.FromTransitHubId
+            ?? recommended?.fromTransitHubId
+            ?? recommended?.FromTransitHubId
+            ?? recommended?.fromHubId
+            ?? recommended?.FromHubId
+          )
+          : (
+            travelDetail?.toTransitHubId
+            ?? travelDetail?.ToTransitHubId
+            ?? recommended?.toTransitHubId
+            ?? recommended?.ToTransitHubId
+            ?? recommended?.toHubId
+            ?? recommended?.ToHubId
+          )
+      );
+
+      const resolveCustomTransitHub = (isFrom, resolvedLocationId, resolvedTransitHubId, resolvedCustomTransitHubId) => {
+        if (resolvedLocationId || resolvedTransitHubId || resolvedCustomTransitHubId) return null;
+
+        const fromCustom = toCustomGeoPayload(travelDetail?.customFromTransitHub || travelDetail?.CustomFromTransitHub);
+        const toCustom = toCustomGeoPayload(travelDetail?.customToTransitHub || travelDetail?.CustomToTransitHub);
+        const existingCustom = isFrom ? fromCustom : toCustom;
+        if (existingCustom) return existingCustom;
+
+        const directLat = toFiniteNumber(
+          isFrom
+            ? (travelDetail?.fromLat ?? travelDetail?.FromLat)
+            : (travelDetail?.toLat ?? travelDetail?.ToLat)
+        );
+        const directLng = toFiniteNumber(
+          isFrom
+            ? (travelDetail?.fromLng ?? travelDetail?.FromLng)
+            : (travelDetail?.toLng ?? travelDetail?.ToLng)
+        );
+
+        if (directLat == null || directLng == null) return null;
+
+        const fallbackName = pickFirstText(
+          isFrom ? travelDetail?.customFromTransitHub?.name : travelDetail?.customToTransitHub?.name,
+          isFrom ? travelDetail?.customFromTransitHub?.Name : travelDetail?.customToTransitHub?.Name,
+          isFrom ? travelDetail?.CustomFromTransitHub?.name : travelDetail?.CustomToTransitHub?.name,
+          isFrom ? travelDetail?.CustomFromTransitHub?.Name : travelDetail?.CustomToTransitHub?.Name,
+          isFrom ? travelDetail?.fromTransitHubName : travelDetail?.toTransitHubName,
+          isFrom ? travelDetail?.FromTransitHubName : travelDetail?.ToTransitHubName,
+          isFrom ? travelDetail?.fromLocationName : travelDetail?.toLocationName,
+          isFrom ? travelDetail?.FromLocationName : travelDetail?.ToLocationName,
+          isFrom ? travelDetail?.fromProvinceName : travelDetail?.toProvinceName,
+          isFrom ? travelDetail?.FromProvinceName : travelDetail?.ToProvinceName,
+          isFrom ? travelDetail?.fromName : travelDetail?.toName,
+          isFrom ? travelDetail?.FromName : travelDetail?.ToName,
+          isFrom ? 'Custom start point' : 'Custom destination',
+        );
+
+        return {
+          name: fallbackName,
+          latitude: directLat,
+          longitude: directLng,
+          address: null,
+          description: null,
+          locationTypeId: null,
+        };
+      };
+
+      const fromLocationId = resolveLocationId(true);
+      const fromTransitHubId = resolveTransitHubId(true);
+      const fromCustomTransitHubId = toPositiveIntOrNull(
+        travelDetail?.customFromTransitHubId ?? travelDetail?.CustomFromTransitHubId
+      );
+
+      const toLocationId = resolveLocationId(false);
+      const toTransitHubId = resolveTransitHubId(false);
+      const toCustomTransitHubId = toPositiveIntOrNull(
+        travelDetail?.customToTransitHubId ?? travelDetail?.CustomToTransitHubId
+      );
+
       const fromEndpoint = sanitizeTransportEndpoint({
-        locationId: toPositiveIntOrNull(travelDetail?.fromLocationId ?? travelDetail?.FromLocationId),
-        transitHubId: toPositiveIntOrNull(travelDetail?.fromTransitHubId ?? travelDetail?.FromTransitHubId),
-        customTransitHubId: toPositiveIntOrNull(travelDetail?.customFromTransitHubId ?? travelDetail?.CustomFromTransitHubId),
-        customTransitHub: toCustomGeoPayload(travelDetail?.customFromTransitHub || travelDetail?.CustomFromTransitHub),
+        locationId: fromLocationId,
+        transitHubId: fromTransitHubId,
+        customTransitHubId: fromCustomTransitHubId,
+        customTransitHub: resolveCustomTransitHub(true, fromLocationId, fromTransitHubId, fromCustomTransitHubId),
       });
 
       const toEndpoint = sanitizeTransportEndpoint({
-        locationId: toPositiveIntOrNull(travelDetail?.toLocationId ?? travelDetail?.ToLocationId),
-        transitHubId: toPositiveIntOrNull(travelDetail?.toTransitHubId ?? travelDetail?.ToTransitHubId),
-        customTransitHubId: toPositiveIntOrNull(travelDetail?.customToTransitHubId ?? travelDetail?.CustomToTransitHubId),
-        customTransitHub: toCustomGeoPayload(travelDetail?.customToTransitHub || travelDetail?.CustomToTransitHub),
+        locationId: toLocationId,
+        transitHubId: toTransitHubId,
+        customTransitHubId: toCustomTransitHubId,
+        customTransitHub: resolveCustomTransitHub(false, toLocationId, toTransitHubId, toCustomTransitHubId),
       });
 
       return {
@@ -4080,6 +4970,37 @@ const ItineraryResultPage = () => {
       };
     });
 
+    // Persist user's start point as custom from-hub on the first travel activity.
+    // This keeps the trip origin in saved payload without backend schema changes.
+    const itineraryUserLocation = itinerary?.userLocation || itinerary?.UserLocation;
+    const userStartLat = toFiniteNumber(itineraryUserLocation?.latitude ?? itineraryUserLocation?.Latitude);
+    const userStartLng = toFiniteNumber(itineraryUserLocation?.longitude ?? itineraryUserLocation?.Longitude);
+    if (userStartLat != null && userStartLng != null && mappedDays.length > 0) {
+      const firstDayActivities = Array.isArray(mappedDays[0]?.activities) ? mappedDays[0].activities : [];
+      const firstTravelActivity = firstDayActivities.find((activity) => activity?.transport);
+
+      if (firstTravelActivity?.transport) {
+        firstTravelActivity.transport.fromLocationId = null;
+        firstTravelActivity.transport.fromTransitHubId = null;
+        firstTravelActivity.transport.customFromTransitHubId = null;
+        firstTravelActivity.transport.customFromTransitHub = {
+          name: pickFirstText(
+            itineraryUserLocation?.name,
+            itineraryUserLocation?.Name,
+            itineraryUserLocation?.locationName,
+            itineraryUserLocation?.LocationName,
+            'Your location',
+          ),
+          latitude: userStartLat,
+          longitude: userStartLng,
+          address: pickFirstText(
+            itineraryUserLocation?.address,
+            itineraryUserLocation?.Address,
+          ) || null,
+        };
+      }
+    }
+
     const summary = budgetSummary || {};
     const totalBudget = Math.round(getNonNegativeAmount(summary.totalBudget || summary.TotalBudget, totalBudgetValue));
     const usableBudget = Math.min(
@@ -4116,14 +5037,8 @@ const ItineraryResultPage = () => {
     );
     const contingencyFund = contingencyRaw > 0 ? Math.round(contingencyRaw) : null;
 
-    const fallbackTripName = `Trip ${String(startDate || '').slice(0, 10)} - ${String(endDate || '').slice(0, 10)}`;
-    const tripName = pickFirstText(
-      itinerary.tripName,
-      itinerary.TripName,
-      itinerary.name,
-      itinerary.Name,
-      fallbackTripName,
-    );
+    const fallbackTripName = getFallbackTripName(itinerary);
+    const tripName = commitTripNameToItinerary(editableTripName) || fallbackTripName;
     const description = pickFirstText(itinerary.description, itinerary.Description) || null;
 
     const payload = {
@@ -4150,6 +5065,7 @@ const ItineraryResultPage = () => {
     setSavingTrip(true);
     try {
       const result = await saveTripApi(payload);
+      clearPersistedItinerary();
       const savedTripId = Number(result?.tripId ?? result?.TripId ?? result?.id ?? result?.Id);
       message.success('Trip saved successfully.');
       if (Number.isFinite(savedTripId) && savedTripId > 0) {
@@ -4192,9 +5108,21 @@ const ItineraryResultPage = () => {
           <div className={styles.container}>
 
           <Card className={styles.headerCard} bordered={false}>
-            <Title level={3} className={styles.headerTitle}>
-              Travel Itinerary Results
-            </Title>
+            <div className={styles.tripNameEditor}>
+              <Text className={styles.tripNameLabel}>Trip Name</Text>
+              <Input
+                value={editableTripName}
+                placeholder="Enter trip name"
+                maxLength={200}
+                className={styles.tripNameInput}
+                onChange={(event) => setEditableTripName(event.target.value)}
+                onBlur={(event) => commitTripNameToItinerary(event.target.value)}
+                onPressEnter={(event) => {
+                  commitTripNameToItinerary(event.currentTarget.value);
+                  event.currentTarget.blur();
+                }}
+              />
+            </div>
             <div className={styles.headerMeta}>
               <span className={styles.headerMetaItem}>
                 {startDate} to {endDate}
@@ -4417,6 +5345,11 @@ const ItineraryResultPage = () => {
                           const canAddPoint = canRemoveLocation;
 
                           const displayCost = costForGroup || ticketCost;
+                          const displayCostAmount = getMoneyAmount(displayCost);
+                          const hasPositiveDisplayCost = displayCostAmount != null && displayCostAmount > 0;
+                          const isEditedZeroCost = (displayCostAmount != null && displayCostAmount <= 0)
+                            && Boolean(item?.isCostManuallyEdited || item?.IsCostManuallyEdited);
+                          const shouldShowFreeCost = !hasPositiveDisplayCost && !isEditedZeroCost;
 
                           const renderActions = () => (
                             <div className={styles.cardActions}>
@@ -4679,11 +5612,11 @@ const ItineraryResultPage = () => {
                                             ))}
                                           </div>
                                         )}
-                                        {displayCost && (displayCost.amount || displayCost.Amount) > 0 ? (
+                                        {hasPositiveDisplayCost ? (
                                           <div className={styles.costAmount} style={{ marginTop: 8 }}>{formatMoney(displayCost)}</div>
-                                        ) : (
+                                        ) : shouldShowFreeCost ? (
                                           <div className={styles.costFree} style={{ marginTop: 8 }}>Free</div>
-                                        )}
+                                        ) : null}
                                         {renderActions()}
                                       </div>
                                       {mediaUrls.length > 0 && (
@@ -4749,11 +5682,11 @@ const ItineraryResultPage = () => {
                                             ))}
                                           </div>
                                         )}
-                                        {displayCost && (displayCost.amount || displayCost.Amount) > 0 ? (
+                                        {hasPositiveDisplayCost ? (
                                           <div className={styles.costAmount} style={{ marginTop: 8 }}>{formatMoney(displayCost)}</div>
-                                        ) : (
+                                        ) : shouldShowFreeCost ? (
                                           <div className={styles.costFree} style={{ marginTop: 8 }}>Free</div>
-                                        )}
+                                        ) : null}
                                         {renderActions()}
                                       </div>
                                       {mediaUrls.length > 0 && (
@@ -4966,6 +5899,23 @@ const ItineraryResultPage = () => {
                   notFoundContent={addBetweenLocationTypeLoading ? <Spin size="small" /> : 'No location types'}
                 />
 
+                <span className={styles.editTimelineLabel}>District</span>
+                <Select
+                  showSearch
+                  allowClear
+                  className={styles.addBetweenSelect}
+                  placeholder="All districts"
+                  value={selectedAddBetweenDistrictId}
+                  onChange={handleChangeAddBetweenDistrict}
+                  loading={addBetweenDistrictLoading}
+                  optionFilterProp="label"
+                  options={addBetweenDistrictOptions.map((district) => ({
+                    label: district.name,
+                    value: district.id,
+                  }))}
+                  notFoundContent={addBetweenDistrictLoading ? <Spin size="small" /> : 'No districts'}
+                />
+
                 <span className={styles.editTimelineLabel}>Location</span>
                 <Select
                   showSearch
@@ -4993,21 +5943,25 @@ const ItineraryResultPage = () => {
                 <div className={styles.customLocationTimelineGrid}>
                   <div className={styles.editTimelineField}>
                     <span className={styles.editTimelineLabel}>Start time</span>
-                    <Input
-                      type="time"
+                    <TimePicker
+                      format="HH:mm"
+                      use12Hours={false}
+                      allowClear={false}
                       className={styles.editTimelineInput}
-                      value={addBetweenExistingStartTime}
-                      onChange={(event) => setAddBetweenExistingStartTime(event?.target?.value || '')}
+                      value={toTimePickerValue(addBetweenExistingStartTime)}
+                      onChange={(_, timeText) => setAddBetweenExistingStartTime(timeText || '')}
                     />
                   </div>
 
                   <div className={styles.editTimelineField}>
                     <span className={styles.editTimelineLabel}>End time</span>
-                    <Input
-                      type="time"
+                    <TimePicker
+                      format="HH:mm"
+                      use12Hours={false}
+                      allowClear={false}
                       className={styles.editTimelineInput}
-                      value={addBetweenExistingEndTime}
-                      onChange={(event) => setAddBetweenExistingEndTime(event?.target?.value || '')}
+                      value={toTimePickerValue(addBetweenExistingEndTime)}
+                      onChange={(_, timeText) => setAddBetweenExistingEndTime(timeText || '')}
                     />
                   </div>
                 </div>
@@ -5090,6 +6044,37 @@ const ItineraryResultPage = () => {
                   />
                 </div>
 
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Location Type</span>
+                  <Select
+                    showSearch
+                    allowClear
+                    className={styles.addBetweenSelect}
+                    placeholder="Select location type"
+                    value={selectedAddBetweenCustomLocationTypeId}
+                    onChange={(value) => setSelectedAddBetweenCustomLocationTypeId(value ?? null)}
+                    loading={addBetweenLocationTypeLoading}
+                    optionFilterProp="label"
+                    options={addBetweenLocationTypeOptions.map((locationType) => ({
+                      label: locationType.name,
+                      value: locationType.id,
+                    }))}
+                    notFoundContent={addBetweenLocationTypeLoading ? <Spin size="small" /> : 'No location types'}
+                  />
+                </div>
+
+                <div className={styles.editTimelineField}>
+                  <span className={styles.editTimelineLabel}>Description</span>
+                  <Input.TextArea
+                    className={styles.editTimelineInput}
+                    placeholder="Add a short description for this custom location"
+                    rows={3}
+                    maxLength={1000}
+                    value={addBetweenCustomDescription}
+                    onChange={(event) => setAddBetweenCustomDescription(event?.target?.value || '')}
+                  />
+                </div>
+
                 <Card
                   className={styles.customLocationMapCard}
                   title={<span className={styles.customLocationMapHeader}>Where are you starting from?</span>}
@@ -5138,21 +6123,25 @@ const ItineraryResultPage = () => {
                 <div className={styles.customLocationTimelineGrid}>
                   <div className={styles.editTimelineField}>
                     <span className={styles.editTimelineLabel}>Start time</span>
-                    <Input
-                      type="time"
+                    <TimePicker
+                      format="HH:mm"
+                      use12Hours={false}
+                      allowClear={false}
                       className={styles.editTimelineInput}
-                      value={addBetweenCustomStartTime}
-                      onChange={(event) => setAddBetweenCustomStartTime(event?.target?.value || '')}
+                      value={toTimePickerValue(addBetweenCustomStartTime)}
+                      onChange={(_, timeText) => setAddBetweenCustomStartTime(timeText || '')}
                     />
                   </div>
 
                   <div className={styles.editTimelineField}>
                     <span className={styles.editTimelineLabel}>End time</span>
-                    <Input
-                      type="time"
+                    <TimePicker
+                      format="HH:mm"
+                      use12Hours={false}
+                      allowClear={false}
                       className={styles.editTimelineInput}
-                      value={addBetweenCustomEndTime}
-                      onChange={(event) => setAddBetweenCustomEndTime(event?.target?.value || '')}
+                      value={toTimePickerValue(addBetweenCustomEndTime)}
+                      onChange={(_, timeText) => setAddBetweenCustomEndTime(timeText || '')}
                     />
                   </div>
                 </div>
@@ -5281,21 +6270,25 @@ const ItineraryResultPage = () => {
 
             <div className={styles.editTimelineField}>
               <span className={styles.editTimelineLabel}>Start time</span>
-              <Input
-                type="time"
+              <TimePicker
+                format="HH:mm"
+                use12Hours={false}
+                allowClear={false}
                 className={styles.editTimelineInput}
-                value={editTimelineStartTime}
-                onChange={(event) => setEditTimelineStartTime(event?.target?.value || '')}
+                value={toTimePickerValue(editTimelineStartTime)}
+                onChange={(_, timeText) => setEditTimelineStartTime(timeText || '')}
               />
             </div>
 
             <div className={styles.editTimelineField}>
               <span className={styles.editTimelineLabel}>End time</span>
-              <Input
-                type="time"
+              <TimePicker
+                format="HH:mm"
+                use12Hours={false}
+                allowClear={false}
                 className={styles.editTimelineInput}
-                value={editTimelineEndTime}
-                onChange={(event) => setEditTimelineEndTime(event?.target?.value || '')}
+                value={toTimePickerValue(editTimelineEndTime)}
+                onChange={(_, timeText) => setEditTimelineEndTime(timeText || '')}
               />
             </div>
 

@@ -1,7 +1,7 @@
 import { Button, Form, Input, Typography } from 'antd';
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { GoogleLogin } from '@react-oauth/google';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLogin, useGoogleLogin } from '../hooks/useAuth';
 import { PATHS } from '@/routes/paths';
 
@@ -14,6 +14,11 @@ const LoginForm = () => {
   const { login, loading } = useLogin();
   const { googleLogin } = useGoogleLogin();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirect = searchParams.get('redirect');
+  const registerPath = redirect
+    ? `${PATHS.AUTH.REGISTER}?redirect=${encodeURIComponent(redirect)}`
+    : PATHS.AUTH.REGISTER;
 
   return (
     <div className={styles.loginContainer}>
@@ -98,7 +103,7 @@ const LoginForm = () => {
         
         <Button 
           size="large" 
-          onClick={() => navigate(PATHS.AUTH.REGISTER)}
+          onClick={() => navigate(registerPath)}
           className={styles.btnSignup}
         >
           SIGN UP

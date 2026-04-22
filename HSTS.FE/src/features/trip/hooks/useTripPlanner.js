@@ -5,6 +5,22 @@ import { convertBudgetToVnd } from '../constants/currency';
 
 const STORAGE_KEY = 'trip-itinerary-result';
 
+const clearItineraryPersistence = () => {
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+  }
+
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+  }
+
+  if (typeof document !== 'undefined') {
+    document.cookie = `${STORAGE_KEY}=; Max-Age=0; path=/`;
+  }
+};
+
 export const useTripPlanner = () => {
   const [loading, setLoading] = useState(false);
   const [itinerary, setItinerary] = useState(() => {
@@ -19,6 +35,7 @@ export const useTripPlanner = () => {
   const generateItinerary = useCallback(async (formData) => {
     setLoading(true);
     try {
+      const requestedGroupSize = Math.max(1, Math.round(Number(formData.groupSize) || 1));
       const normalizedBudget = convertBudgetToVnd(formData.totalBudget, formData.currencyCode);
 
       const payload = {
@@ -33,7 +50,7 @@ export const useTripPlanner = () => {
           })),
           userFavoriteTagIds: formData.userFavoriteTagIds || [],
           currencyCode: 'VND',
-          groupSize: formData.groupSize,
+          groupSize: requestedGroupSize,
           minimumAge: formData.minimumAge ?? null,
           totalBudget: normalizedBudget,
           includeContingencyFund: formData.includeContingencyFund !== false,
@@ -45,13 +62,22 @@ export const useTripPlanner = () => {
       };
 
       const result = await generateItineraryApi(payload);
-      setItinerary(result);
+      const resultGroupSize = Number(result?.groupSize ?? result?.GroupSize);
+      const itineraryWithGroupSize = Number.isFinite(resultGroupSize) && resultGroupSize > 0
+        ? result
+        : {
+          ...result,
+          groupSize: requestedGroupSize,
+          GroupSize: requestedGroupSize,
+        };
+
+      setItinerary(itineraryWithGroupSize);
       try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(result));
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(itineraryWithGroupSize));
       } catch {
         // sessionStorage full – ignore
       }
-      return result;
+      return itineraryWithGroupSize;
     } catch (error) {
       message.error('Unable to generate itinerary. Please try again.');
       throw error;
@@ -62,7 +88,11 @@ export const useTripPlanner = () => {
 
   const clearItinerary = useCallback(() => {
     setItinerary(null);
-    sessionStorage.removeItem(STORAGE_KEY);
+    clearItineraryPersistence();
+  }, []);
+
+  const clearPersistedItinerary = useCallback(() => {
+    clearItineraryPersistence();
   }, []);
 
   const updateItinerary = useCallback((nextItinerary) => {
@@ -74,5 +104,12 @@ export const useTripPlanner = () => {
     }
   }, []);
 
-  return { itinerary, loading, generateItinerary, clearItinerary, updateItinerary };
+  return {
+    itinerary,
+    loading,
+    generateItinerary,
+    clearItinerary,
+    clearPersistedItinerary,
+    updateItinerary,
+  };
 };
