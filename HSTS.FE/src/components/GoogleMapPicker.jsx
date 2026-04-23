@@ -225,7 +225,14 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng, zIn
             />
             <Marker
               position={centerPosition}
-              draggable={false}
+              draggable
+              eventHandlers={{
+                dragend: (e) => {
+                  const { lat, lng } = e.target.getLatLng();
+                  setLatitude(lat);
+                  setLongitude(lng);
+                },
+              }}
             />
             <MapClickHandler onMapClick={handleMapClick} />
             <MapPositionUpdater lat={safeLat} lng={safeLng} />
@@ -253,8 +260,8 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng, zIn
               <strong>Longitude:</strong> {longitude?.toFixed(6) || 'N/A'}
             </div>
           </Space>
-            <div style={{ fontSize: 12, color: '#888', marginTop: 8 }}>
-            💡 Tip: Click anywhere on the map to adjust the location
+          <div style={{ fontSize: 12, color: '#888', marginTop: 8 }}>
+            💡 Tip: Click anywhere on the map or drag the marker to adjust the location
           </div>
         </Space>
       </div>
