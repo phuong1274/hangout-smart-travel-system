@@ -38,6 +38,7 @@ import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PATHS } from '@/routes/paths';
+import GoogleMapPicker from '@/components/GoogleMapPicker';
 import {
   estimateLocalTravelApi,
   getLocationTypesApi,
@@ -626,6 +627,7 @@ const ManualTripPage = () => {
   const [customBudget, setCustomBudget] = useState(null);
 
   const [showTransportOptions, setShowTransportOptions] = useState(true);
+  const [originMapOpen, setOriginMapOpen] = useState(false);
 
   const customLatValue = toFiniteNumber(customLat);
   const customLngValue = toFiniteNumber(customLng);
@@ -899,6 +901,61 @@ const ManualTripPage = () => {
     if (tripEnd && currentDay.isAfter(tripEnd)) return true;
     return false;
   };
+
+  const manualOrigin = useMemo(() => {
+    const origin = tripInfo?.userLocation || tripInfo?.UserLocation || null;
+    const latitude = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
+    const longitude = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    return {
+      name: pickFirstText(
+        origin?.name,
+        origin?.Name,
+        origin?.locationName,
+        origin?.LocationName,
+        tripInfo?.startingLocation,
+        tripInfo?.StartingLocation,
+      ) || '',
+      address: pickFirstText(origin?.address, origin?.Address) || '',
+      latitude,
+      longitude,
+    };
+  }, [tripInfo]);
+
+  const updateTripOrigin = useCallback((updater) => {
+    setTripInfo((prev) => {
+      if (!prev) return prev;
+      const currentOrigin = prev?.userLocation || prev?.UserLocation || {};
+      const nextOrigin = typeof updater === 'function' ? updater(currentOrigin) : updater;
+      return {
+        ...prev,
+        startingLocation: pickFirstText(nextOrigin?.name, prev?.startingLocation, prev?.StartingLocation) || null,
+        userLocation: nextOrigin,
+      };
+    });
+  }, []);
+
+  const getTripOriginEndpoint = useCallback(() => {
+    const origin = tripInfo?.userLocation || tripInfo?.UserLocation;
+    const fromLat = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
+    const fromLng = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    if (fromLat != null && fromLng != null) {
+      return {
+        fromLat,
+        fromLng,
+        fromLabel: pickFirstText(
+          origin?.name,
+          origin?.Name,
+          origin?.locationName,
+          origin?.LocationName,
+          tripInfo?.startingLocation,
+          tripInfo?.StartingLocation,
+        ) || 'Your location',
+      };
+    }
+
+    const label = pickFirstText(tripInfo?.startingLocation, tripInfo?.StartingLocation);
+    return label ? { fromLabel: label } : null;
+  }, [tripInfo]);
 
   // Resolve an origin endpoint for a given day index. Prefer the last activity of
   // the previous day (if available) which contains coordinates or a locationId.
@@ -1384,6 +1441,54 @@ const ManualTripPage = () => {
     return normalized;
   }, [tripInfo, transportModeNameById]);
 
+  const recalculateFirstManualDayFromOrigin = useCallback(async (nextTripInfo) => {
+    if (!Array.isArray(manualDays) || manualDays.length === 0) return;
+    const firstDay = manualDays[0];
+    if (!firstDay || !Array.isArray(firstDay.activities) || firstDay.activities.length === 0) return;
+
+    const origin = nextTripInfo?.userLocation || nextTripInfo?.UserLocation;
+    const fromLat = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
+    const fromLng = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    const label = pickFirstText(
+      origin?.name,
+      origin?.Name,
+      origin?.locationName,
+      origin?.LocationName,
+      nextTripInfo?.startingLocation,
+      nextTripInfo?.StartingLocation,
+    );
+    const originEndpoint = fromLat != null && fromLng != null
+      ? { fromLat, fromLng, fromLabel: label || 'Your location' }
+      : (label ? { fromLabel: label } : null);
+
+    try {
+      const recalculated = await recalculateDayTravelAndEstimate(firstDay.activities, originEndpoint);
+      setManualDays((prev) => prev.map((day, index) => (
+        index === 0 ? { ...day, activities: recalculated } : day
+      )));
+    } catch {
+      message.error('Unable to recalculate the first day after updating origin.');
+    }
+  }, [manualDays, recalculateDayTravelAndEstimate]);
+
+  const handleManualOriginMapConfirm = useCallback(async (lat, lng) => {
+    const nextTripInfo = {
+      ...tripInfo,
+      startingLocation: pickFirstText(manualOrigin.name, tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your location'),
+      userLocation: {
+        ...(tripInfo?.userLocation || tripInfo?.UserLocation || {}),
+        name: pickFirstText(manualOrigin.name, tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your location'),
+        locationName: pickFirstText(manualOrigin.name, tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your location'),
+        address: manualOrigin.address || null,
+        latitude: lat,
+        longitude: lng,
+      },
+    };
+    setTripInfo(nextTripInfo);
+    await recalculateFirstManualDayFromOrigin(nextTripInfo);
+    message.success('Trip origin updated on the map.');
+  }, [manualOrigin.address, manualOrigin.name, recalculateFirstManualDayFromOrigin, tripInfo]);
+
   // Estimates the travel leg from the last activity of the previous day to the first
   // activity of the current day. Returns an updated version of `toActivity` with
   // `travelFromPrevious` populated (or the original if estimation fails/has no endpoints).
@@ -1528,7 +1633,7 @@ const ManualTripPage = () => {
       // is possible.
       const originEndpointForAdd = (dayIndex > 0 && manualDays[dayIndex - 1]?.activities?.length > 0)
         ? getActivityEndpointForEstimate(manualDays[dayIndex - 1].activities.at(-1), 'from')
-        : (tripInfo?.startingLocation ? { fromLabel: String(tripInfo.startingLocation).trim() } : null);
+        : getTripOriginEndpoint();
 
       let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended], originEndpointForAdd);
 
@@ -1615,7 +1720,7 @@ const ManualTripPage = () => {
 
       const originEndpointForAdd = (dayIndex > 0 && manualDays[dayIndex - 1]?.activities?.length > 0)
         ? getActivityEndpointForEstimate(manualDays[dayIndex - 1].activities.at(-1), 'from')
-        : (tripInfo?.startingLocation ? { fromLabel: String(tripInfo.startingLocation).trim() } : null);
+        : getTripOriginEndpoint();
 
       let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended], originEndpointForAdd);
 
@@ -1656,7 +1761,7 @@ const ManualTripPage = () => {
     try {
       const originEndpointForRemove = (dayIndex > 0 && manualDays[dayIndex - 1]?.activities?.length > 0)
         ? getActivityEndpointForEstimate(manualDays[dayIndex - 1].activities.at(-1), 'from')
-        : (tripInfo?.startingLocation ? { fromLabel: String(tripInfo.startingLocation).trim() } : null);
+        : getTripOriginEndpoint();
 
       const recalculated = await recalculateDayTravelAndEstimate(nextActivities, originEndpointForRemove);
       setManualDays((prev) => prev.map((item, index) => (
@@ -1708,7 +1813,7 @@ const ManualTripPage = () => {
     try {
       const originEndpointForReorder = (dayIdx > 0 && manualDays[dayIdx - 1]?.activities?.length > 0)
         ? getActivityEndpointForEstimate(manualDays[dayIdx - 1].activities.at(-1), 'from')
-        : (tripInfo?.startingLocation ? { fromLabel: String(tripInfo.startingLocation).trim() } : null);
+        : getTripOriginEndpoint();
 
       let recalculated = await recalculateDayTravelAndEstimate(reordered, originEndpointForReorder);
 
@@ -2037,10 +2142,31 @@ const ManualTripPage = () => {
            // and the computed fromEndpoint does not reference a known locationId,
            // preserve that startingLocation into the first travel's customFromTransitHub
            // so backend and other flows can record the user-provided origin label.
-           if (tripInfo?.startingLocation && (activityIndex === 0 || isCrossDayFirst) && !fromEndpoint.locationId) {
-             transportPayload.customFromTransitHub = transportPayload.customFromTransitHub || {};
-             transportPayload.customFromTransitHub.name = String(tripInfo.startingLocation || tripInfo.StartingLocation || tripInfo.startingLocation).trim();
-           }
+            if ((tripInfo?.startingLocation || tripInfo?.userLocation || tripInfo?.UserLocation) && (activityIndex === 0 || isCrossDayFirst) && !fromEndpoint.locationId) {
+              transportPayload.customFromTransitHub = transportPayload.customFromTransitHub || {};
+              transportPayload.customFromTransitHub.name = pickFirstText(
+                tripInfo?.userLocation?.name,
+                tripInfo?.userLocation?.locationName,
+                tripInfo?.UserLocation?.name,
+                tripInfo?.UserLocation?.LocationName,
+                tripInfo?.startingLocation,
+                tripInfo?.StartingLocation,
+              ) || 'Your location';
+              const originLat = toFiniteNumber(tripInfo?.userLocation?.latitude ?? tripInfo?.UserLocation?.latitude ?? tripInfo?.UserLocation?.Latitude);
+              const originLng = toFiniteNumber(tripInfo?.userLocation?.longitude ?? tripInfo?.UserLocation?.longitude ?? tripInfo?.UserLocation?.Longitude);
+              if (originLat != null && originLng != null) {
+                transportPayload.customFromTransitHub.latitude = originLat;
+                transportPayload.customFromTransitHub.longitude = originLng;
+              }
+              const originAddress = pickFirstText(
+                tripInfo?.userLocation?.address,
+                tripInfo?.UserLocation?.address,
+                tripInfo?.UserLocation?.Address,
+              );
+              if (originAddress) {
+                transportPayload.customFromTransitHub.address = originAddress;
+              }
+            }
 
            mappedActivities.push({
             type: 2,
@@ -2237,6 +2363,31 @@ const ManualTripPage = () => {
                   ? 'Modify days and locations below. Changes will overwrite the existing itinerary when saved.'
                   : 'Flow independent from Itinerary screen. Add each day and each location, estimate updates automatically.'}
               </Text>
+
+              <Card bordered={false} className={styles.originCard}>
+                <div className={styles.originHeaderRow}>
+                  <div>
+                    <Text strong>Trip origin</Text>
+                    <div className={styles.originSubtext}>This origin is used for the first travel leg and stays outside the draggable location list.</div>
+                  </div>
+                  <Space wrap>
+                    <Button onClick={() => setOriginMapOpen(true)}>Pick on Map</Button>
+                  </Space>
+                </div>
+                <div className={styles.originMetaRow}>
+                  {(() => {
+                    const visibleOriginLabel = pickFirstText(manualOrigin.name, tripInfo?.startingLocation);
+                    const normalizedVisibleOriginLabel = String(visibleOriginLabel || '').trim().toLowerCase();
+                    if (!visibleOriginLabel || normalizedVisibleOriginLabel === 'your location') return null;
+                    return <Tag color="processing">{visibleOriginLabel}</Tag>;
+                  })()}
+                  <Tag color={manualOrigin.latitude != null && manualOrigin.longitude != null ? 'processing' : 'default'}>
+                    {manualOrigin.latitude != null && manualOrigin.longitude != null
+                      ? `${manualOrigin.latitude.toFixed(6)}, ${manualOrigin.longitude.toFixed(6)}`
+                      : 'Pick on Map to set origin coordinates'}
+                  </Tag>
+                </div>
+              </Card>
 
               <div className={styles.optionalBudgetRow}>
                 <Text strong>Trip budget (optional)</Text>
@@ -2675,6 +2826,14 @@ const ManualTripPage = () => {
                 {editMode ? 'Save Changes' : 'Save Manual Trip'}
               </Button>
             </div>
+
+            <GoogleMapPicker
+              open={originMapOpen}
+              onClose={() => setOriginMapOpen(false)}
+              onConfirm={handleManualOriginMapConfirm}
+              initialLat={manualOrigin.latitude}
+              initialLng={manualOrigin.longitude}
+            />
           </>
         )}
       </div>
