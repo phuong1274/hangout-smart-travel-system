@@ -2375,12 +2375,6 @@ const ManualTripPage = () => {
                   </Space>
                 </div>
                 <div className={styles.originMetaRow}>
-                  {(() => {
-                    const visibleOriginLabel = pickFirstText(manualOrigin.name, tripInfo?.startingLocation);
-                    const normalizedVisibleOriginLabel = String(visibleOriginLabel || '').trim().toLowerCase();
-                    if (!visibleOriginLabel || normalizedVisibleOriginLabel === 'your location') return null;
-                    return <Tag color="processing">{visibleOriginLabel}</Tag>;
-                  })()}
                   <Tag color={manualOrigin.latitude != null && manualOrigin.longitude != null ? 'processing' : 'default'}>
                     {manualOrigin.latitude != null && manualOrigin.longitude != null
                       ? `${manualOrigin.latitude.toFixed(6)}, ${manualOrigin.longitude.toFixed(6)}`
