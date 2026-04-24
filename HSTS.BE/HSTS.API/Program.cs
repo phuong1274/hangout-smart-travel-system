@@ -113,6 +113,25 @@ namespace HSTS.API
             using (var scope = app.Services.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                if (db.Database.CanConnect())
+                {
+                    var applied = db.Database.GetAppliedMigrations().ToHashSet();
+                    if (applied.Count == 0)
+                    {
+                        // DB has tables but no migration history — mark all known migrations as applied
+                        var efVersion = typeof(DbContext).Assembly.GetName().Version!.ToString(3);
+                        db.Database.ExecuteSqlRaw("""
+                            CREATE TABLE IF NOT EXISTS `__EFMigrationsHistory` (
+                                `MigrationId` varchar(150) NOT NULL,
+                                `ProductVersion` varchar(32) NOT NULL,
+                                PRIMARY KEY (`MigrationId`)
+                            );
+                            """);
+                        foreach (var migration in db.Database.GetMigrations())
+                            db.Database.ExecuteSqlRaw(
+                                $"INSERT IGNORE INTO `__EFMigrationsHistory` VALUES ('{migration}', '{efVersion}');");
+                    }
+                }
                 db.Database.Migrate();
             }
 
