@@ -51,26 +51,30 @@ namespace HSTS.Application.Itineraries.Queries
         public GenerateItineraryQueryValidator()
         {
             RuleFor(x => x.Request).NotNull();
-            RuleFor(x => x.Request.UserLocation).NotNull().WithMessage("UserLocation is required.");
-            RuleFor(x => x.Request.UserLocation.Latitude).InclusiveBetween(-90, 90).When(x => x.Request.UserLocation is not null);
-            RuleFor(x => x.Request.UserLocation.Longitude).InclusiveBetween(-180, 180).When(x => x.Request.UserLocation is not null);
-            RuleFor(x => x.Request.Destinations).NotEmpty().WithMessage("At least one destination is required.");
-            RuleFor(x => x.Request.EndDate)
-                .GreaterThanOrEqualTo(x => x.Request.StartDate)
-                .WithMessage("EndDate must be >= StartDate.");
-            RuleFor(x => x.Request.GroupSize).GreaterThan(0);
-            RuleFor(x => x.Request.MinimumAge)
-                .GreaterThanOrEqualTo(0)
-                .When(x => x.Request.MinimumAge.HasValue);
-            RuleFor(x => x.Request.TotalBudget).GreaterThan(0)
-                .WithMessage("TotalBudget must be > 0.");
-            RuleFor(x => x.Request.CurrencyCode).NotEmpty().MaximumLength(5);
-            RuleFor(x => x.Request.HotelPreference)
-                .Must(x => x is null or "Budget" or "Standard" or "Luxury")
-                .WithMessage("HotelPreference must be null, Budget, Standard, or Luxury.");
-            RuleFor(x => x.Request.TripSegment)
-                .Must(x => x is "Budget" or "Standard" or "Luxury")
-                .WithMessage("TripSegment must be Budget, Standard, or Luxury.");
+
+            When(x => x.Request != null, () =>
+            {
+                RuleFor(x => x.Request.UserLocation).NotNull().WithMessage("UserLocation is required.");
+                RuleFor(x => x.Request.UserLocation.Latitude).InclusiveBetween(-90, 90).When(x => x.Request.UserLocation is not null);
+                RuleFor(x => x.Request.UserLocation.Longitude).InclusiveBetween(-180, 180).When(x => x.Request.UserLocation is not null);
+                RuleFor(x => x.Request.Destinations).NotEmpty().WithMessage("At least one destination is required.");
+                RuleFor(x => x.Request.EndDate)
+                    .GreaterThanOrEqualTo(x => x.Request.StartDate)
+                    .WithMessage("EndDate must be >= StartDate.");
+                RuleFor(x => x.Request.GroupSize).GreaterThan(0);
+                RuleFor(x => x.Request.MinimumAge)
+                    .GreaterThanOrEqualTo(0)
+                    .When(x => x.Request.MinimumAge.HasValue);
+                RuleFor(x => x.Request.TotalBudget).GreaterThan(0)
+                    .WithMessage("TotalBudget must be > 0.");
+                RuleFor(x => x.Request.CurrencyCode).NotEmpty().MaximumLength(5);
+                RuleFor(x => x.Request.HotelPreference)
+                    .Must(x => x is null or "Budget" or "Standard" or "Luxury")
+                    .WithMessage("HotelPreference must be null, Budget, Standard, or Luxury.");
+                RuleFor(x => x.Request.TripSegment)
+                    .Must(x => x is "Budget" or "Standard" or "Luxury")
+                    .WithMessage("TripSegment must be Budget, Standard, or Luxury.");
+            });
         }
     }
     // --- Handler ---
