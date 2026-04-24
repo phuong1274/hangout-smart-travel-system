@@ -340,6 +340,7 @@ const toTransportEndpointPayload = (activity, fallbackName) => {
     if (!raw) return null;
   const startDate = raw.startDate || raw.StartDate || null;
   const endDate = raw.endDate || raw.EndDate || null;
+  const userLocation = raw.userLocation || raw.UserLocation || null;
   const totalBudget = toFiniteNumber(
     raw.totalBudget
     ?? raw.TotalBudget
@@ -365,6 +366,25 @@ const toTransportEndpointPayload = (activity, fallbackName) => {
       // Itinerary editor which may persist a user origin into the first travel
       // activity. The value may be just a textual label (no coordinates).
       startingLocation: pickFirstText(raw.startingLocation, raw.StartingLocation) || null,
+      userLocation: userLocation
+        ? {
+            name: pickFirstText(
+              userLocation?.name,
+              userLocation?.Name,
+              userLocation?.locationName,
+              userLocation?.LocationName,
+            ) || null,
+            locationName: pickFirstText(
+              userLocation?.locationName,
+              userLocation?.LocationName,
+              userLocation?.name,
+              userLocation?.Name,
+            ) || null,
+            address: pickFirstText(userLocation?.address, userLocation?.Address) || null,
+            latitude: toFiniteNumber(userLocation?.latitude ?? userLocation?.Latitude),
+            longitude: toFiniteNumber(userLocation?.longitude ?? userLocation?.Longitude),
+          }
+        : null,
     };
   };
 
@@ -626,7 +646,7 @@ const ManualTripPage = () => {
   const [customEndTime, setCustomEndTime] = useState('09:30');
   const [customBudget, setCustomBudget] = useState(null);
 
-  const [showTransportOptions, setShowTransportOptions] = useState(true);
+  const [openTransportOptionIds, setOpenTransportOptionIds] = useState({});
   const [originMapOpen, setOriginMapOpen] = useState(false);
 
   const customLatValue = toFiniteNumber(customLat);
@@ -906,12 +926,11 @@ const ManualTripPage = () => {
     const origin = tripInfo?.userLocation || tripInfo?.UserLocation || null;
     const latitude = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
     const longitude = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    const hasCoordinates = latitude != null && longitude != null;
     return {
       name: pickFirstText(
-        origin?.name,
-        origin?.Name,
-        origin?.locationName,
-        origin?.LocationName,
+        hasCoordinates ? 'Your Location' : '',
+        hasCoordinates ? 'Your Location' : '',
         tripInfo?.startingLocation,
         tripInfo?.StartingLocation,
       ) || '',
@@ -942,14 +961,7 @@ const ManualTripPage = () => {
       return {
         fromLat,
         fromLng,
-        fromLabel: pickFirstText(
-          origin?.name,
-          origin?.Name,
-          origin?.locationName,
-          origin?.LocationName,
-          tripInfo?.startingLocation,
-          tripInfo?.StartingLocation,
-        ) || 'Your location',
+        fromLabel: 'Your Location',
       };
     }
 
@@ -1450,15 +1462,13 @@ const ManualTripPage = () => {
     const fromLat = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
     const fromLng = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
     const label = pickFirstText(
-      origin?.name,
-      origin?.Name,
-      origin?.locationName,
-      origin?.LocationName,
+      fromLat != null && fromLng != null ? 'Your Location' : '',
+      fromLat != null && fromLng != null ? 'Your Location' : '',
       nextTripInfo?.startingLocation,
       nextTripInfo?.StartingLocation,
     );
     const originEndpoint = fromLat != null && fromLng != null
-      ? { fromLat, fromLng, fromLabel: label || 'Your location' }
+      ? { fromLat, fromLng, fromLabel: label || 'Your Location' }
       : (label ? { fromLabel: label } : null);
 
     try {
@@ -1474,11 +1484,11 @@ const ManualTripPage = () => {
   const handleManualOriginMapConfirm = useCallback(async (lat, lng) => {
     const nextTripInfo = {
       ...tripInfo,
-      startingLocation: pickFirstText(manualOrigin.name, tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your location'),
+      startingLocation: pickFirstText(tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your Location'),
       userLocation: {
         ...(tripInfo?.userLocation || tripInfo?.UserLocation || {}),
-        name: pickFirstText(manualOrigin.name, tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your location'),
-        locationName: pickFirstText(manualOrigin.name, tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your location'),
+        name: 'Your Location',
+        locationName: 'Your Location',
         address: manualOrigin.address || null,
         latitude: lat,
         longitude: lng,
@@ -2493,8 +2503,10 @@ const ManualTripPage = () => {
                                   <div className={styles.timeline} style={{ marginTop: 24 }}>
                                     {(day.activities || []).map((activity, activityIndex) => {
                                       const isLastActivity = activityIndex === (day.activities || []).length - 1;
+                                      const isFirstActivity = activityIndex === 0;
                                       const previousActivity = activityIndex > 0 ? day.activities?.[activityIndex - 1] : null;
                                       const travelFromPrevious = activity.travelFromPrevious || null;
+                                      const isTransportOptionsOpen = openTransportOptionIds[activity.id] ?? true;
                                       const transportOptions = normalizeTransportOptions(
                                         travelFromPrevious?.transportOptions ?? travelFromPrevious?.TransportOptions,
                                         tripInfo.currencyCode || 'VND',
@@ -2523,7 +2535,7 @@ const ManualTripPage = () => {
 
                                       return (
                                         <React.Fragment key={activity.id}>
-                                          {travelFromPrevious && (activityIndex > 0 || dayIndex > 0) && (
+                                          {travelFromPrevious && (
                                             <div className={styles.timelineItem}>
                                               <div className={styles.timelineLine} />
                                               <div className={styles.timelineTime}>
@@ -2570,8 +2582,11 @@ const ManualTripPage = () => {
                                                   {hasTransportOptions && (
                                                     <div className={styles.transportOptionsSection}>
                                                       <Collapse
-                                                        activeKey={showTransportOptions ? ['1'] : []}
-                                                        onChange={(keys) => setShowTransportOptions(keys.length > 0)}
+                                                        activeKey={isTransportOptionsOpen ? ['1'] : []}
+                                                        onChange={(keys) => setOpenTransportOptionIds((prev) => ({
+                                                          ...prev,
+                                                          [activity.id]: keys.length > 0,
+                                                        }))}
                                                         className={styles.innerCollapse}
                                                         bordered={false}
                                                         expandIconPosition="end"
@@ -2682,7 +2697,7 @@ const ManualTripPage = () => {
                                                           size="small"
                                                           icon={<ArrowUpOutlined />}
                                                           onClick={() => moveActivityUp(day.id, activity.id)}
-                                                          disabled={activityIndex === 0 || reorderRecalculating}
+                                                          disabled={isFirstActivity || reorderRecalculating}
                                                           title="Move up"
                                                           style={{ color: '#8c8c8c' }}
                                                         />
