@@ -348,7 +348,7 @@ namespace HSTS.Application.Itineraries.Queries
                 (x.LocationType != null && x.LocationType.Name.Contains("Attraction", StringComparison.OrdinalIgnoreCase))).ToList();
 
             // Filter shopping 
-            var shoppingLocations = nonAccommodationLocations.Where(x =>
+            var shoppingLocations = nonAccommodationLocations.Where(x => x.LocationTypeId == 4 ||
                 (x.LocationType != null && x.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase))).ToList();
 
             // (Restaurants are already safely extracted above to prevent tag-filter obliteration)
@@ -915,7 +915,7 @@ namespace HSTS.Application.Itineraries.Queries
                                         var visitEnd = AddMinutes(currentTime, stayMin);
                                         var ticket = firstAttr.TicketPrice;
                                         var extra = EstimateExtraSpending(firstAttr, request.TripSegment, groupSize);
-                                        var evtType = (firstAttr.LocationTypeId == 5 ||
+                                        var evtType = (firstAttr.LocationTypeId == 4 ||
                                             (firstAttr.LocationType != null && firstAttr.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                             ? "shopping" : "visit";
                                         var scored = dayAttractions.FirstOrDefault(x => x.Location.Id == firstAttr.Id);
@@ -1025,7 +1025,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 var visitEnd = AddMinutes(currentTime, stayMin);
                                 var ticket = arrivalAttraction.TicketPrice;
                                 var extra = EstimateExtraSpending(arrivalAttraction, request.TripSegment, groupSize);
-                                var evtType = (arrivalAttraction.LocationTypeId == 5 ||
+                                var evtType = (arrivalAttraction.LocationTypeId == 4 ||
                                     (arrivalAttraction.LocationType != null && arrivalAttraction.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                     ? "shopping" : "visit";
                                 var scored = dayAttractions.FirstOrDefault(x => x.Location.Id == arrivalAttraction.Id);
@@ -1431,7 +1431,7 @@ namespace HSTS.Application.Itineraries.Queries
                                     var visitEnd = AddMinutes(currentTime, stayMin);
                                     var ticket = loc.TicketPrice;
                                     var extra = EstimateExtraSpending(loc, request.TripSegment, groupSize);
-                                    var evtType = (loc.LocationTypeId == 5 ||
+                                    var evtType = (loc.LocationTypeId == 4 ||
                                         (loc.LocationType != null && loc.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                         ? "shopping" : "visit";
                                     timeline.Add(new ItineraryTimelineItemDto(evtType,
@@ -1787,7 +1787,7 @@ namespace HSTS.Application.Itineraries.Queries
 
                                                         var morningExtraCostPerPerson = morningExtraSpending / groupSize;
                                                         var morningVisitTagNames = GetTags(morningActivity.Location);
-                                                        var morningEventType = (morningActivity.Location.LocationTypeId == 5 ||
+                                                        var morningEventType = (morningActivity.Location.LocationTypeId == 4 ||
                                                             (morningActivity.Location.LocationType != null &&
                                                              morningActivity.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                                             ? "shopping" : "visit";
@@ -2104,7 +2104,7 @@ namespace HSTS.Application.Itineraries.Queries
                         var visitTagNames = GetTags(nextAttraction.Location);
                         
                         // Determine event type: "shopping" for shopping locations, "visit" for attractions
-                        var eventType = (nextAttraction.Location.LocationTypeId == 5 ||
+                        var eventType = (nextAttraction.Location.LocationTypeId == 4 ||
                             (nextAttraction.Location.LocationType != null && 
                              nextAttraction.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                             ? "shopping"
@@ -2255,7 +2255,7 @@ namespace HSTS.Application.Itineraries.Queries
                             var postDinnerExtraCostPerPerson = postDinnerExtraSpending / groupSize;
                             var postDinnerVisitTagNames = GetTags(postDinnerActivity.Location);
 
-                            var postDinnerEventType = (postDinnerActivity.Location.LocationTypeId == 5 ||
+                            var postDinnerEventType = (postDinnerActivity.Location.LocationTypeId == 4 ||
                                 (postDinnerActivity.Location.LocationType != null &&
                                  postDinnerActivity.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                 ? "shopping"
@@ -2421,7 +2421,7 @@ namespace HSTS.Application.Itineraries.Queries
                                                 0, new List<string>(), null, null, null, "", 0,
                                                 LocationToLocationTravel: ldMorningLeg));
 
-                                            var ldMorningEventType = (lastDayMorningActivity.Location.LocationTypeId == 5 ||
+                                            var ldMorningEventType = (lastDayMorningActivity.Location.LocationTypeId == 4 ||
                                                 (lastDayMorningActivity.Location.LocationType != null &&
                                                  lastDayMorningActivity.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                                 ? "shopping" : "visit";
@@ -2643,7 +2643,7 @@ namespace HSTS.Application.Itineraries.Queries
                                             0, new List<string>(), null, null, null, "", 0,
                                             LocationToLocationTravel: pcLeg));
 
-                                        var pcEventType = (pcNext.Location.LocationTypeId == 5 ||
+                                        var pcEventType = (pcNext.Location.LocationTypeId == 4 ||
                                             (pcNext.Location.LocationType != null &&
                                              pcNext.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                             ? "shopping" : "visit";
@@ -2810,7 +2810,7 @@ namespace HSTS.Application.Itineraries.Queries
                                         LocationToLocationTravel: fallbackLeg));
 
                                     var fallbackTags = GetTags(fallbackAttraction.Location);
-                                    var fallbackEventType = (fallbackAttraction.Location.LocationTypeId == 5 ||
+                                    var fallbackEventType = (fallbackAttraction.Location.LocationTypeId == 4 ||
                                         (fallbackAttraction.Location.LocationType != null &&
                                          fallbackAttraction.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                         ? "shopping" : "visit";
@@ -3544,7 +3544,7 @@ namespace HSTS.Application.Itineraries.Queries
 
             decimal avg = (min + max) / 2m;
             bool isSpendingCategory = location.LocationTypeId == 2 || // Restaurant
-                location.LocationTypeId == 5 || // Shopping
+                location.LocationTypeId == 4 || // Shopping
                 (location.LocationType != null && (
                     location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase) ||
                     location.LocationType.Name.Contains("Food", StringComparison.OrdinalIgnoreCase) ||
