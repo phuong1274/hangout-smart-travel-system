@@ -51,26 +51,30 @@ namespace HSTS.Application.Itineraries.Queries
         public GenerateItineraryQueryValidator()
         {
             RuleFor(x => x.Request).NotNull();
-            RuleFor(x => x.Request.UserLocation).NotNull().WithMessage("UserLocation is required.");
-            RuleFor(x => x.Request.UserLocation.Latitude).InclusiveBetween(-90, 90).When(x => x.Request.UserLocation is not null);
-            RuleFor(x => x.Request.UserLocation.Longitude).InclusiveBetween(-180, 180).When(x => x.Request.UserLocation is not null);
-            RuleFor(x => x.Request.Destinations).NotEmpty().WithMessage("At least one destination is required.");
-            RuleFor(x => x.Request.EndDate)
-                .GreaterThanOrEqualTo(x => x.Request.StartDate)
-                .WithMessage("EndDate must be >= StartDate.");
-            RuleFor(x => x.Request.GroupSize).GreaterThan(0);
-            RuleFor(x => x.Request.MinimumAge)
-                .GreaterThanOrEqualTo(0)
-                .When(x => x.Request.MinimumAge.HasValue);
-            RuleFor(x => x.Request.TotalBudget).GreaterThan(0)
-                .WithMessage("TotalBudget must be > 0.");
-            RuleFor(x => x.Request.CurrencyCode).NotEmpty().MaximumLength(5);
-            RuleFor(x => x.Request.HotelPreference)
-                .Must(x => x is null or "Budget" or "Standard" or "Luxury")
-                .WithMessage("HotelPreference must be null, Budget, Standard, or Luxury.");
-            RuleFor(x => x.Request.TripSegment)
-                .Must(x => x is "Budget" or "Standard" or "Luxury")
-                .WithMessage("TripSegment must be Budget, Standard, or Luxury.");
+
+            When(x => x.Request != null, () =>
+            {
+                RuleFor(x => x.Request.UserLocation).NotNull().WithMessage("UserLocation is required.");
+                RuleFor(x => x.Request.UserLocation.Latitude).InclusiveBetween(-90, 90).When(x => x.Request.UserLocation is not null);
+                RuleFor(x => x.Request.UserLocation.Longitude).InclusiveBetween(-180, 180).When(x => x.Request.UserLocation is not null);
+                RuleFor(x => x.Request.Destinations).NotEmpty().WithMessage("At least one destination is required.");
+                RuleFor(x => x.Request.EndDate)
+                    .GreaterThanOrEqualTo(x => x.Request.StartDate)
+                    .WithMessage("EndDate must be >= StartDate.");
+                RuleFor(x => x.Request.GroupSize).GreaterThan(0);
+                RuleFor(x => x.Request.MinimumAge)
+                    .GreaterThanOrEqualTo(0)
+                    .When(x => x.Request.MinimumAge.HasValue);
+                RuleFor(x => x.Request.TotalBudget).GreaterThan(0)
+                    .WithMessage("TotalBudget must be > 0.");
+                RuleFor(x => x.Request.CurrencyCode).NotEmpty().MaximumLength(5);
+                RuleFor(x => x.Request.HotelPreference)
+                    .Must(x => x is null or "Budget" or "Standard" or "Luxury")
+                    .WithMessage("HotelPreference must be null, Budget, Standard, or Luxury.");
+                RuleFor(x => x.Request.TripSegment)
+                    .Must(x => x is "Budget" or "Standard" or "Luxury")
+                    .WithMessage("TripSegment must be Budget, Standard, or Luxury.");
+            });
         }
     }
     // --- Handler ---
@@ -344,7 +348,7 @@ namespace HSTS.Application.Itineraries.Queries
                 (x.LocationType != null && x.LocationType.Name.Contains("Attraction", StringComparison.OrdinalIgnoreCase))).ToList();
 
             // Filter shopping 
-            var shoppingLocations = nonAccommodationLocations.Where(x =>
+            var shoppingLocations = nonAccommodationLocations.Where(x => x.LocationTypeId == 4 ||
                 (x.LocationType != null && x.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase))).ToList();
 
             // (Restaurants are already safely extracted above to prevent tag-filter obliteration)
@@ -911,7 +915,7 @@ namespace HSTS.Application.Itineraries.Queries
                                         var visitEnd = AddMinutes(currentTime, stayMin);
                                         var ticket = firstAttr.TicketPrice;
                                         var extra = EstimateExtraSpending(firstAttr, request.TripSegment, groupSize);
-                                        var evtType = (firstAttr.LocationTypeId == 5 ||
+                                        var evtType = (firstAttr.LocationTypeId == 4 ||
                                             (firstAttr.LocationType != null && firstAttr.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                             ? "shopping" : "visit";
                                         var scored = dayAttractions.FirstOrDefault(x => x.Location.Id == firstAttr.Id);
@@ -1021,7 +1025,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 var visitEnd = AddMinutes(currentTime, stayMin);
                                 var ticket = arrivalAttraction.TicketPrice;
                                 var extra = EstimateExtraSpending(arrivalAttraction, request.TripSegment, groupSize);
-                                var evtType = (arrivalAttraction.LocationTypeId == 5 ||
+                                var evtType = (arrivalAttraction.LocationTypeId == 4 ||
                                     (arrivalAttraction.LocationType != null && arrivalAttraction.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                     ? "shopping" : "visit";
                                 var scored = dayAttractions.FirstOrDefault(x => x.Location.Id == arrivalAttraction.Id);
@@ -1427,7 +1431,7 @@ namespace HSTS.Application.Itineraries.Queries
                                     var visitEnd = AddMinutes(currentTime, stayMin);
                                     var ticket = loc.TicketPrice;
                                     var extra = EstimateExtraSpending(loc, request.TripSegment, groupSize);
-                                    var evtType = (loc.LocationTypeId == 5 ||
+                                    var evtType = (loc.LocationTypeId == 4 ||
                                         (loc.LocationType != null && loc.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                         ? "shopping" : "visit";
                                     timeline.Add(new ItineraryTimelineItemDto(evtType,
@@ -1783,7 +1787,7 @@ namespace HSTS.Application.Itineraries.Queries
 
                                                         var morningExtraCostPerPerson = morningExtraSpending / groupSize;
                                                         var morningVisitTagNames = GetTags(morningActivity.Location);
-                                                        var morningEventType = (morningActivity.Location.LocationTypeId == 5 ||
+                                                        var morningEventType = (morningActivity.Location.LocationTypeId == 4 ||
                                                             (morningActivity.Location.LocationType != null &&
                                                              morningActivity.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                                             ? "shopping" : "visit";
@@ -2100,7 +2104,7 @@ namespace HSTS.Application.Itineraries.Queries
                         var visitTagNames = GetTags(nextAttraction.Location);
                         
                         // Determine event type: "shopping" for shopping locations, "visit" for attractions
-                        var eventType = (nextAttraction.Location.LocationTypeId == 5 ||
+                        var eventType = (nextAttraction.Location.LocationTypeId == 4 ||
                             (nextAttraction.Location.LocationType != null && 
                              nextAttraction.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                             ? "shopping"
@@ -2251,7 +2255,7 @@ namespace HSTS.Application.Itineraries.Queries
                             var postDinnerExtraCostPerPerson = postDinnerExtraSpending / groupSize;
                             var postDinnerVisitTagNames = GetTags(postDinnerActivity.Location);
 
-                            var postDinnerEventType = (postDinnerActivity.Location.LocationTypeId == 5 ||
+                            var postDinnerEventType = (postDinnerActivity.Location.LocationTypeId == 4 ||
                                 (postDinnerActivity.Location.LocationType != null &&
                                  postDinnerActivity.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                 ? "shopping"
@@ -2417,7 +2421,7 @@ namespace HSTS.Application.Itineraries.Queries
                                                 0, new List<string>(), null, null, null, "", 0,
                                                 LocationToLocationTravel: ldMorningLeg));
 
-                                            var ldMorningEventType = (lastDayMorningActivity.Location.LocationTypeId == 5 ||
+                                            var ldMorningEventType = (lastDayMorningActivity.Location.LocationTypeId == 4 ||
                                                 (lastDayMorningActivity.Location.LocationType != null &&
                                                  lastDayMorningActivity.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                                 ? "shopping" : "visit";
@@ -2639,7 +2643,7 @@ namespace HSTS.Application.Itineraries.Queries
                                             0, new List<string>(), null, null, null, "", 0,
                                             LocationToLocationTravel: pcLeg));
 
-                                        var pcEventType = (pcNext.Location.LocationTypeId == 5 ||
+                                        var pcEventType = (pcNext.Location.LocationTypeId == 4 ||
                                             (pcNext.Location.LocationType != null &&
                                              pcNext.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                             ? "shopping" : "visit";
@@ -2806,7 +2810,7 @@ namespace HSTS.Application.Itineraries.Queries
                                         LocationToLocationTravel: fallbackLeg));
 
                                     var fallbackTags = GetTags(fallbackAttraction.Location);
-                                    var fallbackEventType = (fallbackAttraction.Location.LocationTypeId == 5 ||
+                                    var fallbackEventType = (fallbackAttraction.Location.LocationTypeId == 4 ||
                                         (fallbackAttraction.Location.LocationType != null &&
                                          fallbackAttraction.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                         ? "shopping" : "visit";
@@ -3540,7 +3544,7 @@ namespace HSTS.Application.Itineraries.Queries
 
             decimal avg = (min + max) / 2m;
             bool isSpendingCategory = location.LocationTypeId == 2 || // Restaurant
-                location.LocationTypeId == 5 || // Shopping
+                location.LocationTypeId == 4 || // Shopping
                 (location.LocationType != null && (
                     location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase) ||
                     location.LocationType.Name.Contains("Food", StringComparison.OrdinalIgnoreCase) ||
