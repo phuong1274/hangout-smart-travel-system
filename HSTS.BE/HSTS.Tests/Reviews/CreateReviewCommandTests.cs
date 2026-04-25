@@ -2,6 +2,7 @@ using FluentAssertions;
 using HSTS.Application.Interfaces;
 using HSTS.Application.Reviews.Commands;
 using HSTS.Domain.Entities;
+using HSTS.Domain.Enums;
 using HSTS.Tests.Helpers;
 using Moq;
 
@@ -9,12 +10,29 @@ namespace HSTS.Tests.Reviews;
 
 public class CreateReviewCommandTests
 {
+    private static TripActivity CompletedVisit(int locationId, int userId) =>
+        new()
+        {
+            LocationId = locationId,
+            Status = TripActivityStatus.Completed,
+            IsDeleted = false,
+            TripDay = new TripDay
+            {
+                Trip = new Trip
+                {
+                    Status = TripStatus.Completed,
+                    TripMembers = new List<TripMember> { new() { UserId = userId, IsDeleted = false } }
+                }
+            }
+        };
+
     [Fact]
     public async Task Handle_NewReview_PersistsAndReturnsDto()
     {
         var location = new Location { Id = 10, Name = "L", Address = "A", DistrictId = 1, Latitude = 10, Longitude = 10, TicketPrice = 0 };
         var ctx = MockDbContextFactory.Create()
             .WithLocations(location)
+            .WithTripActivities(CompletedVisit(locationId: 10, userId: 100))
             .Build();
 
         var current = new Mock<ICurrentUserService>();
@@ -36,6 +54,7 @@ public class CreateReviewCommandTests
         var ctx = MockDbContextFactory.Create()
             .WithLocations(location)
             .WithLocationReviews(existing)
+            .WithTripActivities(CompletedVisit(locationId: 10, userId: 100))
             .Build();
 
         var current = new Mock<ICurrentUserService>();
