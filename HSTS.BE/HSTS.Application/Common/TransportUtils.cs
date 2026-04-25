@@ -48,9 +48,10 @@ namespace HSTS.Application.Common
                 }
             }
 
-            var congestionFare = durationMinutes * congestionFeePerMinute;
+            // Note: congestionFeePerMinute parameter is kept for backward compatibility
+            // but excluded from calculation — no basis to determine rush hour/congestion.
 
-            return (tripFare + congestionFare) * vehicleCount;
+            return tripFare * vehicleCount;
         }
     }
 }
