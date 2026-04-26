@@ -15,6 +15,11 @@ export const useDistricts = () => {
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [provinceId, setProvinceId] = useState(undefined);
+
+  const handleProvinceChange = useCallback((value) => {
+    setProvinceId(value);
+  }, []);
 
   const fetchDistricts = useCallback(async () => {
     setLoading(true);
@@ -22,7 +27,8 @@ export const useDistricts = () => {
       const response = await getDistrictsApi({
         pageIndex,
         pageSize,
-        searchTerm: searchTerm || undefined
+        searchTerm: searchTerm || undefined,
+        provinceId: provinceId
       });
 
       setData(response.items || response.Items || []);
@@ -32,7 +38,7 @@ export const useDistricts = () => {
     } finally {
       setLoading(false);
     }
-  }, [pageIndex, pageSize, searchTerm, setTotal]);
+  }, [pageIndex, pageSize, searchTerm, provinceId, setTotal]);
 
   useEffect(() => {
     fetchDistricts();
@@ -42,8 +48,10 @@ export const useDistricts = () => {
     data,
     loading,
     pagination,
+    provinceId,
     handleTableChange,
     handleSearch,
+    handleProvinceChange,
     fetchDistricts,
   };
 };
