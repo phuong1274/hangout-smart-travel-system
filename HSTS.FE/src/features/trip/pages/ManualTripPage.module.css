@@ -182,6 +182,36 @@
   flex-wrap: wrap;
 }
 
+.originCard {
+  margin-top: 20px;
+  margin-bottom: 18px;
+  border-radius: 16px !important;
+  background: linear-gradient(180deg, rgba(78, 205, 196, 0.08) 0%, rgba(255, 255, 255, 0.95) 100%) !important;
+  border: 1px solid rgba(78, 205, 196, 0.18) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.originHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.originSubtext {
+  margin-top: 4px;
+  font-size: 13px;
+  color: rgba(26, 83, 92, 0.72);
+}
+
+.originMetaRow {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .transportOptionsSection {
   margin-top: 10px;
 }
