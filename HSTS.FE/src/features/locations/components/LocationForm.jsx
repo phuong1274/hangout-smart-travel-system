@@ -209,7 +209,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         ...values,
         tagIds: selectedChildTagIds,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : [],
-        amenityIds: values.amenityIds?.length > 0 ? values.amenityIds.map(a => a.value) : [],
+        amenityIds: values.amenityIds || [],
         socialLinks: formattedSocialLinks,
         openingHours: openingHours.length > 0 ? openingHours : [],
         seasons: formattedSeasons
@@ -596,7 +596,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         >
           <Select
             mode="multiple"
-            labelInValue
             placeholder="Select amenities"
             showSearch
             optionFilterProp="children"
