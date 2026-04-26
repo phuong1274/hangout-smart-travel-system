@@ -65,6 +65,17 @@ namespace HSTS.Application.Locations.Commands
                 return Error.NotFound("Location.NotFound", $"Location with ID {request.Id} was not found.");
             }
 
+            // Check for duplicate name excluding current location
+            var existingLocation = await _locationRepository.Query()
+                .Where(x => x.Name.ToLower() == request.Name.ToLower() && x.Id != request.Id && !x.IsDeleted)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (existingLocation != null)
+            {
+                return Error.Conflict("Location.DuplicateName",
+                    $"A location with the name '{request.Name}' already exists.");
+            }
+
             location.Name = request.Name;
             location.Description = request.Description;
             location.Latitude = request.Latitude;

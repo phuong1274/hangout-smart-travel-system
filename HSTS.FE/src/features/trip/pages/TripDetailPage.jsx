@@ -373,6 +373,8 @@ const TripDetailPage = () => {
 
   const currentUserId = user?.id;
   const myMember = trip?.tripMembers?.find(m => m.userId === currentUserId);
+  const isTripLocked = trip?.endDate && dayjs().isAfter(dayjs(trip.endDate).add(2, 'day'), 'day');
+  const canManageExpenses = myMember && (myMember.role === 'Leader' || myMember.role === 'Treasurer');
 
   const handleUpdateActivityStatus = useCallback(async (activityId, skipConfirm = false) => {
     const allActivities = trip?.tripDays?.flatMap(d => d.activities || []) || [];
@@ -954,36 +956,40 @@ const TripDetailPage = () => {
                                                   </div>
                                                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                     <strong className={styles.costAmount}>{formatMoney(exp.totalAmount, currency)}</strong>
-                                                    <Button
-                                                      type="text"
-                                                      className={styles.linkButton}
-                                                      style={{ minWidth: 'auto', minHeight: 'auto', padding: '0 4px' }}
-                                                      onClick={() => {
-                                                        expenseForm.setFieldsValue({
-                                                          title: exp.title,
-                                                          description: exp.description,
-                                                          totalAmount: exp.totalAmount,
-                                                        });
-                                                        setExpenseModal({
-                                                          open: true,
-                                                          activityId: activity.id,
-                                                          activityTitle: activity.title || locationName || 'Activity',
-                                                          editExpense: exp,
-                                                        });
-                                                      }}
-                                                    >
-                                                      ✎
-                                                    </Button>
-                                                    <Popconfirm
-                                                      title="Delete this expense?"
-                                                      onConfirm={() => handleDeleteExpense(exp.id)}
-                                                      okText="Delete"
-                                                      cancelText="Cancel"
-                                                    >
-                                                      <Button type="text" danger className={styles.linkButton} style={{ minWidth: 'auto', minHeight: 'auto', padding: '0 4px' }}>
-                                                        ✕
-                                                      </Button>
-                                                    </Popconfirm>
+                                                    {canManageExpenses && !isTripLocked && (
+                                                      <>
+                                                        <Button
+                                                          type="text"
+                                                          className={styles.linkButton}
+                                                          style={{ minWidth: 'auto', minHeight: 'auto', padding: '0 4px' }}
+                                                          onClick={() => {
+                                                            expenseForm.setFieldsValue({
+                                                              title: exp.title,
+                                                              description: exp.description,
+                                                              totalAmount: exp.totalAmount,
+                                                            });
+                                                            setExpenseModal({
+                                                              open: true,
+                                                              activityId: activity.id,
+                                                              activityTitle: activity.title || locationName || 'Activity',
+                                                              editExpense: exp,
+                                                            });
+                                                          }}
+                                                        >
+                                                          ✎
+                                                        </Button>
+                                                        <Popconfirm
+                                                          title="Delete this expense?"
+                                                          onConfirm={() => handleDeleteExpense(exp.id)}
+                                                          okText="Delete"
+                                                          cancelText="Cancel"
+                                                        >
+                                                          <Button type="text" danger className={styles.linkButton} style={{ minWidth: 'auto', minHeight: 'auto', padding: '0 4px' }}>
+                                                            ✕
+                                                          </Button>
+                                                        </Popconfirm>
+                                                      </>
+                                                    )}
                                                   </div>
                                                 </div>
                                               ))}
@@ -1060,12 +1066,12 @@ const TripDetailPage = () => {
                                               </Button>
                                             )}
 
-                                            <Tooltip title={activityStatus === 0 ? 'Start the activity before logging expenses' : ''}>
+                                            <Tooltip title={isTripLocked ? 'This trip is locked (ended > 2 days ago)' : (!canManageExpenses ? 'Only Leader or Treasurer can log expenses' : (activityStatus === 0 ? 'Start the activity before logging expenses' : ''))}>
                                               <Button
                                                 type="text"
                                                 icon={<PlusOutlined />}
                                                 className={styles.linkButton}
-                                                disabled={activityStatus === 0}
+                                                disabled={activityStatus === 0 || isTripLocked || !canManageExpenses}
                                                 onClick={() => {
                                                   expenseForm.resetFields();
                                                   setExpenseModal({
