@@ -50,7 +50,7 @@ import {
 } from '@phosphor-icons/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi, batchUpdateActivityStatusApi, getBudgetVsActualExportApi, updateTripApi } from '../api';
+import { getTripDetailApi, updateTripActivityStatusApi, logActualExpenseApi, updateExpenseApi, getExpensesByActivityApi, deleteExpenseApi, batchUpdateActivityStatusApi, getBudgetVsActualExportApi, updateTripApi, updateTripStatusApi } from '../api';
 import { useAuthStore } from '@/store/authStore';
 import { PATHS } from '@/routes/paths';
 import {
@@ -83,15 +83,15 @@ const ACTIVITY_STATUS_CONFIG = {
 };
 
 const TRIP_STATUS_CONFIG = {
-  0: { label: 'Planned', color: 'default' },
-  1: { label: 'In Progress', color: 'processing' },
-  2: { label: 'Completed', color: 'success' },
-  3: { label: 'Cancelled', color: 'error' },
+  0: { label: 'Planned', color: 'default', nextStatus: 1, nextLabel: 'Start Trip' },
+  1: { label: 'In Progress', color: 'processing', nextStatus: 2, nextLabel: 'Complete Trip' },
+  2: { label: 'Completed', color: 'success', nextStatus: null, nextLabel: null },
+  3: { label: 'Cancelled', color: 'error', nextStatus: null, nextLabel: null },
 };
 
 const getTripStatusConfig = (status) => {
   const key = typeof status === 'number' ? status : Number(status);
-  return TRIP_STATUS_CONFIG[key] || { label: `Unknown (${status})`, color: 'default' };
+  return TRIP_STATUS_CONFIG[key] || { label: `Unknown (${status})`, color: 'default', nextStatus: null, nextLabel: null };
 };
 
 const formatMoney = (amount, currency = 'VND') => {
@@ -138,6 +138,20 @@ const TripDetailPage = () => {
   const [editTripModal, setEditTripModal] = useState(false);
   const [editTripForm] = Form.useForm();
   const [savingTripInfo, setSavingTripInfo] = useState(false);
+  const [updatingTripStatus, setUpdatingTripStatus] = useState(false);
+
+  const handleUpdateTripStatus = useCallback(async (newStatus) => {
+    setUpdatingTripStatus(true);
+    try {
+      await updateTripStatusApi(Number(id), newStatus);
+      message.success('Trip status updated successfully');
+      await refetchTrip();
+    } catch (err) {
+      message.error(err?.response?.data?.message || 'Failed to update trip status');
+    } finally {
+      setUpdatingTripStatus(false);
+    }
+  }, [id, refetchTrip]);
 
   const handleExportItineraryPdf = () => {
     if (!trip) return;
@@ -680,6 +694,16 @@ const TripDetailPage = () => {
                 )}
               </div>
               <Space wrap className={styles.headerActions}>
+                {myMember?.role === 'Leader' && getTripStatusConfig(trip.status).nextStatus !== null && (
+                  <Button
+                    className={styles.sectionToggleBtn}
+                    style={{ background: '#4ECDC4', color: '#fff', border: 'none' }}
+                    loading={updatingTripStatus}
+                    onClick={() => handleUpdateTripStatus(getTripStatusConfig(trip.status).nextStatus)}
+                  >
+                    {getTripStatusConfig(trip.status).nextLabel}
+                  </Button>
+                )}
                 <Button
                   className={styles.sectionToggleBtn}
                   onClick={handleExportItineraryPdf}
