@@ -1542,6 +1542,25 @@ const ManualTripPage = () => {
     message.success('Trip origin updated on the map.');
   }, [manualOrigin.address, manualOrigin.name, recalculateFirstManualDayFromOrigin, tripInfo]);
 
+  const handleOriginMapLinkParsed = useCallback(async ({ lat, lng, address, name }) => {
+    const nextTripInfo = {
+      ...tripInfo,
+      startingLocation: pickFirstText(name, tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your Location'),
+      userLocation: {
+        ...(tripInfo?.userLocation || tripInfo?.UserLocation || {}),
+        name: name || 'Your Location',
+        locationName: name || 'Your Location',
+        address: address || null,
+        ...(lat != null ? { latitude: lat } : {}),
+        ...(lng != null ? { longitude: lng } : {}),
+      },
+    };
+    setTripInfo(nextTripInfo);
+    if (lat != null && lng != null) {
+      await recalculateFirstManualDayFromOrigin(nextTripInfo);
+    }
+  }, [tripInfo, recalculateFirstManualDayFromOrigin]);
+
   // Estimates the travel leg from the last activity of the previous day to the first
   // activity of the current day. Returns an updated version of `toActivity` with
   // `travelFromPrevious` populated (or the original if estimation fails/has no endpoints).
@@ -2565,6 +2584,7 @@ const ManualTripPage = () => {
                     <Button onClick={() => setOriginMapOpen(true)}>Pick on Map</Button>
                   </Space>
                 </div>
+                <MapLinkInput onParsed={handleOriginMapLinkParsed} />
                 <div className={styles.originMetaRow}>
                   <Tag color={manualOrigin.latitude != null && manualOrigin.longitude != null ? 'processing' : 'default'}>
                     {manualOrigin.latitude != null && manualOrigin.longitude != null
