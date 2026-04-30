@@ -1713,7 +1713,12 @@ const ManualTripPage = () => {
         if (nextDay?.activities?.length > 0) {
           try {
             const newLast = recalculated[recalculated.length - 1];
-            const updatedNextFirst = await estimateCrossDayTravel(newLast, nextDay.activities[0]);
+            const originalFirst = nextDay.activities[0];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, originalFirst);
+            // Preserve the original activity's start/end times — only update
+            // travelFromPrevious, not the activity schedule itself.
+            updatedNextFirst.startTime = originalFirst.startTime;
+            updatedNextFirst.endTime = originalFirst.endTime;
             setManualDays((prev) => prev.map((d, i) =>
               i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
             ));
@@ -1815,7 +1820,12 @@ const ManualTripPage = () => {
         if (nextDay?.activities?.length > 0) {
           try {
             const newLast = recalculated[recalculated.length - 1];
-            const updatedNextFirst = await estimateCrossDayTravel(newLast, nextDay.activities[0]);
+            const originalFirst = nextDay.activities[0];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, originalFirst);
+            // Preserve the original activity's start/end times — only update
+            // travelFromPrevious, not the activity schedule itself.
+            updatedNextFirst.startTime = originalFirst.startTime;
+            updatedNextFirst.endTime = originalFirst.endTime;
             setManualDays((prev) => prev.map((d, i) =>
               i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
             ));
@@ -1857,7 +1867,12 @@ const ManualTripPage = () => {
         if (nextDay?.activities?.length > 0) {
           try {
             const newLast = recalculated[recalculated.length - 1];
-            const updatedNextFirst = await estimateCrossDayTravel(newLast, nextDay.activities[0]);
+            const originalFirst = nextDay.activities[0];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, originalFirst);
+            // Preserve the original activity's start/end times — only update
+            // travelFromPrevious, not the activity schedule itself.
+            updatedNextFirst.startTime = originalFirst.startTime;
+            updatedNextFirst.endTime = originalFirst.endTime;
             setManualDays((prev) => prev.map((d, i) =>
               i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
             ));
