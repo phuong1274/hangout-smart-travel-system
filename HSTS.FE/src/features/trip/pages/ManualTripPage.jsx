@@ -1706,6 +1706,21 @@ const ManualTripPage = () => {
         index === dayIndex ? { ...item, activities: recalculated } : item
       )));
 
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed.
+      if (dayIndex + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIndex + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, nextDay.activities[0]);
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
+
       message.success('Location added. Estimate was recalculated automatically.');
       closeAddLocationModal();
     } catch {
@@ -1793,6 +1808,21 @@ const ManualTripPage = () => {
         index === dayIndex ? { ...item, activities: recalculated } : item
       )));
 
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed.
+      if (dayIndex + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIndex + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, nextDay.activities[0]);
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
+
       message.success('Custom location added. Estimate was recalculated automatically.');
       closeAddLocationModal();
     } catch {
@@ -1819,6 +1849,21 @@ const ManualTripPage = () => {
       setManualDays((prev) => prev.map((item, index) => (
         index === dayIndex ? { ...item, activities: recalculated } : item
       )));
+
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed.
+      if (dayIndex + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIndex + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, nextDay.activities[0]);
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
     } catch {
       message.error('Unable to recalculate estimates after removing location.');
     } finally {
@@ -1882,6 +1927,21 @@ const ManualTripPage = () => {
       }
 
       setManualDays((prev) => prev.map((d, i) => (i === dayIdx ? { ...d, activities: recalculated } : d)));
+
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed after reorder.
+      if (dayIdx + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIdx + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, nextDay.activities[0]);
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIdx + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
     } catch {
       message.error('Unable to recalculate travel estimates after reordering.');
     } finally {
