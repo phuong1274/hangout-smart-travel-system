@@ -39,6 +39,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PATHS } from '@/routes/paths';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
+import MapLinkInput from '@/components/MapLinkInput';
 import {
   estimateLocalTravelApi,
   getLocationTypesApi,
@@ -2148,6 +2149,13 @@ const ManualTripPage = () => {
     };
   }, [manualDays, recalculateDayTravelAndEstimate, estimateCrossDayTravel, transportOptionsBackfilled, tripInfo]);
 
+  const handleCustomMapLinkParsed = ({ lat, lng, address, name }) => {
+    if (lat != null) setCustomLat(lat);
+    if (lng != null) setCustomLng(lng);
+    if (address) setCustomAddress(address);
+    if (name && !customName) setCustomName(name);
+  };
+
   const handlePickCustomLocationOnMap = (latitude, longitude) => {
     const safeLat = toFiniteNumber(latitude);
     const safeLng = toFiniteNumber(longitude);
@@ -3162,6 +3170,10 @@ const ManualTripPage = () => {
               <Text type="secondary" className={styles.addBetweenPanelHint}>
                 Pick your own point on map and define timeline. Estimate is recalculated from API automatically.
               </Text>
+
+              <div className={styles.editTimelineField} style={{ marginBottom: 16 }}>
+                <MapLinkInput onParsed={handleCustomMapLinkParsed} />
+              </div>
 
               <div className={styles.editTimelineField}>
                 <span className={styles.editTimelineLabel}>Name</span>
