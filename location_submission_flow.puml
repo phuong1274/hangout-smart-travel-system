@@ -1,0 +1,80 @@
+@startuml
+title Create New Location Submission Flow
+autonumber
+
+actor User
+participant "SubmissionForm \n <<Frontend>>" as FE
+participant "LocationSubmissionsController \n <<Controller>>" as Controller
+participant "CreateLocationSubmissionCommandHandler \n <<Application>>" as Service
+participant "EfRepository<T> \n <<Infrastructure>>" as Repo
+participant "AppDbContext \n <<Persistence>>" as DB
+
+User -> FE : Submit form data
+activate FE
+
+FE -> Controller : POST /api/LocationSubmissions
+activate Controller
+
+note over Controller: Map CreateLocationSubmissionRequest\nto CreateLocationSubmissionCommand
+
+Controller -> Service : Handle(CreateLocationSubmissionCommand)
+activate Service
+
+Service -> Repo : Query<Location>()
+activate Repo
+Repo -> DB : Set<Location>()
+activate DB
+DB --> Repo : DbSet<Location>
+deactivate DB
+Repo --> Service : IQueryable<Location> (Active Locations)
+deactivate Repo
+
+Service -> Service : Perform Proximity Check (Haversine)
+
+alt Proximity Duplicate Found (Active Location)
+    Service --> Controller : Error.Conflict("LocationSubmission.Duplicate")
+    Controller --> FE : 409 Conflict
+    FE --> User : Show "Duplicate location" error
+else No Active Duplicate
+    Service -> Repo : Query<LocationSubmission>()
+    activate Repo
+    Repo -> DB : Set<LocationSubmission>()
+    activate DB
+    DB --> Repo : DbSet<LocationSubmission>
+    deactivate DB
+    Repo --> Service : IQueryable<LocationSubmission> (Pending Submissions)
+    deactivate Repo
+
+    Service -> Service : Perform Proximity Check (Haversine)
+
+    alt Proximity Duplicate Found (Pending Submission)
+        Service --> Controller : Error.Conflict("LocationSubmission.Duplicate")
+        Controller --> FE : 409 Conflict
+        FE --> User : Show "Pending duplicate" error
+    else Valid Unique Submission
+        Service -> Service : Map Command to LocationSubmission Entity
+        Service -> Repo : AddAsync(LocationSubmission)
+        activate Repo
+        Repo -> DB : Set<LocationSubmission>().AddAsync()
+        activate DB
+        DB --> Repo : Success
+        deactivate DB
+        Repo -> DB : SaveChangesAsync()
+        activate DB
+        DB --> Repo : Success
+        deactivate DB
+        Repo --> Service : Success
+        deactivate Repo
+
+        Service --> Controller : LocationSubmissionDto
+        deactivate Service
+
+        Controller --> FE : 201 Created
+        deactivate Controller
+
+        FE --> User : Show success message
+        deactivate FE
+    end
+end
+
+@enduml
