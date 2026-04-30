@@ -500,8 +500,15 @@ const convertDetailDaysToBuilderDays = (tripDays) => {
                 transportModeName: String(transport.transport?.transportModeName || '').trim() || null,
                 departureTime: normalizeTimeOnly(transport.startTime),
                 arrivalTime: normalizeTimeOnly(transport.endTime),
-                fromName: null,
-                toName: null,
+                fromName: transport.transport?.customFromTransitHubName
+                  || transport.transport?.yourLocationName
+                  || transport.transport?.fromTransitHubName
+                  || transport.transport?.fromLocationName
+                  || null,
+                toName: transport.transport?.customToTransitHubName
+                  || transport.transport?.toTransitHubName
+                  || transport.transport?.toLocationName
+                  || null,
                 selectedOptionIndex: null,
                 manualCostOverride: isCustom,
                 isCustomTransport: isCustom,
@@ -711,6 +718,41 @@ const ManualTripPage = () => {
                 budgetSummary: apiTrip.tripSummary,
               });
             }
+
+            // Reconstruct starting point from the first Travel activity's transport.
+            // The starting point is persisted as a CustomFromTransitHub on the
+            // first travel leg (starting point -> first location).
+            if (!resolvedTripInfo?.startingLocation && !resolvedTripInfo?.userLocation) {
+              const firstDayActs = apiTrip.tripDays?.[0]?.activities;
+              const firstTravel = firstDayActs?.find((a) => a.type === 'Travel');
+              const t = firstTravel?.transport;
+              if (t) {
+                const originName = t.yourLocationName
+                  || t.customFromTransitHubName
+                  || t.fromTransitHubName
+                  || t.fromLocationName
+                  || null;
+                const originLat = toFiniteNumber(t.customFromTransitHubLatitude);
+                const originLng = toFiniteNumber(t.customFromTransitHubLongitude);
+                const originAddress = t.customFromTransitHubAddress || null;
+                if (originName || (originLat != null && originLng != null)) {
+                  resolvedTripInfo = {
+                    ...resolvedTripInfo,
+                    startingLocation: originName || 'Your Location',
+                    userLocation: (originLat != null && originLng != null)
+                      ? {
+                          name: originName || 'Your Location',
+                          locationName: originName || 'Your Location',
+                          address: originAddress,
+                          latitude: originLat,
+                          longitude: originLng,
+                        }
+                      : null,
+                  };
+                }
+              }
+            }
+
             if (resolvedDays.length === 0 && Array.isArray(apiTrip.tripDays)) {
               resolvedDays = convertDetailDaysToBuilderDays(apiTrip.tripDays);
             }
