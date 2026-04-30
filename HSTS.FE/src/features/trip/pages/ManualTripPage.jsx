@@ -1553,14 +1553,15 @@ const ManualTripPage = () => {
     if (!hasEndpoint) return toActivity;
 
     try {
-      const departureTime = normalizeTimeOnly(fromActivity.endTime) || '08:00:00';
+      const arrivalAnchor = normalizeTimeOnly(toActivity.startTime) || '08:00:00';
+      const apiDepartureTime = arrivalAnchor;
       const groupSize = Math.max(1, Math.round(toNumberOrDefault(tripInfo.groupSize, 1)));
       const currencyCode = tripInfo.currencyCode || 'VND';
       const cacheKey = buildTravelCacheKey(fromEndpoint, toEndpoint, groupSize, currencyCode);
       const cached = travelCacheRef.current.get(cacheKey);
       const travelLeg = cached
         ? { ...cached }
-        : await estimateLocalTravelApi({ ...fromEndpoint, ...toEndpoint, groupSize, departureTime, currencyCode });
+        : await estimateLocalTravelApi({ ...fromEndpoint, ...toEndpoint, groupSize, departureTime: apiDepartureTime, currencyCode });
       if (!cached) travelCacheRef.current.set(cacheKey, travelLeg);
 
       const travelMinutesFromLeg = Math.max(0, toNumberOrDefault(
@@ -1582,8 +1583,11 @@ const ManualTripPage = () => {
       const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
 
       const resolvedTravelMinutes = Math.max(1, toNumberOrDefault(selectedOption?.travelMinutes, travelMinutesFromLeg || 1));
-      const autoStart = normalizeTimeOnly(travelLeg?.arrivalTime || travelLeg?.ArrivalTime)
-        || addMinutesToTime(departureTime, resolvedTravelMinutes > 0 ? resolvedTravelMinutes : 20);
+      const arrivalMinutes = toMinutesOfDay(arrivalAnchor);
+      const computedDeparture = arrivalMinutes != null
+        ? toTimeOnlyString(arrivalMinutes - resolvedTravelMinutes)
+        : apiDepartureTime;
+      const autoStart = arrivalAnchor;
       const desiredDuration = durationBetweenTimes(toActivity.startTime, toActivity.endTime);
       const autoEnd = addMinutesToTime(autoStart, desiredDuration);
 
@@ -1612,8 +1616,8 @@ const ManualTripPage = () => {
           costCurrency: resolvedCurrency,
           transportModeId: resolvedTransportModeId,
           transportModeName: resolvedTransportModeName,
-          departureTime,
-          arrivalTime: autoStart,
+          departureTime: computedDeparture,
+          arrivalTime: arrivalAnchor,
           fromName: getActivityDisplayName(fromActivity, 'Previous'),
           toName: getActivityDisplayName(toActivity, 'Destination'),
           selectedOptionIndex,
