@@ -2154,13 +2154,13 @@ const ManualTripPage = () => {
         const visitStartTime = normalizeTimeOnly(activity.startTime);
         const visitEndTime = normalizeTimeOnly(activity.endTime);
 
-        // Cross-day first activity: activityIndex === 0 but travelFromPrevious is set (from previous day's last stop)
         const isCrossDayFirst = activityIndex === 0 && dayIndex > 0;
+        const isFirstActivityOfTrip = activityIndex === 0 && dayIndex === 0;
         const previousActivity = activityIndex > 0
           ? sourceActivities[activityIndex - 1]
           : (isCrossDayFirst ? manualDays[dayIndex - 1]?.activities?.at(-1) : null);
 
-        if ((activityIndex > 0 || isCrossDayFirst) && activity.travelFromPrevious) {
+        if (activity.travelFromPrevious) {
           const travelMethodText = String(activity.travelFromPrevious.transportModeName || '').trim();
           const travelMinutes = Math.max(1, Math.round(toNumberOrDefault(activity.travelFromPrevious.travelMinutes, 1)));
           const travelDistanceKm = Math.max(0, toNumberOrDefault(activity.travelFromPrevious.distanceKm, 0));
@@ -2234,6 +2234,58 @@ const ManualTripPage = () => {
             budget: {
               estimateCost: travelCostAmount,
             },
+          });
+        } else if (isFirstActivityOfTrip && !activity.travelFromPrevious
+          && (tripInfo?.startingLocation || tripInfo?.userLocation || tripInfo?.UserLocation)
+        ) {
+          // No travel estimate (textual starting location, no coords) but the trip
+          // has a starting point — create a minimal travel activity so the origin
+          // label is persisted via customFromTransitHub.
+          const originName = pickFirstText(
+            tripInfo?.userLocation?.name,
+            tripInfo?.userLocation?.locationName,
+            tripInfo?.UserLocation?.name,
+            tripInfo?.UserLocation?.LocationName,
+            tripInfo?.startingLocation,
+            tripInfo?.StartingLocation,
+          ) || 'Your location';
+          const originLat = toFiniteNumber(
+            tripInfo?.userLocation?.latitude ?? tripInfo?.UserLocation?.latitude ?? tripInfo?.UserLocation?.Latitude,
+          );
+          const originLng = toFiniteNumber(
+            tripInfo?.userLocation?.longitude ?? tripInfo?.UserLocation?.longitude ?? tripInfo?.UserLocation?.Longitude,
+          );
+          const originAddress = pickFirstText(
+            tripInfo?.userLocation?.address,
+            tripInfo?.UserLocation?.address,
+            tripInfo?.UserLocation?.Address,
+          );
+
+          mappedActivities.push({
+            type: 2,
+            title: `Move to ${name || 'Location 1'}`,
+            startTime: visitStartTime || '08:00:00',
+            endTime: visitStartTime || '08:00:00',
+            locationId: null,
+            customLocationId: null,
+            customLocation: null,
+            transport: {
+              transportModeId: null,
+              distanceKm: 0,
+              travelTimeMinutes: 0,
+              fromLocationId: null,
+              toLocationId: toPositiveIntOrNull(activity.locationId) || null,
+              customFromTransitHub: {
+                name: originName,
+                ...(originLat != null && originLng != null ? {
+                  latitude: originLat,
+                  longitude: originLng,
+                  address: originAddress || null,
+                } : {}),
+              },
+              customToTransitHub: null,
+            },
+            budget: { estimateCost: 0 },
           });
         }
 
