@@ -222,7 +222,10 @@ export const deleteExpenseApi = (expenseId) => {
 
 // Send invitation to a user by email
 export const createInvitationApi = (tripId, email) => {
-  return apiClient.post(`/api/trips/${tripId}/invitations`, { email }).then(res => res.data);
+  return apiClient.post(`/api/trips/${tripId}/invitations`, { 
+    email,
+    clientUrl: window.location.origin 
+  }).then(res => res.data);
 };
 
 // Verify invitation token

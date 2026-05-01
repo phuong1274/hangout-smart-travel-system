@@ -25,7 +25,7 @@ const Error404 = lazy(() => import('@/components/Errors/Error404'));
 const Error403 = lazy(() => import('@/components/Errors/Error403'));
 const DestinationsPage = lazy(() => import('@/features/destinations/pages/DestinationsPage'));
 const TagsPage = lazy(() => import('@/features/tags/pages/TagsPage'));
-const LocationTypesPage = lazy(() => import('@/features/locationTypes/pages/LocationTypesPage'));
+
 const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPage'));
 const PublicLocationsPage = lazy(() => import('@/features/locations/pages/PublicLocationsPage'));
 const PublicLocationDetailPage = lazy(() => import('@/features/locations/pages/PublicLocationDetailPage'));
@@ -113,10 +113,7 @@ export const router = createBrowserRouter([
     path: PATHS.TAGS.replace('/', ''),
     element: <SuspenseWrapper><TagsPage /></SuspenseWrapper>
   },
-  {
-    path: PATHS.LOCATION_TYPES.replace('/', ''),
-    element: <SuspenseWrapper><LocationTypesPage /></SuspenseWrapper>
-  },
+
   {
     path: PATHS.AMENITIES.replace('/', ''),
     element: <SuspenseWrapper><AmenitiesPage /></SuspenseWrapper>
@@ -185,13 +182,7 @@ export const router = createBrowserRouter([
               { index: true, element: <DestinationsPage /> }
             ]
           },
-          {
-            path: PATHS.LOCATION_TYPES,
-            element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,
-            children: [
-              { index: true, element: <LocationTypesPage /> }
-            ]
-          },
+
           {
             path: PATHS.AMENITIES,
             element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CONTENT_MODERATOR]} />,

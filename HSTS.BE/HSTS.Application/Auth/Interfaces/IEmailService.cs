@@ -6,6 +6,6 @@ namespace HSTS.Application.Auth.Interfaces
     {
         Task SendOtpEmailAsync(string toEmail, string otpCode, OtpType type, CancellationToken cancellationToken = default);
         Task SendOnboardingLinkEmailAsync(string toEmail, string setupLink, CancellationToken cancellationToken = default);
-        Task SendTripInvitationEmailAsync(string toEmail, string inviterName, string tripName, string token, CancellationToken cancellationToken = default);
+        Task SendTripInvitationEmailAsync(string toEmail, string inviterName, string tripName, string token, string clientUrl, CancellationToken cancellationToken = default);
     }
 }
