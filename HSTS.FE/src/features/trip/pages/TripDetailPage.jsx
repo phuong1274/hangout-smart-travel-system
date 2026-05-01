@@ -140,6 +140,13 @@ const TripDetailPage = () => {
   const [savingTripInfo, setSavingTripInfo] = useState(false);
   const [updatingTripStatus, setUpdatingTripStatus] = useState(false);
 
+  const refetchTrip = useCallback(async () => {
+    try {
+      const data = await getTripDetailApi(Number(id));
+      setTrip(data);
+    } catch (err) {}
+  }, [id]);
+
   const handleUpdateTripStatus = useCallback(async (newStatus) => {
     setUpdatingTripStatus(true);
     try {
@@ -283,13 +290,6 @@ const TripDetailPage = () => {
     loadProvinceNames();
     return () => { mounted = false; };
   }, []);
-
-  const refetchTrip = useCallback(async () => {
-    try {
-      const data = await getTripDetailApi(Number(id));
-      setTrip(data);
-    } catch (err) {}
-  }, [id]);
 
   useEffect(() => {
     let mounted = true;
@@ -600,11 +600,11 @@ const TripDetailPage = () => {
     (sum, expenses) => sum + expenses.reduce((a, e) => a + (e.totalAmount || 0), 0), 0
   );
   const totalEstimated = summary?.estimatedTotalCost || 0;
-  const variance = totalActual - totalEstimated;
-  const hasBudget = totalEstimated > 0;
-  const budgetPercent = hasBudget ? (totalActual / totalEstimated) * 100 : 0;
-  const budgetStatusColor = !hasBudget ? '#4ECDC4' : (variance > 0 ? '#FF6B6B' : variance < 0 ? '#4ECDC4' : '#1A535C');
-  const budgetStatusText = !hasBudget ? 'No Budget Set' : (variance > 0 ? 'Over Budget' : variance < 0 ? 'Under Budget' : 'On Budget');
+  const actualRemaining = totalBudget - totalActual;
+  const hasBudget = totalBudget > 0;
+  const budgetPercent = hasBudget ? (totalActual / totalBudget) * 100 : 0;
+  const budgetStatusColor = !hasBudget ? '#4ECDC4' : (actualRemaining < 0 ? '#FF6B6B' : actualRemaining > 0 ? '#4ECDC4' : '#1A535C');
+  const budgetStatusText = !hasBudget ? 'No Budget Set' : (actualRemaining < 0 ? 'Over Budget' : actualRemaining > 0 ? 'Under Budget' : 'On Budget');
 
   const categoryData = [];
   if (summary) {
@@ -790,9 +790,15 @@ const TripDetailPage = () => {
                   <span className={styles.budgetMealValue} style={{ color: budgetStatusColor }}>{formatMoney(totalActual, currency)}</span>
                 </div>
                 <div className={styles.budgetStatBox}>
-                  <span className={styles.budgetStatLabel}>Remaining</span>
-                  <span className={styles.budgetRemainingValue} style={{ color: summary.remainingBudget >= 0 ? '#4ECDC4' : '#FF6B6B' }}>{formatMoney(summary.remainingBudget, currency)}</span>
+                  <span className={styles.budgetStatLabel}>Actual Remaining</span>
+                  <span className={styles.budgetRemainingValue} style={{ color: actualRemaining >= 0 ? '#4ECDC4' : '#FF6B6B' }}>{formatMoney(actualRemaining, currency)}</span>
                 </div>
+                {showBudgetDetails && (
+                  <div className={styles.budgetStatBox}>
+                    <span className={styles.budgetStatLabel}>Est. Remaining</span>
+                    <span className={styles.budgetRemainingValue} style={{ color: summary.remainingBudget >= 0 ? '#4ECDC4' : '#FF6B6B' }}>{formatMoney(summary.remainingBudget, currency)}</span>
+                  </div>
+                )}
               </div>
 
               {showBudgetDetails && (
