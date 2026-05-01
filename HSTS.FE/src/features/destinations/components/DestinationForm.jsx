@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, Row, Col, Select, message } from 'antd';
 import { createDistrictApi, updateDistrictApi, getProvincesApi } from '../api';
+import MapLinkInput from '@/components/MapLinkInput';
 import styles from '../styles/DestinationForm.module.css';
 
 const { Option } = Select;
@@ -40,6 +41,11 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
       form.resetFields();
     }
   }, [district, form]);
+
+  const handleMapLinkParsed = ({ lat, lng }) => {
+    if (lat != null) form.setFieldValue('latitude', lat);
+    if (lng != null) form.setFieldValue('longitude', lng);
+  };
 
   const handleSubmit = async (values) => {
     setLoading(true);
@@ -98,6 +104,8 @@ const DistrictForm = ({ open, district, onClose, onSuccess }) => {
             </Form.Item>
           </Col>
         </Row>
+
+        <MapLinkInput onParsed={handleMapLinkParsed} />
 
         <Row gutter={16}>
           <Col xs={24} sm={12}>
