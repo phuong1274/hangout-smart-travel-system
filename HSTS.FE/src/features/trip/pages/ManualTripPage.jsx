@@ -38,6 +38,7 @@ import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PATHS } from '@/routes/paths';
+import GoogleMapPicker from '@/components/GoogleMapPicker';
 import {
   estimateLocalTravelApi,
   getLocationTypesApi,
@@ -335,10 +336,11 @@ const toTransportEndpointPayload = (activity, fallbackName) => {
   };
 };
 
-const normalizeTripInfo = (raw) => {
-  if (!raw) return null;
+  const normalizeTripInfo = (raw) => {
+    if (!raw) return null;
   const startDate = raw.startDate || raw.StartDate || null;
   const endDate = raw.endDate || raw.EndDate || null;
+  const userLocation = raw.userLocation || raw.UserLocation || null;
   const totalBudget = toFiniteNumber(
     raw.totalBudget
     ?? raw.TotalBudget
@@ -351,16 +353,40 @@ const normalizeTripInfo = (raw) => {
   );
 
   return {
-    id: raw.id || raw.Id || null,
-    tripName: String(raw.tripName || raw.TripName || 'Untitled Trip').trim(),
-    description: String(raw.description || raw.Description || '').trim(),
-    startDate: startDate ? dayjs(startDate).format('YYYY-MM-DD') : null,
-    endDate: endDate ? dayjs(endDate).format('YYYY-MM-DD') : null,
-    groupSize: Math.max(1, Math.round(toNumberOrDefault(raw.groupSize || raw.GroupSize, 1))),
-    currencyCode: String(raw.currency || raw.currencyCode || raw.Currency || raw.CurrencyCode || 'VND').trim() || 'VND',
-    totalBudget: totalBudget != null && totalBudget >= 0 ? totalBudget : null,
+      id: raw.id || raw.Id || null,
+      tripName: String(raw.tripName || raw.TripName || 'Untitled Trip').trim(),
+      description: String(raw.description || raw.Description || '').trim(),
+      startDate: startDate ? dayjs(startDate).format('YYYY-MM-DD') : null,
+      endDate: endDate ? dayjs(endDate).format('YYYY-MM-DD') : null,
+      groupSize: Math.max(1, Math.round(toNumberOrDefault(raw.groupSize || raw.GroupSize, 1))),
+      currencyCode: String(raw.currency || raw.currencyCode || raw.Currency || raw.CurrencyCode || 'VND').trim() || 'VND',
+      totalBudget: totalBudget != null && totalBudget >= 0 ? totalBudget : null,
+      // Preserve any user-provided start/origin label (e.g. province name) so it can
+      // be persisted later when saving the manual trip. This mirrors the
+      // Itinerary editor which may persist a user origin into the first travel
+      // activity. The value may be just a textual label (no coordinates).
+      startingLocation: pickFirstText(raw.startingLocation, raw.StartingLocation) || null,
+      userLocation: userLocation
+        ? {
+            name: pickFirstText(
+              userLocation?.name,
+              userLocation?.Name,
+              userLocation?.locationName,
+              userLocation?.LocationName,
+            ) || null,
+            locationName: pickFirstText(
+              userLocation?.locationName,
+              userLocation?.LocationName,
+              userLocation?.name,
+              userLocation?.Name,
+            ) || null,
+            address: pickFirstText(userLocation?.address, userLocation?.Address) || null,
+            latitude: toFiniteNumber(userLocation?.latitude ?? userLocation?.Latitude),
+            longitude: toFiniteNumber(userLocation?.longitude ?? userLocation?.Longitude),
+          }
+        : null,
+    };
   };
-};
 
 const normalizeDraftDays = (rawDays) => {
   if (!Array.isArray(rawDays) || rawDays.length === 0) return [];
@@ -523,7 +549,7 @@ const clearDraftStorage = (tripId) => {
   }
 };
 
-const getActivityEndpointForEstimate = (activity, side) => {
+  const getActivityEndpointForEstimate = (activity, side) => {
   const activityLocationId = toFiniteNumber(activity?.locationId);
   if (activityLocationId && activityLocationId > 0) {
     return side === 'from' ? { fromLocationId: activityLocationId } : { toLocationId: activityLocationId };
@@ -620,7 +646,8 @@ const ManualTripPage = () => {
   const [customEndTime, setCustomEndTime] = useState('09:30');
   const [customBudget, setCustomBudget] = useState(null);
 
-  const [showTransportOptions, setShowTransportOptions] = useState(true);
+  const [openTransportOptionIds, setOpenTransportOptionIds] = useState({});
+  const [originMapOpen, setOriginMapOpen] = useState(false);
 
   const customLatValue = toFiniteNumber(customLat);
   const customLngValue = toFiniteNumber(customLng);
@@ -636,16 +663,21 @@ const ManualTripPage = () => {
   useEffect(() => {
     const queryTripId = Number(searchParams.get('tripId'));
     const stateTripId = Number(location?.state?.tripId);
+    const isEditMode = Boolean(location?.state?.editMode);
     const stateDefaultProvinceId = Number(location?.state?.defaultProvinceId);
-    const resolvedTripId = Number.isFinite(queryTripId) && queryTripId > 0
-      ? queryTripId
-      : (Number.isFinite(stateTripId) && stateTripId > 0 ? stateTripId : 0);
+    const resolvedTripId = isEditMode
+      ? (Number.isFinite(stateTripId) && stateTripId > 0
+          ? stateTripId
+          : (Number.isFinite(queryTripId) && queryTripId > 0 ? queryTripId : 0))
+      : (Number.isFinite(queryTripId) && queryTripId > 0
+          ? queryTripId
+          : (Number.isFinite(stateTripId) && stateTripId > 0 ? stateTripId : 0));
 
     setTripId(resolvedTripId > 0 ? resolvedTripId : null);
     setDefaultProvinceId(Number.isFinite(stateDefaultProvinceId) && stateDefaultProvinceId > 0
       ? stateDefaultProvinceId
       : null);
-    setEditMode(Boolean(location?.state?.editMode));
+    setEditMode(isEditMode);
     setTransportOptionsBackfilled(false);
   }, [location?.state?.tripId, location?.state?.defaultProvinceId, location?.state?.editMode, searchParams]);
 
@@ -888,6 +920,66 @@ const ManualTripPage = () => {
     if (tripStart && currentDay.isBefore(tripStart)) return true;
     if (tripEnd && currentDay.isAfter(tripEnd)) return true;
     return false;
+  };
+
+  const manualOrigin = useMemo(() => {
+    const origin = tripInfo?.userLocation || tripInfo?.UserLocation || null;
+    const latitude = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
+    const longitude = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    const hasCoordinates = latitude != null && longitude != null;
+    return {
+      name: pickFirstText(
+        hasCoordinates ? 'Your Location' : '',
+        hasCoordinates ? 'Your Location' : '',
+        tripInfo?.startingLocation,
+        tripInfo?.StartingLocation,
+      ) || '',
+      address: pickFirstText(origin?.address, origin?.Address) || '',
+      latitude,
+      longitude,
+    };
+  }, [tripInfo]);
+
+  const updateTripOrigin = useCallback((updater) => {
+    setTripInfo((prev) => {
+      if (!prev) return prev;
+      const currentOrigin = prev?.userLocation || prev?.UserLocation || {};
+      const nextOrigin = typeof updater === 'function' ? updater(currentOrigin) : updater;
+      return {
+        ...prev,
+        startingLocation: pickFirstText(nextOrigin?.name, prev?.startingLocation, prev?.StartingLocation) || null,
+        userLocation: nextOrigin,
+      };
+    });
+  }, []);
+
+  const getTripOriginEndpoint = useCallback(() => {
+    const origin = tripInfo?.userLocation || tripInfo?.UserLocation;
+    const fromLat = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
+    const fromLng = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    if (fromLat != null && fromLng != null) {
+      return {
+        fromLat,
+        fromLng,
+        fromLabel: 'Your Location',
+      };
+    }
+
+    const label = pickFirstText(tripInfo?.startingLocation, tripInfo?.StartingLocation);
+    return label ? { fromLabel: label } : null;
+  }, [tripInfo]);
+
+  // Resolve an origin endpoint for a given day index. Prefer the last activity of
+  // the previous day (if available) which contains coordinates or a locationId.
+  // Returns null when no usable origin endpoint is found.
+  const resolveOriginEndpointForDay = (dayIndex) => {
+    if (!Array.isArray(manualDays) || manualDays.length === 0) return null;
+    if (dayIndex == null || dayIndex <= 0) return null;
+    const prevDay = manualDays[dayIndex - 1];
+    const prevLastActivity = prevDay?.activities?.[prevDay.activities.length - 1];
+    if (!prevLastActivity) return null;
+    // getActivityEndpointForEstimate returns an object with fromLocationId or fromLat/fromLng
+    return getActivityEndpointForEstimate(prevLastActivity, 'from');
   };
 
   const updateDayField = (dayId, field, value) => {
@@ -1137,7 +1229,12 @@ const ManualTripPage = () => {
     }
   }, []);
 
-  const recalculateDayTravelAndEstimate = useCallback(async (activities) => {
+  // Recalculates intra-day travel estimates for a list of visit activities.
+  // Optional `originEndpoint` allows estimating travel from an external origin
+  // (e.g. user start location or previous day's last stop) to the first activity.
+  // originEndpoint shape mirrors getActivityEndpointForEstimate output for the
+  // "from" side: { fromLocationId } or { fromLat, fromLng }.
+  const recalculateDayTravelAndEstimate = useCallback(async (activities, originEndpoint = null) => {
     if (!tripInfo) return activities;
 
     const normalized = activities.map((activity, index) => {
@@ -1151,6 +1248,71 @@ const ManualTripPage = () => {
 
       return { ...activity };
     });
+
+    // If an originEndpoint is provided, attempt to estimate a travel leg from
+    // that origin to the first activity and set travelFromPrevious on index 0
+    // accordingly. This brings parity with ItineraryResultPage which injects
+    // an origin→first-stop leg when originEndpoint is available.
+    // Only attempt an origin->first-stop estimate if the provided originEndpoint
+    // contains a valid endpoint the estimate API can consume: either a
+    // fromLocationId or fromLat/fromLng. Textual labels (startingLocation) are
+    // not sufficient for estimation and must not trigger the API call.
+    const originHasEstimateEndpoint = originEndpoint && (
+      originEndpoint.fromLocationId != null || (originEndpoint.fromLat != null && originEndpoint.fromLng != null)
+    );
+
+    if (originHasEstimateEndpoint && normalized.length > 0) {
+        try {
+        const first = normalized[0];
+        const toEndpoint = getActivityEndpointForEstimate(first, 'to');
+        const hasOriginToFirst = Object.keys({ ...originEndpoint, ...toEndpoint }).length > 0;
+          if (hasOriginToFirst) {
+          const departureTime = normalizeTimeOnly('08:00:00') || '08:00:00';
+          const groupSize = Math.max(1, Math.round(toNumberOrDefault(tripInfo.groupSize, 1)));
+          const currencyCode = tripInfo.currencyCode || 'VND';
+          const cacheKey = buildTravelCacheKey(originEndpoint, toEndpoint, groupSize, currencyCode);
+          const cached = travelCacheRef.current.get(cacheKey);
+          const travelLeg = cached
+            ? { ...cached, arrivalTime: null, ArrivalTime: null }
+            : await estimateLocalTravelApi({ ...originEndpoint, ...toEndpoint, groupSize, departureTime, currencyCode });
+          if (!cached) travelCacheRef.current.set(cacheKey, travelLeg);
+
+          const travelMinutesFromLeg = Math.max(0, toNumberOrDefault(travelLeg?.selectedTravelTimeMinutes ?? travelLeg?.SelectedTravelTimeMinutes, 0));
+          const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
+          const travelCostFromLeg = Math.max(0, toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost));
+          const resolvedTransportModeId = toPositiveIntOrNull(travelLeg?.selectedTransportModeId ?? travelLeg?.SelectedTransportModeId ?? travelLeg?.transportModeId ?? travelLeg?.TransportModeId);
+          const normalizedTransportOptions = normalizeTransportOptions(travelLeg?.transportOptions ?? travelLeg?.TransportOptions ?? travelLeg?.options ?? travelLeg?.Options, currencyCode);
+          const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, null);
+          const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
+          const resolvedTravelMinutes = Math.max(1, toNumberOrDefault(selectedOption?.travelMinutes, travelMinutesFromLeg || 1));
+          const autoStart = normalizeTimeOnly(travelLeg?.arrivalTime || travelLeg?.ArrivalTime) || addMinutesToTime(departureTime, resolvedTravelMinutes > 0 ? resolvedTravelMinutes : 20);
+
+          normalized[0] = {
+            ...first,
+            startTime: autoStart,
+            travelFromPrevious: {
+              distanceKm,
+              travelMinutes: resolvedTravelMinutes,
+              costAmount: travelCostFromLeg,
+              costCurrency: pickFirstText(selectedOption?.costCurrency, tripInfo.currencyCode, 'VND') || 'VND',
+              transportModeId: resolvedTransportModeId,
+              transportModeName: pickFirstText(selectedOption?.method) || null,
+              departureTime: departureTime,
+              arrivalTime: autoStart,
+              fromName: String(originEndpoint?.fromLabel || originEndpoint?.fromName || '').trim() || null,
+              toName: getActivityDisplayName(first, 'Destination'),
+              selectedOptionIndex: selectedOptionIndex,
+              manualCostOverride: false,
+              isCustomTransport: false,
+              transportOptions: normalizedTransportOptions,
+            },
+            estimatedCost: Math.max(0, toNumberOrDefault(first.estimatedCost, 0)),
+          };
+        }
+      } catch {
+        // best-effort; ignore origin estimate failures
+      }
+    }
 
     for (let index = 1; index < normalized.length; index += 1) {
       const previous = normalized[index - 1];
@@ -1291,6 +1453,52 @@ const ManualTripPage = () => {
     return normalized;
   }, [tripInfo, transportModeNameById]);
 
+  const recalculateFirstManualDayFromOrigin = useCallback(async (nextTripInfo) => {
+    if (!Array.isArray(manualDays) || manualDays.length === 0) return;
+    const firstDay = manualDays[0];
+    if (!firstDay || !Array.isArray(firstDay.activities) || firstDay.activities.length === 0) return;
+
+    const origin = nextTripInfo?.userLocation || nextTripInfo?.UserLocation;
+    const fromLat = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
+    const fromLng = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    const label = pickFirstText(
+      fromLat != null && fromLng != null ? 'Your Location' : '',
+      fromLat != null && fromLng != null ? 'Your Location' : '',
+      nextTripInfo?.startingLocation,
+      nextTripInfo?.StartingLocation,
+    );
+    const originEndpoint = fromLat != null && fromLng != null
+      ? { fromLat, fromLng, fromLabel: label || 'Your Location' }
+      : (label ? { fromLabel: label } : null);
+
+    try {
+      const recalculated = await recalculateDayTravelAndEstimate(firstDay.activities, originEndpoint);
+      setManualDays((prev) => prev.map((day, index) => (
+        index === 0 ? { ...day, activities: recalculated } : day
+      )));
+    } catch {
+      message.error('Unable to recalculate the first day after updating origin.');
+    }
+  }, [manualDays, recalculateDayTravelAndEstimate]);
+
+  const handleManualOriginMapConfirm = useCallback(async (lat, lng) => {
+    const nextTripInfo = {
+      ...tripInfo,
+      startingLocation: pickFirstText(tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your Location'),
+      userLocation: {
+        ...(tripInfo?.userLocation || tripInfo?.UserLocation || {}),
+        name: 'Your Location',
+        locationName: 'Your Location',
+        address: manualOrigin.address || null,
+        latitude: lat,
+        longitude: lng,
+      },
+    };
+    setTripInfo(nextTripInfo);
+    await recalculateFirstManualDayFromOrigin(nextTripInfo);
+    message.success('Trip origin updated on the map.');
+  }, [manualOrigin.address, manualOrigin.name, recalculateFirstManualDayFromOrigin, tripInfo]);
+
   // Estimates the travel leg from the last activity of the previous day to the first
   // activity of the current day. Returns an updated version of `toActivity` with
   // `travelFromPrevious` populated (or the original if estimation fails/has no endpoints).
@@ -1428,7 +1636,16 @@ const ManualTripPage = () => {
         estimatedCost: Math.max(0, toNumberOrDefault(existingBudget, 0)),
       };
 
-      let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended]);
+      // Resolve origin endpoint: prefer previous day's last activity (coordinates)
+      // so we can estimate cross-day travel. If not available and the trip has a
+      // textual startingLocation, pass it as a fromLabel so the first-leg's
+      // fromName will reflect the user's provided origin even if no estimate
+      // is possible.
+      const originEndpointForAdd = (dayIndex > 0 && manualDays[dayIndex - 1]?.activities?.length > 0)
+        ? getActivityEndpointForEstimate(manualDays[dayIndex - 1].activities.at(-1), 'from')
+        : getTripOriginEndpoint();
+
+      let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended], originEndpointForAdd);
 
       // If this is the first location added to a non-first day, estimate travel from
       // the last activity of the previous day.
@@ -1511,7 +1728,11 @@ const ManualTripPage = () => {
         estimatedCost: Math.max(0, toNumberOrDefault(customBudget, 0)),
       };
 
-      let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended]);
+      const originEndpointForAdd = (dayIndex > 0 && manualDays[dayIndex - 1]?.activities?.length > 0)
+        ? getActivityEndpointForEstimate(manualDays[dayIndex - 1].activities.at(-1), 'from')
+        : getTripOriginEndpoint();
+
+      let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended], originEndpointForAdd);
 
       // If this is the first location added to a non-first day, estimate travel from
       // the last activity of the previous day.
@@ -1548,7 +1769,11 @@ const ManualTripPage = () => {
 
     setAddingLocation(true);
     try {
-      const recalculated = await recalculateDayTravelAndEstimate(nextActivities);
+      const originEndpointForRemove = (dayIndex > 0 && manualDays[dayIndex - 1]?.activities?.length > 0)
+        ? getActivityEndpointForEstimate(manualDays[dayIndex - 1].activities.at(-1), 'from')
+        : getTripOriginEndpoint();
+
+      const recalculated = await recalculateDayTravelAndEstimate(nextActivities, originEndpointForRemove);
       setManualDays((prev) => prev.map((item, index) => (
         index === dayIndex ? { ...item, activities: recalculated } : item
       )));
@@ -1596,7 +1821,11 @@ const ManualTripPage = () => {
 
     setReorderRecalculating(true);
     try {
-      let recalculated = await recalculateDayTravelAndEstimate(reordered);
+      const originEndpointForReorder = (dayIdx > 0 && manualDays[dayIdx - 1]?.activities?.length > 0)
+        ? getActivityEndpointForEstimate(manualDays[dayIdx - 1].activities.at(-1), 'from')
+        : getTripOriginEndpoint();
+
+      let recalculated = await recalculateDayTravelAndEstimate(reordered, originEndpointForReorder);
 
       // If the first activity of a non-first day changed, re-estimate cross-day travel.
       if (dayIdx > 0 && recalculated.length > 0 && (oldIdx === 0 || newIdx === 0)) {
@@ -1902,10 +2131,54 @@ const ManualTripPage = () => {
             || visitStartTime
             || addMinutesToTime(travelStartTime, travelMinutes);
           const fromLabel = activity.travelFromPrevious.fromName || `Start ${activityIndex}`;
-          const fromEndpoint = toTransportEndpointPayload(previousActivity, fromLabel);
-          const toEndpoint = toTransportEndpointPayload(activity, name || `Destination ${activityIndex + 1}`);
+           const fromEndpoint = toTransportEndpointPayload(previousActivity, fromLabel);
+           const toEndpoint = toTransportEndpointPayload(activity, name || `Destination ${activityIndex + 1}`);
 
-          mappedActivities.push({
+           const transportPayload = {
+             transportModeId: toPositiveIntOrNull(activity.travelFromPrevious.transportModeId),
+             distanceKm: travelDistanceKm,
+             travelTimeMinutes: travelMinutes,
+             fromLocationId: fromEndpoint.locationId,
+             toLocationId: toEndpoint.locationId,
+             fromTransitHubId: null,
+             toTransitHubId: null,
+             customFromTransitHubId: null,
+             customToTransitHubId: null,
+             customFromTransitHub: fromEndpoint.customTransitHub,
+             customToTransitHub: toEndpoint.customTransitHub,
+           };
+
+           // If the saved trip has a textual startingLocation (e.g. province name)
+           // and the computed fromEndpoint does not reference a known locationId,
+           // preserve that startingLocation into the first travel's customFromTransitHub
+           // so backend and other flows can record the user-provided origin label.
+            if ((tripInfo?.startingLocation || tripInfo?.userLocation || tripInfo?.UserLocation) && (activityIndex === 0 || isCrossDayFirst) && !fromEndpoint.locationId) {
+              transportPayload.customFromTransitHub = transportPayload.customFromTransitHub || {};
+              transportPayload.customFromTransitHub.name = pickFirstText(
+                tripInfo?.userLocation?.name,
+                tripInfo?.userLocation?.locationName,
+                tripInfo?.UserLocation?.name,
+                tripInfo?.UserLocation?.LocationName,
+                tripInfo?.startingLocation,
+                tripInfo?.StartingLocation,
+              ) || 'Your location';
+              const originLat = toFiniteNumber(tripInfo?.userLocation?.latitude ?? tripInfo?.UserLocation?.latitude ?? tripInfo?.UserLocation?.Latitude);
+              const originLng = toFiniteNumber(tripInfo?.userLocation?.longitude ?? tripInfo?.UserLocation?.longitude ?? tripInfo?.UserLocation?.Longitude);
+              if (originLat != null && originLng != null) {
+                transportPayload.customFromTransitHub.latitude = originLat;
+                transportPayload.customFromTransitHub.longitude = originLng;
+              }
+              const originAddress = pickFirstText(
+                tripInfo?.userLocation?.address,
+                tripInfo?.UserLocation?.address,
+                tripInfo?.UserLocation?.Address,
+              );
+              if (originAddress) {
+                transportPayload.customFromTransitHub.address = originAddress;
+              }
+            }
+
+           mappedActivities.push({
             type: 2,
             title: travelMethodText
               ? `Move to ${name || `Location ${activityIndex + 1}`} by ${travelMethodText}`
@@ -1915,19 +2188,7 @@ const ManualTripPage = () => {
             locationId: null,
             customLocationId: null,
             customLocation: null,
-            transport: {
-              transportModeId: toPositiveIntOrNull(activity.travelFromPrevious.transportModeId),
-              distanceKm: travelDistanceKm,
-              travelTimeMinutes: travelMinutes,
-              fromLocationId: fromEndpoint.locationId,
-              toLocationId: toEndpoint.locationId,
-              fromTransitHubId: null,
-              toTransitHubId: null,
-              customFromTransitHubId: null,
-              customToTransitHubId: null,
-              customFromTransitHub: fromEndpoint.customTransitHub,
-              customToTransitHub: toEndpoint.customTransitHub,
-            },
+            transport: transportPayload,
             budget: {
               estimateCost: travelCostAmount,
             },
@@ -2113,6 +2374,25 @@ const ManualTripPage = () => {
                   : 'Flow independent from Itinerary screen. Add each day and each location, estimate updates automatically.'}
               </Text>
 
+              <Card bordered={false} className={styles.originCard}>
+                <div className={styles.originHeaderRow}>
+                  <div>
+                    <Text strong>Trip origin</Text>
+                    <div className={styles.originSubtext}>This origin is used for the first travel leg and stays outside the draggable location list.</div>
+                  </div>
+                  <Space wrap>
+                    <Button onClick={() => setOriginMapOpen(true)}>Pick on Map</Button>
+                  </Space>
+                </div>
+                <div className={styles.originMetaRow}>
+                  <Tag color={manualOrigin.latitude != null && manualOrigin.longitude != null ? 'processing' : 'default'}>
+                    {manualOrigin.latitude != null && manualOrigin.longitude != null
+                      ? `${manualOrigin.latitude.toFixed(6)}, ${manualOrigin.longitude.toFixed(6)}`
+                      : 'Pick on Map to set origin coordinates'}
+                  </Tag>
+                </div>
+              </Card>
+
               <div className={styles.optionalBudgetRow}>
                 <Text strong>Trip budget (optional)</Text>
                 <InputNumber
@@ -2223,8 +2503,10 @@ const ManualTripPage = () => {
                                   <div className={styles.timeline} style={{ marginTop: 24 }}>
                                     {(day.activities || []).map((activity, activityIndex) => {
                                       const isLastActivity = activityIndex === (day.activities || []).length - 1;
+                                      const isFirstActivity = activityIndex === 0;
                                       const previousActivity = activityIndex > 0 ? day.activities?.[activityIndex - 1] : null;
                                       const travelFromPrevious = activity.travelFromPrevious || null;
+                                      const isTransportOptionsOpen = openTransportOptionIds[activity.id] ?? true;
                                       const transportOptions = normalizeTransportOptions(
                                         travelFromPrevious?.transportOptions ?? travelFromPrevious?.TransportOptions,
                                         tripInfo.currencyCode || 'VND',
@@ -2253,7 +2535,7 @@ const ManualTripPage = () => {
 
                                       return (
                                         <React.Fragment key={activity.id}>
-                                          {travelFromPrevious && (activityIndex > 0 || dayIndex > 0) && (
+                                          {travelFromPrevious && (
                                             <div className={styles.timelineItem}>
                                               <div className={styles.timelineLine} />
                                               <div className={styles.timelineTime}>
@@ -2300,8 +2582,11 @@ const ManualTripPage = () => {
                                                   {hasTransportOptions && (
                                                     <div className={styles.transportOptionsSection}>
                                                       <Collapse
-                                                        activeKey={showTransportOptions ? ['1'] : []}
-                                                        onChange={(keys) => setShowTransportOptions(keys.length > 0)}
+                                                        activeKey={isTransportOptionsOpen ? ['1'] : []}
+                                                        onChange={(keys) => setOpenTransportOptionIds((prev) => ({
+                                                          ...prev,
+                                                          [activity.id]: keys.length > 0,
+                                                        }))}
                                                         className={styles.innerCollapse}
                                                         bordered={false}
                                                         expandIconPosition="end"
@@ -2412,7 +2697,7 @@ const ManualTripPage = () => {
                                                           size="small"
                                                           icon={<ArrowUpOutlined />}
                                                           onClick={() => moveActivityUp(day.id, activity.id)}
-                                                          disabled={activityIndex === 0 || reorderRecalculating}
+                                                          disabled={isFirstActivity || reorderRecalculating}
                                                           title="Move up"
                                                           style={{ color: '#8c8c8c' }}
                                                         />
@@ -2550,6 +2835,14 @@ const ManualTripPage = () => {
                 {editMode ? 'Save Changes' : 'Save Manual Trip'}
               </Button>
             </div>
+
+            <GoogleMapPicker
+              open={originMapOpen}
+              onClose={() => setOriginMapOpen(false)}
+              onConfirm={handleManualOriginMapConfirm}
+              initialLat={manualOrigin.latitude}
+              initialLng={manualOrigin.longitude}
+            />
           </>
         )}
       </div>

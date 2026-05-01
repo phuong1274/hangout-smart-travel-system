@@ -48,6 +48,7 @@ import {
 } from '@phosphor-icons/react';
 import { useAuthStore } from '@/store/authStore';
 import { PATHS } from '@/routes/paths';
+import GoogleMapPicker from '@/components/GoogleMapPicker';
 import styles from '../styles/ItineraryResultPage.module.css';
 import {
   DndContext,
@@ -277,6 +278,19 @@ const formatTime = (timeStr) => {
 const toFiniteNumber = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
+};
+
+const resolveGroupSize = (source, fallback = 1) => {
+  const value = toFiniteNumber(
+    source?.request?.groupSize
+    ?? source?.request?.GroupSize
+    ?? source?.Request?.groupSize
+    ?? source?.Request?.GroupSize
+    ?? source?.groupSize
+    ?? source?.GroupSize
+  );
+
+  return value != null && value > 0 ? Math.round(value) : fallback;
 };
 
 const getMoneyAmount = (moneyDto) => {
@@ -1319,6 +1333,7 @@ const ItineraryResultPage = () => {
   const [customTransportMinutes, setCustomTransportMinutes] = useState(30);
   const [customTransportCostAmount, setCustomTransportCostAmount] = useState(0);
   const [editableTripName, setEditableTripName] = useState('');
+  const [originMapOpen, setOriginMapOpen] = useState(false);
 
   const [locationModal, setLocationModal] = useState({ open: false, locationId: null });
   const [transportModal, setTransportModal] = useState({ open: false, data: null });
@@ -1902,6 +1917,71 @@ const ItineraryResultPage = () => {
     updateBudgetSummaryFromDays(draftItinerary);
     return draftItinerary;
   }, []);
+
+  const itineraryOrigin = useMemo(() => {
+    const userLoc = itinerary?.userLocation || itinerary?.UserLocation || null;
+    return {
+      name: pickFirstText(
+        userLoc?.name,
+        userLoc?.Name,
+        userLoc?.locationName,
+        userLoc?.LocationName,
+        'Your location',
+      ),
+      address: pickFirstText(userLoc?.address, userLoc?.Address),
+      latitude: toFiniteNumber(userLoc?.latitude ?? userLoc?.Latitude),
+      longitude: toFiniteNumber(userLoc?.longitude ?? userLoc?.Longitude),
+    };
+  }, [itinerary]);
+
+  const applyItineraryOrigin = useCallback(async (nextOrigin) => {
+    if (!itinerary) return;
+
+    const draft = clonePlainObject(itinerary);
+    draft.userLocation = {
+      name: pickFirstText(nextOrigin?.name, 'Your location'),
+      locationName: pickFirstText(nextOrigin?.name, 'Your location'),
+      address: pickFirstText(nextOrigin?.address) || null,
+      latitude: toFiniteNumber(nextOrigin?.latitude),
+      longitude: toFiniteNumber(nextOrigin?.longitude),
+    };
+
+    const daysKey = Array.isArray(draft?.days) ? 'days' : 'Days';
+    const draftDays = Array.isArray(draft?.[daysKey]) ? draft[daysKey] : [];
+    if (draftDays.length > 0) {
+      const fromLat = toFiniteNumber(draft.userLocation?.latitude);
+      const fromLng = toFiniteNumber(draft.userLocation?.longitude);
+      const originEndpoint = fromLat != null && fromLng != null
+        ? { fromLat, fromLng }
+        : null;
+      const firstDay = draftDays[0];
+      const timelineKey = Array.isArray(firstDay?.timeline) ? 'timeline' : 'Timeline';
+      const firstTimeline = Array.isArray(firstDay?.[timelineKey]) ? [...firstDay[timelineKey]] : [];
+      const stopCount = firstTimeline.filter((item) => !isTravelEvent(item)).length;
+
+      if (!originEndpoint && stopCount <= 1) {
+        firstDay[timelineKey] = firstTimeline.filter((item, index) => {
+          if (!isTravelEvent(item)) return true;
+          const nextItem = firstTimeline[index + 1];
+          return !nextItem || isTravelEvent(nextItem);
+        });
+      } else {
+        await recalculateDayTimeline(draft, 0, { originEndpoint });
+      }
+    }
+
+    updateItinerary(draft);
+  }, [itinerary, recalculateDayTimeline, updateItinerary]);
+
+  const handleItineraryOriginMapConfirm = useCallback(async (lat, lng) => {
+    await applyItineraryOrigin({
+      ...itineraryOrigin,
+      name: pickFirstText(itineraryOrigin.name, 'Your location'),
+      latitude: lat,
+      longitude: lng,
+    });
+    message.success('Trip origin updated on the map.');
+  }, [applyItineraryOrigin, itineraryOrigin]);
 
   const handleDragStart = useCallback((event) => {
     const { active } = event;
@@ -4531,10 +4611,7 @@ const ItineraryResultPage = () => {
   const budgetSummary = itinerary.budgetSummary || itinerary.BudgetSummary;
   const startDate = itinerary.startDate || itinerary.StartDate;
   const endDate = itinerary.endDate || itinerary.EndDate;
-  const groupSizeValue = Number(itinerary?.groupSize ?? itinerary?.GroupSize);
-  const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0
-    ? Math.round(groupSizeValue)
-    : 1;
+  const groupSize = resolveGroupSize(itinerary, 1);
   const budgetLevel = itinerary.budgetLevel || itinerary.BudgetLevel;
   const tripCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
 
@@ -5046,7 +5123,7 @@ const ItineraryResultPage = () => {
       description,
       startDate: startIso,
       endDate: endIso,
-      groupSize: Math.max(1, Math.round(Number(groupSize) || 1)),
+      groupSize,
       currencyCode: safeCurrency,
       days: mappedDays,
       budgetSummary: {
@@ -5133,6 +5210,31 @@ const ItineraryResultPage = () => {
               <span className={styles.headerMetaItem}>
                 {budgetLevel}
               </span>
+            </div>
+          </Card>
+
+          <Card className={styles.originCard} bordered={false}>
+            <div className={styles.originHeaderRow}>
+              <div>
+                <Text className={styles.originTitle}>Trip origin</Text>
+                <div className={styles.originDescription}>This origin is used for the first travel leg and stays separate from the draggable itinerary stops.</div>
+              </div>
+              <Space wrap>
+                <Button size="small" className={styles.sectionToggleBtn} onClick={() => setOriginMapOpen(true)}>Pick on Map</Button>
+              </Space>
+            </div>
+            <div className={styles.originMetaRow}>
+              {(() => {
+                const visibleOriginLabel = pickFirstText(itineraryOrigin.name);
+                const normalizedVisibleOriginLabel = String(visibleOriginLabel || '').trim().toLowerCase();
+                if (!visibleOriginLabel || normalizedVisibleOriginLabel === 'your location') return null;
+                return <Tag className={styles.customTag}>{visibleOriginLabel}</Tag>;
+              })()}
+              <Tag className={styles.customTag}>
+                {itineraryOrigin.latitude != null && itineraryOrigin.longitude != null
+                  ? `${itineraryOrigin.latitude.toFixed(6)}, ${itineraryOrigin.longitude.toFixed(6)}`
+                  : 'Pick on Map to set origin coordinates'}
+              </Tag>
             </div>
           </Card>
 
@@ -5862,6 +5964,14 @@ const ItineraryResultPage = () => {
         >
           Save Trip
         </Button>
+
+        <GoogleMapPicker
+          open={originMapOpen}
+          onClose={() => setOriginMapOpen(false)}
+          onConfirm={handleItineraryOriginMapConfirm}
+          initialLat={itineraryOrigin.latitude}
+          initialLng={itineraryOrigin.longitude}
+        />
 
         <Modal
           title="Add Point"

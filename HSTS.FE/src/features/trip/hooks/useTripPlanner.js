@@ -62,14 +62,19 @@ export const useTripPlanner = () => {
       };
 
       const result = await generateItineraryApi(payload);
-      const resultGroupSize = Number(result?.groupSize ?? result?.GroupSize);
-      const itineraryWithGroupSize = Number.isFinite(resultGroupSize) && resultGroupSize > 0
-        ? result
-        : {
-          ...result,
-          groupSize: requestedGroupSize,
-          GroupSize: requestedGroupSize,
-        };
+      const requestSnapshot = result?.request || result?.Request || payload.request;
+      const itineraryWithGroupSize = {
+        ...result,
+        groupSize: requestedGroupSize,
+        GroupSize: requestedGroupSize,
+        request: requestSnapshot
+          ? {
+            ...requestSnapshot,
+            groupSize: requestedGroupSize,
+            GroupSize: requestedGroupSize,
+          }
+          : { groupSize: requestedGroupSize, GroupSize: requestedGroupSize },
+      };
 
       setItinerary(itineraryWithGroupSize);
       try {

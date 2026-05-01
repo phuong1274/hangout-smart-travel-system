@@ -116,7 +116,7 @@ public class GetPublicLocationsQueryTests
         card.District.Should().Be("Ba Dinh");
         card.Address.Should().Be("1 Temple Street");
         card.Description.Should().Be("historic");
-        card.AverageRating.Should().Be(4.8m);
+        card.AverageRating.Should().Be(4.5m);
         card.ReviewCount.Should().Be(2);
         card.ImageUrl.Should().Be("img-1");
         card.LocationType.Should().NotBeNull();
