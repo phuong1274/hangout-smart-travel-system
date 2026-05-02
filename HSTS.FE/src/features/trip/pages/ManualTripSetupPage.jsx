@@ -108,6 +108,8 @@ const ManualTripSetupPage = () => {
         state: {
           tripInfo: {
             ...result,
+            groupSize: values.groupSize || 1,
+            GroupSize: values.groupSize || 1,
             startingLocation: selectedProvinceName,
             StartingLocation: selectedProvinceName,
           },

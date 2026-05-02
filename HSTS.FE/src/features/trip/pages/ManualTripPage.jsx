@@ -47,7 +47,6 @@ import {
   getTransportModesApi,
   saveTripApi,
   updateSavedTripApi,
-  getTripByIdApi,
   getTripDetailApi,
 } from '../api';
 import styles from './ManualTripPage.module.css';
@@ -689,10 +688,14 @@ const ManualTripPage = () => {
     const hydrate = async () => {
       setLoadingTrip(true);
 
-      const stateTripInfo = normalizeTripInfo(location?.state?.tripInfo);
+      const rawStateTripInfo = location?.state?.tripInfo;
+      const stateTripInfo = normalizeTripInfo(rawStateTripInfo);
       const draft = loadDraftFromStorage(tripId);
       const draftTripInfo = normalizeTripInfo(draft?.tripInfo);
       const draftBudget = toFiniteNumber(draft?.totalBudget);
+
+      const stateGroupSize = Number(rawStateTripInfo?.groupSize ?? rawStateTripInfo?.GroupSize);
+      const stateHasGroupSize = Number.isFinite(stateGroupSize) && stateGroupSize > 0;
 
       let resolvedTripInfo = draftTripInfo || stateTripInfo;
       let resolvedDays = normalizeDraftDays(draft?.days);
@@ -714,9 +717,13 @@ const ManualTripPage = () => {
             if (resolvedDays.length === 0 && Array.isArray(apiTrip.tripDays)) {
               resolvedDays = convertDetailDaysToBuilderDays(apiTrip.tripDays);
             }
-          } else {
-            const apiTrip = await getTripByIdApi(tripId);
-            resolvedTripInfo = normalizeTripInfo(apiTrip);
+          } else if (!draftTripInfo && (!resolvedTripInfo || !stateHasGroupSize)) {
+            const apiTrip = await getTripDetailApi(tripId);
+            resolvedTripInfo = normalizeTripInfo({
+              ...apiTrip,
+              currencyCode: apiTrip.currency,
+              budgetSummary: apiTrip.tripSummary,
+            });
           }
         } catch {
           if (!cancelled) {
@@ -2343,7 +2350,7 @@ const ManualTripPage = () => {
                     {editMode ? `Editing: ${tripInfo.tripName}` : tripInfo.tripName}
                   </Title>
                   <Text style={{ color: 'rgba(255,255,255,0.86)' }}>
-                    {tripInfo.startDate || 'TBD'} to {tripInfo.endDate || 'TBD'} • {tripInfo.groupSize} people
+                    {tripInfo.startDate || 'TBD'} to {tripInfo.endDate || 'TBD'} • {tripInfo.groupSize} {tripInfo.groupSize === 1 ? 'person' : 'people'}
                   </Text>
                 </Col>
                 <Col>
