@@ -280,6 +280,19 @@ const toFiniteNumber = (value) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const resolveGroupSize = (source, fallback = 1) => {
+  const value = toFiniteNumber(
+    source?.request?.groupSize
+    ?? source?.request?.GroupSize
+    ?? source?.Request?.groupSize
+    ?? source?.Request?.GroupSize
+    ?? source?.groupSize
+    ?? source?.GroupSize
+  );
+
+  return value != null && value > 0 ? Math.round(value) : fallback;
+};
+
 const getMoneyAmount = (moneyDto) => {
   if (!moneyDto) return null;
   const amount = Number(moneyDto.amount ?? moneyDto.Amount);
@@ -4598,10 +4611,7 @@ const ItineraryResultPage = () => {
   const budgetSummary = itinerary.budgetSummary || itinerary.BudgetSummary;
   const startDate = itinerary.startDate || itinerary.StartDate;
   const endDate = itinerary.endDate || itinerary.EndDate;
-  const groupSizeValue = Number(itinerary?.groupSize ?? itinerary?.GroupSize);
-  const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0
-    ? Math.round(groupSizeValue)
-    : 1;
+  const groupSize = resolveGroupSize(itinerary, 1);
   const budgetLevel = itinerary.budgetLevel || itinerary.BudgetLevel;
   const tripCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
 
@@ -5113,7 +5123,7 @@ const ItineraryResultPage = () => {
       description,
       startDate: startIso,
       endDate: endIso,
-      groupSize: Math.max(1, Math.round(Number(groupSize) || 1)),
+      groupSize,
       currencyCode: safeCurrency,
       days: mappedDays,
       budgetSummary: {

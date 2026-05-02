@@ -16,7 +16,7 @@ namespace HSTS.API.Controllers
         [HttpPost("/api/trips/{tripId}/invitations")]
         public async Task<IActionResult> CreateInvitation(int tripId, [FromBody] CreateInvitationRequest request, CancellationToken ct)
         {
-            var command = new CreateInvitationCommand(tripId, request.Email);
+            var command = new CreateInvitationCommand(tripId, request.Email, request.ClientUrl);
             var result = await Mediator.Send(command, ct);
 
             if (result.IsError)
@@ -73,6 +73,6 @@ namespace HSTS.API.Controllers
         }
     }
 
-    public record CreateInvitationRequest(string Email);
+    public record CreateInvitationRequest(string Email, string ClientUrl);
     public record RespondInvitationRequest(bool IsAccepted);
 }

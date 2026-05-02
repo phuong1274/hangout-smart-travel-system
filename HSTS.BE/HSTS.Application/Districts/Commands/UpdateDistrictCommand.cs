@@ -36,7 +36,7 @@ namespace HSTS.Application.Districts.Commands
             }
 
             var existingDistrict = await _repository.Query()
-                .Where(x => x.Name == request.Name && x.Id != request.Id && !x.IsDeleted)
+                .Where(x => x.Name == request.Name && x.ProvinceId == request.ProvinceId && x.Id != request.Id && !x.IsDeleted)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (existingDistrict != null)

@@ -1,23 +1,26 @@
-import React, { useState } from 'react';
-import { Card, Typography, Space, Button, message } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Typography, Space, Button, message, Select } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import SearchFilter from '@/components/UI/SearchFilter/SearchFilter';
 import { useDistricts } from '../hooks/useDestinations';
 import DistrictTable from '../components/DestinationTable';
 import DistrictForm from '../components/DestinationForm';
 import DetailModal from '@/components/UI/DetailModal/DetailModal';
-import { deleteDistrictApi, getDistrictByIdApi } from '../api';
+import { deleteDistrictApi, getDistrictByIdApi, getProvincesApi } from '../api';
 import styles from '../styles/DestinationsPage.module.css';
 
 const { Title } = Typography;
+const { Option } = Select;
 
 const DistrictsPage = () => {
   const {
     data,
     loading,
     pagination,
+    provinceId,
     handleTableChange,
     handleSearch,
+    handleProvinceChange,
     fetchDistricts,
   } = useDistricts();
 
@@ -25,6 +28,23 @@ const DistrictsPage = () => {
   const [editingDistrict, setEditingDistrict] = useState(null);
   const [viewingDistrict, setViewingDistrict] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [provinces, setProvinces] = useState([]);
+  const [fetchingProvinces, setFetchingProvinces] = useState(false);
+
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      setFetchingProvinces(true);
+      try {
+        const data = await getProvincesApi();
+        setProvinces(Array.isArray(data) ? data : []);
+      } catch (error) {
+        message.error('Failed to load provinces');
+      } finally {
+        setFetchingProvinces(false);
+      }
+    };
+    fetchProvinces();
+  }, []);
 
   const handleCreate = () => {
     setEditingDistrict(null);
@@ -78,11 +98,28 @@ const DistrictsPage = () => {
           <Card className={styles.dataCard} bordered={false}>
             <div className={styles.toolbarWrapper}>
               <div className={styles.searchSection}>
-                <SearchFilter
-                  onSearch={handleSearch}
-                  loading={loading}
-                  placeholder="Search districts..."
-                />
+                <Space size="middle">
+                  <SearchFilter
+                    onSearch={handleSearch}
+                    loading={loading}
+                    placeholder="Search districts..."
+                  />
+                  <Select
+                    placeholder="Filter by province"
+                    style={{ width: 200 }}
+                    allowClear
+                    showSearch
+                    optionFilterProp="children"
+                    loading={fetchingProvinces}
+                    value={provinceId}
+                    onChange={handleProvinceChange}
+                    className={styles.provinceFilter}
+                  >
+                    {provinces.map(p => (
+                      <Option key={p.id} value={p.id}>{p.name}</Option>
+                    ))}
+                  </Select>
+                </Space>
               </div>
               <Button className={styles.ctaBtn} icon={<PlusOutlined />} onClick={handleCreate}>
                 Add District

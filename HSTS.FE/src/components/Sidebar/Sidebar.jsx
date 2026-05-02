@@ -99,16 +99,7 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen }) => {
       },
       hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
     },
-    {
-      key: PATHS.LOCATION_TYPES,
-      icon: <AppstoreOutlined />,
-      label: 'Location Types',
-      onClick: () => {
-        navigate(PATHS.LOCATION_TYPES);
-        setMobileMenuOpen?.(false);
-      },
-      hidden: !hasRole([ROLES.ADMIN, ROLES.CONTENT_MODERATOR]),
-    },
+
     {
       key: PATHS.AMENITIES,
       icon: <GoldOutlined />,

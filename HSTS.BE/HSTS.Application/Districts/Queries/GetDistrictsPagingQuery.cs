@@ -7,7 +7,7 @@ namespace HSTS.Application.Districts.Queries
 {
     public record DistrictPagedResponse(IEnumerable<DistrictDto> Items, int TotalCount);
 
-    public record GetDistrictsPagingQuery(string? SearchTerm, DateTime? FromDate, DateTime? ToDate, int PageIndex, int PageSize)
+    public record GetDistrictsPagingQuery(string? SearchTerm, int? ProvinceId, DateTime? FromDate, DateTime? ToDate, int PageIndex, int PageSize)
         : IRequest<ErrorOr<DistrictPagedResponse>>;
 
     public class GetDistrictsPagingQueryHandler : IRequestHandler<GetDistrictsPagingQuery, ErrorOr<DistrictPagedResponse>>
@@ -21,6 +21,11 @@ namespace HSTS.Application.Districts.Queries
         {
             var query = _repository.Query()
                 .Where(d => !d.IsDeleted);
+
+            if (request.ProvinceId.HasValue)
+            {
+                query = query.Where(d => d.ProvinceId == request.ProvinceId.Value);
+            }
 
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {

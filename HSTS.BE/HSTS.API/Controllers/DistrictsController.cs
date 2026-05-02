@@ -23,13 +23,14 @@ namespace HSTS.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetDistricts(
             [FromQuery] string? searchTerm,
+            [FromQuery] int? provinceId,
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
         {
-            var query = new GetDistrictsPagingQuery(searchTerm, fromDate, toDate, pageIndex, pageSize);
+            var query = new GetDistrictsPagingQuery(searchTerm, provinceId, fromDate, toDate, pageIndex, pageSize);
             var result = await _mediator.Send(query, ct);
 
             return result.Match(
