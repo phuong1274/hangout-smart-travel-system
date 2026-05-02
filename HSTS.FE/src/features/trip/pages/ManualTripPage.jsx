@@ -603,6 +603,7 @@ const ManualTripPage = () => {
   const [defaultProvinceId, setDefaultProvinceId] = useState(null);
   const [tripInfo, setTripInfo] = useState(null);
   const [manualTotalBudget, setManualTotalBudget] = useState(null);
+  const [manualContingencyFund, setManualContingencyFund] = useState(null);
   const [manualDays, setManualDays] = useState([]);
   const [transportOptionsBackfilled, setTransportOptionsBackfilled] = useState(false);
 
@@ -693,11 +694,13 @@ const ManualTripPage = () => {
       const draft = loadDraftFromStorage(tripId);
       const draftTripInfo = normalizeTripInfo(draft?.tripInfo);
       const draftBudget = toFiniteNumber(draft?.totalBudget);
+      const draftContingency = toFiniteNumber(draft?.contingencyFund);
 
       const stateGroupSize = Number(rawStateTripInfo?.groupSize ?? rawStateTripInfo?.GroupSize);
       const stateHasGroupSize = Number.isFinite(stateGroupSize) && stateGroupSize > 0;
 
       let resolvedTripInfo = draftTripInfo || stateTripInfo;
+      let resolvedContingency = draftContingency;
       let resolvedDays = normalizeDraftDays(draft?.days);
 
       const isEditMode = Boolean(location?.state?.editMode);
@@ -714,6 +717,9 @@ const ManualTripPage = () => {
                 budgetSummary: apiTrip.tripSummary,
               });
             }
+            if (resolvedContingency == null) {
+              resolvedContingency = toFiniteNumber(apiTrip?.tripSummary?.contingencyFund ?? apiTrip?.tripSummary?.ContingencyFund);
+            }
             if (resolvedDays.length === 0 && Array.isArray(apiTrip.tripDays)) {
               resolvedDays = convertDetailDaysToBuilderDays(apiTrip.tripDays);
             }
@@ -724,6 +730,9 @@ const ManualTripPage = () => {
               currencyCode: apiTrip.currency,
               budgetSummary: apiTrip.tripSummary,
             });
+            if (resolvedContingency == null) {
+              resolvedContingency = toFiniteNumber(apiTrip?.tripSummary?.contingencyFund ?? apiTrip?.tripSummary?.ContingencyFund);
+            }
           }
         } catch {
           if (!cancelled) {
@@ -738,6 +747,9 @@ const ManualTripPage = () => {
           draftBudget != null && draftBudget >= 0
             ? draftBudget
             : (resolvedTripInfo?.totalBudget != null && resolvedTripInfo.totalBudget >= 0 ? resolvedTripInfo.totalBudget : null),
+        );
+        setManualContingencyFund(
+          resolvedContingency != null && resolvedContingency >= 0 ? resolvedContingency : null,
         );
         setManualDays(resolvedDays);
         setLoadingTrip(false);
@@ -757,6 +769,7 @@ const ManualTripPage = () => {
     saveDraftToStorage(tripId, {
       tripInfo,
       totalBudget: manualTotalBudget,
+      contingencyFund: manualContingencyFund,
       days: manualDays,
       updatedAt: new Date().toISOString(),
     });
@@ -2266,10 +2279,14 @@ const ManualTripPage = () => {
 
     const estimatedTotalCost = Math.round(Math.max(0, estimatedTransportCost + estimatedActivityCost));
     const requestedBudget = toFiniteNumber(manualTotalBudget);
+    const requestedContingency = toFiniteNumber(manualContingencyFund);
     const totalBudget = requestedBudget != null && requestedBudget >= 0
       ? Math.round(requestedBudget)
       : estimatedTotalCost;
-    const usableBudget = totalBudget;
+    const contingencyFund = requestedContingency != null && requestedContingency >= 0
+      ? Math.round(requestedContingency)
+      : null;
+    const usableBudget = Math.max(0, totalBudget - (contingencyFund || 0));
     const remainingBudget = Math.max(0, usableBudget - estimatedTotalCost);
 
     const payload = {
@@ -2289,7 +2306,7 @@ const ManualTripPage = () => {
         estimatedMealCost: 0,
         estimatedTotalCost,
         remainingBudget,
-        contingencyFund: null,
+        contingencyFund,
       },
     };
 
@@ -2402,20 +2419,42 @@ const ManualTripPage = () => {
 
               <div className={styles.optionalBudgetRow}>
                 <Text strong>Trip budget (optional)</Text>
-                <InputNumber
-                  min={0}
-                  style={{ width: 260 }}
-                  placeholder={`e.g. 10000000 ${tripInfo.currencyCode}`}
-                  value={manualTotalBudget}
-                  onChange={(value) => {
-                    const normalized = toFiniteNumber(value);
-                    if (normalized == null || normalized < 0) {
-                      setManualTotalBudget(null);
-                      return;
-                    }
-                    setManualTotalBudget(normalized);
-                  }}
-                />
+                <Space size={12} wrap>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Text type="secondary">Total budget</Text>
+                    <InputNumber
+                      min={0}
+                      style={{ width: 220 }}
+                      placeholder={`e.g. 10000000 ${tripInfo.currencyCode}`}
+                      value={manualTotalBudget}
+                      onChange={(value) => {
+                        const normalized = toFiniteNumber(value);
+                        if (normalized == null || normalized < 0) {
+                          setManualTotalBudget(null);
+                          return;
+                        }
+                        setManualTotalBudget(normalized);
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Text type="secondary">Contingency fund</Text>
+                    <InputNumber
+                      min={0}
+                      style={{ width: 220 }}
+                      placeholder={`e.g. 100000 ${tripInfo.currencyCode}`}
+                      value={manualContingencyFund}
+                      onChange={(value) => {
+                        const normalized = toFiniteNumber(value);
+                        if (normalized == null || normalized < 0) {
+                          setManualContingencyFund(null);
+                          return;
+                        }
+                        setManualContingencyFund(normalized);
+                      }}
+                    />
+                  </div>
+                </Space>
               </div>
 
               {!manualDays.length && (
