@@ -5944,14 +5944,7 @@ const ItineraryResultPage = () => {
             </DragOverlay>
             </DndContext>
 
-            <div className={styles.actionBar}>
-              <Button onClick={handleRegenerate} size="large" className={styles.actionBtnSecondary}>
-                Regenerate
-              </Button>
-              <Button type="primary" onClick={() => navigate('/create-trip')} size="large" className={styles.actionBtnPrimary}>
-                Edit
-              </Button>
-            </div>
+            
           </div>
         </div>
 

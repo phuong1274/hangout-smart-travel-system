@@ -3329,9 +3329,9 @@ const ManualTripPage = () => {
             </div>
           </div>
 
-          <div className={styles.addBetweenFooterActions}>
+          {/* <div className={styles.addBetweenFooterActions}>
             <Button onClick={closeAddLocationModal}>Close</Button>
-          </div>
+          </div> */}
         </div>
       </Modal>
     </div>
