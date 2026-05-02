@@ -39,6 +39,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PATHS } from '@/routes/paths';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
+import { convertCurrencyAmount } from '../constants/currency';
 import {
   estimateLocalTravelApi,
   getLocationTypesApi,
@@ -101,7 +102,7 @@ const pickFirstText = (...values) => {
   return '';
 };
 
-const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
+const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND', targetCurrency = fallbackCurrency) => {
   const source = Array.isArray(rawOptions)
     ? rawOptions
     : (Array.isArray(rawOptions?.transportOptions)
@@ -184,6 +185,12 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
         ? recommendedValue.trim().toLowerCase() === 'true'
         : Boolean(recommendedValue);
 
+      const normalizedCostCurrency = costCurrency.toUpperCase();
+      const normalizedTargetCurrency = String(targetCurrency || fallbackCurrency).toUpperCase();
+      const convertedCostAmount = normalizedTargetCurrency !== normalizedCostCurrency
+        ? convertCurrencyAmount(costAmount, normalizedCostCurrency, normalizedTargetCurrency)
+        : costAmount;
+
       return {
         method,
         transportModeId: toPositiveIntOrNull(
@@ -195,8 +202,8 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
           ?? option?.ModeId,
         ),
         travelMinutes,
-        costAmount,
-        costCurrency,
+        costAmount: Math.max(0, toNumberOrDefault(convertedCostAmount, 0)),
+        costCurrency: normalizedTargetCurrency,
         recommended,
         note: pickFirstText(option?.note, option?.Note),
         fromTransitHubName: pickFirstText(option?.fromTransitHubName, option?.FromTransitHubName),
@@ -204,6 +211,18 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
       };
     })
     .filter((option) => option.method || option.travelMinutes > 0 || option.costAmount > 0 || option.note);
+};
+
+const getMoneyCurrency = (value, fallback = 'VND') => {
+  const currency = value?.currency || value?.Currency || fallback;
+  return String(currency || fallback).toUpperCase();
+};
+
+const convertAmountToTripCurrency = (amount, sourceCurrency, tripCurrency) => {
+  const normalizedSource = String(sourceCurrency || 'VND').toUpperCase();
+  const normalizedTarget = String(tripCurrency || 'VND').toUpperCase();
+  if (normalizedSource === normalizedTarget) return amount;
+  return convertCurrencyAmount(amount, normalizedSource, normalizedTarget);
 };
 
 const getPreferredTransportOptionIndex = (options, travel) => {
@@ -1299,9 +1318,19 @@ const ManualTripPage = () => {
 
           const travelMinutesFromLeg = Math.max(0, toNumberOrDefault(travelLeg?.selectedTravelTimeMinutes ?? travelLeg?.SelectedTravelTimeMinutes, 0));
           const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
-          const travelCostFromLeg = Math.max(0, toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost));
+          const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+          const travelCostCurrency = getMoneyCurrency(selectedCost, tripInfo.currencyCode || 'VND');
+          const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
+          const travelCostFromLeg = Math.max(
+            0,
+            toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, tripInfo.currencyCode), 0),
+          );
           const resolvedTransportModeId = toPositiveIntOrNull(travelLeg?.selectedTransportModeId ?? travelLeg?.SelectedTransportModeId ?? travelLeg?.transportModeId ?? travelLeg?.TransportModeId);
-          const normalizedTransportOptions = normalizeTransportOptions(travelLeg?.transportOptions ?? travelLeg?.TransportOptions ?? travelLeg?.options ?? travelLeg?.Options, currencyCode);
+          const normalizedTransportOptions = normalizeTransportOptions(
+            travelLeg?.transportOptions ?? travelLeg?.TransportOptions ?? travelLeg?.options ?? travelLeg?.Options,
+            currencyCode,
+            currencyCode,
+          );
           const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, null);
           const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
           const resolvedTravelMinutes = Math.max(1, toNumberOrDefault(selectedOption?.travelMinutes, travelMinutesFromLeg || 1));
@@ -1314,7 +1343,7 @@ const ManualTripPage = () => {
               distanceKm,
               travelMinutes: resolvedTravelMinutes,
               costAmount: travelCostFromLeg,
-              costCurrency: pickFirstText(selectedOption?.costCurrency, tripInfo.currencyCode, 'VND') || 'VND',
+              costCurrency: tripInfo.currencyCode || 'VND',
               transportModeId: resolvedTransportModeId,
               transportModeName: pickFirstText(selectedOption?.method) || null,
               departureTime: departureTime,
@@ -1377,9 +1406,12 @@ const ManualTripPage = () => {
           ),
         );
         const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
+        const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+        const travelCostCurrency = getMoneyCurrency(selectedCost, currencyCode);
+        const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
         const travelCostFromLeg = Math.max(
           0,
-          toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost),
+          toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, currencyCode), 0),
         );
         const transportModeIdFromLeg = toPositiveIntOrNull(
           travelLeg?.selectedTransportModeId
@@ -1393,6 +1425,7 @@ const ManualTripPage = () => {
           ?? travelLeg?.TransportOptions
           ?? travelLeg?.options
           ?? travelLeg?.Options,
+          currencyCode,
           currencyCode,
         );
         const isCustomTransport = Boolean(previousTravel?.isCustomTransport);
@@ -1432,12 +1465,7 @@ const ManualTripPage = () => {
             travelLeg?.mode,
             travelLeg?.Mode,
           ) || null);
-        const resolvedCurrency = pickFirstText(
-          selectedOption?.costCurrency,
-          previousTravel?.costCurrency,
-          currencyCode,
-          'VND',
-        ) || 'VND';
+        const resolvedCurrency = currencyCode || 'VND';
 
         normalized[index] = {
           ...current,
@@ -1544,7 +1572,13 @@ const ManualTripPage = () => {
       const travelMinutesFromLeg = Math.max(0, toNumberOrDefault(
         travelLeg?.selectedTravelTimeMinutes ?? travelLeg?.SelectedTravelTimeMinutes, 0));
       const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
-      const travelCostFromLeg = Math.max(0, toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost));
+      const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+      const travelCostCurrency = getMoneyCurrency(selectedCost, currencyCode);
+      const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
+      const travelCostFromLeg = Math.max(
+        0,
+        toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, currencyCode), 0),
+      );
       const transportModeIdFromLeg = toPositiveIntOrNull(
         travelLeg?.selectedTransportModeId ?? travelLeg?.SelectedTransportModeId
         ?? travelLeg?.transportModeId ?? travelLeg?.TransportModeId);
@@ -1552,6 +1586,7 @@ const ManualTripPage = () => {
       const normalizedTransportOptions = normalizeTransportOptions(
         travelLeg?.transportOptions ?? travelLeg?.TransportOptions
         ?? travelLeg?.options ?? travelLeg?.Options,
+        currencyCode,
         currencyCode,
       );
       // Prefer restoring saved selection (by transportModeId/name) over just picking the recommended one
@@ -1577,7 +1612,7 @@ const ManualTripPage = () => {
         travelLeg?.selectedMethod,
         travelLeg?.SelectedMethod,
       ) || null;
-      const resolvedCurrency = pickFirstText(selectedOption?.costCurrency, currencyCode, 'VND') || 'VND';
+      const resolvedCurrency = currencyCode || 'VND';
 
       return {
         ...toActivity,

@@ -18,6 +18,7 @@ import { CalendarOutlined, EnvironmentOutlined, TeamOutlined } from '@ant-design
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { createTripApi, getProvincesApi } from '../api';
+import { CURRENCY_OPTIONS } from '../constants/currency';
 import { PATHS } from '@/routes/paths';
 import { useAuthStore } from '@/store/authStore';
 import styles from './ManualTripSetupPage.module.css';
@@ -238,11 +239,10 @@ const ManualTripSetupPage = () => {
                   >
                     <Select
                       popupMatchSelectWidth={false}
-                      options={[
-                        { label: 'VND (Vietnamese Dong)', value: 'VND' },
-                        { label: 'USD (US Dollar)', value: 'USD' },
-                        { label: 'EUR (Euro)', value: 'EUR' },
-                      ]}
+                      options={CURRENCY_OPTIONS.map((option) => ({
+                        label: option.label,
+                        value: option.value,
+                      }))}
                     />
                   </Form.Item>
                 </Col>
