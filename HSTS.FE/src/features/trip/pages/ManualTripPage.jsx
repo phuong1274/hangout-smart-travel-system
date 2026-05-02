@@ -487,7 +487,16 @@ const convertDetailDaysToBuilderDays = (tripDays) => {
         address: '',
         startTime: normalizeTimeOnly(act.startTime),
         endTime: normalizeTimeOnly(act.endTime),
-        customLocation: null,
+        customLocation: (!(act.locationId && Number(act.locationId) > 0) && transport?.transport
+            && toFiniteNumber(transport.transport.customToTransitHubLatitude) != null
+            && toFiniteNumber(transport.transport.customToTransitHubLongitude) != null)
+          ? {
+              name: String(act.title || '').trim(),
+              latitude: toFiniteNumber(transport.transport.customToTransitHubLatitude),
+              longitude: toFiniteNumber(transport.transport.customToTransitHubLongitude),
+              address: String(transport.transport.customToTransitHubAddress || '').trim(),
+            }
+          : null,
         travelFromPrevious: transport
           ? (() => {
               const savedModeId = toPositiveIntOrNull(transport.transport?.transportModeId);
