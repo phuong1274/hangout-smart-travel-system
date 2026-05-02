@@ -707,7 +707,7 @@ const ManualTripPage = () => {
 
       const isEditMode = Boolean(location?.state?.editMode);
 
-      if (!resolvedTripInfo || (isEditMode && resolvedDays.length === 0)) {
+      if (!resolvedTripInfo || isEditMode) {
         try {
           if (isEditMode) {
             // Edit mode: load full trip detail (includes days/activities)
@@ -754,7 +754,7 @@ const ManualTripPage = () => {
               }
             }
 
-            if (resolvedDays.length === 0 && Array.isArray(apiTrip.tripDays)) {
+            if (Array.isArray(apiTrip.tripDays)) {
               resolvedDays = convertDetailDaysToBuilderDays(apiTrip.tripDays);
             }
           } else {
@@ -1000,12 +1000,9 @@ const ManualTripPage = () => {
     const origin = tripInfo?.userLocation || tripInfo?.UserLocation;
     const fromLat = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
     const fromLng = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    const fromLabel = pickFirstText(origin?.name, origin?.locationName, tripInfo?.startingLocation) || 'Your Location';
     if (fromLat != null && fromLng != null) {
-      return {
-        fromLat,
-        fromLng,
-        fromLabel: 'Your Location',
-      };
+      return { fromLat, fromLng, fromLabel };
     }
 
     const label = pickFirstText(tripInfo?.startingLocation, tripInfo?.StartingLocation);
@@ -2126,10 +2123,20 @@ const ManualTripPage = () => {
     const backfill = async () => {
       try {
         const updates = await Promise.all(daysNeedingBackfill.map(async ({ dayIndex, day }) => {
-          // Preserve existing cross-day travelFromPrevious before recalculate strips it
-          const originalFirstTravel = dayIndex > 0 ? (day.activities?.[0]?.travelFromPrevious ?? null) : null;
-          let nextActivities = await recalculateDayTravelAndEstimate(day.activities || []);
-          
+          // Preserve existing first-activity travelFromPrevious before recalculate strips it
+          const originalFirstTravel = day.activities?.[0]?.travelFromPrevious ?? null;
+          // For Day 1, pass trip origin endpoint so starting-point transport is re-estimated
+          const originEndpoint = dayIndex === 0 ? getTripOriginEndpoint() : null;
+          let nextActivities = await recalculateDayTravelAndEstimate(day.activities || [], originEndpoint);
+
+          // If Day 1's first activity lost its transport, restore the original
+          if (dayIndex === 0 && nextActivities.length > 0 && nextActivities[0].travelFromPrevious == null && originalFirstTravel) {
+            nextActivities = [
+              { ...nextActivities[0], travelFromPrevious: originalFirstTravel },
+              ...nextActivities.slice(1),
+            ];
+          }
+
           // Also apply cross-day travel for the first activity if it's a non-first day
           if (dayIndex > 0 && nextActivities.length > 0 && nextActivities[0].travelFromPrevious == null) {
             const prevDay = manualDays[dayIndex - 1];
