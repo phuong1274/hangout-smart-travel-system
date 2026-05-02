@@ -1274,7 +1274,7 @@ const ManualTripPage = () => {
   // (e.g. user start location or previous day's last stop) to the first activity.
   // originEndpoint shape mirrors getActivityEndpointForEstimate output for the
   // "from" side: { fromLocationId } or { fromLat, fromLng }.
-  const recalculateDayTravelAndEstimate = useCallback(async (activities, originEndpoint = null) => {
+  const recalculateDayTravelAndEstimate = useCallback(async (activities, originEndpoint = null, originalFirstTravel = null) => {
     if (!tripInfo) return activities;
 
     const normalized = activities.map((activity, index) => {
@@ -1322,7 +1322,7 @@ const ManualTripPage = () => {
           const travelCostFromLeg = Math.max(0, toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost));
           const resolvedTransportModeId = toPositiveIntOrNull(travelLeg?.selectedTransportModeId ?? travelLeg?.SelectedTransportModeId ?? travelLeg?.transportModeId ?? travelLeg?.TransportModeId);
           const normalizedTransportOptions = normalizeTransportOptions(travelLeg?.transportOptions ?? travelLeg?.TransportOptions ?? travelLeg?.options ?? travelLeg?.Options, currencyCode);
-          const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, null);
+          const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, originalFirstTravel);
           const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
           const resolvedTravelMinutes = Math.max(1, toNumberOrDefault(selectedOption?.travelMinutes, travelMinutesFromLeg || 1));
           const autoStart = normalizeTimeOnly(travelLeg?.arrivalTime || travelLeg?.ArrivalTime) || addMinutesToTime(departureTime, resolvedTravelMinutes > 0 ? resolvedTravelMinutes : 20);
@@ -1333,7 +1333,7 @@ const ManualTripPage = () => {
             travelFromPrevious: {
               distanceKm,
               travelMinutes: resolvedTravelMinutes,
-              costAmount: travelCostFromLeg,
+              costAmount: selectedOption?.costAmount ?? travelCostFromLeg,
               costCurrency: pickFirstText(selectedOption?.costCurrency, tripInfo.currencyCode, 'VND') || 'VND',
               transportModeId: resolvedTransportModeId,
               transportModeName: pickFirstText(selectedOption?.method) || null,
@@ -2127,7 +2127,12 @@ const ManualTripPage = () => {
           const originalFirstTravel = day.activities?.[0]?.travelFromPrevious ?? null;
           // For Day 1, pass trip origin endpoint so starting-point transport is re-estimated
           const originEndpoint = dayIndex === 0 ? getTripOriginEndpoint() : null;
-          let nextActivities = await recalculateDayTravelAndEstimate(day.activities || [], originEndpoint);
+          // Strip isCustomTransport from the hint so getPreferredTransportOptionIndex
+          // still tries to match by modeName/transportModeId for selection
+          const selectionHint = originalFirstTravel
+            ? { ...originalFirstTravel, isCustomTransport: false }
+            : null;
+          let nextActivities = await recalculateDayTravelAndEstimate(day.activities || [], originEndpoint, selectionHint);
 
           // If Day 1's first activity lost its transport, restore the original
           if (dayIndex === 0 && nextActivities.length > 0 && nextActivities[0].travelFromPrevious == null && originalFirstTravel) {
