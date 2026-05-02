@@ -121,7 +121,7 @@ namespace HSTS.API
                 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
                 EnsureMigrationHistoryAligned(db, logger);
-                db.Database.Migrate();
+                //db.Database.Migrate();
             }
 
             app.UseRateLimiter();

@@ -4669,14 +4669,14 @@ const ItineraryResultPage = () => {
         value: formatMoney(budgetSummary.usableBudget || budgetSummary.UsableBudget),
         className: styles.budgetUsableValue,
       },
-      ...(summaryContingencyValue > 0
-        ? [{
-          key: 'contingencyFund',
-          label: 'Contingency Fund',
-          value: formatMoney({ amount: summaryContingencyValue, currency: tripCurrencyCode }),
-          className: styles.budgetContingencyValue,
-        }]
-        : []),
+      // ...(summaryContingencyValue > 0
+      //   ? [{
+      //     key: 'contingencyFund',
+      //     label: 'Contingency Fund',
+      //     value: formatMoney({ amount: summaryContingencyValue, currency: tripCurrencyCode }),
+      //     className: styles.budgetContingencyValue,
+      //   }]
+      //   : []),
       {
         key: 'estimatedTotal',
         label: 'Estimated Total',
