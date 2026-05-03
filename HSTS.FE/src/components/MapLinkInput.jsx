@@ -84,7 +84,8 @@ const MapLinkInput = ({ onParsed, onError, className }) => {
 
   return (
     <div className={`${styles.wrapper} ${className || ''}`}>
-      <Space.Compact style={{ width: '100%' }}>
+      {/* Sửa Space.Compact thành div có display flex và gap */}
+      <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
         <Input
           prefix={loading ? <LoadingOutlined /> : <LinkOutlined />}
           placeholder="Paste Google Maps or Apple Maps link..."
@@ -104,7 +105,7 @@ const MapLinkInput = ({ onParsed, onError, className }) => {
         >
           Fill
         </Button>
-      </Space.Compact>
+      </div>
       <Text type="secondary" className={styles.hint}>
         Paste a share link from Google Maps or Apple Maps to auto-fill location data
       </Text>

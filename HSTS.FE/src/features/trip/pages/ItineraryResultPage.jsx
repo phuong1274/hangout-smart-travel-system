@@ -4679,14 +4679,14 @@ const ItineraryResultPage = () => {
         value: formatMoney(budgetSummary.usableBudget || budgetSummary.UsableBudget),
         className: styles.budgetUsableValue,
       },
-      ...(summaryContingencyValue > 0
-        ? [{
-          key: 'contingencyFund',
-          label: 'Contingency Fund',
-          value: formatMoney({ amount: summaryContingencyValue, currency: tripCurrencyCode }),
-          className: styles.budgetContingencyValue,
-        }]
-        : []),
+      // ...(summaryContingencyValue > 0
+      //   ? [{
+      //     key: 'contingencyFund',
+      //     label: 'Contingency Fund',
+      //     value: formatMoney({ amount: summaryContingencyValue, currency: tripCurrencyCode }),
+      //     className: styles.budgetContingencyValue,
+      //   }]
+      //   : []),
       {
         key: 'estimatedTotal',
         label: 'Estimated Total',
@@ -5944,14 +5944,7 @@ const ItineraryResultPage = () => {
             </DragOverlay>
             </DndContext>
 
-            <div className={styles.actionBar}>
-              <Button onClick={handleRegenerate} size="large" className={styles.actionBtnSecondary}>
-                Regenerate
-              </Button>
-              <Button type="primary" onClick={() => navigate('/create-trip')} size="large" className={styles.actionBtnPrimary}>
-                Edit
-              </Button>
-            </div>
+            
           </div>
         </div>
 
