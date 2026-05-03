@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
 
 .appWrapper {
   position: relative;
@@ -193,10 +193,11 @@
 
 .originHeaderRow {
   display: flex;
-  align-items: flex-start;
+  align-items: center; 
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 20px; 
 }
 
 .originSubtext {
@@ -206,7 +207,7 @@
 }
 
 .originMetaRow {
-  margin-top: 12px;
+  margin-top: 16px; 
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -288,58 +289,102 @@
   gap: 10px;
 }
 
+@keyframes modalFadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .addBetweenModalBody {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 24px;
   padding-top: 16px;
+  padding-bottom: 24px
 }
 
 .addBetweenHint {
   display: block;
-  line-height: 1.5;
-  font-size: 14px;
-  color: rgba(26, 83, 92, 0.7);
+  font-family: 'Caveat', cursive;
+  font-size: 24px;
+  color: #1A535C;
+  opacity: 0.85;
+  margin-bottom: 8px;
 }
 
 .addBetweenSplitLayout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 24px;
   align-items: stretch;
 }
 
 .addBetweenPanel {
   background: #FFFFFF;
-  border: 1px solid rgba(26, 83, 92, 0.14);
-  border-radius: 14px;
-  padding: 16px;
+  border: none;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08);
+  border-radius: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  height: 100%;
+  gap: 16px;
+  opacity: 0;
+  animation: modalFadeUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.addBetweenSplitLayout > div:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.addBetweenSplitLayout > div:nth-child(2) {
+  animation-delay: 0.2s;
 }
 
 .addBetweenPanelTitle {
-  font-size: 14px;
-  font-weight: 800;
-  color: #1A535C;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #F4CB8C;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .addBetweenPanelHint {
-  font-size: 13px;
-  line-height: 1.5;
-  color: rgba(26, 83, 92, 0.7);
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+  line-height: 1.4;
+  color: #1A535C;
+  opacity: 0.7;
 }
 
 .addBetweenPrimaryAction {
   align-self: flex-start;
   margin-top: auto;
+  background: #FFE66D !important;
+  color: #1A535C !important;
+  border-radius: 999px !important;
+  border: none !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.8px !important;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08) !important;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  min-height: 44px !important;
+  padding: 0 24px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.addBetweenPrimaryAction:hover {
+  transform: translateY(-4px) scale(1.02);
+  background: #F4CB8C !important;
+  box-shadow: 0 12px 24px rgba(244, 203, 140, 0.4) !important;
 }
 
 .addBetweenFooterActions {
   display: flex;
   justify-content: flex-end;
+  margin-top: 16px;
 }
 
 .addBetweenSelect {
@@ -351,33 +396,39 @@
   border-radius: 20px !important;
   box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08) !important;
   border: none !important;
+  overflow: hidden;
 }
 
 .customLocationMapCard :global(.ant-card-head) {
-  border-bottom: 1px solid rgba(26, 83, 92, 0.08);
+  border-bottom: 1px solid rgba(26, 83, 92, 0.05) !important;
+  padding: 0 20px !important;
 }
 
 .customLocationMapCard :global(.ant-card-body) {
-  padding: 16px 24px 20px;
+  padding: 20px !important;
 }
 
 .customLocationMapHeader {
-  font-size: 18px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 16px;
   font-weight: 700;
   color: #1A535C;
-  line-height: 1.2;
 }
 
 .customLocationCoordinates {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(26, 83, 92, 0.78);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #4ECDC4;
+  margin-top: 8px;
+  display: block;
 }
 
 .customLocationHint {
-  line-height: 1.5;
-  font-size: 13px;
-  color: rgba(26, 83, 92, 0.72);
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  color: #1A535C;
+  opacity: 0.7;
 }
 
 .customLocationMapWrap {
@@ -389,23 +440,49 @@
 
 .customLocationCurrentBtn {
   min-height: 48px !important;
-  border-radius: 10px !important;
+  border-radius: 12px !important;
   font-weight: 700 !important;
   margin-top: 16px;
-  border-color: #4ECDC4 !important;
-  color: #1A535C !important;
+  border: none !important;
+  color: #4ECDC4 !important;
   background-color: rgba(78, 205, 196, 0.1) !important;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.customLocationCurrentBtn:hover {
+  background-color: rgba(78, 205, 196, 0.2) !important;
+  transform: translateY(-2px);
 }
 
 .customLocationTimelineGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .customLocationAddButton {
   align-self: flex-start;
-  margin-top: 4px;
+  margin-top: auto;
+  background: #FFE66D !important;
+  color: #1A535C !important;
+  border-radius: 999px !important;
+  border: none !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.8px !important;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08) !important;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  min-height: 44px !important;
+  padding: 0 24px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.customLocationAddButton:hover {
+  transform: translateY(-4px) scale(1.02);
+  background: #F4CB8C !important;
+  box-shadow: 0 12px 24px rgba(244, 203, 140, 0.4) !important;
 }
 
 .editTimelineField {
@@ -415,9 +492,10 @@
 }
 
 .editTimelineLabel {
-  font-size: 13px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
   font-weight: 700;
-  color: rgba(26, 83, 92, 0.85);
+  color: #1A535C;
 }
 
 .editTimelineInput {
@@ -736,6 +814,7 @@
 }
 
 .appWrapper :global(.ant-input),
+.appWrapper :global(.ant-input-affix-wrapper),
 .appWrapper :global(.ant-input-number),
 .appWrapper :global(.ant-picker),
 .appWrapper :global(.ant-select-selector) {
@@ -746,8 +825,18 @@
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
+.appWrapper :global(.ant-input-affix-wrapper) :global(.ant-input) {
+  min-height: auto !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
 .appWrapper :global(.ant-input:focus),
 .appWrapper :global(.ant-input-focused),
+.appWrapper :global(.ant-input-affix-wrapper:focus),
+.appWrapper :global(.ant-input-affix-wrapper-focused),
 .appWrapper :global(.ant-input-number-focused),
 .appWrapper :global(.ant-picker-focused),
 .appWrapper :global(.ant-select-focused) :global(.ant-select-selector) {
@@ -776,7 +865,21 @@
 
 :global(.tropicalModal) :global(.ant-modal-content) {
   border-radius: 20px !important;
-  padding: 24px !important;
+  padding: 32px !important;
+  background-color: #F7F9F9 !important;
+  box-shadow: 0 16px 48px rgba(26, 83, 92, 0.15) !important;
+}
+
+:global(.tropicalModal) :global(.ant-modal-header) {
+  background-color: transparent !important;
+  margin-bottom: 16px !important;
+}
+
+:global(.tropicalModal) :global(.ant-modal-title) {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  color: #1A535C !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
 }
 
 @media (max-width: 767px) {
