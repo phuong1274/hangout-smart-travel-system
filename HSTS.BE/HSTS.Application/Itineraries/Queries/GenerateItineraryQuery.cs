@@ -278,7 +278,7 @@ namespace HSTS.Application.Itineraries.Queries
             }).ToList();
 
             if (locations.Count == 0)
-                return Error.NotFound("Itinerary.Location", "No locations match current filters.");
+                return Error.Validation("Itinerary.Location", "No locations match current filters.");
 
             // Load transit hubs
             var transitHubs = await _context.TransitHubs
@@ -354,7 +354,7 @@ namespace HSTS.Application.Itineraries.Queries
             // (Restaurants are already safely extracted above to prevent tag-filter obliteration)
 
             if (attractions.Count == 0)
-                return Error.NotFound("Itinerary.Attraction", "No attraction locations available after filtering.");
+                return Error.Validation("Itinerary.Attraction", "No attraction locations available after filtering.");
 
             var attractionsByProvince = destinationProvinces.ToDictionary(
                 p => p.Id, p => attractions.Where(a => a.District != null && a.District.ProvinceId.HasValue && a.District.ProvinceId.Value == p.Id).ToList());
@@ -367,7 +367,7 @@ namespace HSTS.Application.Itineraries.Queries
                 .Where(p => attractionsByProvince.GetValueOrDefault(p.Id)?.Count > 0).ToList();
 
             if (destinationProvinces.Count == 0)
-                return Error.NotFound("Itinerary.Attraction", "No attractions in any destination province.");
+                return Error.Validation("Itinerary.Attraction", "No attractions in any destination province.");
 
             const int maxAttempts = 3;
             var initialNotes = notes.ToList();

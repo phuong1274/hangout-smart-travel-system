@@ -1,0 +1,13 @@
+/* Hide Ant Design AutoComplete mirror text node that leaks outside the input.
+   AutoComplete extends Select and renders a "mirror" text in .ant-select-content
+   for width measurement. With Space.Compact, this text becomes visible. */
+.searchWrap :global(.ant-select-content) {
+  font-size: 0;
+  line-height: 0;
+}
+
+.searchWrap :global(.ant-select-content) :global(.ant-input-affix-wrapper),
+.searchWrap :global(.ant-select-content) input {
+  font-size: 14px;
+  line-height: normal;
+}

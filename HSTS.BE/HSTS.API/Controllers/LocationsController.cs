@@ -134,6 +134,31 @@ namespace HSTS.API.Controllers
             );
         }
 
+        /// <summary>
+        /// Check for potentially duplicate locations based on name similarity.
+        /// Optionally filter by geographic radius.
+        /// </summary>
+        [HttpGet("check-duplicate")]
+        public async Task<IActionResult> CheckDuplicateLocation(
+            [FromQuery] string name,
+            [FromQuery] double? latitude = null,
+            [FromQuery] double? longitude = null,
+            [FromQuery] double radiusKm = 5.0,
+            CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return Ok(Array.Empty<DuplicateLocationDto>());
+            }
+
+            var result = await _mediator.Send(new CheckDuplicateLocationQuery(name, latitude, longitude, radiusKm), ct);
+
+            return result.Match(
+                Ok,
+                errors => Problem(errors.First().Description)
+            );
+        }
+
         [HttpPost]
         [Authorize(Roles = "ADMIN,CONTENT_MODERATOR")]
         public async Task<IActionResult> Create(CreateLocationRequest request, CancellationToken ct)
