@@ -170,6 +170,58 @@
   animation-delay: 0.1s;
 }
 
+.originCard {
+  border-radius: 20px;
+  margin-bottom: 32px;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08);
+  background: linear-gradient(180deg, rgba(244, 203, 140, 0.18) 0%, #FFFFFF 100%);
+  border: 1px solid rgba(26, 83, 92, 0.08);
+}
+
+.originHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.originTitle {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.originDescription {
+  font-size: 13px;
+  color: rgba(26, 83, 92, 0.7);
+}
+
+.originGrid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.originFieldLabel {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(26, 83, 92, 0.78);
+}
+
+.originMetaRow {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .budgetCardHeader {
   display: flex;
   align-items: center;

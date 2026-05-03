@@ -153,7 +153,7 @@ namespace HSTS.Infrastructure.Services
             _logger.LogInformation("Onboarding link email sent to {Email}", toEmail);
         }
 
-        public async Task SendTripInvitationEmailAsync(string toEmail, string inviterName, string tripName, string token, CancellationToken cancellationToken = default)
+        public async Task SendTripInvitationEmailAsync(string toEmail, string inviterName, string tripName, string token, string clientUrl, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(_settings.ApiKey))
             {
@@ -167,6 +167,8 @@ namespace HSTS.Infrastructure.Services
                 throw new InvalidOperationException("Resend sender email is not configured.");
             }
 
+            var invitationLink = $"{clientUrl.TrimEnd('/')}/invitations/accept?token={token}";
+
             using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
             request.Content = JsonContent.Create(new ResendEmailRequest(
@@ -176,7 +178,9 @@ namespace HSTS.Infrastructure.Services
                 Html:
                     $"<h2>You've been invited!</h2>" +
                     $"<p><strong>{inviterName}</strong> has invited you to join the trip <strong>{tripName}</strong> on Hangout.</p>" +
-                    $"<p>Log in to your Hangout account to accept or decline this invitation.</p>" +
+                    $"<p>Click the button below to accept or decline this invitation:</p>" +
+                    $"<p><a href='{invitationLink}' style='display:inline-block;padding:12px 20px;background:#4CAF50;color:#fff;text-decoration:none;border-radius:6px;'>View Invitation</a></p>" +
+                    $"<p>If the button does not work, open this link:</p><p>{invitationLink}</p>" +
                     $"<p>This invitation will expire in 3 days.</p>"));
 
             using var response = await _httpClient.SendAsync(request, cancellationToken);

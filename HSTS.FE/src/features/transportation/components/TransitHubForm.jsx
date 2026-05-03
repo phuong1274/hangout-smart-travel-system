@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { createTransitHubApi, updateTransitHubApi } from '../api';
+import MapLinkInput from '@/components/MapLinkInput';
 import styles from '../styles/TransitHubForm.module.css';
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -77,6 +78,11 @@ const TransitHubForm = ({ open, transitHub, onClose, onSuccess, districts, trans
   const safeLat = Number.isFinite(latitude) ? latitude : DEFAULT_LAT;
   const safeLng = Number.isFinite(longitude) ? longitude : DEFAULT_LNG;
   const centerPosition = useMemo(() => [safeLat, safeLng], [safeLat, safeLng]);
+
+  const handleMapLinkParsed = ({ lat, lng }) => {
+    if (lat != null) setLatitude(lat);
+    if (lng != null) setLongitude(lng);
+  };
 
   const handleMapClick = (lat, lng) => {
     setLatitude(lat);
@@ -217,6 +223,7 @@ const TransitHubForm = ({ open, transitHub, onClose, onSuccess, districts, trans
       </Form>
 
       <div className={styles.mapSection}>
+        <MapLinkInput onParsed={handleMapLinkParsed} />
         <div className={styles.mapLabel}>Pick Location on Map</div>
         <Space.Compact className={styles.mapSearchGroup}>
           <AutoComplete

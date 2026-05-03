@@ -33,10 +33,70 @@ services:
       Resend__ApiKey: ${RESEND_API_KEY}
       Resend__FromEmail: ${RESEND_FROM_EMAIL}
       Resend__FromName: ${RESEND_FROM_NAME}
+      EmailPolicy__AllowVnDomains: ${EMAIL_POLICY_ALLOW_VN_DOMAINS}
+      EmailPolicy__AllowedDomains__0: ${EMAIL_POLICY_ALLOWED_DOMAIN_0}
+      EmailPolicy__AllowedDomains__1: ${EMAIL_POLICY_ALLOWED_DOMAIN_1}
+      EmailPolicy__AllowedDomains__2: ${EMAIL_POLICY_ALLOWED_DOMAIN_2}
+      EmailPolicy__AllowedDomains__3: ${EMAIL_POLICY_ALLOWED_DOMAIN_3}
+      EmailPolicy__AllowedDomains__4: ${EMAIL_POLICY_ALLOWED_DOMAIN_4}
+      EmailPolicy__AllowedDomains__5: ${EMAIL_POLICY_ALLOWED_DOMAIN_5}
+      EmailPolicy__AllowedDomains__6: ${EMAIL_POLICY_ALLOWED_DOMAIN_6}
+      EmailPolicy__AllowedDomains__7: ${EMAIL_POLICY_ALLOWED_DOMAIN_7}
+      EmailPolicy__AllowedDomains__8: ${EMAIL_POLICY_ALLOWED_DOMAIN_8}
+      EmailPolicy__AllowedDomains__9: ${EMAIL_POLICY_ALLOWED_DOMAIN_9}
+      EmailPolicy__AllowedDomains__10: ${EMAIL_POLICY_ALLOWED_DOMAIN_10}
+      EmailPolicy__AllowedDomains__11: ${EMAIL_POLICY_ALLOWED_DOMAIN_11}
+      EmailPolicy__AllowedDomains__12: ${EMAIL_POLICY_ALLOWED_DOMAIN_12}
+      EmailPolicy__AllowedDomains__13: ${EMAIL_POLICY_ALLOWED_DOMAIN_13}
+      EmailPolicy__AllowedDomains__14: ${EMAIL_POLICY_ALLOWED_DOMAIN_14}
+      EmailPolicy__AllowedDomains__15: ${EMAIL_POLICY_ALLOWED_DOMAIN_15}
+      EmailPolicy__AllowedDomains__16: ${EMAIL_POLICY_ALLOWED_DOMAIN_16}
+      EmailPolicy__AllowedDomains__17: ${EMAIL_POLICY_ALLOWED_DOMAIN_17}
+      EmailPolicy__AllowedDomains__18: ${EMAIL_POLICY_ALLOWED_DOMAIN_18}
+      EmailPolicy__AllowedDomains__19: ${EMAIL_POLICY_ALLOWED_DOMAIN_19}
+      EmailPolicy__AllowedDomains__20: ${EMAIL_POLICY_ALLOWED_DOMAIN_20}
+      EmailPolicy__AllowedDomains__21: ${EMAIL_POLICY_ALLOWED_DOMAIN_21}
+      EmailPolicy__AllowedDomains__22: ${EMAIL_POLICY_ALLOWED_DOMAIN_22}
+      EmailPolicy__AllowedDomains__23: ${EMAIL_POLICY_ALLOWED_DOMAIN_23}
+      EmailPolicy__AllowedDomains__24: ${EMAIL_POLICY_ALLOWED_DOMAIN_24}
+      EmailPolicy__AllowedDomains__25: ${EMAIL_POLICY_ALLOWED_DOMAIN_25}
+      EmailPolicy__AllowedDomains__26: ${EMAIL_POLICY_ALLOWED_DOMAIN_26}
+      EmailPolicy__AllowedDomains__27: ${EMAIL_POLICY_ALLOWED_DOMAIN_27}
+      EmailPolicy__AllowedDomains__28: ${EMAIL_POLICY_ALLOWED_DOMAIN_28}
+      EmailPolicy__AllowedDomains__29: ${EMAIL_POLICY_ALLOWED_DOMAIN_29}
       Google__ClientId: ${GOOGLE_CLIENT_ID}
       Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME}
       Cloudinary__ApiKey: ${CLOUDINARY_API_KEY}
       Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET}
+      ExchangeRate__BaseUrl: ${EXCHANGE_RATE_BASE_URL}
+      ExchangeRate__ApiKey: ${EXCHANGE_RATE_API_KEY}
+      ExchangeRate__CacheMinutes: ${EXCHANGE_RATE_CACHE_MINUTES}
+      TravelApis__Route__Provider: ${TRAVEL_ROUTE_PROVIDER}
+      TravelApis__Route__BaseUrl: ${TRAVEL_ROUTE_BASE_URL}
+      TravelApis__Route__EndpointPath: ${TRAVEL_ROUTE_ENDPOINT_PATH}
+      TravelApis__Route__DefaultQueryString: ${TRAVEL_ROUTE_DEFAULT_QUERY_STRING}
+      TravelApis__Route__ApiKey: ${TRAVEL_ROUTE_API_KEY}
+      TravelApis__Route__ApiKeyHeaderName: ${TRAVEL_ROUTE_API_KEY_HEADER_NAME}
+      TravelApis__Weather__Provider: ${TRAVEL_WEATHER_PROVIDER}
+      TravelApis__Weather__BaseUrl: ${TRAVEL_WEATHER_BASE_URL}
+      TravelApis__Weather__EndpointPath: ${TRAVEL_WEATHER_ENDPOINT_PATH}
+      TravelApis__Weather__DefaultQueryString: ${TRAVEL_WEATHER_DEFAULT_QUERY_STRING}
+      TravelApis__Weather__GeocodingBaseUrl: ${TRAVEL_WEATHER_GEOCODING_BASE_URL}
+      TravelApis__Weather__GeocodingEndpointPath: ${TRAVEL_WEATHER_GEOCODING_ENDPOINT_PATH}
+      TravelApis__Weather__ApiKey: ${TRAVEL_WEATHER_API_KEY}
+      TravelApis__Weather__ApiKeyHeaderName: ${TRAVEL_WEATHER_API_KEY_HEADER_NAME}
+      TravelApis__Sandbox__BaseUrl: ${TRAVEL_SANDBOX_BASE_URL}
+      TravelApis__Sandbox__EndpointPath: ${TRAVEL_SANDBOX_ENDPOINT_PATH}
+      TravelApis__Sandbox__ApiKey: ${TRAVEL_SANDBOX_API_KEY}
+      TravelApis__Sandbox__ApiKeyHeaderName: ${TRAVEL_SANDBOX_API_KEY_HEADER_NAME}
+      TravelApis__FixedIntercity__BaseUrl: ${TRAVEL_FIXED_INTERCITY_BASE_URL}
+      TravelApis__FixedIntercity__BusEndpointPath: ${TRAVEL_FIXED_INTERCITY_BUS_ENDPOINT_PATH}
+      TravelApis__FixedIntercity__TrainEndpointPath: ${TRAVEL_FIXED_INTERCITY_TRAIN_ENDPOINT_PATH}
+      TravelApis__FixedIntercity__TrainMonthlyCountEndpointPath: ${TRAVEL_FIXED_INTERCITY_TRAIN_MONTHLY_COUNT_ENDPOINT_PATH}
+      TravelApis__FixedIntercity__PlaneEndpointPath: ${TRAVEL_FIXED_INTERCITY_PLANE_ENDPOINT_PATH}
+      TravelApis__FixedIntercity__PlaneMonthlyCountEndpointPath: ${TRAVEL_FIXED_INTERCITY_PLANE_MONTHLY_COUNT_ENDPOINT_PATH}
+      TravelApis__FixedIntercity__ApiKey: ${TRAVEL_FIXED_INTERCITY_API_KEY}
+      TravelApis__FixedIntercity__ApiKeyHeaderName: ${TRAVEL_FIXED_INTERCITY_API_KEY_HEADER_NAME}
     depends_on:
       mysql:
         condition: service_healthy

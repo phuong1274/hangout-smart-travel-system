@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Button, Space, Card, Divider, Rate, Table, TimePicker, ConfigProvider } from 'antd';
 import { PlusOutlined, DeleteOutlined, EnvironmentOutlined, HomeOutlined, PhoneOutlined, MailOutlined, DollarOutlined, PictureOutlined, LinkOutlined, TagsOutlined, ClockCircleOutlined, CloudOutlined } from '@ant-design/icons';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
+import MapLinkInput from '@/components/MapLinkInput';
 import {
   createLocationSubmissionApi,
   updateLocationSubmissionApi,
@@ -306,6 +307,13 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
     }
   };
 
+  const handleMapLinkParsed = ({ lat, lng, address, name }) => {
+    if (lat != null) form.setFieldValue('latitude', lat);
+    if (lng != null) form.setFieldValue('longitude', lng);
+    if (address) form.setFieldValue('address', address);
+    if (name && !form.getFieldValue('name')) form.setFieldValue('name', name);
+  };
+
   const handleMapConfirm = (lat, lng) => {
     form.setFieldsValue({
       latitude: parseFloat(lat),
@@ -469,6 +477,7 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
               <EnvironmentOutlined className={styles.cardIcon} style={{ color: '#FF6B6B' }} />
               <strong className={styles.cardTitle}>Location & Contact</strong>
             </div>
+            <MapLinkInput onParsed={handleMapLinkParsed} />
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item

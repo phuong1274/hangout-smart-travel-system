@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace HSTS.Application.Invitations.Commands
 {
     // ==================== CREATE INVITATION ====================
-    public record CreateInvitationCommand(int TripId, string Email) : IRequest<ErrorOr<TripInvitationDto>>;
+    public record CreateInvitationCommand(int TripId, string Email, string ClientUrl) : IRequest<ErrorOr<TripInvitationDto>>;
 
     public class CreateInvitationCommandValidator : AbstractValidator<CreateInvitationCommand>
     {
@@ -14,6 +14,7 @@ namespace HSTS.Application.Invitations.Commands
         {
             RuleFor(x => x.TripId).GreaterThan(0);
             RuleFor(x => x.Email).NotEmpty().EmailAddress();
+            RuleFor(x => x.ClientUrl).NotEmpty();
         }
     }
 
@@ -95,8 +96,11 @@ namespace HSTS.Application.Invitations.Commands
             var inviterName = (await _context.Users.FirstOrDefaultAsync(u => u.Id == currentUserId, ct))?.FullName ?? "Unknown";
 
             // Log invitation link to console for testing
+            var clientUrl = !string.IsNullOrWhiteSpace(request.ClientUrl) ? request.ClientUrl.TrimEnd('/') : "http://localhost:5173";
+            var invitationLink = $"{clientUrl}/invitations/accept?token={invitation.Token}";
+            
             Console.WriteLine($"[INVITATION] {inviterName} invited {inviteeAccount.Email} to '{trip.TripName}'");
-            Console.WriteLine($"[INVITATION] Accept link: http://localhost:5173/invitations/accept?token={invitation.Token}");
+            Console.WriteLine($"[INVITATION] Accept link: {invitationLink}");
 
             // Send invitation notification email (best-effort, don't fail if email fails)
             try
@@ -106,6 +110,7 @@ namespace HSTS.Application.Invitations.Commands
                     inviterName,
                     trip.TripName,
                     invitation.Token,
+                    clientUrl,
                     ct);
             }
             catch (Exception ex)
