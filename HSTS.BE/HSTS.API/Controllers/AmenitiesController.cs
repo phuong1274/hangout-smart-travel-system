@@ -105,6 +105,8 @@ namespace HSTS.API.Controllers
                 errors => errors.First().Type switch
                 {
                     ErrorType.NotFound => NotFound(errors.First().Description),
+                    ErrorType.Validation => BadRequest(errors),
+                    ErrorType.Conflict => Conflict(errors.First().Description),
                     _ => Problem(errors.First().Description)
                 }
             );

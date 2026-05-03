@@ -28,7 +28,7 @@ namespace HSTS.Application.Districts.Commands
         public async Task<ErrorOr<DistrictDto>> Handle(CreateDistrictCommand request, CancellationToken cancellationToken)
         {
             var existingDistrict = await _repository.Query()
-                .Where(x => x.Name == request.Name && !x.IsDeleted)
+                .Where(x => x.Name == request.Name && x.ProvinceId == request.ProvinceId && !x.IsDeleted)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (existingDistrict != null)

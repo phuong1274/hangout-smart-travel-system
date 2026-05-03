@@ -4,6 +4,7 @@ import { SearchOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import styles from './GoogleMapPicker.module.css';
 
 // Fix default marker icon (Leaflet + bundler issue)
 delete L.Icon.Default.prototype._getIconUrl;
@@ -181,7 +182,7 @@ const GoogleMapPicker = ({ open, onClose, onConfirm, initialLat, initialLng, zIn
       maskClosable={false}
       destroyOnClose
     >
-      <div style={{ marginBottom: 16 }}>
+      <div className={styles.searchWrap} style={{ marginBottom: 16 }}>
         <Space.Compact style={{ width: '100%' }}>
           <AutoComplete
             style={{ flex: 1 }}

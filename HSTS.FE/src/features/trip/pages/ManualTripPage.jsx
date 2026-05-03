@@ -39,6 +39,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PATHS } from '@/routes/paths';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
+import { convertCurrencyAmount } from '../constants/currency';
+import MapLinkInput from '@/components/MapLinkInput';
 import {
   estimateLocalTravelApi,
   getLocationTypesApi,
@@ -47,7 +49,6 @@ import {
   getTransportModesApi,
   saveTripApi,
   updateSavedTripApi,
-  getTripByIdApi,
   getTripDetailApi,
 } from '../api';
 import styles from './ManualTripPage.module.css';
@@ -102,7 +103,7 @@ const pickFirstText = (...values) => {
   return '';
 };
 
-const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
+const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND', targetCurrency = fallbackCurrency) => {
   const source = Array.isArray(rawOptions)
     ? rawOptions
     : (Array.isArray(rawOptions?.transportOptions)
@@ -185,6 +186,12 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
         ? recommendedValue.trim().toLowerCase() === 'true'
         : Boolean(recommendedValue);
 
+      const normalizedCostCurrency = costCurrency.toUpperCase();
+      const normalizedTargetCurrency = String(targetCurrency || fallbackCurrency).toUpperCase();
+      const convertedCostAmount = normalizedTargetCurrency !== normalizedCostCurrency
+        ? convertCurrencyAmount(costAmount, normalizedCostCurrency, normalizedTargetCurrency)
+        : costAmount;
+
       return {
         method,
         transportModeId: toPositiveIntOrNull(
@@ -196,8 +203,8 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
           ?? option?.ModeId,
         ),
         travelMinutes,
-        costAmount,
-        costCurrency,
+        costAmount: Math.max(0, toNumberOrDefault(convertedCostAmount, 0)),
+        costCurrency: normalizedTargetCurrency,
         recommended,
         note: pickFirstText(option?.note, option?.Note),
         fromTransitHubName: pickFirstText(option?.fromTransitHubName, option?.FromTransitHubName),
@@ -205,6 +212,18 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
       };
     })
     .filter((option) => option.method || option.travelMinutes > 0 || option.costAmount > 0 || option.note);
+};
+
+const getMoneyCurrency = (value, fallback = 'VND') => {
+  const currency = value?.currency || value?.Currency || fallback;
+  return String(currency || fallback).toUpperCase();
+};
+
+const convertAmountToTripCurrency = (amount, sourceCurrency, tripCurrency) => {
+  const normalizedSource = String(sourceCurrency || 'VND').toUpperCase();
+  const normalizedTarget = String(tripCurrency || 'VND').toUpperCase();
+  if (normalizedSource === normalizedTarget) return amount;
+  return convertCurrencyAmount(amount, normalizedSource, normalizedTarget);
 };
 
 const getPreferredTransportOptionIndex = (options, travel) => {
@@ -486,7 +505,16 @@ const convertDetailDaysToBuilderDays = (tripDays) => {
         address: '',
         startTime: normalizeTimeOnly(act.startTime),
         endTime: normalizeTimeOnly(act.endTime),
-        customLocation: null,
+        customLocation: (!(act.locationId && Number(act.locationId) > 0) && transport?.transport
+            && toFiniteNumber(transport.transport.customToTransitHubLatitude) != null
+            && toFiniteNumber(transport.transport.customToTransitHubLongitude) != null)
+          ? {
+              name: String(act.title || '').trim(),
+              latitude: toFiniteNumber(transport.transport.customToTransitHubLatitude),
+              longitude: toFiniteNumber(transport.transport.customToTransitHubLongitude),
+              address: String(transport.transport.customToTransitHubAddress || '').trim(),
+            }
+          : null,
         travelFromPrevious: transport
           ? (() => {
               const savedModeId = toPositiveIntOrNull(transport.transport?.transportModeId);
@@ -500,8 +528,15 @@ const convertDetailDaysToBuilderDays = (tripDays) => {
                 transportModeName: String(transport.transport?.transportModeName || '').trim() || null,
                 departureTime: normalizeTimeOnly(transport.startTime),
                 arrivalTime: normalizeTimeOnly(transport.endTime),
-                fromName: null,
-                toName: null,
+                fromName: transport.transport?.customFromTransitHubName
+                  || transport.transport?.yourLocationName
+                  || transport.transport?.fromTransitHubName
+                  || transport.transport?.fromLocationName
+                  || null,
+                toName: transport.transport?.customToTransitHubName
+                  || transport.transport?.toTransitHubName
+                  || transport.transport?.toLocationName
+                  || null,
                 selectedOptionIndex: null,
                 manualCostOverride: isCustom,
                 isCustomTransport: isCustom,
@@ -604,6 +639,7 @@ const ManualTripPage = () => {
   const [defaultProvinceId, setDefaultProvinceId] = useState(null);
   const [tripInfo, setTripInfo] = useState(null);
   const [manualTotalBudget, setManualTotalBudget] = useState(null);
+  const [manualContingencyFund, setManualContingencyFund] = useState(null);
   const [manualDays, setManualDays] = useState([]);
   const [transportOptionsBackfilled, setTransportOptionsBackfilled] = useState(false);
 
@@ -689,17 +725,23 @@ const ManualTripPage = () => {
     const hydrate = async () => {
       setLoadingTrip(true);
 
-      const stateTripInfo = normalizeTripInfo(location?.state?.tripInfo);
+      const rawStateTripInfo = location?.state?.tripInfo;
+      const stateTripInfo = normalizeTripInfo(rawStateTripInfo);
       const draft = loadDraftFromStorage(tripId);
       const draftTripInfo = normalizeTripInfo(draft?.tripInfo);
       const draftBudget = toFiniteNumber(draft?.totalBudget);
+      const draftContingency = toFiniteNumber(draft?.contingencyFund);
+
+      const stateGroupSize = Number(rawStateTripInfo?.groupSize ?? rawStateTripInfo?.GroupSize);
+      const stateHasGroupSize = Number.isFinite(stateGroupSize) && stateGroupSize > 0;
 
       let resolvedTripInfo = draftTripInfo || stateTripInfo;
+      let resolvedContingency = draftContingency;
       let resolvedDays = normalizeDraftDays(draft?.days);
 
       const isEditMode = Boolean(location?.state?.editMode);
 
-      if (!resolvedTripInfo || (isEditMode && resolvedDays.length === 0)) {
+      if (!resolvedTripInfo || isEditMode) {
         try {
           if (isEditMode) {
             // Edit mode: load full trip detail (includes days/activities)
@@ -711,12 +753,57 @@ const ManualTripPage = () => {
                 budgetSummary: apiTrip.tripSummary,
               });
             }
-            if (resolvedDays.length === 0 && Array.isArray(apiTrip.tripDays)) {
+            if (resolvedContingency == null) {
+              resolvedContingency = toFiniteNumber(apiTrip?.tripSummary?.contingencyFund ?? apiTrip?.tripSummary?.ContingencyFund);
+            }
+
+            // Reconstruct starting point from the first Travel activity's transport.
+            // The starting point is persisted as a CustomFromTransitHub on the
+            // first travel leg (starting point -> first location).
+            if (!resolvedTripInfo?.startingLocation && !resolvedTripInfo?.userLocation) {
+              const firstDayActs = apiTrip.tripDays?.[0]?.activities;
+              const firstTravel = firstDayActs?.find((a) => a.type === 'Travel');
+              const t = firstTravel?.transport;
+              if (t) {
+                const originName = t.yourLocationName
+                  || t.customFromTransitHubName
+                  || t.fromTransitHubName
+                  || t.fromLocationName
+                  || null;
+                const originLat = toFiniteNumber(t.customFromTransitHubLatitude);
+                const originLng = toFiniteNumber(t.customFromTransitHubLongitude);
+                const originAddress = t.customFromTransitHubAddress || null;
+                if (originName || (originLat != null && originLng != null)) {
+                  resolvedTripInfo = {
+                    ...resolvedTripInfo,
+                    startingLocation: originName || 'Your Location',
+                    userLocation: (originLat != null && originLng != null)
+                      ? {
+                          name: originName || 'Your Location',
+                          locationName: originName || 'Your Location',
+                          address: originAddress,
+                          latitude: originLat,
+                          longitude: originLng,
+                        }
+                      : null,
+                  };
+                }
+              }
+            }
+
+            if (Array.isArray(apiTrip.tripDays)) {
               resolvedDays = convertDetailDaysToBuilderDays(apiTrip.tripDays);
             }
-          } else {
-            const apiTrip = await getTripByIdApi(tripId);
-            resolvedTripInfo = normalizeTripInfo(apiTrip);
+          } else if (!draftTripInfo && (!resolvedTripInfo || !stateHasGroupSize)) {
+            const apiTrip = await getTripDetailApi(tripId);
+            resolvedTripInfo = normalizeTripInfo({
+              ...apiTrip,
+              currencyCode: apiTrip.currency,
+              budgetSummary: apiTrip.tripSummary,
+            });
+            if (resolvedContingency == null) {
+              resolvedContingency = toFiniteNumber(apiTrip?.tripSummary?.contingencyFund ?? apiTrip?.tripSummary?.ContingencyFund);
+            }
           }
         } catch {
           if (!cancelled) {
@@ -731,6 +818,9 @@ const ManualTripPage = () => {
           draftBudget != null && draftBudget >= 0
             ? draftBudget
             : (resolvedTripInfo?.totalBudget != null && resolvedTripInfo.totalBudget >= 0 ? resolvedTripInfo.totalBudget : null),
+        );
+        setManualContingencyFund(
+          resolvedContingency != null && resolvedContingency >= 0 ? resolvedContingency : null,
         );
         setManualDays(resolvedDays);
         setLoadingTrip(false);
@@ -750,6 +840,7 @@ const ManualTripPage = () => {
     saveDraftToStorage(tripId, {
       tripInfo,
       totalBudget: manualTotalBudget,
+      contingencyFund: manualContingencyFund,
       days: manualDays,
       updatedAt: new Date().toISOString(),
     });
@@ -957,12 +1048,9 @@ const ManualTripPage = () => {
     const origin = tripInfo?.userLocation || tripInfo?.UserLocation;
     const fromLat = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
     const fromLng = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    const fromLabel = pickFirstText(origin?.name, origin?.locationName, tripInfo?.startingLocation) || 'Your Location';
     if (fromLat != null && fromLng != null) {
-      return {
-        fromLat,
-        fromLng,
-        fromLabel: 'Your Location',
-      };
+      return { fromLat, fromLng, fromLabel };
     }
 
     const label = pickFirstText(tripInfo?.startingLocation, tripInfo?.StartingLocation);
@@ -1234,7 +1322,7 @@ const ManualTripPage = () => {
   // (e.g. user start location or previous day's last stop) to the first activity.
   // originEndpoint shape mirrors getActivityEndpointForEstimate output for the
   // "from" side: { fromLocationId } or { fromLat, fromLng }.
-  const recalculateDayTravelAndEstimate = useCallback(async (activities, originEndpoint = null) => {
+  const recalculateDayTravelAndEstimate = useCallback(async (activities, originEndpoint = null, originalFirstTravel = null) => {
     if (!tripInfo) return activities;
 
     const normalized = activities.map((activity, index) => {
@@ -1279,10 +1367,16 @@ const ManualTripPage = () => {
 
           const travelMinutesFromLeg = Math.max(0, toNumberOrDefault(travelLeg?.selectedTravelTimeMinutes ?? travelLeg?.SelectedTravelTimeMinutes, 0));
           const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
-          const travelCostFromLeg = Math.max(0, toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost));
+          const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+          const travelCostCurrency = getMoneyCurrency(selectedCost, tripInfo.currencyCode || 'VND');
+          const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
+          const travelCostFromLeg = Math.max(
+            0,
+            toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, tripInfo.currencyCode), 0),
+          );
           const resolvedTransportModeId = toPositiveIntOrNull(travelLeg?.selectedTransportModeId ?? travelLeg?.SelectedTransportModeId ?? travelLeg?.transportModeId ?? travelLeg?.TransportModeId);
           const normalizedTransportOptions = normalizeTransportOptions(travelLeg?.transportOptions ?? travelLeg?.TransportOptions ?? travelLeg?.options ?? travelLeg?.Options, currencyCode);
-          const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, null);
+          const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, originalFirstTravel);
           const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
           const resolvedTravelMinutes = Math.max(1, toNumberOrDefault(selectedOption?.travelMinutes, travelMinutesFromLeg || 1));
           const autoStart = normalizeTimeOnly(travelLeg?.arrivalTime || travelLeg?.ArrivalTime) || addMinutesToTime(departureTime, resolvedTravelMinutes > 0 ? resolvedTravelMinutes : 20);
@@ -1293,7 +1387,7 @@ const ManualTripPage = () => {
             travelFromPrevious: {
               distanceKm,
               travelMinutes: resolvedTravelMinutes,
-              costAmount: travelCostFromLeg,
+              costAmount: selectedOption?.costAmount ?? travelCostFromLeg,
               costCurrency: pickFirstText(selectedOption?.costCurrency, tripInfo.currencyCode, 'VND') || 'VND',
               transportModeId: resolvedTransportModeId,
               transportModeName: pickFirstText(selectedOption?.method) || null,
@@ -1357,9 +1451,12 @@ const ManualTripPage = () => {
           ),
         );
         const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
+        const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+        const travelCostCurrency = getMoneyCurrency(selectedCost, currencyCode);
+        const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
         const travelCostFromLeg = Math.max(
           0,
-          toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost),
+          toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, currencyCode), 0),
         );
         const transportModeIdFromLeg = toPositiveIntOrNull(
           travelLeg?.selectedTransportModeId
@@ -1373,6 +1470,7 @@ const ManualTripPage = () => {
           ?? travelLeg?.TransportOptions
           ?? travelLeg?.options
           ?? travelLeg?.Options,
+          currencyCode,
           currencyCode,
         );
         const isCustomTransport = Boolean(previousTravel?.isCustomTransport);
@@ -1412,12 +1510,7 @@ const ManualTripPage = () => {
             travelLeg?.mode,
             travelLeg?.Mode,
           ) || null);
-        const resolvedCurrency = pickFirstText(
-          selectedOption?.costCurrency,
-          previousTravel?.costCurrency,
-          currencyCode,
-          'VND',
-        ) || 'VND';
+        const resolvedCurrency = currencyCode || 'VND';
 
         normalized[index] = {
           ...current,
@@ -1499,6 +1592,25 @@ const ManualTripPage = () => {
     message.success('Trip origin updated on the map.');
   }, [manualOrigin.address, manualOrigin.name, recalculateFirstManualDayFromOrigin, tripInfo]);
 
+  const handleOriginMapLinkParsed = useCallback(async ({ lat, lng, address, name }) => {
+    const nextTripInfo = {
+      ...tripInfo,
+      startingLocation: pickFirstText(name, tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your Location'),
+      userLocation: {
+        ...(tripInfo?.userLocation || tripInfo?.UserLocation || {}),
+        name: name || 'Your Location',
+        locationName: name || 'Your Location',
+        address: address || null,
+        ...(lat != null ? { latitude: lat } : {}),
+        ...(lng != null ? { longitude: lng } : {}),
+      },
+    };
+    setTripInfo(nextTripInfo);
+    if (lat != null && lng != null) {
+      await recalculateFirstManualDayFromOrigin(nextTripInfo);
+    }
+  }, [tripInfo, recalculateFirstManualDayFromOrigin]);
+
   // Estimates the travel leg from the last activity of the previous day to the first
   // activity of the current day. Returns an updated version of `toActivity` with
   // `travelFromPrevious` populated (or the original if estimation fails/has no endpoints).
@@ -1511,20 +1623,27 @@ const ManualTripPage = () => {
     if (!hasEndpoint) return toActivity;
 
     try {
-      const departureTime = normalizeTimeOnly(fromActivity.endTime) || '08:00:00';
+      const arrivalAnchor = normalizeTimeOnly(toActivity.startTime) || '08:00:00';
+      const apiDepartureTime = arrivalAnchor;
       const groupSize = Math.max(1, Math.round(toNumberOrDefault(tripInfo.groupSize, 1)));
       const currencyCode = tripInfo.currencyCode || 'VND';
       const cacheKey = buildTravelCacheKey(fromEndpoint, toEndpoint, groupSize, currencyCode);
       const cached = travelCacheRef.current.get(cacheKey);
       const travelLeg = cached
         ? { ...cached }
-        : await estimateLocalTravelApi({ ...fromEndpoint, ...toEndpoint, groupSize, departureTime, currencyCode });
+        : await estimateLocalTravelApi({ ...fromEndpoint, ...toEndpoint, groupSize, departureTime: apiDepartureTime, currencyCode });
       if (!cached) travelCacheRef.current.set(cacheKey, travelLeg);
 
       const travelMinutesFromLeg = Math.max(0, toNumberOrDefault(
         travelLeg?.selectedTravelTimeMinutes ?? travelLeg?.SelectedTravelTimeMinutes, 0));
       const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
-      const travelCostFromLeg = Math.max(0, toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost));
+      const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+      const travelCostCurrency = getMoneyCurrency(selectedCost, currencyCode);
+      const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
+      const travelCostFromLeg = Math.max(
+        0,
+        toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, currencyCode), 0),
+      );
       const transportModeIdFromLeg = toPositiveIntOrNull(
         travelLeg?.selectedTransportModeId ?? travelLeg?.SelectedTransportModeId
         ?? travelLeg?.transportModeId ?? travelLeg?.TransportModeId);
@@ -1533,6 +1652,7 @@ const ManualTripPage = () => {
         travelLeg?.transportOptions ?? travelLeg?.TransportOptions
         ?? travelLeg?.options ?? travelLeg?.Options,
         currencyCode,
+        currencyCode,
       );
       // Prefer restoring saved selection (by transportModeId/name) over just picking the recommended one
       const travelHint = existingTravel && !existingTravel.isCustomTransport ? existingTravel : null;
@@ -1540,8 +1660,11 @@ const ManualTripPage = () => {
       const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
 
       const resolvedTravelMinutes = Math.max(1, toNumberOrDefault(selectedOption?.travelMinutes, travelMinutesFromLeg || 1));
-      const autoStart = normalizeTimeOnly(travelLeg?.arrivalTime || travelLeg?.ArrivalTime)
-        || addMinutesToTime(departureTime, resolvedTravelMinutes > 0 ? resolvedTravelMinutes : 20);
+      const arrivalMinutes = toMinutesOfDay(arrivalAnchor);
+      const computedDeparture = arrivalMinutes != null
+        ? toTimeOnlyString(arrivalMinutes - resolvedTravelMinutes)
+        : apiDepartureTime;
+      const autoStart = arrivalAnchor;
       const desiredDuration = durationBetweenTimes(toActivity.startTime, toActivity.endTime);
       const autoEnd = addMinutesToTime(autoStart, desiredDuration);
 
@@ -1557,7 +1680,7 @@ const ManualTripPage = () => {
         travelLeg?.selectedMethod,
         travelLeg?.SelectedMethod,
       ) || null;
-      const resolvedCurrency = pickFirstText(selectedOption?.costCurrency, currencyCode, 'VND') || 'VND';
+      const resolvedCurrency = currencyCode || 'VND';
 
       return {
         ...toActivity,
@@ -1570,8 +1693,8 @@ const ManualTripPage = () => {
           costCurrency: resolvedCurrency,
           transportModeId: resolvedTransportModeId,
           transportModeName: resolvedTransportModeName,
-          departureTime,
-          arrivalTime: autoStart,
+          departureTime: computedDeparture,
+          arrivalTime: arrivalAnchor,
           fromName: getActivityDisplayName(fromActivity, 'Previous'),
           toName: getActivityDisplayName(toActivity, 'Destination'),
           selectedOptionIndex,
@@ -1664,6 +1787,26 @@ const ManualTripPage = () => {
         index === dayIndex ? { ...item, activities: recalculated } : item
       )));
 
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed.
+      if (dayIndex + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIndex + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const originalFirst = nextDay.activities[0];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, originalFirst);
+            // Preserve the original activity's start/end times — only update
+            // travelFromPrevious, not the activity schedule itself.
+            updatedNextFirst.startTime = originalFirst.startTime;
+            updatedNextFirst.endTime = originalFirst.endTime;
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
+
       message.success('Location added. Estimate was recalculated automatically.');
       closeAddLocationModal();
     } catch {
@@ -1751,6 +1894,26 @@ const ManualTripPage = () => {
         index === dayIndex ? { ...item, activities: recalculated } : item
       )));
 
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed.
+      if (dayIndex + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIndex + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const originalFirst = nextDay.activities[0];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, originalFirst);
+            // Preserve the original activity's start/end times — only update
+            // travelFromPrevious, not the activity schedule itself.
+            updatedNextFirst.startTime = originalFirst.startTime;
+            updatedNextFirst.endTime = originalFirst.endTime;
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
+
       message.success('Custom location added. Estimate was recalculated automatically.');
       closeAddLocationModal();
     } catch {
@@ -1777,6 +1940,26 @@ const ManualTripPage = () => {
       setManualDays((prev) => prev.map((item, index) => (
         index === dayIndex ? { ...item, activities: recalculated } : item
       )));
+
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed.
+      if (dayIndex + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIndex + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const originalFirst = nextDay.activities[0];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, originalFirst);
+            // Preserve the original activity's start/end times — only update
+            // travelFromPrevious, not the activity schedule itself.
+            updatedNextFirst.startTime = originalFirst.startTime;
+            updatedNextFirst.endTime = originalFirst.endTime;
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
     } catch {
       message.error('Unable to recalculate estimates after removing location.');
     } finally {
@@ -1840,6 +2023,21 @@ const ManualTripPage = () => {
       }
 
       setManualDays((prev) => prev.map((d, i) => (i === dayIdx ? { ...d, activities: recalculated } : d)));
+
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed after reorder.
+      if (dayIdx + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIdx + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, nextDay.activities[0]);
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIdx + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
     } catch {
       message.error('Unable to recalculate travel estimates after reordering.');
     } finally {
@@ -1985,10 +2183,25 @@ const ManualTripPage = () => {
     const backfill = async () => {
       try {
         const updates = await Promise.all(daysNeedingBackfill.map(async ({ dayIndex, day }) => {
-          // Preserve existing cross-day travelFromPrevious before recalculate strips it
-          const originalFirstTravel = dayIndex > 0 ? (day.activities?.[0]?.travelFromPrevious ?? null) : null;
-          let nextActivities = await recalculateDayTravelAndEstimate(day.activities || []);
-          
+          // Preserve existing first-activity travelFromPrevious before recalculate strips it
+          const originalFirstTravel = day.activities?.[0]?.travelFromPrevious ?? null;
+          // For Day 1, pass trip origin endpoint so starting-point transport is re-estimated
+          const originEndpoint = dayIndex === 0 ? getTripOriginEndpoint() : null;
+          // Strip isCustomTransport from the hint so getPreferredTransportOptionIndex
+          // still tries to match by modeName/transportModeId for selection
+          const selectionHint = originalFirstTravel
+            ? { ...originalFirstTravel, isCustomTransport: false }
+            : null;
+          let nextActivities = await recalculateDayTravelAndEstimate(day.activities || [], originEndpoint, selectionHint);
+
+          // If Day 1's first activity lost its transport, restore the original
+          if (dayIndex === 0 && nextActivities.length > 0 && nextActivities[0].travelFromPrevious == null && originalFirstTravel) {
+            nextActivities = [
+              { ...nextActivities[0], travelFromPrevious: originalFirstTravel },
+              ...nextActivities.slice(1),
+            ];
+          }
+
           // Also apply cross-day travel for the first activity if it's a non-first day
           if (dayIndex > 0 && nextActivities.length > 0 && nextActivities[0].travelFromPrevious == null) {
             const prevDay = manualDays[dayIndex - 1];
@@ -2026,6 +2239,13 @@ const ManualTripPage = () => {
       cancelled = true;
     };
   }, [manualDays, recalculateDayTravelAndEstimate, estimateCrossDayTravel, transportOptionsBackfilled, tripInfo]);
+
+  const handleCustomMapLinkParsed = ({ lat, lng, address, name }) => {
+    if (lat != null) setCustomLat(lat);
+    if (lng != null) setCustomLng(lng);
+    if (address) setCustomAddress(address);
+    if (name && !customName) setCustomName(name);
+  };
 
   const handlePickCustomLocationOnMap = (latitude, longitude) => {
     const safeLat = toFiniteNumber(latitude);
@@ -2112,13 +2332,13 @@ const ManualTripPage = () => {
         const visitStartTime = normalizeTimeOnly(activity.startTime);
         const visitEndTime = normalizeTimeOnly(activity.endTime);
 
-        // Cross-day first activity: activityIndex === 0 but travelFromPrevious is set (from previous day's last stop)
         const isCrossDayFirst = activityIndex === 0 && dayIndex > 0;
+        const isFirstActivityOfTrip = activityIndex === 0 && dayIndex === 0;
         const previousActivity = activityIndex > 0
           ? sourceActivities[activityIndex - 1]
           : (isCrossDayFirst ? manualDays[dayIndex - 1]?.activities?.at(-1) : null);
 
-        if ((activityIndex > 0 || isCrossDayFirst) && activity.travelFromPrevious) {
+        if (activity.travelFromPrevious) {
           const travelMethodText = String(activity.travelFromPrevious.transportModeName || '').trim();
           const travelMinutes = Math.max(1, Math.round(toNumberOrDefault(activity.travelFromPrevious.travelMinutes, 1)));
           const travelDistanceKm = Math.max(0, toNumberOrDefault(activity.travelFromPrevious.distanceKm, 0));
@@ -2193,6 +2413,58 @@ const ManualTripPage = () => {
               estimateCost: travelCostAmount,
             },
           });
+        } else if (isFirstActivityOfTrip && !activity.travelFromPrevious
+          && (tripInfo?.startingLocation || tripInfo?.userLocation || tripInfo?.UserLocation)
+        ) {
+          // No travel estimate (textual starting location, no coords) but the trip
+          // has a starting point — create a minimal travel activity so the origin
+          // label is persisted via customFromTransitHub.
+          const originName = pickFirstText(
+            tripInfo?.userLocation?.name,
+            tripInfo?.userLocation?.locationName,
+            tripInfo?.UserLocation?.name,
+            tripInfo?.UserLocation?.LocationName,
+            tripInfo?.startingLocation,
+            tripInfo?.StartingLocation,
+          ) || 'Your location';
+          const originLat = toFiniteNumber(
+            tripInfo?.userLocation?.latitude ?? tripInfo?.UserLocation?.latitude ?? tripInfo?.UserLocation?.Latitude,
+          );
+          const originLng = toFiniteNumber(
+            tripInfo?.userLocation?.longitude ?? tripInfo?.UserLocation?.longitude ?? tripInfo?.UserLocation?.Longitude,
+          );
+          const originAddress = pickFirstText(
+            tripInfo?.userLocation?.address,
+            tripInfo?.UserLocation?.address,
+            tripInfo?.UserLocation?.Address,
+          );
+
+          mappedActivities.push({
+            type: 2,
+            title: `Move to ${name || 'Location 1'}`,
+            startTime: visitStartTime || '08:00:00',
+            endTime: visitStartTime || '08:00:00',
+            locationId: null,
+            customLocationId: null,
+            customLocation: null,
+            transport: {
+              transportModeId: null,
+              distanceKm: 0,
+              travelTimeMinutes: 0,
+              fromLocationId: null,
+              toLocationId: toPositiveIntOrNull(activity.locationId) || null,
+              customFromTransitHub: {
+                name: originName,
+                ...(originLat != null && originLng != null ? {
+                  latitude: originLat,
+                  longitude: originLng,
+                  address: originAddress || null,
+                } : {}),
+              },
+              customToTransitHub: null,
+            },
+            budget: { estimateCost: 0 },
+          });
         }
 
         mappedActivities.push({
@@ -2259,10 +2531,14 @@ const ManualTripPage = () => {
 
     const estimatedTotalCost = Math.round(Math.max(0, estimatedTransportCost + estimatedActivityCost));
     const requestedBudget = toFiniteNumber(manualTotalBudget);
+    const requestedContingency = toFiniteNumber(manualContingencyFund);
     const totalBudget = requestedBudget != null && requestedBudget >= 0
       ? Math.round(requestedBudget)
       : estimatedTotalCost;
-    const usableBudget = totalBudget;
+    const contingencyFund = requestedContingency != null && requestedContingency >= 0
+      ? Math.round(requestedContingency)
+      : null;
+    const usableBudget = Math.max(0, totalBudget - (contingencyFund || 0));
     const remainingBudget = Math.max(0, usableBudget - estimatedTotalCost);
 
     const payload = {
@@ -2282,7 +2558,7 @@ const ManualTripPage = () => {
         estimatedMealCost: 0,
         estimatedTotalCost,
         remainingBudget,
-        contingencyFund: null,
+        contingencyFund,
       },
     };
 
@@ -2343,7 +2619,7 @@ const ManualTripPage = () => {
                     {editMode ? `Editing: ${tripInfo.tripName}` : tripInfo.tripName}
                   </Title>
                   <Text style={{ color: 'rgba(255,255,255,0.86)' }}>
-                    {tripInfo.startDate || 'TBD'} to {tripInfo.endDate || 'TBD'} • {tripInfo.groupSize} people
+                    {tripInfo.startDate || 'TBD'} to {tripInfo.endDate || 'TBD'} • {tripInfo.groupSize} {tripInfo.groupSize === 1 ? 'person' : 'people'}
                   </Text>
                 </Col>
                 <Col>
@@ -2384,6 +2660,7 @@ const ManualTripPage = () => {
                     <Button onClick={() => setOriginMapOpen(true)}>Pick on Map</Button>
                   </Space>
                 </div>
+                <MapLinkInput onParsed={handleOriginMapLinkParsed} />
                 <div className={styles.originMetaRow}>
                   <Tag color={manualOrigin.latitude != null && manualOrigin.longitude != null ? 'processing' : 'default'}>
                     {manualOrigin.latitude != null && manualOrigin.longitude != null
@@ -2395,20 +2672,42 @@ const ManualTripPage = () => {
 
               <div className={styles.optionalBudgetRow}>
                 <Text strong>Trip budget (optional)</Text>
-                <InputNumber
-                  min={0}
-                  style={{ width: 260 }}
-                  placeholder={`e.g. 10000000 ${tripInfo.currencyCode}`}
-                  value={manualTotalBudget}
-                  onChange={(value) => {
-                    const normalized = toFiniteNumber(value);
-                    if (normalized == null || normalized < 0) {
-                      setManualTotalBudget(null);
-                      return;
-                    }
-                    setManualTotalBudget(normalized);
-                  }}
-                />
+                <Space size={12} wrap>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Text type="secondary">Total budget</Text>
+                    <InputNumber
+                      min={0}
+                      style={{ width: 220 }}
+                      placeholder={`e.g. 10000000 ${tripInfo.currencyCode}`}
+                      value={manualTotalBudget}
+                      onChange={(value) => {
+                        const normalized = toFiniteNumber(value);
+                        if (normalized == null || normalized < 0) {
+                          setManualTotalBudget(null);
+                          return;
+                        }
+                        setManualTotalBudget(normalized);
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Text type="secondary">Contingency fund</Text>
+                    <InputNumber
+                      min={0}
+                      style={{ width: 220 }}
+                      placeholder={`e.g. 100000 ${tripInfo.currencyCode}`}
+                      value={manualContingencyFund}
+                      onChange={(value) => {
+                        const normalized = toFiniteNumber(value);
+                        if (normalized == null || normalized < 0) {
+                          setManualContingencyFund(null);
+                          return;
+                        }
+                        setManualContingencyFund(normalized);
+                      }}
+                    />
+                  </div>
+                </Space>
               </div>
 
               {!manualDays.length && (
@@ -2990,6 +3289,10 @@ const ManualTripPage = () => {
                 Pick your own point on map and define timeline. Estimate is recalculated from API automatically.
               </Text>
 
+              <div className={styles.editTimelineField} style={{ marginBottom: 16 }}>
+                <MapLinkInput onParsed={handleCustomMapLinkParsed} />
+              </div>
+
               <div className={styles.editTimelineField}>
                 <span className={styles.editTimelineLabel}>Name</span>
                 <Input
@@ -3124,9 +3427,9 @@ const ManualTripPage = () => {
             </div>
           </div>
 
-          <div className={styles.addBetweenFooterActions}>
+          {/* <div className={styles.addBetweenFooterActions}>
             <Button onClick={closeAddLocationModal}>Close</Button>
-          </div>
+          </div> */}
         </div>
       </Modal>
     </div>

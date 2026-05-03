@@ -278,7 +278,7 @@ namespace HSTS.Application.Itineraries.Queries
             }).ToList();
 
             if (locations.Count == 0)
-                return Error.NotFound("Itinerary.Location", "No locations match current filters.");
+                return Error.Validation("Itinerary.Location", "No locations match current filters.");
 
             // Load transit hubs
             var transitHubs = await _context.TransitHubs
@@ -348,13 +348,13 @@ namespace HSTS.Application.Itineraries.Queries
                 (x.LocationType != null && x.LocationType.Name.Contains("Attraction", StringComparison.OrdinalIgnoreCase))).ToList();
 
             // Filter shopping 
-            var shoppingLocations = nonAccommodationLocations.Where(x =>
+            var shoppingLocations = nonAccommodationLocations.Where(x => x.LocationTypeId == 4 ||
                 (x.LocationType != null && x.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase))).ToList();
 
             // (Restaurants are already safely extracted above to prevent tag-filter obliteration)
 
             if (attractions.Count == 0)
-                return Error.NotFound("Itinerary.Attraction", "No attraction locations available after filtering.");
+                return Error.Validation("Itinerary.Attraction", "No attraction locations available after filtering.");
 
             var attractionsByProvince = destinationProvinces.ToDictionary(
                 p => p.Id, p => attractions.Where(a => a.District != null && a.District.ProvinceId.HasValue && a.District.ProvinceId.Value == p.Id).ToList());
@@ -367,7 +367,7 @@ namespace HSTS.Application.Itineraries.Queries
                 .Where(p => attractionsByProvince.GetValueOrDefault(p.Id)?.Count > 0).ToList();
 
             if (destinationProvinces.Count == 0)
-                return Error.NotFound("Itinerary.Attraction", "No attractions in any destination province.");
+                return Error.Validation("Itinerary.Attraction", "No attractions in any destination province.");
 
             const int maxAttempts = 3;
             var initialNotes = notes.ToList();
@@ -704,8 +704,11 @@ namespace HSTS.Application.Itineraries.Queries
                         // Determine departure time: use departure time from API if available, otherwise estimate
                         // The intercity transport options may have departure info from the hub
                         // For now, calculate backwards from departure time - buffer - local transfer
+                        var fromHub = transitHubs.FirstOrDefault(h => h.Id == recOpt.FromTransitHubId);
+                        var startHubLat = fromHub?.Latitude ?? userProvince!.Latitude ?? 0;
+                        var startHubLon = fromHub?.Longitude ?? userProvince!.Longitude ?? 0;
                         var localTransferToHub = await BuildLocalTransportAsync(
-                            userGeo, new GeoPoint("Hub", userProvince!.Latitude ?? 0, userProvince.Longitude ?? 0),
+                            userGeo, new GeoPoint(fromHub?.Name ?? "Hub", startHubLat, startHubLon),
                             groupSize, transportModes, toMoney, cancellationToken);
 
                         int bufferBeforeDeparture = recOpt.Method switch
@@ -915,7 +918,7 @@ namespace HSTS.Application.Itineraries.Queries
                                         var visitEnd = AddMinutes(currentTime, stayMin);
                                         var ticket = firstAttr.TicketPrice;
                                         var extra = EstimateExtraSpending(firstAttr, request.TripSegment, groupSize);
-                                        var evtType = (firstAttr.LocationTypeId == 5 ||
+                                        var evtType = (firstAttr.LocationTypeId == 4 ||
                                             (firstAttr.LocationType != null && firstAttr.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                             ? "shopping" : "visit";
                                         var scored = dayAttractions.FirstOrDefault(x => x.Location.Id == firstAttr.Id);
@@ -1025,7 +1028,7 @@ namespace HSTS.Application.Itineraries.Queries
                                 var visitEnd = AddMinutes(currentTime, stayMin);
                                 var ticket = arrivalAttraction.TicketPrice;
                                 var extra = EstimateExtraSpending(arrivalAttraction, request.TripSegment, groupSize);
-                                var evtType = (arrivalAttraction.LocationTypeId == 5 ||
+                                var evtType = (arrivalAttraction.LocationTypeId == 4 ||
                                     (arrivalAttraction.LocationType != null && arrivalAttraction.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                     ? "shopping" : "visit";
                                 var scored = dayAttractions.FirstOrDefault(x => x.Location.Id == arrivalAttraction.Id);
@@ -1052,7 +1055,10 @@ namespace HSTS.Application.Itineraries.Queries
                         {
                             // User is in a different province - use intercity transfer with transit hubs
                             // 1. Travel from user location to departure transit hub
-                            var startHubPoint = new GeoPoint("Hub", userProvince!.Latitude ?? 0, userProvince.Longitude ?? 0);
+                            var fromHub = transitHubs.FirstOrDefault(h => h.Id == recOpt.FromTransitHubId);
+                            var startHubLat = fromHub?.Latitude ?? userProvince!.Latitude ?? 0;
+                            var startHubLon = fromHub?.Longitude ?? userProvince!.Longitude ?? 0;
+                            var startHubPoint = new GeoPoint(fromHub?.Name ?? "Hub", startHubLat, startHubLon);
                             var toStartHubTransport = await BuildLocalTransportAsync(
                                 userGeo, startHubPoint, groupSize, transportModes, toMoney, cancellationToken);
                             var toStartHubArrival = AddMinutes(currentTime, toStartHubTransport.SelectedTravelTimeMinutes);
@@ -1141,6 +1147,36 @@ namespace HSTS.Application.Itineraries.Queries
                                 currentPoint = hubToTarget;
                                 currentLocationName = hubToTargetName;
                                 currentLocationId = hubToTargetId;
+
+                                // Force visit/shopping at arrival attraction (when no hotel, via transit hub)
+                                if (destAccommodation is null && hubToTargetId > 0)
+                                {
+                                    var arrAttr = destAttractions.FirstOrDefault(x => x.Location.Id == hubToTargetId)?.Location;
+                                    if (arrAttr is not null)
+                                    {
+                                        var stayMin = arrAttr.RecommendedDurationMinutes ?? DefaultStayMinutes;
+                                        var visitEnd = AddMinutes(currentTime, stayMin);
+                                        var ticket = arrAttr.TicketPrice;
+                                        var extra = EstimateExtraSpending(arrAttr, request.TripSegment, groupSize);
+                                        var evtType = (arrAttr.LocationTypeId == 4 ||
+                                            (arrAttr.LocationType != null && arrAttr.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
+                                            ? "shopping" : "visit";
+                                        var scored = dayAttractions.FirstOrDefault(x => x.Location.Id == arrAttr.Id);
+                                        timeline.Add(new ItineraryTimelineItemDto(evtType,
+                                            evtType == "shopping" ? $"Shopping at {arrAttr.Name}" : $"Visit {arrAttr.Name}",
+                                            TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(visitEnd),
+                                            arrAttr.Id, GetTags(arrAttr),
+                                            toMoney(ticket), toMoney(extra / groupSize),
+                                            toMoney((ticket * groupSize) + extra),
+                                            $"Score: {scored?.CompositeScore:F1}",
+                                            Math.Round((double)(arrAttr.Score ?? 0), 2),
+                                            arrAttr.Address, arrAttr.Telephone, GetMediaUrls(arrAttr)));
+                                        dayActivityCost += (ticket * groupSize) + extra;
+                                        remainingDayBudget -= (ticket * groupSize) + extra;
+                                        visitedLocationIds.Add(arrAttr.Id);
+                                        currentTime = AddMinutes(visitEnd, BufferAfterActivity);
+                                    }
+                                }
                             }
                         }
 
@@ -1269,6 +1305,34 @@ namespace HSTS.Application.Itineraries.Queries
                             }
 
                             var mealTagNames = rLoc is not null ? GetTags(rLoc) : new List<string>();
+
+                            // Insert travel from current location to restaurant if they differ
+                            if (rLoc is not null && rLoc.Id != currentLocationId)
+                            {
+                                var mealPoint = GeoPoint.FromLocation(rLoc);
+                                var toMealTransport = await BuildLocalTransportAsync(
+                                    currentPoint, mealPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                var toMealArrival = AddMinutes(currentTime, toMealTransport.SelectedTravelTimeMinutes);
+
+                                var toMealLeg = new LocationToLocationTravelLegDto(
+                                    currentLocationId, currentLocationName ?? "Unknown", rLoc.Id, rLoc.Name,
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toMealArrival),
+                                    toMealTransport.DistanceKm, null,
+                                    0, toMoney(0),
+                                    toMealTransport.TransportOptions);
+                                timeline.Add(new ItineraryTimelineItemDto("travel",
+                                    "Local transfer",
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toMealArrival),
+                                    0, new List<string>(),
+                                    null, null, null, "", 0,
+                                    LocationToLocationTravel: toMealLeg));
+                                dayTransportCost += toMealTransport.SelectedTotalCost;
+                                currentTime = AddMinutes(toMealArrival, BufferAfterLocalTransfer);
+                                currentPoint = mealPoint;
+                                currentLocationName = rLoc.Name;
+                                currentLocationId = rLoc.Id;
+                            }
+
                             var mealEnd = AddMinutes(currentTime, lunchDurationMinutes);
 
                             timeline.Add(new ItineraryTimelineItemDto("meal",
@@ -1315,6 +1379,34 @@ namespace HSTS.Application.Itineraries.Queries
                             }
 
                             var breakfastTagNames = rLoc is not null ? GetTags(rLoc) : new List<string>();
+
+                            // Insert travel from current location to breakfast restaurant if they differ
+                            if (rLoc is not null && rLoc.Id != currentLocationId)
+                            {
+                                var bfPoint = GeoPoint.FromLocation(rLoc);
+                                var toBfTransport = await BuildLocalTransportAsync(
+                                    currentPoint, bfPoint, groupSize, transportModes, toMoney, cancellationToken);
+                                var toBfArrival = AddMinutes(currentTime, toBfTransport.SelectedTravelTimeMinutes);
+
+                                var toBfLeg = new LocationToLocationTravelLegDto(
+                                    currentLocationId, currentLocationName ?? "Unknown", rLoc.Id, rLoc.Name,
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toBfArrival),
+                                    toBfTransport.DistanceKm, null,
+                                    0, toMoney(0),
+                                    toBfTransport.TransportOptions);
+                                timeline.Add(new ItineraryTimelineItemDto("travel",
+                                    "Local transfer",
+                                    TimeOnly.FromDateTime(currentTime), TimeOnly.FromDateTime(toBfArrival),
+                                    0, new List<string>(),
+                                    null, null, null, "", 0,
+                                    LocationToLocationTravel: toBfLeg));
+                                dayTransportCost += toBfTransport.SelectedTotalCost;
+                                currentTime = AddMinutes(toBfArrival, BufferAfterLocalTransfer);
+                                currentPoint = bfPoint;
+                                currentLocationName = rLoc.Name;
+                                currentLocationId = rLoc.Id;
+                            }
+
                             timeline.Add(new ItineraryTimelineItemDto("meal",
                                 rLoc is not null ? $"Breakfast at {rLoc.Name}" : "Breakfast",
                                 currentTimeOnly, BreakfastEnd,
@@ -1431,7 +1523,7 @@ namespace HSTS.Application.Itineraries.Queries
                                     var visitEnd = AddMinutes(currentTime, stayMin);
                                     var ticket = loc.TicketPrice;
                                     var extra = EstimateExtraSpending(loc, request.TripSegment, groupSize);
-                                    var evtType = (loc.LocationTypeId == 5 ||
+                                    var evtType = (loc.LocationTypeId == 4 ||
                                         (loc.LocationType != null && loc.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                         ? "shopping" : "visit";
                                     timeline.Add(new ItineraryTimelineItemDto(evtType,
@@ -1455,7 +1547,10 @@ namespace HSTS.Application.Itineraries.Queries
 
                         // Travel from hotel/current location to departure transit hub
                         {
-                            var departureHubPoint = new GeoPoint("Hub", prevProvince.Latitude ?? 0, prevProvince.Longitude ?? 0);
+                            var fromHub = transitHubs.FirstOrDefault(h => h.Id == segRecOpt.FromTransitHubId);
+                            var startHubLat = fromHub?.Latitude ?? prevProvince.Latitude ?? 0;
+                            var startHubLon = fromHub?.Longitude ?? prevProvince.Longitude ?? 0;
+                            var departureHubPoint = new GeoPoint(fromHub?.Name ?? "Hub", startHubLat, startHubLon);
                             var toHubTransport = await BuildLocalTransportAsync(
                                 prevAccom is not null ? GeoPoint.FromLocation(prevAccom) : new GeoPoint(prevProvince.EnglishName!, prevProvince.Latitude ?? 0, prevProvince.Longitude ?? 0),
                                 departureHubPoint, groupSize, transportModes, toMoney, cancellationToken);
@@ -1523,8 +1618,11 @@ namespace HSTS.Application.Itineraries.Queries
                                 }
                             }
 
+                            var toHub = transitHubs.FirstOrDefault(h => h.Id == segRecOpt.ToTransitHubId);
+                            var endHubLat = toHub?.Latitude ?? orderedDestinations[destIdx].Latitude ?? 0;
+                            var endHubLon = toHub?.Longitude ?? orderedDestinations[destIdx].Longitude ?? 0;
                             var segHubTransport = await BuildLocalTransportAsync(
-                                new GeoPoint("Hub", orderedDestinations[destIdx].Latitude ?? 0, orderedDestinations[destIdx].Longitude ?? 0),
+                                new GeoPoint(toHub?.Name ?? "Hub", endHubLat, endHubLon),
                                 segHubToTarget, groupSize, transportModes, toMoney, cancellationToken);
                             var segHubArrival = AddMinutes(currentTime, segHubTransport.SelectedTravelTimeMinutes);
                             var segHubLeg = new TransitHubToLocationTravelLegDto(
@@ -1787,7 +1885,7 @@ namespace HSTS.Application.Itineraries.Queries
 
                                                         var morningExtraCostPerPerson = morningExtraSpending / groupSize;
                                                         var morningVisitTagNames = GetTags(morningActivity.Location);
-                                                        var morningEventType = (morningActivity.Location.LocationTypeId == 5 ||
+                                                        var morningEventType = (morningActivity.Location.LocationTypeId == 4 ||
                                                             (morningActivity.Location.LocationType != null &&
                                                              morningActivity.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                                             ? "shopping" : "visit";
@@ -2104,7 +2202,7 @@ namespace HSTS.Application.Itineraries.Queries
                         var visitTagNames = GetTags(nextAttraction.Location);
                         
                         // Determine event type: "shopping" for shopping locations, "visit" for attractions
-                        var eventType = (nextAttraction.Location.LocationTypeId == 5 ||
+                        var eventType = (nextAttraction.Location.LocationTypeId == 4 ||
                             (nextAttraction.Location.LocationType != null && 
                              nextAttraction.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                             ? "shopping"
@@ -2255,7 +2353,7 @@ namespace HSTS.Application.Itineraries.Queries
                             var postDinnerExtraCostPerPerson = postDinnerExtraSpending / groupSize;
                             var postDinnerVisitTagNames = GetTags(postDinnerActivity.Location);
 
-                            var postDinnerEventType = (postDinnerActivity.Location.LocationTypeId == 5 ||
+                            var postDinnerEventType = (postDinnerActivity.Location.LocationTypeId == 4 ||
                                 (postDinnerActivity.Location.LocationType != null &&
                                  postDinnerActivity.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                 ? "shopping"
@@ -2421,7 +2519,7 @@ namespace HSTS.Application.Itineraries.Queries
                                                 0, new List<string>(), null, null, null, "", 0,
                                                 LocationToLocationTravel: ldMorningLeg));
 
-                                            var ldMorningEventType = (lastDayMorningActivity.Location.LocationTypeId == 5 ||
+                                            var ldMorningEventType = (lastDayMorningActivity.Location.LocationTypeId == 4 ||
                                                 (lastDayMorningActivity.Location.LocationType != null &&
                                                  lastDayMorningActivity.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                                 ? "shopping" : "visit";
@@ -2643,7 +2741,7 @@ namespace HSTS.Application.Itineraries.Queries
                                             0, new List<string>(), null, null, null, "", 0,
                                             LocationToLocationTravel: pcLeg));
 
-                                        var pcEventType = (pcNext.Location.LocationTypeId == 5 ||
+                                        var pcEventType = (pcNext.Location.LocationTypeId == 4 ||
                                             (pcNext.Location.LocationType != null &&
                                              pcNext.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                             ? "shopping" : "visit";
@@ -2678,7 +2776,10 @@ namespace HSTS.Application.Itineraries.Queries
 
                             // Travel from current location to departure transit hub
                             {
-                                var departureHubPoint = new GeoPoint("Hub", currentProvince.Latitude ?? 0, currentProvince.Longitude ?? 0);
+                                var fromHub = transitHubs.FirstOrDefault(h => h.Id == retRecOpt.FromTransitHubId);
+                                var startHubLat = fromHub?.Latitude ?? currentProvince.Latitude ?? 0;
+                                var startHubLon = fromHub?.Longitude ?? currentProvince.Longitude ?? 0;
+                                var departureHubPoint = new GeoPoint(fromHub?.Name ?? "Hub", startHubLat, startHubLon);
                                 var toHubTransport = await BuildLocalTransportAsync(
                                     currentPoint, departureHubPoint, groupSize, transportModes, toMoney, cancellationToken);
                                 var toHubArrival = AddMinutes(currentTime, toHubTransport.SelectedTravelTimeMinutes);
@@ -2810,7 +2911,7 @@ namespace HSTS.Application.Itineraries.Queries
                                         LocationToLocationTravel: fallbackLeg));
 
                                     var fallbackTags = GetTags(fallbackAttraction.Location);
-                                    var fallbackEventType = (fallbackAttraction.Location.LocationTypeId == 5 ||
+                                    var fallbackEventType = (fallbackAttraction.Location.LocationTypeId == 4 ||
                                         (fallbackAttraction.Location.LocationType != null &&
                                          fallbackAttraction.Location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase)))
                                         ? "shopping" : "visit";
@@ -3544,7 +3645,7 @@ namespace HSTS.Application.Itineraries.Queries
 
             decimal avg = (min + max) / 2m;
             bool isSpendingCategory = location.LocationTypeId == 2 || // Restaurant
-                location.LocationTypeId == 5 || // Shopping
+                location.LocationTypeId == 4 || // Shopping
                 (location.LocationType != null && (
                     location.LocationType.Name.Contains("Shopping", StringComparison.OrdinalIgnoreCase) ||
                     location.LocationType.Name.Contains("Food", StringComparison.OrdinalIgnoreCase) ||

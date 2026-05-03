@@ -150,8 +150,14 @@ namespace HSTS.Application.Trips.Queries
                                 a.Transport.ToTransitHub?.Name,
                                 a.Transport.CustomFromTransitHubId,
                                 a.Transport.CustomFromTransitHub?.Name,
+                                a.Transport.CustomFromTransitHub?.Latitude,
+                                a.Transport.CustomFromTransitHub?.Longitude,
+                                a.Transport.CustomFromTransitHub?.Address,
                                 a.Transport.CustomToTransitHubId,
-                                a.Transport.CustomToTransitHub?.Name
+                                a.Transport.CustomToTransitHub?.Name,
+                                a.Transport.CustomToTransitHub?.Latitude,
+                                a.Transport.CustomToTransitHub?.Longitude,
+                                a.Transport.CustomToTransitHub?.Address
                             ) : null
                         ))
                         .ToList()

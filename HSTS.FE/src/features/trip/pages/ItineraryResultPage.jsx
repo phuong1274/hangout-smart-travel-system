@@ -280,6 +280,19 @@ const toFiniteNumber = (value) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const resolveGroupSize = (source, fallback = 1) => {
+  const value = toFiniteNumber(
+    source?.request?.groupSize
+    ?? source?.request?.GroupSize
+    ?? source?.Request?.groupSize
+    ?? source?.Request?.GroupSize
+    ?? source?.groupSize
+    ?? source?.GroupSize
+  );
+
+  return value != null && value > 0 ? Math.round(value) : fallback;
+};
+
 const getMoneyAmount = (moneyDto) => {
   if (!moneyDto) return null;
   const amount = Number(moneyDto.amount ?? moneyDto.Amount);
@@ -4598,10 +4611,7 @@ const ItineraryResultPage = () => {
   const budgetSummary = itinerary.budgetSummary || itinerary.BudgetSummary;
   const startDate = itinerary.startDate || itinerary.StartDate;
   const endDate = itinerary.endDate || itinerary.EndDate;
-  const groupSizeValue = Number(itinerary?.groupSize ?? itinerary?.GroupSize);
-  const groupSize = Number.isFinite(groupSizeValue) && groupSizeValue > 0
-    ? Math.round(groupSizeValue)
-    : 1;
+  const groupSize = resolveGroupSize(itinerary, 1);
   const budgetLevel = itinerary.budgetLevel || itinerary.BudgetLevel;
   const tripCurrencyCode = pickFirstText(itinerary.currencyCode, itinerary.CurrencyCode) || 'VND';
 
@@ -4669,14 +4679,14 @@ const ItineraryResultPage = () => {
         value: formatMoney(budgetSummary.usableBudget || budgetSummary.UsableBudget),
         className: styles.budgetUsableValue,
       },
-      ...(summaryContingencyValue > 0
-        ? [{
-          key: 'contingencyFund',
-          label: 'Contingency Fund',
-          value: formatMoney({ amount: summaryContingencyValue, currency: tripCurrencyCode }),
-          className: styles.budgetContingencyValue,
-        }]
-        : []),
+      // ...(summaryContingencyValue > 0
+      //   ? [{
+      //     key: 'contingencyFund',
+      //     label: 'Contingency Fund',
+      //     value: formatMoney({ amount: summaryContingencyValue, currency: tripCurrencyCode }),
+      //     className: styles.budgetContingencyValue,
+      //   }]
+      //   : []),
       {
         key: 'estimatedTotal',
         label: 'Estimated Total',
@@ -5113,7 +5123,7 @@ const ItineraryResultPage = () => {
       description,
       startDate: startIso,
       endDate: endIso,
-      groupSize: Math.max(1, Math.round(Number(groupSize) || 1)),
+      groupSize,
       currencyCode: safeCurrency,
       days: mappedDays,
       budgetSummary: {
@@ -5934,14 +5944,7 @@ const ItineraryResultPage = () => {
             </DragOverlay>
             </DndContext>
 
-            <div className={styles.actionBar}>
-              <Button onClick={handleRegenerate} size="large" className={styles.actionBtnSecondary}>
-                Regenerate
-              </Button>
-              <Button type="primary" onClick={() => navigate('/create-trip')} size="large" className={styles.actionBtnPrimary}>
-                Edit
-              </Button>
-            </div>
+            
           </div>
         </div>
 

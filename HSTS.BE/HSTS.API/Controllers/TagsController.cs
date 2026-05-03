@@ -106,10 +106,12 @@ namespace HSTS.API.Controllers
             var result = await _mediator.Send(command);
 
             return result.Match(
-                tagDto => Ok("Deleted successfully"),
+                _ => Ok("Deleted successfully"),
                 errors => errors.First().Type switch
                 {
                     ErrorType.NotFound => NotFound(errors.First().Description),
+                    ErrorType.Validation => BadRequest(errors),
+                    ErrorType.Conflict => Conflict(errors.First().Description),
                     _ => Problem(errors.First().Description)
                 }
             );

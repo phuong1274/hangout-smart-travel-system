@@ -4,6 +4,7 @@ import { PlusOutlined, DeleteOutlined, UploadOutlined, PictureOutlined, Environm
 import { createLocationApi, updateLocationApi, getAllDistrictsApi, getAllLocationTypesApi, getAllAmenitiesApi, getAllTagsApi } from '../api';
 import { uploadImageToCloudinary } from '@/services/cloudinary';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
+import MapLinkInput from '@/components/MapLinkInput';
 import { SOCIAL_PLATFORMS, DAYS_OF_WEEK, MONTHS } from '@/utils/locationConstants';
 import { buildTagHierarchy } from '@/utils/locationCache';
 import dayjs from 'dayjs';
@@ -209,7 +210,7 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         ...values,
         tagIds: selectedChildTagIds,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : [],
-        amenityIds: values.amenityIds?.length > 0 ? values.amenityIds.map(a => a.value) : [],
+        amenityIds: values.amenityIds || [],
         socialLinks: formattedSocialLinks,
         openingHours: openingHours.length > 0 ? openingHours : [],
         seasons: formattedSeasons
@@ -259,6 +260,13 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
       message.error(error.message || 'Upload failed');
     }
     return Upload.LIST_IGNORE;
+  };
+
+  const handleMapLinkParsed = ({ lat, lng, address, name }) => {
+    if (lat != null) form.setFieldValue('latitude', lat);
+    if (lng != null) form.setFieldValue('longitude', lng);
+    if (address) form.setFieldValue('address', address);
+    if (name && !form.getFieldValue('name')) form.setFieldValue('name', name);
   };
 
   const handleMapConfirm = (lat, lng) => {
@@ -370,6 +378,8 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         >
           <TextArea rows={3} placeholder="Enter description" className={styles.customInput} />
         </Form.Item>
+
+        <MapLinkInput onParsed={handleMapLinkParsed} />
 
         <Space direction="horizontal" style={{ width: '100%' }} size="large" className={styles.spaceRow}>
           <Form.Item
@@ -596,7 +606,6 @@ const LocationForm = ({ open, location, onClose, onSuccess }) => {
         >
           <Select
             mode="multiple"
-            labelInValue
             placeholder="Select amenities"
             showSearch
             optionFilterProp="children"
