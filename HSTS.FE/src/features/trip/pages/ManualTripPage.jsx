@@ -39,6 +39,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PATHS } from '@/routes/paths';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
+import { convertCurrencyAmount } from '../constants/currency';
 import MapLinkInput from '@/components/MapLinkInput';
 import {
   estimateLocalTravelApi,
@@ -48,7 +49,6 @@ import {
   getTransportModesApi,
   saveTripApi,
   updateSavedTripApi,
-  getTripByIdApi,
   getTripDetailApi,
 } from '../api';
 import styles from './ManualTripPage.module.css';
@@ -103,7 +103,7 @@ const pickFirstText = (...values) => {
   return '';
 };
 
-const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
+const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND', targetCurrency = fallbackCurrency) => {
   const source = Array.isArray(rawOptions)
     ? rawOptions
     : (Array.isArray(rawOptions?.transportOptions)
@@ -186,6 +186,12 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
         ? recommendedValue.trim().toLowerCase() === 'true'
         : Boolean(recommendedValue);
 
+      const normalizedCostCurrency = costCurrency.toUpperCase();
+      const normalizedTargetCurrency = String(targetCurrency || fallbackCurrency).toUpperCase();
+      const convertedCostAmount = normalizedTargetCurrency !== normalizedCostCurrency
+        ? convertCurrencyAmount(costAmount, normalizedCostCurrency, normalizedTargetCurrency)
+        : costAmount;
+
       return {
         method,
         transportModeId: toPositiveIntOrNull(
@@ -197,8 +203,8 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
           ?? option?.ModeId,
         ),
         travelMinutes,
-        costAmount,
-        costCurrency,
+        costAmount: Math.max(0, toNumberOrDefault(convertedCostAmount, 0)),
+        costCurrency: normalizedTargetCurrency,
         recommended,
         note: pickFirstText(option?.note, option?.Note),
         fromTransitHubName: pickFirstText(option?.fromTransitHubName, option?.FromTransitHubName),
@@ -206,6 +212,18 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
       };
     })
     .filter((option) => option.method || option.travelMinutes > 0 || option.costAmount > 0 || option.note);
+};
+
+const getMoneyCurrency = (value, fallback = 'VND') => {
+  const currency = value?.currency || value?.Currency || fallback;
+  return String(currency || fallback).toUpperCase();
+};
+
+const convertAmountToTripCurrency = (amount, sourceCurrency, tripCurrency) => {
+  const normalizedSource = String(sourceCurrency || 'VND').toUpperCase();
+  const normalizedTarget = String(tripCurrency || 'VND').toUpperCase();
+  if (normalizedSource === normalizedTarget) return amount;
+  return convertCurrencyAmount(amount, normalizedSource, normalizedTarget);
 };
 
 const getPreferredTransportOptionIndex = (options, travel) => {
@@ -612,6 +630,7 @@ const ManualTripPage = () => {
   const [defaultProvinceId, setDefaultProvinceId] = useState(null);
   const [tripInfo, setTripInfo] = useState(null);
   const [manualTotalBudget, setManualTotalBudget] = useState(null);
+  const [manualContingencyFund, setManualContingencyFund] = useState(null);
   const [manualDays, setManualDays] = useState([]);
   const [transportOptionsBackfilled, setTransportOptionsBackfilled] = useState(false);
 
@@ -697,12 +716,18 @@ const ManualTripPage = () => {
     const hydrate = async () => {
       setLoadingTrip(true);
 
-      const stateTripInfo = normalizeTripInfo(location?.state?.tripInfo);
+      const rawStateTripInfo = location?.state?.tripInfo;
+      const stateTripInfo = normalizeTripInfo(rawStateTripInfo);
       const draft = loadDraftFromStorage(tripId);
       const draftTripInfo = normalizeTripInfo(draft?.tripInfo);
       const draftBudget = toFiniteNumber(draft?.totalBudget);
+      const draftContingency = toFiniteNumber(draft?.contingencyFund);
+
+      const stateGroupSize = Number(rawStateTripInfo?.groupSize ?? rawStateTripInfo?.GroupSize);
+      const stateHasGroupSize = Number.isFinite(stateGroupSize) && stateGroupSize > 0;
 
       let resolvedTripInfo = draftTripInfo || stateTripInfo;
+      let resolvedContingency = draftContingency;
       let resolvedDays = normalizeDraftDays(draft?.days);
 
       const isEditMode = Boolean(location?.state?.editMode);
@@ -718,6 +743,9 @@ const ManualTripPage = () => {
                 currencyCode: apiTrip.currency,
                 budgetSummary: apiTrip.tripSummary,
               });
+            }
+            if (resolvedContingency == null) {
+              resolvedContingency = toFiniteNumber(apiTrip?.tripSummary?.contingencyFund ?? apiTrip?.tripSummary?.ContingencyFund);
             }
 
             // Reconstruct starting point from the first Travel activity's transport.
@@ -757,9 +785,16 @@ const ManualTripPage = () => {
             if (resolvedDays.length === 0 && Array.isArray(apiTrip.tripDays)) {
               resolvedDays = convertDetailDaysToBuilderDays(apiTrip.tripDays);
             }
-          } else {
-            const apiTrip = await getTripByIdApi(tripId);
-            resolvedTripInfo = normalizeTripInfo(apiTrip);
+          } else if (!draftTripInfo && (!resolvedTripInfo || !stateHasGroupSize)) {
+            const apiTrip = await getTripDetailApi(tripId);
+            resolvedTripInfo = normalizeTripInfo({
+              ...apiTrip,
+              currencyCode: apiTrip.currency,
+              budgetSummary: apiTrip.tripSummary,
+            });
+            if (resolvedContingency == null) {
+              resolvedContingency = toFiniteNumber(apiTrip?.tripSummary?.contingencyFund ?? apiTrip?.tripSummary?.ContingencyFund);
+            }
           }
         } catch {
           if (!cancelled) {
@@ -774,6 +809,9 @@ const ManualTripPage = () => {
           draftBudget != null && draftBudget >= 0
             ? draftBudget
             : (resolvedTripInfo?.totalBudget != null && resolvedTripInfo.totalBudget >= 0 ? resolvedTripInfo.totalBudget : null),
+        );
+        setManualContingencyFund(
+          resolvedContingency != null && resolvedContingency >= 0 ? resolvedContingency : null,
         );
         setManualDays(resolvedDays);
         setLoadingTrip(false);
@@ -793,6 +831,7 @@ const ManualTripPage = () => {
     saveDraftToStorage(tripId, {
       tripInfo,
       totalBudget: manualTotalBudget,
+      contingencyFund: manualContingencyFund,
       days: manualDays,
       updatedAt: new Date().toISOString(),
     });
@@ -1322,9 +1361,19 @@ const ManualTripPage = () => {
 
           const travelMinutesFromLeg = Math.max(0, toNumberOrDefault(travelLeg?.selectedTravelTimeMinutes ?? travelLeg?.SelectedTravelTimeMinutes, 0));
           const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
-          const travelCostFromLeg = Math.max(0, toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost));
+          const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+          const travelCostCurrency = getMoneyCurrency(selectedCost, tripInfo.currencyCode || 'VND');
+          const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
+          const travelCostFromLeg = Math.max(
+            0,
+            toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, tripInfo.currencyCode), 0),
+          );
           const resolvedTransportModeId = toPositiveIntOrNull(travelLeg?.selectedTransportModeId ?? travelLeg?.SelectedTransportModeId ?? travelLeg?.transportModeId ?? travelLeg?.TransportModeId);
-          const normalizedTransportOptions = normalizeTransportOptions(travelLeg?.transportOptions ?? travelLeg?.TransportOptions ?? travelLeg?.options ?? travelLeg?.Options, currencyCode);
+          const normalizedTransportOptions = normalizeTransportOptions(
+            travelLeg?.transportOptions ?? travelLeg?.TransportOptions ?? travelLeg?.options ?? travelLeg?.Options,
+            currencyCode,
+            currencyCode,
+          );
           const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, null);
           const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
           const resolvedTravelMinutes = Math.max(1, toNumberOrDefault(selectedOption?.travelMinutes, travelMinutesFromLeg || 1));
@@ -1337,7 +1386,7 @@ const ManualTripPage = () => {
               distanceKm,
               travelMinutes: resolvedTravelMinutes,
               costAmount: travelCostFromLeg,
-              costCurrency: pickFirstText(selectedOption?.costCurrency, tripInfo.currencyCode, 'VND') || 'VND',
+              costCurrency: tripInfo.currencyCode || 'VND',
               transportModeId: resolvedTransportModeId,
               transportModeName: pickFirstText(selectedOption?.method) || null,
               departureTime: departureTime,
@@ -1400,9 +1449,12 @@ const ManualTripPage = () => {
           ),
         );
         const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
+        const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+        const travelCostCurrency = getMoneyCurrency(selectedCost, currencyCode);
+        const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
         const travelCostFromLeg = Math.max(
           0,
-          toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost),
+          toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, currencyCode), 0),
         );
         const transportModeIdFromLeg = toPositiveIntOrNull(
           travelLeg?.selectedTransportModeId
@@ -1416,6 +1468,7 @@ const ManualTripPage = () => {
           ?? travelLeg?.TransportOptions
           ?? travelLeg?.options
           ?? travelLeg?.Options,
+          currencyCode,
           currencyCode,
         );
         const isCustomTransport = Boolean(previousTravel?.isCustomTransport);
@@ -1455,12 +1508,7 @@ const ManualTripPage = () => {
             travelLeg?.mode,
             travelLeg?.Mode,
           ) || null);
-        const resolvedCurrency = pickFirstText(
-          selectedOption?.costCurrency,
-          previousTravel?.costCurrency,
-          currencyCode,
-          'VND',
-        ) || 'VND';
+        const resolvedCurrency = currencyCode || 'VND';
 
         normalized[index] = {
           ...current,
@@ -1587,7 +1635,13 @@ const ManualTripPage = () => {
       const travelMinutesFromLeg = Math.max(0, toNumberOrDefault(
         travelLeg?.selectedTravelTimeMinutes ?? travelLeg?.SelectedTravelTimeMinutes, 0));
       const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
-      const travelCostFromLeg = Math.max(0, toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost));
+      const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+      const travelCostCurrency = getMoneyCurrency(selectedCost, currencyCode);
+      const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
+      const travelCostFromLeg = Math.max(
+        0,
+        toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, currencyCode), 0),
+      );
       const transportModeIdFromLeg = toPositiveIntOrNull(
         travelLeg?.selectedTransportModeId ?? travelLeg?.SelectedTransportModeId
         ?? travelLeg?.transportModeId ?? travelLeg?.TransportModeId);
@@ -1595,6 +1649,7 @@ const ManualTripPage = () => {
       const normalizedTransportOptions = normalizeTransportOptions(
         travelLeg?.transportOptions ?? travelLeg?.TransportOptions
         ?? travelLeg?.options ?? travelLeg?.Options,
+        currencyCode,
         currencyCode,
       );
       // Prefer restoring saved selection (by transportModeId/name) over just picking the recommended one
@@ -1623,7 +1678,7 @@ const ManualTripPage = () => {
         travelLeg?.selectedMethod,
         travelLeg?.SelectedMethod,
       ) || null;
-      const resolvedCurrency = pickFirstText(selectedOption?.costCurrency, currencyCode, 'VND') || 'VND';
+      const resolvedCurrency = currencyCode || 'VND';
 
       return {
         ...toActivity,
@@ -2459,10 +2514,14 @@ const ManualTripPage = () => {
 
     const estimatedTotalCost = Math.round(Math.max(0, estimatedTransportCost + estimatedActivityCost));
     const requestedBudget = toFiniteNumber(manualTotalBudget);
+    const requestedContingency = toFiniteNumber(manualContingencyFund);
     const totalBudget = requestedBudget != null && requestedBudget >= 0
       ? Math.round(requestedBudget)
       : estimatedTotalCost;
-    const usableBudget = totalBudget;
+    const contingencyFund = requestedContingency != null && requestedContingency >= 0
+      ? Math.round(requestedContingency)
+      : null;
+    const usableBudget = Math.max(0, totalBudget - (contingencyFund || 0));
     const remainingBudget = Math.max(0, usableBudget - estimatedTotalCost);
 
     const payload = {
@@ -2482,7 +2541,7 @@ const ManualTripPage = () => {
         estimatedMealCost: 0,
         estimatedTotalCost,
         remainingBudget,
-        contingencyFund: null,
+        contingencyFund,
       },
     };
 
@@ -2543,7 +2602,7 @@ const ManualTripPage = () => {
                     {editMode ? `Editing: ${tripInfo.tripName}` : tripInfo.tripName}
                   </Title>
                   <Text style={{ color: 'rgba(255,255,255,0.86)' }}>
-                    {tripInfo.startDate || 'TBD'} to {tripInfo.endDate || 'TBD'} • {tripInfo.groupSize} people
+                    {tripInfo.startDate || 'TBD'} to {tripInfo.endDate || 'TBD'} • {tripInfo.groupSize} {tripInfo.groupSize === 1 ? 'person' : 'people'}
                   </Text>
                 </Col>
                 <Col>
@@ -2596,20 +2655,42 @@ const ManualTripPage = () => {
 
               <div className={styles.optionalBudgetRow}>
                 <Text strong>Trip budget (optional)</Text>
-                <InputNumber
-                  min={0}
-                  style={{ width: 260 }}
-                  placeholder={`e.g. 10000000 ${tripInfo.currencyCode}`}
-                  value={manualTotalBudget}
-                  onChange={(value) => {
-                    const normalized = toFiniteNumber(value);
-                    if (normalized == null || normalized < 0) {
-                      setManualTotalBudget(null);
-                      return;
-                    }
-                    setManualTotalBudget(normalized);
-                  }}
-                />
+                <Space size={12} wrap>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Text type="secondary">Total budget</Text>
+                    <InputNumber
+                      min={0}
+                      style={{ width: 220 }}
+                      placeholder={`e.g. 10000000 ${tripInfo.currencyCode}`}
+                      value={manualTotalBudget}
+                      onChange={(value) => {
+                        const normalized = toFiniteNumber(value);
+                        if (normalized == null || normalized < 0) {
+                          setManualTotalBudget(null);
+                          return;
+                        }
+                        setManualTotalBudget(normalized);
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Text type="secondary">Contingency fund</Text>
+                    <InputNumber
+                      min={0}
+                      style={{ width: 220 }}
+                      placeholder={`e.g. 100000 ${tripInfo.currencyCode}`}
+                      value={manualContingencyFund}
+                      onChange={(value) => {
+                        const normalized = toFiniteNumber(value);
+                        if (normalized == null || normalized < 0) {
+                          setManualContingencyFund(null);
+                          return;
+                        }
+                        setManualContingencyFund(normalized);
+                      }}
+                    />
+                  </div>
+                </Space>
               </div>
 
               {!manualDays.length && (
