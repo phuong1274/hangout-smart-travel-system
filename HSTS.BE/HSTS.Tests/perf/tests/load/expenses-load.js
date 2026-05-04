@@ -4,7 +4,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { getBaseUrl, tlsOptions } from '../../config/environments.js';
-import { heavyApi } from '../../config/thresholds.js';
+import { mixedApi } from '../../config/thresholds.js';
 import { expenses } from '../../lib/endpoints.js';
 import { login } from '../../lib/auth.js';
 import { randomInt } from '../../lib/helpers.js';
@@ -26,12 +26,12 @@ export const options = {
       gracefulRampDown: '10s',
     },
   },
-  thresholds: heavyApi,
+  thresholds: mixedApi,
 };
 
 const TRIP_IDS = [1, 2, 3];
 
-// Per-VU login — cookies stay in VU's own jar
+// Login once per VU — cookies passed explicitly via headers
 let vuCtx = null;
 
 export default function () {

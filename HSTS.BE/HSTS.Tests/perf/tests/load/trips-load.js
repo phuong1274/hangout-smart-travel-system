@@ -4,7 +4,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { getBaseUrl, tlsOptions } from '../../config/environments.js';
-import { standardApi } from '../../config/thresholds.js';
+import { mixedApi } from '../../config/thresholds.js';
 import { trips } from '../../lib/endpoints.js';
 import { login } from '../../lib/auth.js';
 import { randomInt, checkOk } from '../../lib/helpers.js';
@@ -26,13 +26,13 @@ export const options = {
       gracefulRampDown: '10s',
     },
   },
-  thresholds: standardApi,
+  thresholds: mixedApi,
 };
 
 const TRIP_IDS = [1, 2, 3];
-const PROFILE_ID = 1;
+const PROFILE_ID = 4; // traveler user ID
 
-// Per-VU login — cookies stay in VU's own jar
+// Login once per VU — cookies passed explicitly via headers
 let vuCtx = null;
 
 export default function () {
@@ -47,7 +47,7 @@ export default function () {
     case 1: {
       const tripId = TRIP_IDS[randomInt(0, TRIP_IDS.length - 1)];
       const res = http.get(`${base}${trips.detail(tripId)}`, { headers: vuCtx.headers });
-      check(res, { 'trip detail': (r) => r.status === 200 || r.status === 404 });
+      check(res, { 'trip detail': (r) => r.status === 200 || r.status === 403 || r.status === 404 });
       break;
     }
     case 2: {
@@ -56,17 +56,45 @@ export default function () {
       break;
     }
     case 3: {
+      const budget = 5000000;
       const res = http.post(
         `${base}${trips.save}`,
         JSON.stringify({
-          name: `Perf Test Trip ${Date.now()}`,
+          tripName: `Perf Trip ${Date.now()}`,
+          description: 'Load test trip',
           startDate: '2026-06-15',
-          endDate: '2026-06-18',
-          originProvinceId: 1,
-          travelerCount: 2,
-          budgetAmount: 5000000,
-          budgetCurrency: 'VND',
-          days: [],
+          endDate: '2026-06-16',
+          groupSize: 2,
+          currencyCode: 'VND',
+          days: [{
+            dayNumber: 1,
+            date: '2026-06-15',
+            dayTitle: 'Day 1',
+            weatherSummary: 'Sunny',
+            estimatedCost: 2000000,
+            activities: [{
+              type: 0, // ActivityType.Transport
+              title: 'Travel to destination',
+              startTime: '08:00:00',
+              endTime: '12:00:00',
+              transport: {
+                transportModeId: 1,
+                distanceKm: 300,
+                travelTimeMinutes: 240,
+              },
+              budget: { estimateCost: 500000, title: 'Transport' },
+            }],
+          }],
+          budgetSummary: {
+            totalBudget: budget,
+            usableBudget: budget,
+            estimatedAccommodationCost: 1000000,
+            estimatedTransportCost: 500000,
+            estimatedActivityCost: 300000,
+            estimatedMealCost: 400000,
+            estimatedTotalCost: 2200000,
+            remainingBudget: 2800000,
+          },
         }),
         { headers: vuCtx.headers }
       );

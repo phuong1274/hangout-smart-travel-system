@@ -8,8 +8,6 @@ import { getBaseUrl, tlsOptions } from '../../config/environments.js';
 import { standardApi } from '../../config/thresholds.js';
 import { auth } from '../../lib/endpoints.js';
 import { randomInt } from '../../lib/helpers.js';
-import { login, refreshIfNeeded } from '../../lib/auth.js';
-
 const base = getBaseUrl();
 
 export const options = {
@@ -31,8 +29,8 @@ export const options = {
   thresholds: standardApi,
 };
 
-const TEST_EMAIL = __ENV.TRAVELER_EMAIL || 'perf-traveler@test.com';
-const TEST_PASS  = __ENV.TRAVELER_PASS  || 'PerfTest123!';
+const TEST_EMAIL = __ENV.TRAVELER_EMAIL || 'qa.traveler1.20260407@gmail.com';
+const TEST_PASS  = __ENV.TRAVELER_PASS  || 'Traveler@12345!';
 
 export default function () {
   // Login
@@ -45,7 +43,7 @@ export default function () {
 
   sleep(randomInt(3, 10) / 10);
 
-  // Refresh token
+  // Refresh token — cookies auto-sent by k6 jar
   const refreshRes = http.post(
     `${base}${auth.refreshToken}`,
     null,

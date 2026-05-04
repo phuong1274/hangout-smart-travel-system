@@ -57,13 +57,16 @@ export default function () {
         res = http.post(
           `${base}${itineraries.generate}`,
           JSON.stringify({
-            originProvinceId: 1,
-            destinationProvinceIds: [2],
-            startDate: '2026-06-15',
-            endDate: '2026-06-16',
-            travelerCount: 1,
-            budgetAmount: 2000000,
-            budgetCurrency: 'VND',
+            request: {
+              userLocation: { latitude: 21.02, longitude: 105.78 },
+              destinations: [{ provinceId: 24 }],
+              currencyCode: 'VND',
+              groupSize: 1,
+              totalBudget: 2000000,
+              startDate: '2026-06-15',
+              endDate: '2026-06-16',
+              tripSegment: 'Standard',
+            },
           }),
           { headers: { 'Content-Type': 'application/json' }, timeout: '120s' }
         );

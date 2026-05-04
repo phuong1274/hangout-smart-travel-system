@@ -25,7 +25,7 @@ export const options = {
   thresholds: heavyApi,
 };
 
-// Per-VU login — cookies stay in VU's own jar
+// Login once per VU — cookies passed explicitly via headers
 let vuCtx = null;
 
 export default function () {

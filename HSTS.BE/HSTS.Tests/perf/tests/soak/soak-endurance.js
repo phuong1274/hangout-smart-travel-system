@@ -31,17 +31,13 @@ export const options = {
   },
 };
 
-// Per-VU login — cookies stay in VU's own jar
+// Login once per VU — cookies passed explicitly via headers
 let vuCtx = null;
 
 export default function () {
-  // Login on first iteration or re-login if context lost
   if (!vuCtx) {
     vuCtx = login('traveler');
-    if (!vuCtx) {
-      sleep(5);
-      return;
-    }
+    if (!vuCtx) { sleep(5); return; }
   }
 
   const action = randomInt(1, 5);

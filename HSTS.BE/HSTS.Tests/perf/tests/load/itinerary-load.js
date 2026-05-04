@@ -15,37 +15,47 @@ const base = getBaseUrl();
 const itineraryDuration = new Trend('itinerary_gen_duration', true);
 const itineraryErrors = new Counter('itinerary_gen_errors');
 
-// Sample itinerary request payload
+// Sample itinerary request payload — matches GenerateItineraryQuery(TripPlanRequest Request)
+// Province 24 has 172 locations, province 1 has 3 locations
 const ITINERARY_PAYLOADS = [
   {
-    originProvinceId: 1,   // Ha Noi
-    destinationProvinceIds: [2, 3, 4],
-    startDate: '2026-06-15',
-    endDate: '2026-06-18',
-    travelerCount: 2,
-    budgetAmount: 5000000,
-    budgetCurrency: 'VND',
-    interestTagIds: [1, 2, 3],
+    request: {
+      userLocation: { latitude: 21.02, longitude: 105.78 },
+      destinations: [{ provinceId: 24 }],
+      userFavoriteTagIds: [1, 2, 3],
+      currencyCode: 'VND',
+      groupSize: 2,
+      totalBudget: 5000000,
+      startDate: '2026-06-15',
+      endDate: '2026-06-16',
+      tripSegment: 'Standard',
+    },
   },
   {
-    originProvinceId: 1,
-    destinationProvinceIds: [5, 6],
-    startDate: '2026-07-01',
-    endDate: '2026-07-03',
-    travelerCount: 4,
-    budgetAmount: 10000000,
-    budgetCurrency: 'VND',
-    interestTagIds: [2, 4],
+    request: {
+      userLocation: { latitude: 21.02, longitude: 105.78 },
+      destinations: [{ provinceId: 1 }, { provinceId: 24 }],
+      userFavoriteTagIds: [2, 4],
+      currencyCode: 'VND',
+      groupSize: 4,
+      totalBudget: 10000000,
+      startDate: '2026-07-01',
+      endDate: '2026-07-03',
+      tripSegment: 'Standard',
+    },
   },
   {
-    originProvinceId: 2,   // Ho Chi Minh
-    destinationProvinceIds: [7, 8, 9],
-    startDate: '2026-06-20',
-    endDate: '2026-06-23',
-    travelerCount: 2,
-    budgetAmount: 8000000,
-    budgetCurrency: 'VND',
-    interestTagIds: [1, 3, 5],
+    request: {
+      userLocation: { latitude: 21.02, longitude: 105.78 },
+      destinations: [{ provinceId: 24 }],
+      userFavoriteTagIds: [1, 3, 5],
+      currencyCode: 'VND',
+      groupSize: 2,
+      totalBudget: 8000000,
+      startDate: '2026-06-20',
+      endDate: '2026-06-22',
+      tripSegment: 'Standard',
+    },
   },
 ];
 

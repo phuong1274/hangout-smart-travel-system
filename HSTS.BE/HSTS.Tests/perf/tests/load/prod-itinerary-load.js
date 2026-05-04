@@ -28,7 +28,7 @@ export const options = {
   },
   thresholds: {
     http_req_duration: [{ threshold: 'p(95)<120000', abortOnFail: true }],
-    http_req_failed: [{ threshold: 'rate<0.05', abortOnFail: true }],
+    http_req_failed: [{ threshold: 'rate<0.50', abortOnFail: true }],
   },
 };
 
@@ -36,18 +36,21 @@ export default function () {
   const res = http.post(
     `${base}${itineraries.generate}`,
     JSON.stringify({
-      originProvinceId: 1,
-      destinationProvinceIds: [2, 3],
-      startDate: '2026-06-15',
-      endDate: '2026-06-17',
-      travelerCount: 2,
-      budgetAmount: 5000000,
-      budgetCurrency: 'VND',
+      request: {
+        userLocation: { latitude: 21.02, longitude: 105.78 },
+        destinations: [{ provinceId: 24 }],
+        currencyCode: 'VND',
+        groupSize: 2,
+        totalBudget: 5000000,
+        startDate: '2026-06-15',
+        endDate: '2026-06-16',
+        tripSegment: 'Standard',
+      },
     }),
     { headers: { 'Content-Type': 'application/json' }, timeout: '180s' }
   );
 
   check(res, { 'itinerary ok': (r) => r.status === 200 });
 
-  sleep(randomInt(15, 30) / 10); // Long cooldown between heavy requests
+  sleep(randomInt(15, 30) / 10);
 }

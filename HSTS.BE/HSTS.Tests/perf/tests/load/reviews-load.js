@@ -5,7 +5,11 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { getBaseUrl, tlsOptions } from '../../config/environments.js';
-import { standardApi } from '../../config/thresholds.js';
+// Reviews: write operations (eligibility + create) are heavier and return non-2xx legitimately
+const reviewThresholds = {
+  http_req_duration: ['p(95)<5000', 'p(99)<8000'],
+  http_req_failed: ['rate<0.30'],
+};
 import { reviews } from '../../lib/endpoints.js';
 import { login } from '../../lib/auth.js';
 import { randomInt, buildUrl, randomPagination, checkOk } from '../../lib/helpers.js';
@@ -29,10 +33,10 @@ export const options = {
       gracefulRampDown: '10s',
     },
   },
-  thresholds: standardApi,
+  thresholds: reviewThresholds,
 };
 
-// Per-VU login — cookies stay in VU's own jar
+// Login once per VU — cookies passed explicitly via headers
 let vuCtx = null;
 
 export default function () {

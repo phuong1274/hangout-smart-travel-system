@@ -23,7 +23,7 @@ const environments = {
     },
   },
   production: {
-    baseUrl: __ENV.PROD_URL || 'https://hsts-api.onrender.com/api',
+    baseUrl: __ENV.PROD_URL || 'https://hangout.io.vn/api',
     maxVUs: 50,
     rateLimit: { window: '10s', maxRequests: 80 },
     thresholds: {

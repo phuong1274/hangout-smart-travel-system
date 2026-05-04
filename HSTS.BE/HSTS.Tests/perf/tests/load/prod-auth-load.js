@@ -29,8 +29,8 @@ export const options = {
   thresholds: productionSafe,
 };
 
-const TEST_EMAIL = __ENV.TRAVELER_EMAIL || 'perf-traveler@test.com';
-const TEST_PASS  = __ENV.TRAVELER_PASS  || 'PerfTest123!';
+const TEST_EMAIL = __ENV.TRAVELER_EMAIL || 'qa.traveler1.20260407@gmail.com';
+const TEST_PASS  = __ENV.TRAVELER_PASS  || 'Traveler@12345!';
 
 export default function () {
   const res = http.post(
