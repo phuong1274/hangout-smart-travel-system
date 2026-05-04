@@ -1,17 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Alert, Button, Space, Modal, Descriptions, Tag } from 'antd';
+import { Alert, Button, Space, Modal, Descriptions } from 'antd';
 import { WarningOutlined, EnvironmentOutlined, EyeOutlined, AimOutlined } from '@ant-design/icons';
 import { checkDuplicateLocationApi, getLocationByIdApi } from '../../locations/api';
 import styles from '../styles/LocationSubmissionsReviewPage.module.css';
 
-const SimilarityTag = ({ score }) => {
-  let color = 'green';
-  if (score >= 0.85) color = 'red';
-  else if (score >= 0.7) color = 'orange';
-  return <Tag color={color}>{Math.round(score * 100)}%</Tag>;
-};
-
-// Haversine distance in km
 const haversineKm = (lat1, lng1, lat2, lng2) => {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -118,7 +110,6 @@ const DuplicateLocationWarning = ({ submissionName, submissionLat, submissionLng
                   </Space>
                 </div>
                 <Space>
-                  <SimilarityTag score={dup.finalScore} />
                   <Button
                     type="link"
                     size="small"
