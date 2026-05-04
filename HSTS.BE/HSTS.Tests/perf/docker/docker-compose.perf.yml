@@ -1,0 +1,66 @@
+# Docker Compose for performance testing with resource throttling
+# Usage:
+#   CPU_LIMIT=1.0 MEMORY_LIMIT=512m docker compose -f docker-compose.perf.yml up -d
+#   docker compose -f docker-compose.perf.yml down
+
+services:
+  hsts-api:
+    build:
+      context: ../../..
+      dockerfile: HSTS.BE/HSTS.Tests/perf/docker/Dockerfile.backend-perf
+    ports:
+      - "7139:7139"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=https://+:7139
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=PerfTest
+      - ConnectionStrings__DefaultConnection=Server=mysql;Database=hsts_perf;User=root;Password=perftest;Port=3306;
+    depends_on:
+      mysql:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT:-2.0}'
+          memory: '${MEMORY_LIMIT:-1024m}'
+        reservations:
+          cpus: '${CPU_RESERVE:-0.5}'
+          memory: '${MEMORY_RESERVE:-256m}'
+    networks:
+      - perf-net
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: perftest
+      MYSQL_DATABASE: hsts_perf
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512m
+    networks:
+      - perf-net
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:latest
+    ports:
+      - "8474:8474"    # Toxiproxy API
+      - "7140:7140"    # Proxied backend
+    command: "-host 0.0.0.0"
+    depends_on:
+      - hsts-api
+    networks:
+      - perf-net
+
+networks:
+  perf-net:
+    driver: bridge

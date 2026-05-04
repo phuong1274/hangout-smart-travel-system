@@ -1,0 +1,22 @@
+{
+  "name": "hsts-perf-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Performance test suite for HSTS using k6",
+  "scripts": {
+    "smoke": "k6 run tests/smoke/smoke.js",
+    "load:locations": "k6 run tests/load/locations-load.js",
+    "load:auth": "k6 run tests/load/auth-load.js",
+    "load:itinerary": "k6 run tests/load/itinerary-load.js",
+    "load:dashboard": "k6 run tests/load/dashboard-load.js",
+    "load:reviews": "k6 run tests/load/reviews-load.js",
+    "load:trips": "k6 run tests/load/trips-load.js",
+    "load:expenses": "k6 run tests/load/expenses-load.js",
+    "stress": "k6 run tests/stress/stress-mixed.js",
+    "spike": "k6 run tests/spike/spike-traffic.js",
+    "soak": "k6 run tests/soak/soak-endurance.js",
+    "prod:locations": "ENV=production k6 run tests/load/prod-locations-load.js",
+    "prod:auth": "ENV=production k6 run tests/load/prod-auth-load.js"
+  },
+  "devDependencies": {}
+}

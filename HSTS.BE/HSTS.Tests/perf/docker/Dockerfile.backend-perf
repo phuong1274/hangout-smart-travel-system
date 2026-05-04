@@ -1,0 +1,24 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copy csproj files first for layer caching
+COPY ["HSTS.BE/HSTS.API/HSTS.API.csproj", "HSTS.API/"]
+COPY ["HSTS.BE/HSTS.Application/HSTS.Application.csproj", "HSTS.Application/"]
+COPY ["HSTS.BE/HSTS.Infrastructure/HSTS.Infrastructure.csproj", "HSTS.Infrastructure/"]
+COPY ["HSTS.BE/HSTS.Domain/HSTS.Domain.csproj", "HSTS.Domain/"]
+RUN dotnet restore "HSTS.API/HSTS.API.csproj"
+
+# Copy everything else and build
+COPY HSTS.BE/ .
+RUN dotnet publish "HSTS.API/HSTS.API.csproj" -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+
+# Generate self-signed cert for HTTPS
+RUN dotnet dev-certs https -ep /https/aspnetapp.pfx -p PerfTest
+
+COPY --from=build /app/publish .
+
+EXPOSE 7139
+ENTRYPOINT ["dotnet", "HSTS.API.dll"]
