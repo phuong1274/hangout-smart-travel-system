@@ -20,7 +20,7 @@ namespace HSTS.API
             {
                 options.AddFixedWindowLimiter(policyName: "fixed", opt =>
                 {
-                    opt.PermitLimit = 100;
+                    opt.PermitLimit = 10000;
                     opt.Window = TimeSpan.FromSeconds(10);
                     opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
                     opt.QueueLimit = 20;
