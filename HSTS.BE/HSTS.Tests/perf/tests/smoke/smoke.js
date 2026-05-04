@@ -4,10 +4,11 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { smoke } from '../../config/thresholds.js';
-import { getBaseUrl } from '../../config/environments.js';
+import { getBaseUrl, tlsOptions } from '../../config/environments.js';
 import { home, locations, publicLocations } from '../../lib/endpoints.js';
 
 export const options = {
+  ...tlsOptions,
   vus: 1,
   iterations: 1,
   thresholds: smoke,

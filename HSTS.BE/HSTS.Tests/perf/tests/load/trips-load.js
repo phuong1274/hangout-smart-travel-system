@@ -3,7 +3,7 @@
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { getBaseUrl } from '../../config/environments.js';
+import { getBaseUrl, tlsOptions } from '../../config/environments.js';
 import { standardApi } from '../../config/thresholds.js';
 import { trips } from '../../lib/endpoints.js';
 import { login } from '../../lib/auth.js';
@@ -12,6 +12,7 @@ import { randomInt, checkOk } from '../../lib/helpers.js';
 const base = getBaseUrl();
 
 export const options = {
+  ...tlsOptions,
   scenarios: {
     trips_load: {
       executor: 'ramping-vus',
@@ -31,32 +32,30 @@ export const options = {
 const TRIP_IDS = [1, 2, 3];
 const PROFILE_ID = 1;
 
-export function setup() {
-  const ctx = login('traveler');
-  if (!ctx) throw new Error('Traveler login failed');
-  return { ctx };
-}
+// Per-VU login — cookies stay in VU's own jar
+let vuCtx = null;
 
-export default function (data) {
-  const { ctx } = data;
+export default function () {
+  if (!vuCtx) {
+    vuCtx = login('traveler');
+    if (!vuCtx) return;
+  }
+
   const action = randomInt(1, 3);
 
   switch (action) {
     case 1: {
-      // Get trip detail
       const tripId = TRIP_IDS[randomInt(0, TRIP_IDS.length - 1)];
-      const res = http.get(`${base}${trips.detail(tripId)}`, { headers: ctx.headers });
+      const res = http.get(`${base}${trips.detail(tripId)}`, { headers: vuCtx.headers });
       check(res, { 'trip detail': (r) => r.status === 200 || r.status === 404 });
       break;
     }
     case 2: {
-      // List trips by profile
-      const res = http.get(`${base}${trips.byProfile(PROFILE_ID)}`, { headers: ctx.headers });
+      const res = http.get(`${base}${trips.byProfile(PROFILE_ID)}`, { headers: vuCtx.headers });
       check(res, { 'trips by profile': (r) => r.status === 200 || r.status === 404 });
       break;
     }
     case 3: {
-      // Save a trip
       const res = http.post(
         `${base}${trips.save}`,
         JSON.stringify({
@@ -69,7 +68,7 @@ export default function (data) {
           budgetCurrency: 'VND',
           days: [],
         }),
-        { headers: ctx.headers }
+        { headers: vuCtx.headers }
       );
       check(res, { 'save trip': (r) => r.status === 200 || r.status === 201 });
       break;

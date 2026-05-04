@@ -16,7 +16,8 @@
     "spike": "k6 run tests/spike/spike-traffic.js",
     "soak": "k6 run tests/soak/soak-endurance.js",
     "prod:locations": "ENV=production k6 run tests/load/prod-locations-load.js",
-    "prod:auth": "ENV=production k6 run tests/load/prod-auth-load.js"
+    "prod:auth": "ENV=production k6 run tests/load/prod-auth-load.js",
+    "prod:itinerary": "ENV=production k6 run tests/load/prod-itinerary-load.js"
   },
   "devDependencies": {}
 }

@@ -4,7 +4,7 @@
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { getBaseUrl } from '../../config/environments.js';
+import { getBaseUrl, tlsOptions } from '../../config/environments.js';
 import { locations, publicLocations, home, itineraries } from '../../lib/endpoints.js';
 import { randomInt, buildUrl, randomPagination } from '../../lib/helpers.js';
 import { Rate, Trend } from 'k6/metrics';
@@ -15,6 +15,7 @@ const errorRate = new Rate('stress_error_rate');
 const breakingPointVUs = new Trend('breaking_point_vus');
 
 export const options = {
+  ...tlsOptions,
   scenarios: {
     stress_ramp: {
       executor: 'ramping-vus',

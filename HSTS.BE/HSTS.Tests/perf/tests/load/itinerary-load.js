@@ -4,7 +4,7 @@
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { getBaseUrl } from '../../config/environments.js';
+import { getBaseUrl, tlsOptions } from '../../config/environments.js';
 import { itineraryApi } from '../../config/thresholds.js';
 import { itineraries } from '../../lib/endpoints.js';
 import { Trend, Counter } from 'k6/metrics';
@@ -50,6 +50,7 @@ const ITINERARY_PAYLOADS = [
 ];
 
 export const options = {
+  ...tlsOptions,
   scenarios: {
     itinerary_gen: {
       executor: 'ramping-vus',

@@ -4,7 +4,7 @@
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { config, getBaseUrl } from '../../config/environments.js';
+import { config, getBaseUrl, tlsOptions } from '../../config/environments.js';
 import { standardApi } from '../../config/thresholds.js';
 import { locations, publicLocations, home } from '../../lib/endpoints.js';
 import { randomInt, buildUrl, randomPagination, checkOk } from '../../lib/helpers.js';
@@ -12,6 +12,7 @@ import { randomInt, buildUrl, randomPagination, checkOk } from '../../lib/helper
 const base = getBaseUrl();
 
 export const options = {
+  ...tlsOptions,
   scenarios: {
     public_browse: {
       executor: 'ramping-vus',

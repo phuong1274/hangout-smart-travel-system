@@ -4,10 +4,9 @@
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { getBaseUrl } from '../../config/environments.js';
-import { standardApi } from '../../config/thresholds.js';
+import { getBaseUrl, tlsOptions } from '../../config/environments.js';
 import { locations, publicLocations, home } from '../../lib/endpoints.js';
-import { login } from '../../lib/auth.js';
+import { login, refreshIfNeeded } from '../../lib/auth.js';
 import { randomInt, buildUrl, randomPagination } from '../../lib/helpers.js';
 import { Trend } from 'k6/metrics';
 
@@ -17,6 +16,7 @@ const base = getBaseUrl();
 const responseTimeTrend = new Trend('soak_response_time', true);
 
 export const options = {
+  ...tlsOptions,
   scenarios: {
     soak: {
       executor: 'constant-vus',
@@ -31,14 +31,19 @@ export const options = {
   },
 };
 
-export function setup() {
-  // Login as traveler for authenticated operations
-  const ctx = login('traveler');
-  return { ctx };
-}
+// Per-VU login — cookies stay in VU's own jar
+let vuCtx = null;
 
-export default function (data) {
-  const { ctx } = data;
+export default function () {
+  // Login on first iteration or re-login if context lost
+  if (!vuCtx) {
+    vuCtx = login('traveler');
+    if (!vuCtx) {
+      sleep(5);
+      return;
+    }
+  }
+
   const action = randomInt(1, 5);
   let res;
 
@@ -56,11 +61,12 @@ export default function (data) {
       res = http.get(`${base}${home.destinations}`);
       break;
     case 5:
-      // Authenticated request - check user profile
-      if (ctx) {
-        res = http.get(`${base}/users/me`, { headers: ctx.headers });
-      } else {
-        res = http.get(`${base}${home.discovery}`);
+      res = http.get(`${base}/users/me`, { headers: vuCtx.headers });
+      // Re-login on 401 (token expired)
+      if (res.status === 401) {
+        vuCtx = login('traveler');
+        if (!vuCtx) { sleep(5); return; }
+        res = http.get(`${base}/users/me`, { headers: vuCtx.headers });
       }
       break;
   }
@@ -68,5 +74,5 @@ export default function (data) {
   responseTimeTrend.add(res.timings.duration);
   check(res, { 'soak request ok': (r) => r.status < 500 });
 
-  sleep(randomInt(5, 20) / 10); // Realistic think time
+  sleep(randomInt(5, 20) / 10);
 }

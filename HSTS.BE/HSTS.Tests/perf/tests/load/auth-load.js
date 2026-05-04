@@ -4,7 +4,7 @@
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { getBaseUrl } from '../../config/environments.js';
+import { getBaseUrl, tlsOptions } from '../../config/environments.js';
 import { standardApi } from '../../config/thresholds.js';
 import { auth } from '../../lib/endpoints.js';
 import { randomInt } from '../../lib/helpers.js';
@@ -13,6 +13,7 @@ import { login, refreshIfNeeded } from '../../lib/auth.js';
 const base = getBaseUrl();
 
 export const options = {
+  ...tlsOptions,
   scenarios: {
     login_load: {
       executor: 'ramping-vus',

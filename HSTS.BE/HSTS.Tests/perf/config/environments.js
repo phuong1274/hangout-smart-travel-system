@@ -35,6 +35,12 @@ const environments = {
 
 export const config = environments[env] || environments['local-dev'];
 export const getBaseUrl = () => config.baseUrl;
+
+// TLS: skip verify for local self-signed certs
+export const tlsOptions = {
+  insecureSkipTLSVerify: true,
+};
+
 export default config;
 
 // Network profiles for Toxiproxy simulation
