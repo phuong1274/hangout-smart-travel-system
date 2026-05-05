@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Space, Select, Typography, Drawer, Avatar, Dropdown } from 'antd';
 import { MenuOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
+import { useCurrencyStore } from '@/store/currencyStore';
 import { useLogout } from '@/features/auth/hooks/useAuth';
+import { CURRENCY_OPTIONS } from '@/features/trip/constants/currency';
 import { PATHS } from '@/routes/paths';
 import WebLogo from '../assets/WebLogo.svg';
 import styles from '../styles/Header.module.css';
@@ -14,7 +16,12 @@ const AppHeader = ({ destinations = [] }) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { currencyCode, setCurrencyCode, loadRates } = useCurrencyStore();
   const { logout } = useLogout();
+
+  useEffect(() => {
+    loadRates();
+  }, [loadRates]);
 
   const destinationOptions = destinations.map((destination) => ({
     value: String(destination.id || destination.destinationId || ''),
@@ -24,6 +31,35 @@ const AppHeader = ({ destinations = [] }) => {
   const handleDestinationChange = (destinationId) => {
     navigate(`${PATHS.PUBLIC_LOCATIONS}?destinationId=${destinationId}`);
   };
+
+  const currencyOptions = useMemo(() => CURRENCY_OPTIONS.map((option) => ({
+    value: option.value,
+    label: (
+      <span className={styles.currencyOption}>
+        <span>{option.flag}</span>
+        <span>{option.label}</span>
+      </span>
+    ),
+    shortLabel: `${option.flag} ${option.value}`,
+  })), []);
+
+  const handleCurrencyChange = (nextCurrencyCode) => {
+    setCurrencyCode(nextCurrencyCode);
+    loadRates();
+  };
+
+  const currencySelector = (
+    <Select
+      value={currencyCode}
+      options={currencyOptions}
+      optionLabelProp="shortLabel"
+      variant="borderless"
+      popupMatchSelectWidth={220}
+      className={styles.currencyPicker}
+      onChange={handleCurrencyChange}
+      aria-label="Currency"
+    />
+  );
 
   const destinationMenu = destinationOptions.length ? (
     <Select
@@ -75,6 +111,8 @@ const AppHeader = ({ destinations = [] }) => {
       <Link to={PATHS.CREATE_TRIP}>
         <Text className={styles.navLink}>Plan a Trip</Text>
       </Link>
+
+      {currencySelector}
 
       {user ? (
         <Dropdown menu={{ items: userDropdownItems }} placement="bottomRight" trigger={['click']}>

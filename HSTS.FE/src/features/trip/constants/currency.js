@@ -1,21 +1,23 @@
 export const CURRENCY_OPTIONS = [
-  { value: 'VND', label: 'VND - Vietnamese Dong' },
-  { value: 'USD', label: 'USD - US Dollar' },
-  { value: 'EUR', label: 'EUR - Euro' },
-  { value: 'JPY', label: 'JPY - Japanese Yen' },
-  { value: 'KRW', label: 'KRW - Korean Won' },
-  { value: 'THB', label: 'THB - Thai Baht' },
-  { value: 'GBP', label: 'GBP - British Pound' },
-  { value: 'AUD', label: 'AUD - Australian Dollar' },
-  { value: 'CAD', label: 'CAD - Canadian Dollar' },
-  { value: 'SGD', label: 'SGD - Singapore Dollar' },
-  { value: 'CNY', label: 'CNY - Chinese Yuan' },
-  { value: 'HKD', label: 'HKD - Hong Kong Dollar' },
-  { value: 'INR', label: 'INR - Indian Rupee' },
-  { value: 'MYR', label: 'MYR - Malaysian Ringgit' },
-  { value: 'IDR', label: 'IDR - Indonesian Rupiah' },
-  { value: 'PHP', label: 'PHP - Philippine Peso' },
+  { value: 'VND', label: 'VND - Vietnamese Dong', flag: '🇻🇳' },
+  { value: 'USD', label: 'USD - US Dollar', flag: '🇺🇸' },
+  { value: 'EUR', label: 'EUR - Euro', flag: '🇪🇺' },
+  { value: 'JPY', label: 'JPY - Japanese Yen', flag: '🇯🇵' },
+  { value: 'KRW', label: 'KRW - Korean Won', flag: '🇰🇷' },
+  { value: 'THB', label: 'THB - Thai Baht', flag: '🇹🇭' },
+  { value: 'GBP', label: 'GBP - British Pound', flag: '🇬🇧' },
+  { value: 'AUD', label: 'AUD - Australian Dollar', flag: '🇦🇺' },
+  { value: 'CAD', label: 'CAD - Canadian Dollar', flag: '🇨🇦' },
+  { value: 'SGD', label: 'SGD - Singapore Dollar', flag: '🇸🇬' },
+  { value: 'CNY', label: 'CNY - Chinese Yuan', flag: '🇨🇳' },
+  { value: 'HKD', label: 'HKD - Hong Kong Dollar', flag: '🇭🇰' },
+  { value: 'INR', label: 'INR - Indian Rupee', flag: '🇮🇳' },
+  { value: 'MYR', label: 'MYR - Malaysian Ringgit', flag: '🇲🇾' },
+  { value: 'IDR', label: 'IDR - Indonesian Rupiah', flag: '🇮🇩' },
+  { value: 'PHP', label: 'PHP - Philippine Peso', flag: '🇵🇭' },
 ];
+
+export const NO_FRACTION_CURRENCIES = Object.freeze(['VND', 'JPY', 'KRW', 'IDR']);
 
 export const VND_EXCHANGE_RATES = Object.freeze({
   VND: 1,
@@ -103,4 +105,57 @@ export const convertBudgetToVnd = (
   const rate = rates[normalizedCurrency] ?? VND_EXCHANGE_RATES[normalizedCurrency] ?? VND_EXCHANGE_RATES.VND;
 
   return Math.round(numericAmount * rate);
+};
+
+export const isSupportedCurrencyCode = (currencyCode) => {
+  const normalizedCurrency = String(currencyCode || '').trim().toUpperCase();
+  return CURRENCY_OPTIONS.some((option) => option.value === normalizedCurrency);
+};
+
+export const normalizeCurrencyCode = (currencyCode, fallback = 'VND') => {
+  const normalizedCurrency = String(currencyCode || '').trim().toUpperCase();
+  return isSupportedCurrencyCode(normalizedCurrency) ? normalizedCurrency : fallback;
+};
+
+export const formatMoneyAmount = (amount, currencyCode = 'VND') => {
+  const currency = normalizeCurrencyCode(currencyCode);
+  const numericAmount = Number(amount);
+  const safeAmount = Number.isFinite(numericAmount) ? Math.max(0, numericAmount) : 0;
+  const maximumFractionDigits = NO_FRACTION_CURRENCIES.includes(currency) ? 0 : 2;
+
+  return `${safeAmount.toLocaleString('vi-VN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  })} ${currency}`;
+};
+
+export const formatVndAmount = (amount, targetCurrencyCode = 'VND') => {
+  const currency = normalizeCurrencyCode(targetCurrencyCode);
+  return formatMoneyAmount(convertCurrencyAmount(amount, 'VND', currency), currency);
+};
+
+export const formatUsdAmount = (amount, targetCurrencyCode = 'VND') => {
+  const currency = normalizeCurrencyCode(targetCurrencyCode);
+  return formatMoneyAmount(convertCurrencyAmount(amount, 'USD', currency), currency);
+};
+
+export const formatLocationPriceRange = ({
+  priceMinUsd,
+  priceMaxUsd,
+  ticketPrice,
+  currencyCode = 'VND',
+  fallback = null,
+}) => {
+  const hasUsdRange = priceMinUsd != null || priceMaxUsd != null;
+  if (hasUsdRange) {
+    const minText = formatUsdAmount(priceMinUsd ?? 0, currencyCode);
+    const maxText = priceMaxUsd == null ? 'Any' : formatUsdAmount(priceMaxUsd, currencyCode);
+    return `${minText} - ${maxText}`;
+  }
+
+  if (ticketPrice != null) {
+    return formatVndAmount(ticketPrice, currencyCode);
+  }
+
+  return fallback;
 };

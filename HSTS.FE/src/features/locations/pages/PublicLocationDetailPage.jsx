@@ -7,6 +7,8 @@ import 'leaflet/dist/leaflet.css';
 import { buildCreateTripPath, PATHS } from '@/routes/paths';
 import { ROLES } from '@/config/constants';
 import { useAuthStore } from '@/store/authStore';
+import { useCurrencyStore } from '@/store/currencyStore';
+import { formatLocationPriceRange } from '@/features/trip/constants/currency';
 import { DAYS_OF_WEEK, SOCIAL_PLATFORMS } from '@/utils/locationConstants';
 import { usePublicLocationDetail } from '../hooks/usePublicLocationDetail';
 import { LocationReviewSection } from '@/features/reviews/components/LocationReviewSection';
@@ -33,12 +35,6 @@ const normalizeRating = (value) => {
   if (number <= 5) return Math.max(0, number);
   if (number <= 10) return number / 2;
   return 5;
-};
-
-const formatBudget = (minPrice, maxPrice, ticketPrice) => {
-  if (minPrice != null || maxPrice != null) return `$${minPrice ?? 0} - $${maxPrice ?? 'Any'} USD`;
-  if (ticketPrice != null) return `$${ticketPrice} USD`;
-  return 'Budget details coming soon';
 };
 
 const formatDuration = (minutes) => {
@@ -75,11 +71,6 @@ const formatStatusLabel = (status) => {
 const formatStatusTone = (status) => {
   if (status === 'TemporarilyClosed' || status === 'Inactive') return 'red';
   return 'green';
-};
-
-const formatCoordinates = (latitude, longitude) => {
-  if (latitude == null || longitude == null) return 'Map pin coming soon';
-  return `${latitude}, ${longitude}`;
 };
 
 const DetailSection = ({ eyebrow, title, children }) => (
@@ -301,6 +292,7 @@ const PublicLocationDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
+  const { currencyCode, loadRates } = useCurrencyStore();
   const { data, loading } = usePublicLocationDetail(id);
 
   const name = data?.name || data?.Name || 'Location detail';
@@ -347,6 +339,18 @@ const PublicLocationDetailPage = () => {
         locationId: Number(id),
         tagIds: tags.map((tag) => tag?.id ?? tag?.Id).filter(Boolean),
       });
+
+  const budgetText = formatLocationPriceRange({
+    priceMinUsd,
+    priceMaxUsd,
+    ticketPrice,
+    currencyCode,
+    fallback: 'Budget details coming soon',
+  });
+
+  useEffect(() => {
+    loadRates();
+  }, [loadRates]);
 
   if (loading) {
     return (
@@ -457,7 +461,7 @@ const PublicLocationDetailPage = () => {
                 <span className={styles.sectionEyebrow}>Plan your stop</span>
                 <Title level={4} className={styles.sectionTitle}>Quick planning facts</Title>
                 <div className={styles.quickFactsRail}>
-                  <FactCard label="Typical spend" value={formatBudget(priceMinUsd, priceMaxUsd, ticketPrice)} />
+                  <FactCard label="Typical spend" value={budgetText} />
                   <FactCard label="Suggested stay" value={formatDuration(recommendedDurationMinutes)} />
                   <FactCard label="Who it suits" value={formatMinimumAge(minimumAge)} />
                 </div>

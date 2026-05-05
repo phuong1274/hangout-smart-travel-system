@@ -8,10 +8,11 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTripFormData, parseTripPrefillParams } from '../hooks/useTripFormData';
 import { useTripPlanner } from '../hooks/useTripPlanner';
-import { CURRENCY_OPTIONS, loadBackendCurrencyRates } from '../constants/currency';
+import { CURRENCY_OPTIONS } from '../constants/currency';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
 import MapLinkInput from '@/components/MapLinkInput';
 import useNominatimSearch from '@/hooks/useNominatimSearch';
+import { useCurrencyStore } from '@/store/currencyStore';
 import { PATHS } from '@/routes/paths';
 import styles from '../styles/CreateTripPage.module.css';
 
@@ -87,12 +88,11 @@ const CreateTripPage = () => {
   const [searchParams] = useSearchParams();
   const { provinces, rootTags, childTagsMap, districtsMap, loadingProvinces, loadingTags, fetchChildTags, fetchDistricts } = useTripFormData();
   const { loading, generateItinerary } = useTripPlanner();
+  const { currencyCode: preferredCurrencyCode, loadRates } = useCurrencyStore();
 
   useEffect(() => {
-    loadBackendCurrencyRates().catch(() => {
-      // Static currency rates remain available for display-only fallback.
-    });
-  }, []);
+    loadRates();
+  }, [loadRates]);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [mapOpen, setMapOpen] = useState(false);
@@ -112,6 +112,12 @@ const CreateTripPage = () => {
 
   const prefill = useMemo(() => parseTripPrefillParams(searchParams), [searchParams]);
   const hasPrefillContext = prefill.provinceId != null || prefill.districtId != null || prefill.tagIds.length > 0;
+
+  useEffect(() => {
+    if (!form.isFieldTouched('currencyCode')) {
+      form.setFieldsValue({ currencyCode: preferredCurrencyCode });
+    }
+  }, [form, preferredCurrencyCode]);
 
   const clearPrefillContext = useCallback(() => {
     const injected = prefillInjectedRef.current;
@@ -564,7 +570,7 @@ const CreateTripPage = () => {
             layout="vertical"
             onFinish={onFinish}
             onFinishFailed={onFinishFailed}
-            initialValues={{ groupSize: 2, enableMinimumAge: false, currencyCode: 'VND', includeContingencyFund: true, tripSegment: 'Standard', hotelPreference: 'Standard' }}
+            initialValues={{ groupSize: 2, enableMinimumAge: false, currencyCode: preferredCurrencyCode, includeContingencyFund: true, tripSegment: 'Standard', hotelPreference: 'Standard' }}
             size="large"
           >
 

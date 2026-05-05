@@ -21,6 +21,7 @@ import { createTripApi, getProvincesApi } from '../api';
 import { CURRENCY_OPTIONS } from '../constants/currency';
 import { PATHS } from '@/routes/paths';
 import { useAuthStore } from '@/store/authStore';
+import { useCurrencyStore } from '@/store/currencyStore';
 import styles from './ManualTripSetupPage.module.css';
 
 const { Title, Text } = Typography;
@@ -30,9 +31,20 @@ const ManualTripSetupPage = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { currencyCode: preferredCurrencyCode, loadRates } = useCurrencyStore();
   const [submitting, setSubmitting] = useState(false);
   const [provinces, setProvinces] = useState([]);
   const [loadingProvinces, setLoadingProvinces] = useState(false);
+
+  useEffect(() => {
+    loadRates();
+  }, [loadRates]);
+
+  useEffect(() => {
+    if (!form.isFieldTouched('currency')) {
+      form.setFieldsValue({ currency: preferredCurrencyCode });
+    }
+  }, [form, preferredCurrencyCode]);
 
   useEffect(() => {
     let mounted = true;
@@ -92,7 +104,7 @@ const ManualTripSetupPage = () => {
         endDate: endDate.format('YYYY-MM-DD'),
         groupSize: values.groupSize || 1,
         startingLocation: selectedProvinceName,
-        currency: values.currency || 'VND',
+        currency: values.currency || preferredCurrencyCode,
         profileId: user?.id,
       };
 
@@ -155,7 +167,7 @@ const ManualTripSetupPage = () => {
               layout="vertical"
               form={form}
               onFinish={handleSubmit}
-              initialValues={{ groupSize: 1, currency: 'VND' }}
+              initialValues={{ groupSize: 1, currency: preferredCurrencyCode }}
             >
               <Row gutter={[24, 24]}>
                 <Col xs={24} lg={12} className={styles.staggerItem1}>

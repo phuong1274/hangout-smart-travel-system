@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Card, Pagination, Space, Tag, Typography } from 'antd';
 import { useSearchParams } from 'react-router-dom';
+import { useCurrencyStore } from '@/store/currencyStore';
+import { formatLocationPriceRange } from '@/features/trip/constants/currency';
 import PublicLocationFilterBar from '../components/PublicLocationFilterBar';
 import PublicLocationGrid from '../components/PublicLocationGrid';
 import { usePublicLocations } from '../hooks/usePublicLocations';
@@ -14,6 +16,7 @@ const { Paragraph, Text, Title } = Typography;
 
 const PublicLocationsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { currencyCode, loadRates } = useCurrencyStore();
 
   const initialFilters = useMemo(() => ({
     destinationId: searchParams.get('destinationId') ? Number(searchParams.get('destinationId')) : undefined,
@@ -83,6 +86,10 @@ const PublicLocationsPage = () => {
   const resolveOptionName = (items, id) => items.find((item) => Number(item?.id ?? item?.Id) === Number(id))?.name
     || items.find((item) => Number(item?.id ?? item?.Id) === Number(id))?.Name;
 
+  useEffect(() => {
+    loadRates();
+  }, [loadRates]);
+
   const activeFilterChips = [
     filters.destinationId ? resolveOptionName(destinations, filters.destinationId) : null,
     filters.districtId ? resolveOptionName(districts, filters.districtId) : null,
@@ -91,7 +98,13 @@ const PublicLocationsPage = () => {
       ? filters.tagIds.map((tagId) => resolveOptionName(tags, tagId)).filter(Boolean)
       : []),
     filters.minRating ? `${filters.minRating}+ rating` : null,
-    filters.minBudget != null || filters.maxBudget != null ? `$${filters.minBudget ?? 0} - $${filters.maxBudget ?? 'Any'}` : null,
+    filters.minBudget != null || filters.maxBudget != null
+      ? formatLocationPriceRange({
+          priceMinUsd: filters.minBudget,
+          priceMaxUsd: filters.maxBudget,
+          currencyCode,
+        })
+      : null,
     filters.maxDurationMinutes ? `Up to ${filters.maxDurationMinutes} min` : null,
   ].filter(Boolean);
 

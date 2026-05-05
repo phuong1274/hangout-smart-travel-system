@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button, Card, Rate, Space, Tag, Typography } from 'antd';
 import { Link, useNavigate } from 'react-router-dom';
 import { PATHS } from '@/routes/paths';
+import { useCurrencyStore } from '@/store/currencyStore';
+import { formatLocationPriceRange } from '@/features/trip/constants/currency';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -13,18 +15,6 @@ const normalizeRating = (value) => {
   if (number <= 5) return Math.max(0, number);
   if (number <= 10) return number / 2;
   return 5;
-};
-
-const formatBudget = (minPrice, maxPrice, ticketPrice) => {
-  if (minPrice != null || maxPrice != null) {
-    return `$${minPrice ?? 0} - $${maxPrice ?? 'Any'}`;
-  }
-
-  if (ticketPrice != null) {
-    return `$${ticketPrice}`;
-  }
-
-  return null;
 };
 
 const formatDuration = (minutes) => {
@@ -52,6 +42,7 @@ const getImageUrl = (location) => {
 
 const PublicLocationCard = ({ location, variant = 'default' }) => {
   const navigate = useNavigate();
+  const { currencyCode, loadRates } = useCurrencyStore();
   const id = resolveLocationId(location);
   const isHomeVariant = variant === 'home';
   const isFeatured = variant === 'featured';
@@ -68,9 +59,18 @@ const PublicLocationCard = ({ location, variant = 'default' }) => {
   const imageUrl = getImageUrl(location);
   const locationType = location?.locationType?.name || location?.LocationType?.Name || location?.locationType?.Name || null;
   const tags = Array.isArray(location?.tags) ? location.tags : Array.isArray(location?.Tags) ? location.Tags : [];
-  const budgetText = formatBudget(minPrice, maxPrice, ticketPrice);
+  const budgetText = formatLocationPriceRange({
+    priceMinUsd: minPrice,
+    priceMaxUsd: maxPrice,
+    ticketPrice,
+    currencyCode,
+  });
   const durationText = formatDuration(duration);
   const status = location?.status || location?.Status;
+
+  useEffect(() => {
+    loadRates();
+  }, [loadRates]);
 
   return (
     <Card
@@ -102,7 +102,7 @@ const PublicLocationCard = ({ location, variant = 'default' }) => {
 
         {!isHomeVariant ? (
           <Space size={[6, 6]} wrap>
-            {budgetText ? <Tag color="green">Typical spend · {budgetText} USD</Tag> : null}
+            {budgetText ? <Tag color="green">Typical spend · {budgetText}</Tag> : null}
             {durationText ? <Tag color="purple">Stay · {durationText}</Tag> : null}
             {locationType && !isFeatured ? <Tag color="gold">{locationType}</Tag> : null}
             {status && status !== 'Active' ? <Tag color="red">{status}</Tag> : null}

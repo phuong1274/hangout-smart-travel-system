@@ -100,6 +100,35 @@
   transform: rotate(180deg);
 }
 
+.currencyPicker {
+  min-width: 104px;
+}
+
+.currencyPicker :global(.ant-select-selector) {
+  padding: 0 8px !important;
+  border: 1px solid rgba(26, 83, 92, 0.1) !important;
+  background: rgba(255, 255, 255, 0.58) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+}
+
+.currencyPicker :global(.ant-select-selection-item) {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: #1A535C;
+}
+
+.currencyPicker :global(.ant-select-arrow) {
+  color: #FF6B6B;
+}
+
+.currencyOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .headerAvatarWrapper {
   display: flex;
   align-items: center;
