@@ -228,6 +228,44 @@ const convertAmountToTripCurrency = (amount, sourceCurrency, tripCurrency) => {
   return convertCurrencyAmount(amount, normalizedSource, normalizedTarget);
 };
 
+const getEstimateCostInTripCurrency = (estimate, tripCurrency) => {
+  if (!estimate) return 0;
+  const costSource = estimate?.selectedTotalCost
+    ?? estimate?.SelectedTotalCost
+    ?? estimate?.estimatedTotalCost
+    ?? estimate?.EstimatedTotalCost
+    ?? estimate?.costForGroup
+    ?? estimate?.CostForGroup;
+  const amount = Math.max(0, toMoneyAmount(costSource));
+  const currency = getMoneyCurrency(costSource, tripCurrency || 'VND');
+  return Math.max(0, toNumberOrDefault(convertAmountToTripCurrency(amount, currency, tripCurrency), 0));
+};
+
+const getTransportTotalCost = (travel, tripCurrency) => {
+  if (!travel) return 0;
+  if (travel?.isCustomTransport) {
+    return Math.max(0, toNumberOrDefault(travel?.costAmount, 0));
+  }
+
+  const options = normalizeTransportOptions(
+    travel?.transportOptions ?? travel?.TransportOptions,
+    tripCurrency || 'VND',
+    tripCurrency || 'VND',
+  );
+  const selectedIndex = getPreferredTransportOptionIndex(options, travel);
+  const selectedOption = selectedIndex != null ? options[selectedIndex] : options.find((option) => option.recommended);
+  const mainCost = Math.max(
+    0,
+    toNumberOrDefault(selectedOption?.costAmount, toNumberOrDefault(travel?.costAmount, 0)),
+  );
+  const firstMile = selectedOption?.firstMileEstimate ?? travel?.firstMileEstimate ?? null;
+  const lastMile = selectedOption?.lastMileEstimate ?? travel?.lastMileEstimate ?? null;
+
+  return Math.max(0, mainCost)
+    + getEstimateCostInTripCurrency(firstMile, tripCurrency)
+    + getEstimateCostInTripCurrency(lastMile, tripCurrency);
+};
+
 const getPreferredTransportOptionIndex = (options, travel) => {
   if (!Array.isArray(options) || options.length === 0) return null;
   if (travel?.isCustomTransport) return null;
@@ -1011,14 +1049,15 @@ const ManualTripPage = () => {
   }, [manualDays]);
 
   const totalTransportEstimated = useMemo(() => {
+    const currencyCode = tripInfo?.currencyCode || 'VND';
     return manualDays.reduce((sum, day) => {
       const dayTransport = (day.activities || []).reduce(
-        (daySum, activity) => daySum + Math.max(0, toNumberOrDefault(activity.travelFromPrevious?.costAmount, 0)),
+        (daySum, activity) => daySum + getTransportTotalCost(activity.travelFromPrevious, currencyCode),
         0,
       );
       return sum + dayTransport;
     }, 0);
-  }, [manualDays]);
+  }, [manualDays, tripInfo?.currencyCode]);
 
   const totalEstimated = useMemo(
     () => Math.max(0, totalActivityEstimated + totalTransportEstimated),
@@ -2372,7 +2411,10 @@ const ManualTripPage = () => {
           const travelMethodText = String(activity.travelFromPrevious.transportModeName || '').trim();
           const travelMinutes = Math.max(1, Math.round(toNumberOrDefault(activity.travelFromPrevious.travelMinutes, 1)));
           const travelDistanceKm = Math.max(0, toNumberOrDefault(activity.travelFromPrevious.distanceKm, 0));
-          const travelCostAmount = Math.max(0, Math.round(toNumberOrDefault(activity.travelFromPrevious.costAmount, 0)));
+          const travelCostAmount = Math.max(
+            0,
+            Math.round(getTransportTotalCost(activity.travelFromPrevious, tripInfo?.currencyCode || 'VND')),
+          );
           const travelStartTime = normalizeTimeOnly(activity.travelFromPrevious.departureTime)
             || normalizeTimeOnly(previousActivity?.endTime)
             || visitStartTime
@@ -2766,7 +2808,7 @@ const ManualTripPage = () => {
                           0,
                         );
                         const dayTransportEstimate = (day.activities || []).reduce(
-                          (sum, activity) => sum + Math.max(0, toNumberOrDefault(activity.travelFromPrevious?.costAmount, 0)),
+                          (sum, activity) => sum + getTransportTotalCost(activity.travelFromPrevious, tripInfo.currencyCode),
                           0,
                         );
                         const dayEstimate = dayActivityEstimate + dayTransportEstimate;
