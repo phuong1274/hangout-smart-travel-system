@@ -23,12 +23,14 @@ namespace HSTS.Application.Invitations.Commands
         private readonly IAppDbContext _context;
         private readonly ICurrentUserService _currentUser;
         private readonly IEmailService _emailService;
+        private readonly IClientAppUrlProvider _clientAppUrlProvider;
 
-        public CreateInvitationCommandHandler(IAppDbContext context, ICurrentUserService currentUser, IEmailService emailService)
+        public CreateInvitationCommandHandler(IAppDbContext context, ICurrentUserService currentUser, IEmailService emailService, IClientAppUrlProvider clientAppUrlProvider)
         {
             _context = context;
             _currentUser = currentUser;
             _emailService = emailService;
+            _clientAppUrlProvider = clientAppUrlProvider;
         }
 
         public async Task<ErrorOr<TripInvitationDto>> Handle(CreateInvitationCommand request, CancellationToken ct)
@@ -90,13 +92,14 @@ namespace HSTS.Application.Invitations.Commands
                 Status = InvitationStatus.Pending
             };
 
+            var clientUrl = _clientAppUrlProvider.BaseUrl;
+
             _context.TripInvitations.Add(invitation);
             await _context.SaveChangesAsync(ct);
 
             var inviterName = (await _context.Users.FirstOrDefaultAsync(u => u.Id == currentUserId, ct))?.FullName ?? "Unknown";
 
             // Log invitation link to console for testing
-            var clientUrl = !string.IsNullOrWhiteSpace(request.ClientUrl) ? request.ClientUrl.TrimEnd('/') : "http://localhost:5173";
             var invitationLink = $"{clientUrl}/invitations/accept?token={invitation.Token}";
             
             Console.WriteLine($"[INVITATION] {inviterName} invited {inviteeAccount.Email} to '{trip.TripName}'");

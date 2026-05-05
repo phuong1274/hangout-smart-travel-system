@@ -15,13 +15,15 @@ namespace HSTS.Application.Users.Commands
         private readonly IEmailService _emailService;
         private readonly IEmailDomainPolicy _emailDomainPolicy;
         private readonly ILoggingService _loggingService;
+        private readonly IClientAppUrlProvider _clientAppUrlProvider;
 
-        public AdminCreateUserCommandHandler(IAppDbContext ctx, IEmailService emailService, IEmailDomainPolicy emailDomainPolicy, ILoggingService loggingService)
+        public AdminCreateUserCommandHandler(IAppDbContext ctx, IEmailService emailService, IEmailDomainPolicy emailDomainPolicy, ILoggingService loggingService, IClientAppUrlProvider clientAppUrlProvider)
         {
             _ctx = ctx;
             _emailService = emailService;
             _emailDomainPolicy = emailDomainPolicy;
             _loggingService = loggingService;
+            _clientAppUrlProvider = clientAppUrlProvider;
         }
 
         public async Task<ErrorOr<string>> Handle(AdminCreateUserCommand request, CancellationToken cancellationToken)
@@ -69,7 +71,14 @@ namespace HSTS.Application.Users.Commands
                 IsUsed = false
             };
 
-            var setupLink = $"http://localhost:5173/auth/reset-password?mode=onboarding&token={Uri.EscapeDataString(setupToken)}&email={Uri.EscapeDataString(request.Email)}";
+            var setupLink = _clientAppUrlProvider.BuildUrl(
+                "/auth/reset-password",
+                new Dictionary<string, string?>
+                {
+                    ["mode"] = "onboarding",
+                    ["token"] = setupToken,
+                    ["email"] = request.Email
+                });
 
             _ctx.Users.Add(user);
             _ctx.PasswordSetupTokens.Add(passwordSetupToken);

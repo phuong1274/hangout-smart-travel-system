@@ -35,6 +35,7 @@ services:
       Resend__ApiKey: ${RESEND_API_KEY}
       Resend__FromEmail: ${RESEND_FROM_EMAIL}
       Resend__FromName: ${RESEND_FROM_NAME}
+      ClientApp__BaseUrl: ${CLIENT_APP_BASE_URL}
       EmailPolicy__AllowVnDomains: ${EMAIL_POLICY_ALLOW_VN_DOMAINS}
       EmailPolicy__AllowedDomains__0: ${EMAIL_POLICY_ALLOWED_DOMAIN_0}
       EmailPolicy__AllowedDomains__1: ${EMAIL_POLICY_ALLOWED_DOMAIN_1}

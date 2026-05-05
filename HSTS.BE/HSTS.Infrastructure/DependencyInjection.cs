@@ -33,12 +33,14 @@ namespace HSTS.Infrastructure
             services.AddScoped<IAccountAccessPolicy, HSTS.Application.Auth.Services.AccountAccessPolicy>();
             services.AddScoped<IGoogleAuthService, GoogleAuthService>();
             services.Configure<ResendSettings>(configuration.GetSection("Resend"));
+            services.Configure<ClientAppSettings>(configuration.GetSection("ClientApp"));
             services.Configure<EmailPolicySettings>(configuration.GetSection("EmailPolicy"));
             services.AddSingleton<IEmailDomainPolicy, EmailDomainPolicy>();
             services.AddHttpClient<IEmailService, EmailService>(client =>
             {
                 client.BaseAddress = new Uri("https://api.resend.com/");
             });
+            services.AddSingleton<IClientAppUrlProvider, ClientAppUrlProvider>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
 
             // Cloudinary
