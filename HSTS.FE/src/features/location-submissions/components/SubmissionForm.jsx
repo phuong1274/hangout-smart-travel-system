@@ -317,6 +317,8 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
       message.error(error.message || 'Upload failed');
     }
     return Upload.LIST_IGNORE;
+  };
+
   const handleMapLinkParsed = ({ lat, lng, address, name }) => {
     if (lat != null) form.setFieldValue('latitude', lat);
     if (lng != null) form.setFieldValue('longitude', lng);
