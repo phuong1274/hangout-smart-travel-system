@@ -378,7 +378,46 @@ const pickBestMoney = (...candidates) => {
 
 const getTransportOptions = (travelDetail) => {
   const options = travelDetail?.transportOptions || travelDetail?.TransportOptions || [];
-  return Array.isArray(options) ? options : [];
+  if (Array.isArray(options) && options.length > 0) return options;
+  if (!travelDetail || typeof travelDetail !== 'object') return [];
+
+  const fallbackMethod = pickFirstText(
+    travelDetail?.selectedMethod,
+    travelDetail?.SelectedMethod,
+    travelDetail?.mode,
+    travelDetail?.Mode,
+    travelDetail?.transportMode,
+    travelDetail?.TransportMode,
+  );
+  const fallbackMinutes = toFiniteNumber(
+    travelDetail?.selectedTravelTimeMinutes
+    ?? travelDetail?.SelectedTravelTimeMinutes
+    ?? travelDetail?.travelTimeMinutes
+    ?? travelDetail?.TravelTimeMinutes
+    ?? travelDetail?.durationMinutes
+    ?? travelDetail?.DurationMinutes
+    ?? travelDetail?.duration
+    ?? travelDetail?.Duration,
+  );
+  const fallbackCost = pickBestMoney(
+    travelDetail?.selectedTotalCost,
+    travelDetail?.SelectedTotalCost,
+    travelDetail?.costForGroup,
+    travelDetail?.CostForGroup,
+    travelDetail?.estimatedTotalCost,
+    travelDetail?.EstimatedTotalCost,
+  );
+
+  if (!fallbackMethod && fallbackMinutes == null && !fallbackCost) return [];
+
+  return [
+    {
+      method: fallbackMethod || 'Custom',
+      estimatedTravelMinutes: fallbackMinutes ?? null,
+      estimatedTotalCost: fallbackCost || null,
+      recommended: true,
+    },
+  ];
 };
 
 const getRecommendedTransportOption = (travelDetail) => {
@@ -1230,14 +1269,14 @@ const updateBudgetSummaryForTimelineItemCostDelta = (draftItinerary, eventType, 
 
 const findNextPrimaryLocationIndex = (timeline, fromIndex) => {
   for (let index = fromIndex + 1; index < timeline.length; index += 1) {
-    if (isEditableLocationEvent(timeline[index])) return index;
+    if (isTimelineStopEvent(timeline[index])) return index;
   }
   return -1;
 };
 
 const findPreviousPrimaryLocationIndex = (timeline, fromIndex) => {
   for (let index = fromIndex - 1; index >= 0; index -= 1) {
-    if (isEditableLocationEvent(timeline[index])) return index;
+    if (isTimelineStopEvent(timeline[index])) return index;
   }
   return -1;
 };
@@ -1862,8 +1901,19 @@ const ItineraryResultPage = () => {
       const fromEndpoint = getTimelineStopEndpointParams(prevStop, 'from');
       const toEndpoint = getTimelineStopEndpointParams(currentStop, 'to');
       const canEstimate = hasValidFromEndpoint(fromEndpoint) && hasValidToEndpoint(toEndpoint);
+      const existingBetween = sourceTimeline
+        .slice(stopIndexes[index - 1] + 1, stopIndexes[index])
+        .filter((candidate) => isTravelEvent(candidate));
 
       if (!canEstimate) {
+        // Preserve any existing travel segment when we cannot estimate a new one.
+        if (existingBetween.length > 0) {
+          rebuiltSegment.push(...existingBetween.map((item) => ({ ...item })));
+          rebuiltSegment.push({ ...currentStop });
+          prevStop = currentStop;
+          continue;
+        }
+
         // One or both stops have no geo coordinates — chain time directly, no travel event.
         // This preserves non-geo stops (e.g. custom notes, future event types) without dropping them.
         const currentDuration = stopDurations[index];
@@ -1875,19 +1925,42 @@ const ItineraryResultPage = () => {
       }
 
       let travelLeg = null;
+      const existingTravelItem = sourceTimeline
+        .slice(stopIndexes[index - 1] + 1, stopIndexes[index])
+        .find((candidate) => isTravelEvent(candidate));
+      const [, existingTravelDetail] = getTravelDetailEntry(existingTravelItem);
+      const existingTransportOptions = Array.isArray(existingTravelDetail?.transportOptions)
+        ? existingTravelDetail.transportOptions
+        : (Array.isArray(existingTravelDetail?.TransportOptions) ? existingTravelDetail.TransportOptions : []);
       const cacheKey = buildTravelCacheKey(fromEndpoint, toEndpoint, groupSize, currencyCode);
       const cached = travelCacheRef.current.get(cacheKey);
       if (cached) {
         travelLeg = { ...cached, arrivalTime: null, ArrivalTime: null };
       } else {
-        travelLeg = await estimateLocalTravelApi({
-          ...fromEndpoint,
-          ...toEndpoint,
-          groupSize,
-          departureTime,
-          currencyCode,
-        });
-        travelCacheRef.current.set(cacheKey, travelLeg);
+        try {
+          travelLeg = await estimateLocalTravelApi({
+            ...fromEndpoint,
+            ...toEndpoint,
+            groupSize,
+            departureTime,
+            currencyCode,
+          });
+          travelCacheRef.current.set(cacheKey, travelLeg);
+        } catch {
+          travelLeg = null;
+        }
+      }
+
+      if (!travelLeg && existingTravelDetail) {
+        travelLeg = { ...existingTravelDetail };
+      }
+
+      const travelLegOptions = Array.isArray(travelLeg?.transportOptions)
+        ? travelLeg.transportOptions
+        : (Array.isArray(travelLeg?.TransportOptions) ? travelLeg.TransportOptions : []);
+      if (existingTransportOptions.length > 0 && travelLegOptions.length === 0 && travelLeg) {
+        travelLeg.transportOptions = existingTransportOptions;
+        travelLeg.TransportOptions = existingTransportOptions;
       }
 
       const estimatedTravelMinutes = Number(
@@ -1955,7 +2028,7 @@ const ItineraryResultPage = () => {
 
     const firstLocationIndex = stopIndexes[0];
     const lastLocationIndex = stopIndexes[stopIndexes.length - 1];
-    const beforeSegment = preserveExternalSegments
+    const beforeSegment = preserveExternalSegments || hasLeadingTravelSegment
       ? sourceTimeline.slice(0, firstLocationIndex)
       : sourceTimeline.slice(0, firstLocationIndex).filter((item) => !isTravelEvent(item));
     const afterSegment = preserveExternalSegments
@@ -2752,6 +2825,10 @@ const ItineraryResultPage = () => {
       return;
     }
 
+    const customLocationTypeName = addBetweenLocationTypeOptions
+      .find((locationType) => locationType?.id === customLocationTypeId)?.name;
+    const customTagNames = customLocationTypeName ? [customLocationTypeName] : [];
+
     if (!Number.isFinite(Number(addBetweenCustomLat)) || !Number.isFinite(Number(addBetweenCustomLng))) {
       message.warning('Please pick custom location on map.');
       return;
@@ -2826,7 +2903,8 @@ const ItineraryResultPage = () => {
         LocationTypeId: customLocationTypeId,
         customLocation: customLocationPayload,
         CustomLocation: customLocationPayload,
-        tagNames: [],
+        tagNames: customTagNames,
+        TagNames: customTagNames,
         ticketCost: groupCost,
         TicketCost: groupCost,
         extraCostPerPerson: null,
@@ -2881,6 +2959,7 @@ const ItineraryResultPage = () => {
     addBetweenCustomStartTime,
     addBetweenCustomDurationMinutes,
     addBetweenCustomCostAmount,
+    addBetweenLocationTypeOptions,
     resetAddBetweenExistingForm,
     resetAddBetweenCustomForm,
     updateBudgetSummaryForCustomAddFlow,
@@ -4068,7 +4147,8 @@ const ItineraryResultPage = () => {
         ) ?? 0
       ));
 
-      if (!item || !isEditableLocationEvent(item)) {
+      const isCustomLocation = Boolean(getItemCustomLocation(item));
+      if (!item || (!isEditableLocationEvent(item) && !isCustomLocation)) {
         message.warning('Only location events can be removed.');
         return;
       }
@@ -5401,6 +5481,7 @@ const ItineraryResultPage = () => {
                           const endTimeLabel = formatTime(endTime);
                           const locationId = item.locationId || item.LocationId;
                           const locationIdNum = Number(locationId);
+                          const hasLocationId = Number.isFinite(locationIdNum) && locationIdNum > 0;
                           const rawTitle = item.title || item.Title || '';
                           const isTravel = eventType === 'travel';
                           const isMeal = eventType === 'meal';
@@ -5462,7 +5543,8 @@ const ItineraryResultPage = () => {
                           const cleanedNote = String(rawNote).replace(/score\s*:\s*[0-9]+(?:[.,][0-9]+)?/gi, '').replace(/\s{2,}/g, ' ').trim();
                           const note = translateNoteToEnglish(cleanedNote, eventType);
 
-                          const canRemoveLocation = isEditableLocationEvent(item);
+                          const isCustomLocation = Boolean(getItemCustomLocation(item));
+                          const canRemoveLocation = isEditableLocationEvent(item) || isCustomLocation;
                           const canAddPoint = canRemoveLocation;
 
                           const displayCost = costForGroup || ticketCost;
@@ -5477,7 +5559,7 @@ const ItineraryResultPage = () => {
                               <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleOpenEditTimeline(dayIdx, idx, currentProvinceId)}>
                                 Edit
                               </Button>
-                              {locationId && !isTravel && (
+                              {hasLocationId && !isTravel && (
                                 <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleViewLocation(locationId)}>
                                   View Details
                                 </Button>
