@@ -3710,26 +3710,6 @@ const ManualTripPage = () => {
                 Pick your own point on map and define timeline. Estimate is recalculated from API automatically.
               </Text>
 
-              <div className={`${styles.editTimelineField} ${styles.customPointSearchWrap}`} style={{ marginBottom: 16 }}>
-                <AutoComplete
-                  style={{ width: '100%' }}
-                  options={customPointSearchOptions}
-                  value={customPointSearchValue}
-                  onSearch={handleCustomPointSearch}
-                  onSelect={handleSelectCustomPointSearchResult}
-                  placeholder="Search for a place"
-                >
-                  <Input
-                    suffix={customPointSearching ? <Spin size="small" /> : <SearchOutlined />}
-                    className={styles.editTimelineInput}
-                  />
-                </AutoComplete>
-              </div>
-
-              <div className={styles.editTimelineField} style={{ marginBottom: 16 }}>
-                <MapLinkInput onParsed={handleCustomMapLinkParsed} />
-              </div>
-
               <div className={styles.editTimelineField}>
                 <span className={styles.editTimelineLabel}>Name</span>
                 <Input
@@ -3780,6 +3760,26 @@ const ManualTripPage = () => {
               </div>
 
               <Card className={styles.customLocationMapCard} title={<span className={styles.customLocationMapHeader}>Pick custom point location</span>}>
+                <div className={styles.customPointSearchWrap} style={{ marginBottom: 12 }}>
+                  <AutoComplete
+                    style={{ width: '100%' }}
+                    options={customPointSearchOptions}
+                    value={customPointSearchValue}
+                    onSearch={handleCustomPointSearch}
+                    onSelect={handleSelectCustomPointSearchResult}
+                    placeholder="Search for a place"
+                  >
+                    <Input
+                      suffix={customPointSearching ? <Spin size="small" /> : <SearchOutlined />}
+                      className={styles.editTimelineInput}
+                    />
+                  </AutoComplete>
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <MapLinkInput onParsed={handleCustomMapLinkParsed} />
+                </div>
+
                 <div className={styles.customLocationMapWrap}>
                   <MapContainer
                     center={customMapCenter}
