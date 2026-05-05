@@ -5,7 +5,6 @@ import {
   Button,
   Input,
   InputNumber,
-  TimePicker,
   Tag,
   Empty,
   Space,
@@ -379,7 +378,46 @@ const pickBestMoney = (...candidates) => {
 
 const getTransportOptions = (travelDetail) => {
   const options = travelDetail?.transportOptions || travelDetail?.TransportOptions || [];
-  return Array.isArray(options) ? options : [];
+  if (Array.isArray(options) && options.length > 0) return options;
+  if (!travelDetail || typeof travelDetail !== 'object') return [];
+
+  const fallbackMethod = pickFirstText(
+    travelDetail?.selectedMethod,
+    travelDetail?.SelectedMethod,
+    travelDetail?.mode,
+    travelDetail?.Mode,
+    travelDetail?.transportMode,
+    travelDetail?.TransportMode,
+  );
+  const fallbackMinutes = toFiniteNumber(
+    travelDetail?.selectedTravelTimeMinutes
+    ?? travelDetail?.SelectedTravelTimeMinutes
+    ?? travelDetail?.travelTimeMinutes
+    ?? travelDetail?.TravelTimeMinutes
+    ?? travelDetail?.durationMinutes
+    ?? travelDetail?.DurationMinutes
+    ?? travelDetail?.duration
+    ?? travelDetail?.Duration,
+  );
+  const fallbackCost = pickBestMoney(
+    travelDetail?.selectedTotalCost,
+    travelDetail?.SelectedTotalCost,
+    travelDetail?.costForGroup,
+    travelDetail?.CostForGroup,
+    travelDetail?.estimatedTotalCost,
+    travelDetail?.EstimatedTotalCost,
+  );
+
+  if (!fallbackMethod && fallbackMinutes == null && !fallbackCost) return [];
+
+  return [
+    {
+      method: fallbackMethod || 'Custom',
+      estimatedTravelMinutes: fallbackMinutes ?? null,
+      estimatedTotalCost: fallbackCost || null,
+      recommended: true,
+    },
+  ];
 };
 
 const getRecommendedTransportOption = (travelDetail) => {
@@ -1231,30 +1269,52 @@ const updateBudgetSummaryForTimelineItemCostDelta = (draftItinerary, eventType, 
 
 const findNextPrimaryLocationIndex = (timeline, fromIndex) => {
   for (let index = fromIndex + 1; index < timeline.length; index += 1) {
-    if (isEditableLocationEvent(timeline[index])) return index;
+    if (isTimelineStopEvent(timeline[index])) return index;
   }
   return -1;
 };
 
 const findPreviousPrimaryLocationIndex = (timeline, fromIndex) => {
   for (let index = fromIndex - 1; index >= 0; index -= 1) {
-    if (isEditableLocationEvent(timeline[index])) return index;
+    if (isTimelineStopEvent(timeline[index])) return index;
   }
   return -1;
 };
 
-const getFallbackTripName = (sourceItinerary) => {
+const getTripProvinceLabel = (sourceItinerary, provinceNameById) => {
+  if (!sourceItinerary) return null;
+  const daysKey = Array.isArray(sourceItinerary?.days)
+    ? 'days'
+    : (Array.isArray(sourceItinerary?.Days) ? 'Days' : null);
+  if (!daysKey) return null;
+
+  const days = Array.isArray(sourceItinerary?.[daysKey]) ? sourceItinerary[daysKey] : [];
+  if (days.length === 0) return null;
+
+  const lastDay = [...days].reverse().find((day) => Number(day?.provinceId ?? day?.ProvinceId) > 0) || null;
+  const lastId = Number(lastDay?.provinceId ?? lastDay?.ProvinceId);
+  if (!Number.isFinite(lastId)) return null;
+
+  const lastName = provinceNameById?.get(lastId);
+  if (!lastName) return null;
+
+  return lastName;
+};
+
+const getFallbackTripName = (sourceItinerary, provinceNameById) => {
+  const provinceLabel = getTripProvinceLabel(sourceItinerary, provinceNameById);
+  if (provinceLabel) return provinceLabel;
   const startDate = pickFirstText(sourceItinerary?.startDate, sourceItinerary?.StartDate);
   const endDate = pickFirstText(sourceItinerary?.endDate, sourceItinerary?.EndDate);
   return `Trip ${String(startDate || '').slice(0, 10)} - ${String(endDate || '').slice(0, 10)}`;
 };
 
-const getItineraryTripName = (sourceItinerary) => pickFirstText(
+const getItineraryTripName = (sourceItinerary, provinceNameById) => pickFirstText(
   sourceItinerary?.tripName,
   sourceItinerary?.TripName,
   sourceItinerary?.name,
   sourceItinerary?.Name,
-  getFallbackTripName(sourceItinerary),
+  getFallbackTripName(sourceItinerary, provinceNameById),
 );
 
 const CustomLocationMapClickHandler = ({ onPick }) => {
@@ -1332,8 +1392,7 @@ const ItineraryResultPage = () => {
     provinceId: null,
     canChangeLocation: false,
   });
-  const [editTimelineStartTime, setEditTimelineStartTime] = useState('');
-  const [editTimelineEndTime, setEditTimelineEndTime] = useState('');
+  const [editTimelineDurationMinutes, setEditTimelineDurationMinutes] = useState(90);
   const [editTimelineCostAmount, setEditTimelineCostAmount] = useState(0);
   const [editTimelineLocationId, setEditTimelineLocationId] = useState(null);
   const [editTimelineLocationOptions, setEditTimelineLocationOptions] = useState([]);
@@ -1374,6 +1433,7 @@ const ItineraryResultPage = () => {
   const customLocationMapActiveKey = `${addBetweenModal?.open ? 'open' : 'closed'}-${addBetweenModal?.dayIndex ?? 'x'}-${addBetweenModal?.insertAfterIndex ?? 'x'}-${hasCustomLocationCoordinates ? 'picked' : 'empty'}`;
   const existingDurationParts = splitDurationMinutes(addBetweenExistingDurationMinutes);
   const customDurationParts = splitDurationMinutes(addBetweenCustomDurationMinutes);
+  const editDurationParts = splitDurationMinutes(editTimelineDurationMinutes);
 
   const updateDurationMinutes = useCallback((setter, nextHours, nextMinutes) => {
     setter((prev) => {
@@ -1424,7 +1484,7 @@ const ItineraryResultPage = () => {
       return;
     }
 
-    setEditableTripName(getItineraryTripName(itinerary));
+    setEditableTripName(getItineraryTripName(itinerary, provinceNameById));
   }, [
     itinerary?.tripName,
     itinerary?.TripName,
@@ -1434,13 +1494,14 @@ const ItineraryResultPage = () => {
     itinerary?.StartDate,
     itinerary?.endDate,
     itinerary?.EndDate,
+    provinceNameById,
   ]);
 
   const commitTripNameToItinerary = useCallback((rawTripName) => {
     if (!itinerary) return '';
 
-    const normalizedTripName = String(rawTripName || '').trim() || getFallbackTripName(itinerary);
-    const currentTripName = getItineraryTripName(itinerary);
+    const normalizedTripName = String(rawTripName || '').trim() || getFallbackTripName(itinerary, provinceNameById);
+    const currentTripName = getItineraryTripName(itinerary, provinceNameById);
 
     setEditableTripName(normalizedTripName);
 
@@ -1452,7 +1513,7 @@ const ItineraryResultPage = () => {
     updateItinerary(draft);
 
     return normalizedTripName;
-  }, [itinerary, updateItinerary]);
+  }, [itinerary, provinceNameById, updateItinerary]);
 
   useEffect(() => {
     if (!itinerary) return;
@@ -1840,8 +1901,19 @@ const ItineraryResultPage = () => {
       const fromEndpoint = getTimelineStopEndpointParams(prevStop, 'from');
       const toEndpoint = getTimelineStopEndpointParams(currentStop, 'to');
       const canEstimate = hasValidFromEndpoint(fromEndpoint) && hasValidToEndpoint(toEndpoint);
+      const existingBetween = sourceTimeline
+        .slice(stopIndexes[index - 1] + 1, stopIndexes[index])
+        .filter((candidate) => isTravelEvent(candidate));
 
       if (!canEstimate) {
+        // Preserve any existing travel segment when we cannot estimate a new one.
+        if (existingBetween.length > 0) {
+          rebuiltSegment.push(...existingBetween.map((item) => ({ ...item })));
+          rebuiltSegment.push({ ...currentStop });
+          prevStop = currentStop;
+          continue;
+        }
+
         // One or both stops have no geo coordinates — chain time directly, no travel event.
         // This preserves non-geo stops (e.g. custom notes, future event types) without dropping them.
         const currentDuration = stopDurations[index];
@@ -1853,19 +1925,42 @@ const ItineraryResultPage = () => {
       }
 
       let travelLeg = null;
+      const existingTravelItem = sourceTimeline
+        .slice(stopIndexes[index - 1] + 1, stopIndexes[index])
+        .find((candidate) => isTravelEvent(candidate));
+      const [, existingTravelDetail] = getTravelDetailEntry(existingTravelItem);
+      const existingTransportOptions = Array.isArray(existingTravelDetail?.transportOptions)
+        ? existingTravelDetail.transportOptions
+        : (Array.isArray(existingTravelDetail?.TransportOptions) ? existingTravelDetail.TransportOptions : []);
       const cacheKey = buildTravelCacheKey(fromEndpoint, toEndpoint, groupSize, currencyCode);
       const cached = travelCacheRef.current.get(cacheKey);
       if (cached) {
         travelLeg = { ...cached, arrivalTime: null, ArrivalTime: null };
       } else {
-        travelLeg = await estimateLocalTravelApi({
-          ...fromEndpoint,
-          ...toEndpoint,
-          groupSize,
-          departureTime,
-          currencyCode,
-        });
-        travelCacheRef.current.set(cacheKey, travelLeg);
+        try {
+          travelLeg = await estimateLocalTravelApi({
+            ...fromEndpoint,
+            ...toEndpoint,
+            groupSize,
+            departureTime,
+            currencyCode,
+          });
+          travelCacheRef.current.set(cacheKey, travelLeg);
+        } catch {
+          travelLeg = null;
+        }
+      }
+
+      if (!travelLeg && existingTravelDetail) {
+        travelLeg = { ...existingTravelDetail };
+      }
+
+      const travelLegOptions = Array.isArray(travelLeg?.transportOptions)
+        ? travelLeg.transportOptions
+        : (Array.isArray(travelLeg?.TransportOptions) ? travelLeg.TransportOptions : []);
+      if (existingTransportOptions.length > 0 && travelLegOptions.length === 0 && travelLeg) {
+        travelLeg.transportOptions = existingTransportOptions;
+        travelLeg.TransportOptions = existingTransportOptions;
       }
 
       const estimatedTravelMinutes = Number(
@@ -1933,7 +2028,7 @@ const ItineraryResultPage = () => {
 
     const firstLocationIndex = stopIndexes[0];
     const lastLocationIndex = stopIndexes[stopIndexes.length - 1];
-    const beforeSegment = preserveExternalSegments
+    const beforeSegment = preserveExternalSegments || hasLeadingTravelSegment
       ? sourceTimeline.slice(0, firstLocationIndex)
       : sourceTimeline.slice(0, firstLocationIndex).filter((item) => !isTravelEvent(item));
     const afterSegment = preserveExternalSegments
@@ -2219,16 +2314,6 @@ const ItineraryResultPage = () => {
 
     setProvinceLocationLoading(true);
     try {
-      const draftDays = itinerary.days || itinerary.Days || [];
-      const day = draftDays[dayIndex];
-      const itineraryCurrency = pickFirstText(itinerary?.currencyCode, itinerary?.CurrencyCode) || 'VND';
-      const dayTimeline = day ? getDayTimeline(day, itineraryCurrency) : [];
-      const usedLocationIds = new Set(
-        dayTimeline
-          .filter((item) => isEditableLocationEvent(item))
-          .map((item) => getItemLocationId(item))
-      );
-
       const response = await getLocationsByProvinceApi({
         provinceId,
         countryId: 'VN',
@@ -2242,7 +2327,7 @@ const ItineraryResultPage = () => {
       const options = items
         .map((location) => {
           const id = Number(location?.id ?? location?.Id);
-          if (!Number.isFinite(id) || id <= 0 || usedLocationIds.has(id)) return null;
+          if (!Number.isFinite(id) || id <= 0) return null;
           const name = pickFirstText(location?.englishName, location?.EnglishName, location?.name, location?.Name) || `Location #${id}`;
           return {
             id,
@@ -2740,6 +2825,10 @@ const ItineraryResultPage = () => {
       return;
     }
 
+    const customLocationTypeName = addBetweenLocationTypeOptions
+      .find((locationType) => locationType?.id === customLocationTypeId)?.name;
+    const customTagNames = customLocationTypeName ? [customLocationTypeName] : [];
+
     if (!Number.isFinite(Number(addBetweenCustomLat)) || !Number.isFinite(Number(addBetweenCustomLng))) {
       message.warning('Please pick custom location on map.');
       return;
@@ -2814,7 +2903,8 @@ const ItineraryResultPage = () => {
         LocationTypeId: customLocationTypeId,
         customLocation: customLocationPayload,
         CustomLocation: customLocationPayload,
-        tagNames: [],
+        tagNames: customTagNames,
+        TagNames: customTagNames,
         ticketCost: groupCost,
         TicketCost: groupCost,
         extraCostPerPerson: null,
@@ -2869,6 +2959,7 @@ const ItineraryResultPage = () => {
     addBetweenCustomStartTime,
     addBetweenCustomDurationMinutes,
     addBetweenCustomCostAmount,
+    addBetweenLocationTypeOptions,
     resetAddBetweenExistingForm,
     resetAddBetweenCustomForm,
     updateBudgetSummaryForCustomAddFlow,
@@ -2956,8 +3047,9 @@ const ItineraryResultPage = () => {
     const item = timeline[timelineIndex];
     if (!item) return;
 
-    const normalizedStart = normalizeTimeOnly(item?.startTime || item?.StartTime);
-    const normalizedEnd = normalizeTimeOnly(item?.endTime || item?.EndTime);
+    const normalizedStart = normalizeTimeOnly(item?.startTime || item?.StartTime) || '08:00:00';
+    const normalizedEnd = normalizeTimeOnly(item?.endTime || item?.EndTime)
+      || addMinutesToTime(normalizedStart, getTimelineDurationMinutes(item));
     const currentCost = Math.round(Math.max(0, getTimelineItemCostAmount(item)));
     const canChangeLocation = isEditableLocationEvent(item);
     const currentLocationId = canChangeLocation ? getItemLocationId(item) : null;
@@ -2980,8 +3072,16 @@ const ItineraryResultPage = () => {
         }
       : null;
 
-    setEditTimelineStartTime(normalizedStart ? normalizedStart.slice(0, 5) : '');
-    setEditTimelineEndTime(normalizedEnd ? normalizedEnd.slice(0, 5) : '');
+    const durationFromClock = (() => {
+      const startMinutes = toMinutesOfDay(normalizedStart);
+      const endMinutes = toMinutesOfDay(normalizedEnd);
+      if (startMinutes == null || endMinutes == null) return null;
+      return endMinutes >= startMinutes
+        ? endMinutes - startMinutes
+        : (endMinutes + 1440) - startMinutes;
+    })();
+    const fallbackDuration = Math.max(15, getTimelineDurationMinutes(item));
+    setEditTimelineDurationMinutes(durationFromClock || fallbackDuration);
     setEditTimelineCostAmount(currentCost);
     setEditTimelineLocationId(currentLocationId);
     setEditTimelineLocationSearch('');
@@ -3019,8 +3119,7 @@ const ItineraryResultPage = () => {
       provinceId: null,
       canChangeLocation: false,
     });
-    setEditTimelineStartTime('');
-    setEditTimelineEndTime('');
+    setEditTimelineDurationMinutes(90);
     setEditTimelineCostAmount(0);
     setEditTimelineLocationId(null);
     setEditTimelineLocationOptions([]);
@@ -3049,13 +3148,6 @@ const ItineraryResultPage = () => {
       const timeline = Array.isArray(day?.[timelineKey]) ? [...day[timelineKey]] : [];
       const currentItem = timeline[timelineIndex];
       if (!currentItem) return;
-
-      const getDurationMinutesFromClock = (startText, endText) => {
-        const start = toMinutesOfDay(startText);
-        const end = toMinutesOfDay(endText);
-        if (start == null || end == null) return null;
-        return end >= start ? end - start : (end + 1440) - start;
-      };
 
       const shiftFollowingTimelineItems = (fromIndex, deltaMinutes) => {
         if (!deltaMinutes) return;
@@ -3102,24 +3194,9 @@ const ItineraryResultPage = () => {
       const existingStart = normalizeTimeOnly(currentItem?.startTime || currentItem?.StartTime) || '08:00:00';
       const existingEnd = normalizeTimeOnly(currentItem?.endTime || currentItem?.EndTime)
         || addMinutesToTime(existingStart, getTimelineDurationMinutes(currentItem));
-
-      let nextStart = normalizeTimeOnly(editTimelineStartTime) || existingStart;
-      let nextEnd = normalizeTimeOnly(editTimelineEndTime) || existingEnd;
-
-      const previousItem = timelineIndex > 0 ? timeline[timelineIndex - 1] : null;
-      const previousEnd = normalizeTimeOnly(previousItem?.endTime || previousItem?.EndTime);
-      const previousEndMinutes = toMinutesOfDay(previousEnd);
-      const nextStartMinutes = toMinutesOfDay(nextStart);
-      if (previousEndMinutes != null && nextStartMinutes != null && nextStartMinutes < previousEndMinutes) {
-        nextStart = previousEnd;
-      }
-
-      const fallbackDuration = getDurationMinutesFromClock(existingStart, existingEnd)
-        || Math.max(15, getTimelineDurationMinutes(currentItem));
-      const nextDuration = getDurationMinutesFromClock(nextStart, nextEnd);
-      if (nextDuration == null || nextDuration <= 0) {
-        nextEnd = addMinutesToTime(nextStart, fallbackDuration);
-      }
+      const nextStart = existingStart;
+      const normalizedDuration = Math.max(1, Math.round(Number(editTimelineDurationMinutes) || 0));
+      const nextEnd = addMinutesToTime(nextStart, normalizedDuration || Math.max(15, getTimelineDurationMinutes(currentItem)));
 
       const existingEndMinutes = toMinutesOfDay(existingEnd);
       const normalizedNextEndMinutes = toMinutesOfDay(nextEnd);
@@ -3223,11 +3300,10 @@ const ItineraryResultPage = () => {
     }
   }, [
     editTimelineCostAmount,
-    editTimelineEndTime,
+    editTimelineDurationMinutes,
     editTimelineLocationId,
     editTimelineLocationOptions,
     editTimelineModal,
-    editTimelineStartTime,
     handleCloseEditTimelineModal,
     itinerary,
     recalculateDayTimeline,
@@ -4071,7 +4147,8 @@ const ItineraryResultPage = () => {
         ) ?? 0
       ));
 
-      if (!item || !isEditableLocationEvent(item)) {
+      const isCustomLocation = Boolean(getItemCustomLocation(item));
+      if (!item || (!isEditableLocationEvent(item) && !isCustomLocation)) {
         message.warning('Only location events can be removed.');
         return;
       }
@@ -5136,7 +5213,7 @@ const ItineraryResultPage = () => {
     );
     const contingencyFund = contingencyRaw > 0 ? Math.round(contingencyRaw) : null;
 
-    const fallbackTripName = getFallbackTripName(itinerary);
+    const fallbackTripName = getFallbackTripName(itinerary, provinceNameById);
     const tripName = commitTripNameToItinerary(editableTripName) || fallbackTripName;
     const description = pickFirstText(itinerary.description, itinerary.Description) || null;
 
@@ -5404,6 +5481,7 @@ const ItineraryResultPage = () => {
                           const endTimeLabel = formatTime(endTime);
                           const locationId = item.locationId || item.LocationId;
                           const locationIdNum = Number(locationId);
+                          const hasLocationId = Number.isFinite(locationIdNum) && locationIdNum > 0;
                           const rawTitle = item.title || item.Title || '';
                           const isTravel = eventType === 'travel';
                           const isMeal = eventType === 'meal';
@@ -5465,7 +5543,8 @@ const ItineraryResultPage = () => {
                           const cleanedNote = String(rawNote).replace(/score\s*:\s*[0-9]+(?:[.,][0-9]+)?/gi, '').replace(/\s{2,}/g, ' ').trim();
                           const note = translateNoteToEnglish(cleanedNote, eventType);
 
-                          const canRemoveLocation = isEditableLocationEvent(item);
+                          const isCustomLocation = Boolean(getItemCustomLocation(item));
+                          const canRemoveLocation = isEditableLocationEvent(item) || isCustomLocation;
                           const canAddPoint = canRemoveLocation;
 
                           const displayCost = costForGroup || ticketCost;
@@ -5480,7 +5559,7 @@ const ItineraryResultPage = () => {
                               <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleOpenEditTimeline(dayIdx, idx, currentProvinceId)}>
                                 Edit
                               </Button>
-                              {locationId && !isTravel && (
+                              {hasLocationId && !isTravel && (
                                 <Button type="link" size="small" disabled={isDayUpdating} className={styles.linkButton} onClick={() => handleViewLocation(locationId)}>
                                   View Details
                                 </Button>
@@ -5776,6 +5855,11 @@ const ItineraryResultPage = () => {
                                       {address && <p className={styles.address}>{address}</p>}
                                       {telephone && <p className={styles.address}>Phone: {telephone}</p>}
                                       {note && <p className={styles.address}>{note}</p>}
+                                      {hasPositiveDisplayCost ? (
+                                        <div className={styles.costAmount} style={{ marginTop: 8 }}>{formatMoney(displayCost)}</div>
+                                      ) : shouldShowFreeCost ? (
+                                        <div className={styles.costFree} style={{ marginTop: 8 }}>Free</div>
+                                      ) : null}
                                     </div>
                                     {renderAlternatives()}
                                     {renderActions()}
@@ -6002,7 +6086,7 @@ const ItineraryResultPage = () => {
 
             <div className={styles.addBetweenSplitLayout}>
               <div className={styles.addBetweenPanel}>
-                <span className={styles.addBetweenPanelTitle}>Existing Location</span>
+                <span className={styles.addBetweenPanelTitle}>Select Location (From system)</span>
                 <Text type="secondary" className={styles.addBetweenPanelHint}>
                   Select location type, location, duration and cost before adding to timeline.
                 </Text>
@@ -6169,37 +6253,6 @@ const ItineraryResultPage = () => {
                     placeholder="Address or short note"
                     value={addBetweenCustomAddress}
                     onChange={(event) => setAddBetweenCustomAddress(event?.target?.value || '')}
-                  />
-                </div>
-
-                <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>Location Type</span>
-                  <Select
-                    showSearch
-                    allowClear
-                    className={styles.addBetweenSelect}
-                    placeholder="Select location type"
-                    value={selectedAddBetweenCustomLocationTypeId}
-                    onChange={(value) => setSelectedAddBetweenCustomLocationTypeId(value ?? null)}
-                    loading={addBetweenLocationTypeLoading}
-                    optionFilterProp="label"
-                    options={addBetweenLocationTypeOptions.map((locationType) => ({
-                      label: locationType.name,
-                      value: locationType.id,
-                    }))}
-                    notFoundContent={addBetweenLocationTypeLoading ? <Spin size="small" /> : 'No location types'}
-                  />
-                </div>
-
-                <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>Description</span>
-                  <Input.TextArea
-                    className={styles.editTimelineInput}
-                    placeholder="Add a short description for this custom location"
-                    rows={3}
-                    maxLength={1000}
-                    value={addBetweenCustomDescription}
-                    onChange={(event) => setAddBetweenCustomDescription(event?.target?.value || '')}
                   />
                 </div>
 
@@ -6401,28 +6454,31 @@ const ItineraryResultPage = () => {
               </div>
             )}
 
-            <div className={styles.editTimelineField}>
-              <span className={styles.editTimelineLabel}>Start time</span>
-              <TimePicker
-                format="HH:mm"
-                use12Hours={false}
-                allowClear={false}
-                className={styles.editTimelineInput}
-                value={toTimePickerValue(editTimelineStartTime)}
-                onChange={(_, timeText) => setEditTimelineStartTime(timeText || '')}
-              />
-            </div>
+            <div className={styles.customLocationTimelineGrid}>
+              <div className={styles.editTimelineField}>
+                <span className={styles.editTimelineLabel}>Duration (hours)</span>
+                <InputNumber
+                  className={styles.editTimelineInput}
+                  min={0}
+                  precision={0}
+                  controls={false}
+                  value={editDurationParts.hours}
+                  onChange={(value) => updateDurationMinutes(setEditTimelineDurationMinutes, value, null)}
+                />
+              </div>
 
-            <div className={styles.editTimelineField}>
-              <span className={styles.editTimelineLabel}>End time</span>
-              <TimePicker
-                format="HH:mm"
-                use12Hours={false}
-                allowClear={false}
-                className={styles.editTimelineInput}
-                value={toTimePickerValue(editTimelineEndTime)}
-                onChange={(_, timeText) => setEditTimelineEndTime(timeText || '')}
-              />
+              <div className={styles.editTimelineField}>
+                <span className={styles.editTimelineLabel}>Duration (minutes)</span>
+                <InputNumber
+                  className={styles.editTimelineInput}
+                  min={0}
+                  max={59}
+                  precision={0}
+                  controls={false}
+                  value={editDurationParts.minutes}
+                  onChange={(value) => updateDurationMinutes(setEditTimelineDurationMinutes, null, value)}
+                />
+              </div>
             </div>
 
             <div className={styles.editTimelineField}>

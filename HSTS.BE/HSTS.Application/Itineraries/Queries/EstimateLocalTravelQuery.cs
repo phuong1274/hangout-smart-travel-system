@@ -130,21 +130,14 @@ namespace HSTS.Application.Itineraries.Queries
                     fromLat, fromLng, toLat, toLng, distanceKm, departureTime, toMoney, cancellationToken);
             }
 
-            // CASE: Lat/Lng -> Lat/Lng (pure coords, no DB entities)
-            var isPureLatLng = isFromLatlng && isToLatlng;
-            if (isPureLatLng && distanceKm >= IntercityThresholdKm)
+            // CASE: Intercity travel without explicit hubs (>= 100km)
+            if (distanceKm >= IntercityThresholdKm)
             {
-                // Intercity: only return distance, no cost, no options
-                return new LocalTravelEstimateDto(
-                    fromId, fromName, toId, toName,
-                    departureTime, null,
-                    Math.Round(distanceKm, 2),
-                    null, 0, toMoney(0),
-                    new List<TransportOptionDto>());
+                return await HandleIntercityTransportIntelligentlyAsync(request, fromId, fromName, toId, toName,
+                    fromLat, fromLng, toLat, toLng, distanceKm, departureTime, toMoney, cancellationToken);
             }
 
-            // CASE: Location <-> Location, Location <-> Hub, Lat/Lng <-> Location, Lat/Lng <-> Hub (local)
-            // Also Lat/Lng -> Lat/Lng < 100km
+            // CASE: Local travel (< 100km)
             return await HandleLocalTransportAsync(request, fromId, fromName, toId, toName,
                 fromLat, fromLng, toLat, toLng, distanceKm, departureTime, toMoney, cancellationToken);
         }
@@ -519,6 +512,185 @@ namespace HSTS.Application.Itineraries.Queries
                 selectedOption.Method, selectedOption.EstimatedTravelMinutes,
                 selectedOption.EstimatedTotalCost,
                 transportOptions);
+        }
+
+        private async Task<ErrorOr<LocalTravelEstimateDto>> HandleIntercityTransportIntelligentlyAsync(
+            EstimateLocalTravelQuery request,
+            int fromId, string fromName, int toId, string toName,
+            double fromLat, double fromLng, double toLat, double toLng,
+            double distanceKm, TimeOnly departureTime, Func<decimal, MoneyDto> toMoney,
+            CancellationToken ct)
+        {
+            var transitHubs = await _context.TransitHubs
+                .AsNoTracking()
+                .Include(x => x.TransportMode)
+                .ToListAsync(ct);
+
+            var fromTrainHub = FindNearestHub(transitHubs, fromLat, fromLng, "Train");
+            var toTrainHub = FindNearestHub(transitHubs, toLat, toLng, "Train");
+            var fromAirport = FindNearestHub(transitHubs, fromLat, fromLng, "Plane");
+            var toAirport = FindNearestHub(transitHubs, toLat, toLng, "Plane");
+            var fromBusHub = FindNearestHub(transitHubs, fromLat, fromLng, "Bus");
+            var toBusHub = FindNearestHub(transitHubs, toLat, toLng, "Bus");
+
+            var departDate = DateOnly.FromDateTime(DateTime.Today);
+            var options = new List<TransportOptionDto>();
+
+            var fallbackDuration = Math.Max(10, (int)Math.Round(distanceKm / DefaultSpeedKmh * 60d));
+
+            // Bus search
+            try
+            {
+                var busReq = new FixedIntercitySearchRequest(
+                    fromBusHub?.Id, fromLat, fromLng,
+                    toBusHub?.Id, toLat, toLng,
+                    departDate, null, 1, 5);
+                var busResult = await _fixedIntercityTransportService.SearchBusWithDateFallbackAsync(busReq, ct);
+                if (busResult.IsSuccess && busResult.RecommendedOption is not null)
+                {
+                    var opt = busResult.RecommendedOption;
+                    var mins = opt.EstimatedTravelMinutes > 0 ? opt.EstimatedTravelMinutes : fallbackDuration;
+                    
+                    var fm = fromBusHub is not null ? await TryGetLocalTransfer(request, fromId, fromName, fromLat, fromLng, fromBusHub.Id, fromBusHub.Name, fromBusHub.Latitude, fromBusHub.Longitude, departureTime, toMoney, ct) : null;
+                    var lm = toBusHub is not null ? await TryGetLocalTransfer(request, toBusHub.Id, toBusHub.Name, toBusHub.Latitude, toBusHub.Longitude, toId, toName, toLat, toLng, departureTime.AddMinutes(mins), toMoney, ct) : null;
+                    
+                    options.Add(new TransportOptionDto(7, "Bus", mins, toMoney(opt.EstimatedTotalCost), false, opt.Note,
+                        opt.FromHubId ?? fromBusHub?.Id, opt.FromHubName ?? FormatTransitHubName(fromBusHub, "Bus"), 
+                        opt.ToHubId ?? toBusHub?.Id, opt.ToHubName ?? FormatTransitHubName(toBusHub, "Bus"),
+                        1, toMoney(opt.EstimatedTotalCost * request.GroupSize), false, busResult.ErrorMessage, fm, lm));
+                }
+            }
+            catch { /* bus search failed */ }
+
+            // Train search
+            if (fromTrainHub is not null && toTrainHub is not null && !string.IsNullOrEmpty(fromTrainHub.Code) && !string.IsNullOrEmpty(toTrainHub.Code))
+            {
+                try
+                {
+                    var trainReq = new TrainRouteSearchRequest(
+                        fromTrainHub.Code, toTrainHub.Code, departDate, null, null,
+                        request.GroupSize, 0, 0, 0, 0, 1, 5);
+                    var trainResult = await _fixedIntercityTransportService.SearchTrainWithDateFallbackAsync(trainReq, ct);
+                    if (trainResult.IsSuccess && trainResult.RecommendedOption is not null)
+                    {
+                        var opt = trainResult.RecommendedOption;
+                        var mins = opt.EstimatedTravelMinutes > 0 ? opt.EstimatedTravelMinutes : fallbackDuration;
+                        
+                        var fm = fromTrainHub is not null ? await TryGetLocalTransfer(request, fromId, fromName, fromLat, fromLng, fromTrainHub.Id, fromTrainHub.Name, fromTrainHub.Latitude, fromTrainHub.Longitude, departureTime, toMoney, ct) : null;
+                        var lm = toTrainHub is not null ? await TryGetLocalTransfer(request, toTrainHub.Id, toTrainHub.Name, toTrainHub.Latitude, toTrainHub.Longitude, toId, toName, toLat, toLng, departureTime.AddMinutes(mins), toMoney, ct) : null;
+
+                        options.Add(new TransportOptionDto(6, "Train", mins, toMoney(opt.EstimatedTotalCost), false, opt.Note,
+                            fromTrainHub.Id, FormatTransitHubName(fromTrainHub, "Train"), toTrainHub.Id, FormatTransitHubName(toTrainHub, "Train"),
+                            1, toMoney(opt.EstimatedTotalCost * request.GroupSize), false, trainResult.ErrorMessage, fm, lm));
+                    }
+                }
+                catch { /* train search failed */ }
+            }
+
+            // Flight search
+            if (fromAirport is not null && toAirport is not null && !string.IsNullOrEmpty(fromAirport.Code) && !string.IsNullOrEmpty(toAirport.Code))
+            {
+                try
+                {
+                    var flightReq = new FlightRouteSearchRequest(
+                        fromAirport.Code, toAirport.Code, departDate, null, null,
+                        request.GroupSize, 0, 0, 1, 5);
+                    var flightResult = await _fixedIntercityTransportService.SearchFlightWithDateFallbackAsync(flightReq, ct);
+                    if (flightResult.IsSuccess && flightResult.RecommendedOption is not null)
+                    {
+                        var opt = flightResult.RecommendedOption;
+                        var mins = opt.EstimatedTravelMinutes > 0 ? opt.EstimatedTravelMinutes : Math.Max(60, (int)Math.Round(distanceKm / 800.0 * 60.0) + 90);
+                        
+                        var fm = fromAirport is not null ? await TryGetLocalTransfer(request, fromId, fromName, fromLat, fromLng, fromAirport.Id, fromAirport.Name, fromAirport.Latitude, fromAirport.Longitude, departureTime, toMoney, ct) : null;
+                        var lm = toAirport is not null ? await TryGetLocalTransfer(request, toAirport.Id, toAirport.Name, toAirport.Latitude, toAirport.Longitude, toId, toName, toLat, toLng, departureTime.AddMinutes(mins), toMoney, ct) : null;
+
+                        options.Add(new TransportOptionDto(5, "Plane", mins, toMoney(opt.EstimatedTotalCost), false, opt.Note,
+                            fromAirport.Id, FormatTransitHubName(fromAirport, "Plane"), toAirport.Id, FormatTransitHubName(toAirport, "Plane"),
+                            1, toMoney(opt.EstimatedTotalCost * request.GroupSize), false, flightResult.ErrorMessage, fm, lm));
+                    }
+                }
+                catch { /* flight search failed */ }
+            }
+
+            // Bracket fallbacks for missing transport types
+            if (!options.Any(o => o.Method.Equals("Bus", StringComparison.OrdinalIgnoreCase)))
+            {
+                var busDuration = fallbackDuration;
+                var fm = fromBusHub is not null ? await TryGetLocalTransfer(request, fromId, fromName, fromLat, fromLng, fromBusHub.Id, fromBusHub.Name, fromBusHub.Latitude, fromBusHub.Longitude, departureTime, toMoney, ct) : null;
+                var lm = toBusHub is not null ? await TryGetLocalTransfer(request, toBusHub.Id, toBusHub.Name, toBusHub.Latitude, toBusHub.Longitude, toId, toName, toLat, toLng, departureTime.AddMinutes(busDuration), toMoney, ct) : null;
+                options.Add(new TransportOptionDto(7, "Bus", busDuration, toMoney(GetBusBracketCost(distanceKm)), false,
+                    "Estimated pricing (API unavailable)", fromBusHub?.Id, FormatTransitHubName(fromBusHub, "Bus") ?? "Nearest Bus Station", toBusHub?.Id, FormatTransitHubName(toBusHub, "Bus") ?? "Nearest Bus Station",
+                    1, toMoney(GetBusBracketCost(distanceKm) * request.GroupSize), true, "Estimated bus pricing.", fm, lm));
+            }
+            if (!options.Any(o => o.Method.Equals("Train", StringComparison.OrdinalIgnoreCase)))
+            {
+                var trainMins = Math.Max(60, (int)Math.Round(distanceKm / 50.0 * 60.0));
+                var fm = fromTrainHub is not null ? await TryGetLocalTransfer(request, fromId, fromName, fromLat, fromLng, fromTrainHub.Id, fromTrainHub.Name, fromTrainHub.Latitude, fromTrainHub.Longitude, departureTime, toMoney, ct) : null;
+                var lm = toTrainHub is not null ? await TryGetLocalTransfer(request, toTrainHub.Id, toTrainHub.Name, toTrainHub.Latitude, toTrainHub.Longitude, toId, toName, toLat, toLng, departureTime.AddMinutes(trainMins), toMoney, ct) : null;
+                options.Add(new TransportOptionDto(6, "Train", trainMins, toMoney(GetTrainBracketCost(distanceKm)), false,
+                    "Estimated pricing (API unavailable)", fromTrainHub?.Id, FormatTransitHubName(fromTrainHub, "Train") ?? "Nearest Train Station", toTrainHub?.Id, FormatTransitHubName(toTrainHub, "Train") ?? "Nearest Train Station",
+                    1, toMoney(GetTrainBracketCost(distanceKm) * request.GroupSize), true, "Estimated train pricing.", fm, lm));
+            }
+            if (!options.Any(o => o.Method.Equals("Plane", StringComparison.OrdinalIgnoreCase)))
+            {
+                var planeMins = Math.Max(60, (int)Math.Round(distanceKm / 800.0 * 60.0) + 90);
+                var fm = fromAirport is not null ? await TryGetLocalTransfer(request, fromId, fromName, fromLat, fromLng, fromAirport.Id, fromAirport.Name, fromAirport.Latitude, fromAirport.Longitude, departureTime, toMoney, ct) : null;
+                var lm = toAirport is not null ? await TryGetLocalTransfer(request, toAirport.Id, toAirport.Name, toAirport.Latitude, toAirport.Longitude, toId, toName, toLat, toLng, departureTime.AddMinutes(planeMins), toMoney, ct) : null;
+                options.Add(new TransportOptionDto(5, "Plane", planeMins, toMoney(GetPlaneBracketCost(distanceKm)), false,
+                    "Estimated pricing (API unavailable)", fromAirport?.Id, FormatTransitHubName(fromAirport, "Plane") ?? "Nearest Airport", toAirport?.Id, FormatTransitHubName(toAirport, "Plane") ?? "Nearest Airport",
+                    1, toMoney(GetPlaneBracketCost(distanceKm) * request.GroupSize), true, "Estimated flight pricing.", fm, lm));
+            }
+
+            if (options.Count > 0)
+            {
+                // Recommended by time + speed logic
+                var recommended = options
+                    .OrderBy(o => o.EstimatedTravelMinutes) // Primary factor: Time
+                    .ThenBy(o => o.EstimatedTotalCost.BaseAmount > 0 ? o.EstimatedTotalCost.BaseAmount : decimal.MaxValue)
+                    .First();
+                
+                var transportOptions = options
+                    .Select(o => o with { Recommended = ReferenceEquals(o, recommended) })
+                    .ToList();
+
+                var arrivalTime = departureTime.Add(TimeSpan.FromMinutes(recommended.EstimatedTravelMinutes));
+
+                return new LocalTravelEstimateDto(
+                    fromId, fromName, toId, toName,
+                    departureTime, arrivalTime,
+                    Math.Round(distanceKm, 2),
+                    recommended.Method, recommended.EstimatedTravelMinutes,
+                    recommended.EstimatedTotalCost,
+                    transportOptions);
+            }
+
+            // Fallback (shouldn't be reached because we added brackets)
+            return FallbackIntercityEstimateByType(
+                fromId, fromName, toId, toName, distanceKm, request.GroupSize,
+                departureTime, toMoney, "Bus"); // Generic fallback
+        }
+
+        private static TransitHubs? FindNearestHub(List<TransitHubs> hubs, double lat, double lng, string typeKeyword)
+        {
+            return hubs
+                .Where(h => h.TransportMode != null && (h.TransportMode.Name ?? "").Contains(typeKeyword, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(h => HaversineKm(lat, lng, h.Latitude, h.Longitude))
+                .FirstOrDefault();
+        }
+
+        private async Task<LocalTravelEstimateDto?> TryGetLocalTransfer(
+            EstimateLocalTravelQuery request,
+            int pt1Id, string pt1Name, double pt1Lat, double pt1Lng,
+            int pt2Id, string pt2Name, double pt2Lat, double pt2Lng,
+            TimeOnly departureTime, Func<decimal, MoneyDto> toMoney, CancellationToken ct)
+        {
+            var distanceKm = await GetDistanceAsync(pt1Lat, pt1Lng, pt2Lat, pt2Lng, ct);
+            if (distanceKm < 0.1) return null; // Too close, no transport needed
+
+            var result = await HandleLocalTransportAsync(request, pt1Id, pt1Name, pt2Id, pt2Name,
+                pt1Lat, pt1Lng, pt2Lat, pt2Lng, distanceKm, departureTime, toMoney, ct);
+
+            return result.IsError ? null : result.Value;
         }
 
         // === HELPER METHODS ===

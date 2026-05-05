@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,5 +20,7 @@ namespace HSTS.Application.Itineraries.Queries
         int VehiclesNeeded,
         MoneyDto CostForGroup,
         bool IsEstimate = false,
-        string? Warning = null);
+        string? Warning = null,
+        LocalTravelEstimateDto? FirstMileEstimate = null,
+        LocalTravelEstimateDto? LastMileEstimate = null);
 }

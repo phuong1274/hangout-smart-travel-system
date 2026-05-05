@@ -67,12 +67,20 @@ namespace HSTS.Application.LocationSubmissions.Commands
                 if (submission.SubmissionType == Domain.Entities.SubmissionType.NewLocation && submission.CreatedLocationId == null)
                 {
                     // Create NEW location
-                    await CreateNewLocation(submission, request.ReviewedBy, cancellationToken);
+                    var createResult = await CreateNewLocation(submission, request.ReviewedBy, cancellationToken);
+                    if (createResult.IsError)
+                    {
+                        return createResult.Errors;
+                    }
                 }
-                else if (submission.SubmissionType == Domain.Entities.SubmissionType.EditExisting && submission.ExistingLocationId != null)
+                else if (submission.SubmissionType == Domain.Entities.SubmissionType.EditExisting)
                 {
                     // Update EXISTING location
-                    await UpdateExistingLocation(submission, request.ReviewedBy, cancellationToken);
+                    var updateResult = await UpdateExistingLocation(submission, request.ReviewedBy, cancellationToken);
+                    if (updateResult.IsError)
+                    {
+                        return updateResult.Errors;
+                    }
                 }
             }
 
@@ -99,17 +107,17 @@ namespace HSTS.Application.LocationSubmissions.Commands
             return submission.ToDto(tags);
         }
 
-        private async Task CreateNewLocation(LocationSubmission submission, string reviewedBy, CancellationToken cancellationToken)
+        private async Task<ErrorOr<Success>> CreateNewLocation(LocationSubmission submission, string reviewedBy, CancellationToken cancellationToken)
         {
             // Validate required fields for location
             if (submission.DistrictId == null)
             {
-                throw new InvalidOperationException("District is required to create a location.");
+                return Error.Validation("LocationSubmission.DistrictRequired", "District is required to create a location.");
             }
 
             if (submission.LocationTypeId == null)
             {
-                throw new InvalidOperationException("Location type is required to create a location.");
+                return Error.Validation("LocationSubmission.LocationTypeRequired", "Location type is required to create a location.");
             }
 
             // Parse JSON fields
@@ -331,13 +339,15 @@ namespace HSTS.Application.LocationSubmissions.Commands
 
             // Update submission with created location ID
             submission.CreatedLocationId = location.Id;
+
+            return Result.Success;
         }
 
-        private async Task UpdateExistingLocation(LocationSubmission submission, string reviewedBy, CancellationToken cancellationToken)
+        private async Task<ErrorOr<Success>> UpdateExistingLocation(LocationSubmission submission, string reviewedBy, CancellationToken cancellationToken)
         {
             if (submission.ExistingLocationId == null)
             {
-                throw new InvalidOperationException("Existing location ID is required for edit submissions.");
+                return Error.Validation("LocationSubmission.ExistingLocationIdRequired", "Existing location ID is required for edit submissions.");
             }
 
             // Fetch location with ALL related collections to ensure EF Core tracks them correctly.
@@ -353,7 +363,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
 
             if (location == null)
             {
-                throw new InvalidOperationException("Existing location not found.");
+                return Error.NotFound("Location.NotFound", "Existing location not found.");
             }
 
             // Check if we have proposed changes (old workflow) or full submission data (new unified form workflow)
@@ -362,7 +372,11 @@ namespace HSTS.Application.LocationSubmissions.Commands
             if (hasProposedChanges)
             {
                 // OLD WORKFLOW: Apply proposed changes only
-                await ApplyProposedChanges(location, submission, cancellationToken);
+                var applyResult = await ApplyProposedChanges(location, submission, cancellationToken);
+                if (applyResult.IsError)
+                {
+                    return applyResult.Errors;
+                }
             }
             else
             {
@@ -372,9 +386,11 @@ namespace HSTS.Application.LocationSubmissions.Commands
 
             location.UpdatedAt = DateTime.UtcNow;
             await _locationRepository.UpdateAsync(location, cancellationToken);
+
+            return Result.Success;
         }
 
-        private async Task ApplyProposedChanges(Location location, LocationSubmission submission, CancellationToken cancellationToken)
+        private async Task<ErrorOr<Success>> ApplyProposedChanges(Location location, LocationSubmission submission, CancellationToken cancellationToken)
         {
             // Load related collections for update
             location.OpeningHours.Clear();
@@ -385,7 +401,7 @@ namespace HSTS.Application.LocationSubmissions.Commands
 
             if (changes == null)
             {
-                throw new InvalidOperationException("No proposed changes found.");
+                return Error.Validation("LocationSubmission.NoProposedChanges", "No proposed changes found.");
             }
 
             foreach (var change in changes)
@@ -487,6 +503,8 @@ namespace HSTS.Application.LocationSubmissions.Commands
                     }
                 }
             }
+
+            return Result.Success;
         }
 
         private async Task UpdateLocationWithSubmissionData(Location location, LocationSubmission submission, CancellationToken cancellationToken)
