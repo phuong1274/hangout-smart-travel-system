@@ -6,6 +6,16 @@
   flex: 1;
 }
 
+.wrapper :global(.ant-input-affix-wrapper) {
+  min-height: 44px;
+  border-radius: 8px;
+}
+
+.wrapper :global(.ant-btn) {
+  min-height: 44px;
+  border-radius: 8px;
+}
+
 .hint {
   display: block;
   font-size: 12px;
