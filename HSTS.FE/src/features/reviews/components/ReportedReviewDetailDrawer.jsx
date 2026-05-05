@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 import { Drawer, Descriptions, Tag, List, Space, Button, Popconfirm, Input } from 'antd';
+import {
+  getReviewReportReasonLabel,
+  getReviewReportStatusColor,
+  getReviewReportStatusLabel,
+  getReviewStatusColor,
+  getReviewStatusLabel,
+} from '../constants';
 
 export const ReportedReviewDetailDrawer = ({
   open,
@@ -12,7 +19,6 @@ export const ReportedReviewDetailDrawer = ({
 }) => {
   const [note, setNote] = useState('');
 
-
   if (!item) return null;
 
   const { review, locationName, authorEmail, reports } = item;
@@ -22,7 +28,9 @@ export const ReportedReviewDetailDrawer = ({
       <Descriptions column={1} size="small">
         <Descriptions.Item label="Location">{locationName}</Descriptions.Item>
         <Descriptions.Item label="Author">{authorEmail}</Descriptions.Item>
-        <Descriptions.Item label="Status"><Tag>{review.status}</Tag></Descriptions.Item>
+        <Descriptions.Item label="Status">
+          <Tag color={getReviewStatusColor(review.status)}>{getReviewStatusLabel(review.status)}</Tag>
+        </Descriptions.Item>
         <Descriptions.Item label="Rating">{review.rating}</Descriptions.Item>
         <Descriptions.Item label="Comment">{review.comment}</Descriptions.Item>
         <Descriptions.Item label="Report count">{review.reportCount}</Descriptions.Item>
@@ -34,7 +42,14 @@ export const ReportedReviewDetailDrawer = ({
         renderItem={(report) => (
           <List.Item>
             <List.Item.Meta
-              title={`${report.reason} — ${report.status}`}
+              title={(
+                <Space size="small">
+                  <span>{getReviewReportReasonLabel(report.reason)}</span>
+                  <Tag color={getReviewReportStatusColor(report.status)}>
+                    {getReviewReportStatusLabel(report.status)}
+                  </Tag>
+                </Space>
+              )}
               description={report.description || '—'}
             />
           </List.Item>
