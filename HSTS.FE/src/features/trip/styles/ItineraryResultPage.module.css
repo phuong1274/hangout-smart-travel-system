@@ -1345,6 +1345,18 @@
   width: 100%;
 }
 
+/* Hide Ant Design AutoComplete mirror text node that can leak outside the input. */
+.customPointSearchWrap :global(.ant-select-content) {
+  font-size: 0;
+  line-height: 0;
+}
+
+.customPointSearchWrap :global(.ant-select-content) :global(.ant-input-affix-wrapper),
+.customPointSearchWrap :global(.ant-select-content) input {
+  font-size: 14px;
+  line-height: normal;
+}
+
 @media (max-width: 991px) {
   .addBetweenSplitLayout {
     grid-template-columns: 1fr;

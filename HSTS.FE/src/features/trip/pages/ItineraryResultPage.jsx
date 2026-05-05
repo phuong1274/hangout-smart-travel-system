@@ -16,7 +16,8 @@ import {
   ConfigProvider,
   Carousel,
   Collapse,
-  Progress
+  Progress,
+  AutoComplete,
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useTripPlanner } from '../hooks/useTripPlanner';
@@ -48,6 +49,8 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { PATHS } from '@/routes/paths';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
+import MapLinkInput from '@/components/MapLinkInput';
+import useNominatimSearch from '@/hooks/useNominatimSearch';
 import styles from '../styles/ItineraryResultPage.module.css';
 import {
   DndContext,
@@ -61,7 +64,7 @@ import {
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableDayCard } from '../components/SortableDayCard';
 import { SortableActivityCard } from '../components/SortableActivityCard';
-import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { ArrowUpOutlined, ArrowDownOutlined, SearchOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -1331,13 +1334,20 @@ const CustomLocationMapClickHandler = ({ onPick }) => {
   return null;
 };
 
-const CustomLocationMapInvalidate = ({ activeKey }) => {
+const CustomLocationMapInvalidate = ({ activeKey, center }) => {
   const map = useMap();
+  const centerLat = Array.isArray(center) ? center[0] : null;
+  const centerLng = Array.isArray(center) ? center[1] : null;
 
   useEffect(() => {
     const timers = [120, 300, 520].map((delay) => setTimeout(() => map.invalidateSize(), delay));
     return () => timers.forEach((timer) => clearTimeout(timer));
   }, [map, activeKey]);
+
+  useEffect(() => {
+    if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) return;
+    map.setView([centerLat, centerLng], map.getZoom());
+  }, [map, centerLat, centerLng]);
 
   return null;
 };
@@ -1346,6 +1356,14 @@ const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   const { itinerary, clearItinerary, clearPersistedItinerary, updateItinerary } = useTripPlanner();
+  const {
+    searchValue: customPointSearchValue,
+    searchOptions: customPointSearchOptions,
+    searching: customPointSearching,
+    handleSearch: handleCustomPointSearch,
+    handleSelect: handleSelectCustomPointSearch,
+    resetSearch: resetCustomPointSearch,
+  } = useNominatimSearch();
   const travelCacheRef = useRef(new Map());
   const [reorderRecalculating, setReorderRecalculating] = useState(false);
   const [activeDragItem, setActiveDragItem] = useState(null);
@@ -1703,7 +1721,8 @@ const ItineraryResultPage = () => {
     setAddBetweenCustomStartTime(normalizedStart.slice(0, 5));
     setAddBetweenCustomDurationMinutes(90);
     setAddBetweenCustomCostAmount(0);
-  }, []);
+    resetCustomPointSearch();
+  }, [resetCustomPointSearch]);
 
   const resetAddBetweenExistingForm = useCallback((startTime = '08:00:00') => {
     const normalizedStart = normalizeTimeOnly(startTime) || '08:00:00';
@@ -2587,6 +2606,27 @@ const ItineraryResultPage = () => {
 
     setAddBetweenCustomLat(safeLat);
     setAddBetweenCustomLng(safeLng);
+  }, []);
+
+  const handleSelectCustomPointSearchResult = useCallback((value, option) => {
+    const result = handleSelectCustomPointSearch(value, option);
+    if (!result) return;
+
+    setAddBetweenCustomLat(result.lat);
+    setAddBetweenCustomLng(result.lon);
+    setAddBetweenCustomAddress((current) => String(current || '').trim() ? current : result.label);
+    message.success('Custom point location applied.');
+  }, [handleSelectCustomPointSearch]);
+
+  const handleCustomPointMapLinkParsed = useCallback(({ lat, lng, address, name }) => {
+    const safeLat = toFiniteNumber(lat);
+    const safeLng = toFiniteNumber(lng);
+    if (safeLat == null || safeLng == null) return;
+
+    setAddBetweenCustomLat(safeLat);
+    setAddBetweenCustomLng(safeLng);
+    setAddBetweenCustomName((current) => String(current || '').trim() ? current : (name || ''));
+    setAddBetweenCustomAddress((current) => String(current || '').trim() ? current : (address || ''));
   }, []);
 
   const handleUseCurrentLocationForCustom = useCallback(() => {
@@ -6272,8 +6312,28 @@ const ItineraryResultPage = () => {
 
                 <Card
                   className={styles.customLocationMapCard}
-                  title={<span className={styles.customLocationMapHeader}>Where are you starting from?</span>}
+                  title={<span className={styles.customLocationMapHeader}>Pick custom point location</span>}
                 >
+                  <div className={styles.customPointSearchWrap} style={{ marginBottom: 12 }}>
+                    <AutoComplete
+                      style={{ width: '100%' }}
+                      options={customPointSearchOptions}
+                      value={customPointSearchValue}
+                      onSearch={handleCustomPointSearch}
+                      onSelect={handleSelectCustomPointSearchResult}
+                      placeholder="Search for a place"
+                    >
+                      <Input
+                        suffix={customPointSearching ? <Spin size="small" /> : <SearchOutlined />}
+                        className={styles.editTimelineInput}
+                      />
+                    </AutoComplete>
+                  </div>
+
+                  <div style={{ marginBottom: 12 }}>
+                    <MapLinkInput onParsed={handleCustomPointMapLinkParsed} />
+                  </div>
+
                   <div className={styles.customLocationMapWrap}>
                     <MapContainer
                       center={customLocationMapCenter}
@@ -6291,7 +6351,7 @@ const ItineraryResultPage = () => {
                         <Marker position={[customLocationLatValue, customLocationLngValue]} />
                       )}
                       <CustomLocationMapClickHandler onPick={handlePickCustomLocationOnMap} />
-                      <CustomLocationMapInvalidate activeKey={customLocationMapActiveKey} />
+                      <CustomLocationMapInvalidate activeKey={customLocationMapActiveKey} center={customLocationMapCenter} />
                     </MapContainer>
                   </div>
 

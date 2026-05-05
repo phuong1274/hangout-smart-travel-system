@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  AutoComplete,
   Button,
   Card,
   Col,
@@ -18,7 +19,7 @@ import {
   message,
   Collapse,
 } from 'antd';
-import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined, SaveOutlined, SearchOutlined } from '@ant-design/icons';
 import { MapPinLine, NavigationArrow, Clock as ClockIcon } from '@phosphor-icons/react';
 import {
   DndContext,
@@ -41,8 +42,10 @@ import { PATHS } from '@/routes/paths';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
 import { convertCurrencyAmount, loadBackendCurrencyRates } from '../constants/currency';
 import MapLinkInput from '@/components/MapLinkInput';
+import useNominatimSearch from '@/hooks/useNominatimSearch';
 import {
   estimateLocalTravelApi,
+  getDistrictsByProvinceApi,
   getLocationTypesApi,
   getLocationsByProvinceApi,
   getProvincesApi,
@@ -384,6 +387,8 @@ const createDefaultDay = ({ date, index }) => ({
   id: createClientId('day'),
   date,
   dayTitle: `Day ${index + 1}`,
+  provinceId: null,
+  districtId: null,
   activities: [],
 });
 
@@ -473,6 +478,8 @@ const normalizeDraftDays = (rawDays) => {
     id: day.id || createClientId(`day-${dayIndex}`),
     date: day.date ? dayjs(day.date).format('YYYY-MM-DD') : dayjs().add(dayIndex, 'day').format('YYYY-MM-DD'),
     dayTitle: String(day.dayTitle || `Day ${dayIndex + 1}`).trim(),
+    provinceId: toPositiveIntOrNull(day.provinceId ?? day.ProvinceId),
+    districtId: toPositiveIntOrNull(day.districtId ?? day.DistrictId),
     activities: Array.isArray(day.activities)
       ? day.activities.map((activity, activityIndex) => {
         const customLocation = activity.customLocation || activity.CustomLocation || null;
@@ -498,6 +505,8 @@ const normalizeDraftDays = (rawDays) => {
           id: activity.id || createClientId(`activity-${dayIndex}-${activityIndex}`),
           sourceType: activity.sourceType || (normalizedCustom ? 'custom' : 'existing'),
           locationId: toFiniteNumber(activity.locationId ?? activity.LocationId) || null,
+          provinceId: toPositiveIntOrNull(activity.provinceId ?? activity.ProvinceId),
+          districtId: toPositiveIntOrNull(activity.districtId ?? activity.DistrictId),
           locationTypeId: toFiniteNumber(
             activity.locationTypeId
             ?? activity.LocationTypeId
@@ -680,12 +689,21 @@ const CustomLocationMapClickHandler = ({ onPick }) => {
   return null;
 };
 
-const CustomLocationMapInvalidate = ({ activeKey }) => {
+const CustomLocationMapInvalidate = ({ activeKey, center }) => {
   const map = useMap();
+  const centerLat = Array.isArray(center) ? center[0] : null;
+  const centerLng = Array.isArray(center) ? center[1] : null;
+
   useEffect(() => {
     const timers = [120, 300, 520].map((delay) => setTimeout(() => map.invalidateSize(), delay));
     return () => timers.forEach((timer) => clearTimeout(timer));
   }, [activeKey, map]);
+
+  useEffect(() => {
+    if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) return;
+    map.setView([centerLat, centerLng], map.getZoom());
+  }, [centerLat, centerLng, map]);
+
   return null;
 };
 
@@ -693,6 +711,14 @@ const ManualTripPage = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const {
+    searchValue: customPointSearchValue,
+    searchOptions: customPointSearchOptions,
+    searching: customPointSearching,
+    handleSearch: handleCustomPointSearch,
+    handleSelect: handleSelectCustomPointSearch,
+    resetSearch: resetCustomPointSearch,
+  } = useNominatimSearch();
 
   const [loadingTrip, setLoadingTrip] = useState(false);
   const [savingTrip, setSavingTrip] = useState(false);
@@ -732,9 +758,12 @@ const ManualTripPage = () => {
   const [loadingExistingLocations, setLoadingExistingLocations] = useState(false);
   const [existingLocations, setExistingLocations] = useState([]);
   const [existingLocationSearch, setExistingLocationSearch] = useState('');
+  const [existingDistrictOptions, setExistingDistrictOptions] = useState([]);
+  const [loadingExistingDistricts, setLoadingExistingDistricts] = useState(false);
 
   const [existingLocationTypeId, setExistingLocationTypeId] = useState(null);
   const [existingProvinceId, setExistingProvinceId] = useState(null);
+  const [existingDistrictId, setExistingDistrictId] = useState(null);
   const [existingLocationId, setExistingLocationId] = useState(null);
   const [existingStartTime, setExistingStartTime] = useState('08:00');
   const [existingDurationMinutes, setExistingDurationMinutes] = useState(DEFAULT_ACTIVITY_DURATION_MINUTES);
@@ -1313,9 +1342,11 @@ const ManualTripPage = () => {
   const resetAddLocationModal = useCallback(() => {
     setExistingLocationTypeId(null);
     setExistingProvinceId(defaultProvinceId);
+    setExistingDistrictId(null);
     setExistingLocationId(null);
     setExistingLocations([]);
     setExistingLocationSearch('');
+    setExistingDistrictOptions([]);
     setExistingStartTime('08:00');
     setExistingDurationMinutes(DEFAULT_ACTIVITY_DURATION_MINUTES);
     setExistingBudget(null);
@@ -1329,22 +1360,41 @@ const ManualTripPage = () => {
     setCustomStartTime('08:00');
     setCustomDurationMinutes(DEFAULT_ACTIVITY_DURATION_MINUTES);
     setCustomBudget(null);
-  }, [defaultProvinceId]);
+    resetCustomPointSearch();
+  }, [defaultProvinceId, resetCustomPointSearch]);
 
   const openAddLocationModal = (dayId) => {
     const targetDay = manualDays.find((day) => day.id === dayId);
     const lastActivity = targetDay?.activities?.[targetDay.activities.length - 1];
+    const targetProvinceId = toPositiveIntOrNull(
+      targetDay?.provinceId
+      ?? targetDay?.ProvinceId
+      ?? lastActivity?.provinceId
+      ?? lastActivity?.ProvinceId
+      ?? defaultProvinceId,
+    );
+    const targetDistrictId = toPositiveIntOrNull(
+      targetDay?.districtId
+      ?? targetDay?.DistrictId
+      ?? lastActivity?.districtId
+      ?? lastActivity?.DistrictId,
+    );
 
     const nextStart = toInputTimeValue(lastActivity?.endTime, '08:00');
     const nextDuration = durationBetweenTimes(lastActivity?.startTime, lastActivity?.endTime);
 
     resetAddLocationModal();
+    setExistingProvinceId(targetProvinceId);
+    setExistingDistrictId(targetDistrictId);
     setExistingStartTime(nextStart);
     setExistingDurationMinutes(nextDuration);
     setCustomStartTime(nextStart);
     setCustomDurationMinutes(nextDuration);
 
     setAddLocationModal({ open: true, dayId });
+    if (targetProvinceId) {
+      loadExistingDistricts(targetProvinceId);
+    }
   };
 
   const closeAddLocationModal = () => {
@@ -1352,9 +1402,51 @@ const ManualTripPage = () => {
     resetAddLocationModal();
   };
 
-  const loadExistingLocations = useCallback(async (provinceId, locationTypeId, searchTerm = '') => {
+  const loadExistingDistricts = useCallback(async (provinceId) => {
+    const normalizedProvinceId = Number(provinceId);
+    if (!Number.isFinite(normalizedProvinceId) || normalizedProvinceId <= 0) {
+      setExistingDistrictOptions([]);
+      return;
+    }
+
+    setLoadingExistingDistricts(true);
+    try {
+      const response = await getDistrictsByProvinceApi(normalizedProvinceId);
+      const items = Array.isArray(response)
+        ? response
+        : response?.items || response?.Items || [];
+
+      const options = items
+        .map((item) => {
+          const id = Number(item?.id ?? item?.Id);
+          if (!Number.isFinite(id) || id <= 0) return null;
+          const name = String(
+            item?.englishName
+            || item?.EnglishName
+            || item?.name
+            || item?.Name
+            || `District #${id}`,
+          ).trim();
+          return { id, name };
+        })
+        .filter(Boolean);
+
+      setExistingDistrictOptions(options);
+    } catch {
+      setExistingDistrictOptions([]);
+      message.error('Cannot load districts for this province.');
+    } finally {
+      setLoadingExistingDistricts(false);
+    }
+  }, []);
+
+  const loadExistingLocations = useCallback(async (provinceId, locationTypeId, searchTerm = '', districtId = null) => {
     const normalizedProvinceId = Number(provinceId);
     const normalizedTypeId = Number(locationTypeId);
+    const normalizedDistrictId = Number(districtId);
+    const resolvedDistrictId = Number.isFinite(normalizedDistrictId) && normalizedDistrictId > 0
+      ? normalizedDistrictId
+      : null;
 
     if (!Number.isFinite(normalizedProvinceId) || normalizedProvinceId <= 0) {
       setExistingLocations([]);
@@ -1371,6 +1463,7 @@ const ManualTripPage = () => {
       const response = await getLocationsByProvinceApi({
         provinceId: normalizedProvinceId,
         locationTypeId: normalizedTypeId,
+        districtId: resolvedDistrictId,
         searchTerm: searchTerm || undefined,
         pageSize: 300,
       });
@@ -1834,6 +1927,8 @@ const ManualTripPage = () => {
         id: createClientId('activity'),
         sourceType: 'existing',
         locationId: picked.id,
+        provinceId: toPositiveIntOrNull(existingProvinceId),
+        districtId: toPositiveIntOrNull(existingDistrictId),
         locationTypeId: Number(existingLocationTypeId),
         destinationName: picked.name,
         title: `Visit ${picked.name}`,
@@ -1870,7 +1965,14 @@ const ManualTripPage = () => {
       }
 
       setManualDays((prev) => prev.map((item, index) => (
-        index === dayIndex ? { ...item, activities: recalculated } : item
+        index === dayIndex
+          ? {
+            ...item,
+            provinceId: toPositiveIntOrNull(existingProvinceId) ?? item.provinceId ?? null,
+            districtId: toPositiveIntOrNull(existingDistrictId) ?? item.districtId ?? null,
+            activities: recalculated,
+          }
+          : item
       )));
 
       // Re-estimate next day's cross-day travel since the current day's
@@ -2326,10 +2428,22 @@ const ManualTripPage = () => {
   }, [manualDays, recalculateDayTravelAndEstimate, estimateCrossDayTravel, transportOptionsBackfilled, tripInfo]);
 
   const handleCustomMapLinkParsed = ({ lat, lng, address, name }) => {
-    if (lat != null) setCustomLat(lat);
-    if (lng != null) setCustomLng(lng);
-    if (address) setCustomAddress(address);
-    if (name && !customName) setCustomName(name);
+    const safeLat = toFiniteNumber(lat);
+    const safeLng = toFiniteNumber(lng);
+    if (safeLat != null) setCustomLat(safeLat);
+    if (safeLng != null) setCustomLng(safeLng);
+    if (address) setCustomAddress((current) => String(current || '').trim() ? current : address);
+    if (name) setCustomName((current) => String(current || '').trim() ? current : name);
+  };
+
+  const handleSelectCustomPointSearchResult = (value, option) => {
+    const result = handleSelectCustomPointSearch(value, option);
+    if (!result) return;
+
+    setCustomLat(result.lat);
+    setCustomLng(result.lon);
+    setCustomAddress((current) => String(current || '').trim() ? current : result.label);
+    message.success('Custom point location applied.');
   };
 
   const handlePickCustomLocationOnMap = (latitude, longitude) => {
@@ -3432,9 +3546,9 @@ const ManualTripPage = () => {
 
           <div className={styles.addBetweenSplitLayout}>
             <div className={styles.addBetweenPanel}>
-              <span className={styles.addBetweenPanelTitle}>Existing Location</span>
+              <span className={styles.addBetweenPanelTitle}>Select Location (From system)</span>
               <Text type="secondary" className={styles.addBetweenPanelHint}>
-                Select location type, province, location and time before adding.
+                Select location type, location, duration and cost before adding to timeline.
               </Text>
 
               <span className={styles.editTimelineLabel}>Location Type</span>
@@ -3449,7 +3563,7 @@ const ManualTripPage = () => {
                   setExistingLocationId(null);
                   setExistingLocationSearch('');
                   if (existingProvinceId && value) {
-                    await loadExistingLocations(existingProvinceId, value, '');
+                    await loadExistingLocations(existingProvinceId, value, '', existingDistrictId);
                   } else {
                     setExistingLocations([]);
                   }
@@ -3469,8 +3583,13 @@ const ManualTripPage = () => {
                 value={existingProvinceId}
                 onChange={async (value) => {
                   setExistingProvinceId(value ?? null);
+                  setExistingDistrictId(null);
                   setExistingLocationId(null);
                   setExistingLocationSearch('');
+                  setExistingDistrictOptions([]);
+                  if (value) {
+                    await loadExistingDistricts(value);
+                  }
                   if (value && existingLocationTypeId) {
                     await loadExistingLocations(value, existingLocationTypeId, '');
                   } else {
@@ -3481,6 +3600,28 @@ const ManualTripPage = () => {
                 optionFilterProp="label"
                 options={provinces.map((province) => ({ label: province.name, value: province.id }))}
                 notFoundContent={loadingProvinces ? <Spin size="small" /> : 'No provinces'}
+              />
+
+              <span className={styles.editTimelineLabel}>District</span>
+              <Select
+                showSearch
+                allowClear
+                className={styles.addBetweenSelect}
+                placeholder={existingProvinceId ? 'All districts' : 'Select province first'}
+                value={existingDistrictId}
+                onChange={async (value) => {
+                  setExistingDistrictId(value ?? null);
+                  setExistingLocationId(null);
+                  setExistingLocationSearch('');
+                  if (existingProvinceId && existingLocationTypeId) {
+                    await loadExistingLocations(existingProvinceId, existingLocationTypeId, '', value ?? null);
+                  }
+                }}
+                loading={loadingExistingDistricts}
+                disabled={!existingProvinceId}
+                optionFilterProp="label"
+                options={existingDistrictOptions.map((district) => ({ label: district.name, value: district.id }))}
+                notFoundContent={loadingExistingDistricts ? <Spin size="small" /> : 'No districts'}
               />
 
               <span className={styles.editTimelineLabel}>Location</span>
@@ -3495,7 +3636,7 @@ const ManualTripPage = () => {
                 onSearch={async (searchTerm) => {
                   setExistingLocationSearch(searchTerm);
                   if (existingProvinceId && existingLocationTypeId) {
-                    await loadExistingLocations(existingProvinceId, existingLocationTypeId, searchTerm);
+                    await loadExistingLocations(existingProvinceId, existingLocationTypeId, searchTerm, existingDistrictId);
                   }
                 }}
                 filterOption={false}
@@ -3536,7 +3677,7 @@ const ManualTripPage = () => {
               </div>
 
               <div className={styles.editTimelineField}>
-                <span className={styles.editTimelineLabel}>Location budget (optional)</span>
+                <span className={styles.editTimelineLabel}>Cost for group</span>
                 <InputNumber
                   min={0}
                   step={10000}
@@ -3568,6 +3709,22 @@ const ManualTripPage = () => {
               <Text type="secondary" className={styles.addBetweenPanelHint}>
                 Pick your own point on map and define timeline. Estimate is recalculated from API automatically.
               </Text>
+
+              <div className={`${styles.editTimelineField} ${styles.customPointSearchWrap}`} style={{ marginBottom: 16 }}>
+                <AutoComplete
+                  style={{ width: '100%' }}
+                  options={customPointSearchOptions}
+                  value={customPointSearchValue}
+                  onSearch={handleCustomPointSearch}
+                  onSelect={handleSelectCustomPointSearchResult}
+                  placeholder="Search for a place"
+                >
+                  <Input
+                    suffix={customPointSearching ? <Spin size="small" /> : <SearchOutlined />}
+                    className={styles.editTimelineInput}
+                  />
+                </AutoComplete>
+              </div>
 
               <div className={styles.editTimelineField} style={{ marginBottom: 16 }}>
                 <MapLinkInput onParsed={handleCustomMapLinkParsed} />
@@ -3622,7 +3779,7 @@ const ManualTripPage = () => {
                 />
               </div>
 
-              <Card className={styles.customLocationMapCard} title={<span className={styles.customLocationMapHeader}>Where are you starting from?</span>}>
+              <Card className={styles.customLocationMapCard} title={<span className={styles.customLocationMapHeader}>Pick custom point location</span>}>
                 <div className={styles.customLocationMapWrap}>
                   <MapContainer
                     center={customMapCenter}
@@ -3638,7 +3795,7 @@ const ManualTripPage = () => {
                     />
                     {hasCustomCoordinates && <Marker position={[customLatValue, customLngValue]} />}
                     <CustomLocationMapClickHandler onPick={handlePickCustomLocationOnMap} />
-                    <CustomLocationMapInvalidate activeKey={customMapActiveKey} />
+                    <CustomLocationMapInvalidate activeKey={customMapActiveKey} center={customMapCenter} />
                   </MapContainer>
                 </div>
 
@@ -3689,7 +3846,7 @@ const ManualTripPage = () => {
               </div>
 
               <div className={styles.editTimelineField}>
-                <span className={styles.editTimelineLabel}>Location budget (optional)</span>
+                <span className={styles.editTimelineLabel}>Cost for group</span>
                 <InputNumber
                   min={0}
                   step={10000}
