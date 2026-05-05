@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
+const PublicDiscoveryLayout = lazy(() => import('@/layouts/PublicDiscoveryLayout'));
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
 const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
@@ -34,6 +35,7 @@ const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/ReportedReviewsPage'));
+const MyReviewsPage = lazy(() => import('@/features/reviews/pages/MyReviewsPage'));
 
 const TransportManagementPage = lazy(() => import('@/features/transportation/pages/TransportManagementPage'));
 
@@ -98,12 +100,17 @@ export const router = createBrowserRouter([
     ]
   },
   {
-    path: PATHS.PUBLIC_LOCATIONS.replace('/', ''),
-    element: <SuspenseWrapper><PublicLocationsPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.PUBLIC_LOCATION_DETAIL().replace('/', ''),
-    element: <SuspenseWrapper><PublicLocationDetailPage /></SuspenseWrapper>
+    element: <SuspenseWrapper><PublicDiscoveryLayout /></SuspenseWrapper>,
+    children: [
+      {
+        path: PATHS.PUBLIC_LOCATIONS.replace('/', ''),
+        element: <PublicLocationsPage />
+      },
+      {
+        path: PATHS.PUBLIC_LOCATION_DETAIL().replace('/', ''),
+        element: <PublicLocationDetailPage />
+      },
+    ],
   },
   {
     path: PATHS.DESTINATIONS.replace('/', ''),
@@ -170,6 +177,13 @@ export const router = createBrowserRouter([
           {
             path: '/my-locations',
             element: <SubmissionsPage />
+          },
+          {
+            path: PATHS.MY_REVIEWS,
+            element: <ProtectedRoute allowedRoles={[ROLES.TRAVELER]} />,
+            children: [
+              { index: true, element: <MyReviewsPage /> },
+            ]
           },
           {
             path: PATHS.PARTNER_LOCATIONS,

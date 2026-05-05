@@ -16,7 +16,8 @@ import {
   ConfigProvider,
   Carousel,
   Collapse,
-  Progress
+  Progress,
+  AutoComplete,
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useTripPlanner } from '../hooks/useTripPlanner';
@@ -48,6 +49,8 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { PATHS } from '@/routes/paths';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
+import MapLinkInput from '@/components/MapLinkInput';
+import useNominatimSearch from '@/hooks/useNominatimSearch';
 import styles from '../styles/ItineraryResultPage.module.css';
 import {
   DndContext,
@@ -61,7 +64,7 @@ import {
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableDayCard } from '../components/SortableDayCard';
 import { SortableActivityCard } from '../components/SortableActivityCard';
-import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { ArrowUpOutlined, ArrowDownOutlined, SearchOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -264,8 +267,12 @@ const getTravelPointName = (travelDetail, isFrom) => {
 const formatMoney = (moneyDto) => {
   if (!moneyDto) return null;
   const amount = Number(moneyDto.amount ?? moneyDto.Amount ?? 0);
-  const currency = moneyDto.currency || moneyDto.Currency || 'VND';
-  return `${Math.round(amount).toLocaleString('vi-VN')} ${currency}`;
+  const currency = String(moneyDto.currency || moneyDto.Currency || 'VND').toUpperCase();
+  const fractionDigits = ['VND', 'JPY', 'KRW', 'IDR'].includes(currency) ? 0 : 2;
+  return `${amount.toLocaleString('vi-VN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: fractionDigits,
+  })} ${currency}`;
 };
 
 const formatTime = (timeStr) => {
@@ -671,6 +678,124 @@ const getTimelineStopEndpointParams = (item, side = 'from') => {
   return side === 'from'
     ? { fromLat: customLocation.latitude, fromLng: customLocation.longitude }
     : { toLat: customLocation.latitude, toLng: customLocation.longitude };
+};
+
+const getTimelineStopDisplayName = (item, fallback = 'Custom Point') => {
+  const customLocation = item?.customLocation || item?.CustomLocation;
+  const title = pickFirstText(item?.title, item?.Title)
+    .replace(/^(visit|meal at|move to)\s+/i, '')
+    .trim();
+
+  return pickFirstText(
+    customLocation?.name,
+    customLocation?.Name,
+    item?.locationName,
+    item?.LocationName,
+    item?.name,
+    item?.Name,
+    title,
+    fallback,
+  );
+};
+
+const getItineraryOriginDisplayName = (itinerary) => {
+  const userLoc = itinerary?.userLocation || itinerary?.UserLocation;
+  return pickFirstText(
+    userLoc?.name,
+    userLoc?.Name,
+    userLoc?.locationName,
+    userLoc?.LocationName,
+    userLoc?.address,
+    userLoc?.Address,
+    'Your location',
+  );
+};
+
+const addTravelEndpointDisplayNames = (travelLeg, fromName, toName) => {
+  if (!travelLeg || typeof travelLeg !== 'object') return travelLeg;
+
+  const nextTravelLeg = { ...travelLeg };
+  const applySide = (side, name) => {
+    const displayName = pickFirstText(name);
+    if (!displayName) return;
+
+    const isFrom = side === 'from';
+    const locationNameKey = isFrom ? 'fromLocationName' : 'toLocationName';
+    const pascalLocationNameKey = isFrom ? 'FromLocationName' : 'ToLocationName';
+    const nameKey = isFrom ? 'fromName' : 'toName';
+    const pascalNameKey = isFrom ? 'FromName' : 'ToName';
+    const shortKey = isFrom ? 'from' : 'to';
+    const pascalShortKey = isFrom ? 'From' : 'To';
+    const latKey = isFrom ? 'fromLat' : 'toLat';
+    const pascalLatKey = isFrom ? 'FromLat' : 'ToLat';
+    const lngKey = isFrom ? 'fromLng' : 'toLng';
+    const pascalLngKey = isFrom ? 'FromLng' : 'ToLng';
+    const locationIdKey = isFrom ? 'fromLocationId' : 'toLocationId';
+    const pascalLocationIdKey = isFrom ? 'FromLocationId' : 'ToLocationId';
+    const transitHubIdKey = isFrom ? 'fromTransitHubId' : 'toTransitHubId';
+    const pascalTransitHubIdKey = isFrom ? 'FromTransitHubId' : 'ToTransitHubId';
+    const transitHubNameKey = isFrom ? 'fromTransitHubName' : 'toTransitHubName';
+    const pascalTransitHubNameKey = isFrom ? 'FromTransitHubName' : 'ToTransitHubName';
+    const customHubKey = isFrom ? 'customFromTransitHub' : 'customToTransitHub';
+    const pascalCustomHubKey = isFrom ? 'CustomFromTransitHub' : 'CustomToTransitHub';
+
+    nextTravelLeg[locationNameKey] = displayName;
+    nextTravelLeg[pascalLocationNameKey] = displayName;
+    nextTravelLeg[nameKey] = displayName;
+    nextTravelLeg[pascalNameKey] = displayName;
+    nextTravelLeg[shortKey] = displayName;
+    nextTravelLeg[pascalShortKey] = displayName;
+    nextTravelLeg[transitHubNameKey] = displayName;
+    nextTravelLeg[pascalTransitHubNameKey] = displayName;
+
+    const hasKnownEndpointId = toPositiveIntOrNull(nextTravelLeg[locationIdKey] ?? nextTravelLeg[pascalLocationIdKey])
+      || toPositiveIntOrNull(nextTravelLeg[transitHubIdKey] ?? nextTravelLeg[pascalTransitHubIdKey]);
+    const lat = toFiniteNumber(nextTravelLeg[latKey] ?? nextTravelLeg[pascalLatKey]);
+    const lng = toFiniteNumber(nextTravelLeg[lngKey] ?? nextTravelLeg[pascalLngKey]);
+    if (!hasKnownEndpointId && lat != null && lng != null) {
+      const customHub = {
+        ...(nextTravelLeg[customHubKey] || nextTravelLeg[pascalCustomHubKey] || {}),
+        name: displayName,
+        Name: displayName,
+        latitude: lat,
+        Latitude: lat,
+        longitude: lng,
+        Longitude: lng,
+      };
+      nextTravelLeg[customHubKey] = customHub;
+      nextTravelLeg[pascalCustomHubKey] = customHub;
+    }
+  };
+
+  applySide('from', fromName);
+  applySide('to', toName);
+
+  const normalizeOptions = (options) => Array.isArray(options)
+    ? options.map((option) => ({
+      ...option,
+      fromLocationName: pickFirstText(fromName, option?.fromLocationName, option?.FromLocationName),
+      FromLocationName: pickFirstText(fromName, option?.FromLocationName, option?.fromLocationName),
+      fromTransitHubName: pickFirstText(fromName, option?.fromTransitHubName, option?.FromTransitHubName),
+      FromTransitHubName: pickFirstText(fromName, option?.FromTransitHubName, option?.fromTransitHubName),
+      fromName: pickFirstText(fromName, option?.fromName, option?.FromName),
+      FromName: pickFirstText(fromName, option?.FromName, option?.fromName),
+      toLocationName: pickFirstText(toName, option?.toLocationName, option?.ToLocationName),
+      ToLocationName: pickFirstText(toName, option?.ToLocationName, option?.toLocationName),
+      toTransitHubName: pickFirstText(toName, option?.toTransitHubName, option?.ToTransitHubName),
+      ToTransitHubName: pickFirstText(toName, option?.ToTransitHubName, option?.toTransitHubName),
+      toName: pickFirstText(toName, option?.toName, option?.ToName),
+      ToName: pickFirstText(toName, option?.ToName, option?.toName),
+    }))
+    : options;
+
+  if (Array.isArray(nextTravelLeg.transportOptions)) {
+    nextTravelLeg.transportOptions = normalizeOptions(nextTravelLeg.transportOptions);
+  }
+  if (Array.isArray(nextTravelLeg.TransportOptions)) {
+    nextTravelLeg.TransportOptions = normalizeOptions(nextTravelLeg.TransportOptions);
+  }
+
+  return nextTravelLeg;
 };
 
 const normalizeFromEndpoint = (endpoint) => {
@@ -1327,13 +1452,20 @@ const CustomLocationMapClickHandler = ({ onPick }) => {
   return null;
 };
 
-const CustomLocationMapInvalidate = ({ activeKey }) => {
+const CustomLocationMapInvalidate = ({ activeKey, center }) => {
   const map = useMap();
+  const centerLat = Array.isArray(center) ? center[0] : null;
+  const centerLng = Array.isArray(center) ? center[1] : null;
 
   useEffect(() => {
     const timers = [120, 300, 520].map((delay) => setTimeout(() => map.invalidateSize(), delay));
     return () => timers.forEach((timer) => clearTimeout(timer));
   }, [map, activeKey]);
+
+  useEffect(() => {
+    if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) return;
+    map.setView([centerLat, centerLng], map.getZoom());
+  }, [map, centerLat, centerLng]);
 
   return null;
 };
@@ -1342,6 +1474,14 @@ const ItineraryResultPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   const { itinerary, clearItinerary, clearPersistedItinerary, updateItinerary } = useTripPlanner();
+  const {
+    searchValue: customPointSearchValue,
+    searchOptions: customPointSearchOptions,
+    searching: customPointSearching,
+    handleSearch: handleCustomPointSearch,
+    handleSelect: handleSelectCustomPointSearch,
+    resetSearch: resetCustomPointSearch,
+  } = useNominatimSearch();
   const travelCacheRef = useRef(new Map());
   const [reorderRecalculating, setReorderRecalculating] = useState(false);
   const [activeDragItem, setActiveDragItem] = useState(null);
@@ -1699,7 +1839,8 @@ const ItineraryResultPage = () => {
     setAddBetweenCustomStartTime(normalizedStart.slice(0, 5));
     setAddBetweenCustomDurationMinutes(90);
     setAddBetweenCustomCostAmount(0);
-  }, []);
+    resetCustomPointSearch();
+  }, [resetCustomPointSearch]);
 
   const resetAddBetweenExistingForm = useCallback((startTime = '08:00:00') => {
     const normalizedStart = normalizeTimeOnly(startTime) || '08:00:00';
@@ -1863,20 +2004,15 @@ const ItineraryResultPage = () => {
           // non-fatal: if origin travel can't be estimated, skip it
         }
         if (originTravelLeg) {
+          const fromName = getItineraryOriginDisplayName(draftItinerary);
+          const toName = getTimelineStopDisplayName(firstStop, 'First Stop');
+          originTravelLeg = addTravelEndpointDisplayNames(originTravelLeg, fromName, toName);
           const travelMinutes = Number(
             originTravelLeg?.selectedTravelTimeMinutes ?? originTravelLeg?.SelectedTravelTimeMinutes ?? 20,
           );
           const safeTravelMinutes = Number.isFinite(travelMinutes) && travelMinutes > 0 ? travelMinutes : 20;
           const originTravelEnd = firstStart;
           const originTravelStart = shiftTimeByMinutes(firstStart, -safeTravelMinutes);
-          const toName = pickFirstText(
-            originTravelLeg?.toLocationName,
-            originTravelLeg?.ToLocationName,
-            firstStop?.locationName,
-            firstStop?.LocationName,
-            firstStop?.title,
-            firstStop?.Title,
-          ) || 'First Stop';
           rebuiltSegment.unshift({
             eventType: 'travel',
             title: `Move to ${toName}`,
@@ -1955,12 +2091,20 @@ const ItineraryResultPage = () => {
         travelLeg = { ...existingTravelDetail };
       }
 
+      const fromName = getTimelineStopDisplayName(prevStop, 'Custom Point');
+      const toName = getTimelineStopDisplayName(currentStop, 'Custom Point');
+      travelLeg = addTravelEndpointDisplayNames(travelLeg, fromName, toName);
+
       const travelLegOptions = Array.isArray(travelLeg?.transportOptions)
         ? travelLeg.transportOptions
         : (Array.isArray(travelLeg?.TransportOptions) ? travelLeg.TransportOptions : []);
       if (existingTransportOptions.length > 0 && travelLegOptions.length === 0 && travelLeg) {
-        travelLeg.transportOptions = existingTransportOptions;
-        travelLeg.TransportOptions = existingTransportOptions;
+        const restoredTravelLeg = {
+          ...travelLeg,
+          transportOptions: existingTransportOptions,
+          TransportOptions: existingTransportOptions,
+        };
+        travelLeg = addTravelEndpointDisplayNames(restoredTravelLeg, fromName, toName);
       }
 
       const estimatedTravelMinutes = Number(
@@ -1975,31 +2119,6 @@ const ItineraryResultPage = () => {
         travelLeg?.arrivalTime,
         travelLeg?.ArrivalTime,
       ) || addMinutesToTime(departureTime, safeTravelMinutes);
-
-      const fromName = pickFirstText(
-        travelLeg?.fromLocationName,
-        travelLeg?.FromLocationName,
-        prevStop?.customLocation?.name,
-        prevStop?.customLocation?.Name,
-        prevStop?.CustomLocation?.name,
-        prevStop?.CustomLocation?.Name,
-        prevStop?.locationName,
-        prevStop?.LocationName,
-        prevStop?.title,
-        prevStop?.Title,
-      ) || 'Custom Point';
-      const toName = pickFirstText(
-        travelLeg?.toLocationName,
-        travelLeg?.ToLocationName,
-        currentStop?.customLocation?.name,
-        currentStop?.customLocation?.Name,
-        currentStop?.CustomLocation?.name,
-        currentStop?.CustomLocation?.Name,
-        currentStop?.locationName,
-        currentStop?.LocationName,
-        currentStop?.title,
-        currentStop?.Title,
-      ) || 'Custom Point';
 
       rebuiltSegment.push({
         eventType: 'travel',
@@ -2583,6 +2702,27 @@ const ItineraryResultPage = () => {
 
     setAddBetweenCustomLat(safeLat);
     setAddBetweenCustomLng(safeLng);
+  }, []);
+
+  const handleSelectCustomPointSearchResult = useCallback((value, option) => {
+    const result = handleSelectCustomPointSearch(value, option);
+    if (!result) return;
+
+    setAddBetweenCustomLat(result.lat);
+    setAddBetweenCustomLng(result.lon);
+    setAddBetweenCustomAddress((current) => String(current || '').trim() ? current : result.label);
+    message.success('Custom point location applied.');
+  }, [handleSelectCustomPointSearch]);
+
+  const handleCustomPointMapLinkParsed = useCallback(({ lat, lng, address, name }) => {
+    const safeLat = toFiniteNumber(lat);
+    const safeLng = toFiniteNumber(lng);
+    if (safeLat == null || safeLng == null) return;
+
+    setAddBetweenCustomLat(safeLat);
+    setAddBetweenCustomLng(safeLng);
+    setAddBetweenCustomName((current) => String(current || '').trim() ? current : (name || ''));
+    setAddBetweenCustomAddress((current) => String(current || '').trim() ? current : (address || ''));
   }, []);
 
   const handleUseCurrentLocationForCustom = useCallback(() => {
@@ -5681,18 +5821,18 @@ const ItineraryResultPage = () => {
                                         const travelCostForGroup = getTravelGroupCost(costForGroup, travelDetail);
                                         const selectedTransportOption = getRecommendedTransportOption(travelDetail);
                                         const fromText = pickFirstText(
+                                          getTravelPointName(travelDetail, true),
                                           selectedTransportOption?.fromTransitHubName,
                                           selectedTransportOption?.FromTransitHubName,
                                           travelDetail?.fromTransitHubName,
                                           travelDetail?.FromTransitHubName,
-                                          getTravelPointName(travelDetail, true),
                                         ) || 'Previous Location';
                                         const toText = pickFirstText(
+                                          getTravelPointName(travelDetail, false),
                                           selectedTransportOption?.toTransitHubName,
                                           selectedTransportOption?.ToTransitHubName,
                                           travelDetail?.toTransitHubName,
                                           travelDetail?.ToTransitHubName,
-                                          getTravelPointName(travelDetail, false),
                                         ) || 'Next Location';
 
                                         return (
@@ -6268,8 +6408,28 @@ const ItineraryResultPage = () => {
 
                 <Card
                   className={styles.customLocationMapCard}
-                  title={<span className={styles.customLocationMapHeader}>Where are you starting from?</span>}
+                  title={<span className={styles.customLocationMapHeader}>Pick custom point location</span>}
                 >
+                  <div className={styles.customPointSearchWrap} style={{ marginBottom: 12 }}>
+                    <AutoComplete
+                      style={{ width: '100%' }}
+                      options={customPointSearchOptions}
+                      value={customPointSearchValue}
+                      onSearch={handleCustomPointSearch}
+                      onSelect={handleSelectCustomPointSearchResult}
+                      placeholder="Search for a place"
+                    >
+                      <Input
+                        suffix={customPointSearching ? <Spin size="small" /> : <SearchOutlined />}
+                        className={styles.editTimelineInput}
+                      />
+                    </AutoComplete>
+                  </div>
+
+                  <div style={{ marginBottom: 12 }}>
+                    <MapLinkInput onParsed={handleCustomPointMapLinkParsed} />
+                  </div>
+
                   <div className={styles.customLocationMapWrap}>
                     <MapContainer
                       center={customLocationMapCenter}
@@ -6287,7 +6447,7 @@ const ItineraryResultPage = () => {
                         <Marker position={[customLocationLatValue, customLocationLngValue]} />
                       )}
                       <CustomLocationMapClickHandler onPick={handlePickCustomLocationOnMap} />
-                      <CustomLocationMapInvalidate activeKey={customLocationMapActiveKey} />
+                      <CustomLocationMapInvalidate activeKey={customLocationMapActiveKey} center={customLocationMapCenter} />
                     </MapContainer>
                   </div>
 

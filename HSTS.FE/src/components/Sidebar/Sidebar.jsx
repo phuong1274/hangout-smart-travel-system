@@ -18,7 +18,8 @@ import {
   UnorderedListOutlined,
   CalendarOutlined,
   CarOutlined,
-  HomeOutlined
+  HomeOutlined,
+  StarOutlined
 } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/features/auth/hooks/useAuth';
@@ -126,6 +127,16 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen }) => {
       label: 'My Submissions',
       onClick: () => {
         navigate(PATHS.MY_LOCATIONS);
+        setMobileMenuOpen?.(false);
+      },
+      hidden: !hasRole([ROLES.TRAVELER]),
+    },
+    {
+      key: PATHS.MY_REVIEWS,
+      icon: <StarOutlined />,
+      label: 'My Reviews',
+      onClick: () => {
+        navigate(PATHS.MY_REVIEWS);
         setMobileMenuOpen?.(false);
       },
       hidden: !hasRole([ROLES.TRAVELER]),

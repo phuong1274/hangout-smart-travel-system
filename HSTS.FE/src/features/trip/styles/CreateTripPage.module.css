@@ -8,6 +8,17 @@
   line-height: 0;
 }
 
+.mapSearchWrap :global(.ant-select-selector) {
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.mapSearchWrap :global(.ant-select-selection-search) {
+  inset: 0 !important;
+}
+
 .mapSearchWrap :global(.ant-select-content) :global(.ant-input-affix-wrapper),
 .mapSearchWrap :global(.ant-select-content) input {
   font-size: 14px;

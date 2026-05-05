@@ -31,6 +31,21 @@ namespace HSTS.Application.Reviews
         string AuthorEmail,
         IList<ReviewReportDto> Reports);
 
+    public record MyReviewDto(
+        int ReviewId,
+        int LocationId,
+        string LocationName,
+        string LocationAddress,
+        string LocationTypeName,
+        string DistrictName,
+        int Rating,
+        string Comment,
+        LocationReviewStatus Status,
+        int ReportCount,
+        DateTime CreatedAt,
+        DateTime? UpdatedAt);
+
     public record ReviewPagedResponse(IEnumerable<ReviewDto> Items, int TotalCount);
     public record ModeratedReviewPagedResponse(IEnumerable<ModeratedReviewDto> Items, int TotalCount);
+    public record MyReviewPagedResponse(IEnumerable<MyReviewDto> Items, int TotalCount);
 }

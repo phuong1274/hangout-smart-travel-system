@@ -2,6 +2,7 @@ import React from 'react';
 import { Tag, Button, Space } from 'antd';
 import DataTable from '@/components/UI/DataTable';
 import { formatDate } from '@/utils/date';
+import { getReviewStatusColor, getReviewStatusLabel } from '../constants';
 
 export const ReportedReviewTable = ({ items, loading, pagination, onPageChange, onSelect }) => {
   const columns = [
@@ -11,7 +12,9 @@ export const ReportedReviewTable = ({ items, loading, pagination, onPageChange, 
       title: 'Status',
       dataIndex: ['review', 'status'],
       key: 'status',
-      render: (status) => <Tag color={status === 'Hidden' ? 'orange' : 'blue'}>{status}</Tag>,
+      render: (status) => (
+        <Tag color={getReviewStatusColor(status)}>{getReviewStatusLabel(status)}</Tag>
+      ),
     },
     {
       title: 'Reports',

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using HSTS.Application.Auth.Interfaces;
 using HSTS.Application.Common.LoggingInterfaces;
+using HSTS.Application.Interfaces;
 using HSTS.Application.Users.Commands;
 using HSTS.Domain.Enums;
 using HSTS.Tests.Helpers;
@@ -13,6 +14,17 @@ public class AdminCreateUserCommandTests
     private readonly Mock<IEmailService> _email = new();
     private readonly Mock<IEmailDomainPolicy> _policy = EmailPolicyMockFactory.AllowAll();
     private readonly Mock<ILoggingService> _logging = new();
+    private readonly Mock<IClientAppUrlProvider> _clientUrl = new();
+
+    public AdminCreateUserCommandTests()
+    {
+        _clientUrl
+            .Setup(x => x.BuildUrl(
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyDictionary<string, string?>>()))
+            .Returns((string path, IReadOnlyDictionary<string, string?> query) =>
+                $"https://hangout.example{path}?mode={query["mode"]}&token={query["token"]}&email={Uri.EscapeDataString(query["email"]!)}");
+    }
 
     [Fact]
     public async Task Handle_EmailExists_ReturnsConflict()
@@ -24,7 +36,7 @@ public class AdminCreateUserCommandTests
             .WithRoles(role)
             .Build();
 
-        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var handler = CreateHandler(ctx.Object);
         var result = await handler.Handle(new AdminCreateUserCommand("existing@test.com", "New User", role.Id), default);
 
         result.IsError.Should().BeTrue();
@@ -39,7 +51,7 @@ public class AdminCreateUserCommandTests
             .WithRoles(role)
             .Build();
 
-        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var handler = CreateHandler(ctx.Object);
         var result = await handler.Handle(new AdminCreateUserCommand("traveler-invite@test.com", "Traveler Invite", role.Id), default);
 
         result.IsError.Should().BeTrue();
@@ -55,7 +67,7 @@ public class AdminCreateUserCommandTests
             .WithRoles(role)
             .Build();
 
-        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var handler = CreateHandler(ctx.Object);
         var result = await handler.Handle(new AdminCreateUserCommand("new-user@test.com", "New User", role.Id), default);
 
         result.IsError.Should().BeFalse();
@@ -72,12 +84,15 @@ public class AdminCreateUserCommandTests
             .WithRoles(role)
             .Build();
 
-        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var handler = CreateHandler(ctx.Object);
         var result = await handler.Handle(new AdminCreateUserCommand("new-user@test.com", "New User", role.Id), default);
 
         result.IsError.Should().BeFalse();
         ctx.Verify(x => x.PasswordSetupTokens.Add(It.Is<HSTS.Domain.Entities.PasswordSetupToken>(t => t.ExpiredAt > DateTime.UtcNow && !string.IsNullOrWhiteSpace(t.Token))), Times.Once);
-        _email.Verify(x => x.SendOnboardingLinkEmailAsync("new-user@test.com", It.Is<string>(link => link.Contains("token=")), It.IsAny<CancellationToken>()), Times.Once);
+        _email.Verify(x => x.SendOnboardingLinkEmailAsync(
+            "new-user@test.com",
+            It.Is<string>(link => link.StartsWith("https://hangout.example/auth/reset-password") && link.Contains("token=") && !link.Contains("localhost")),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -88,7 +103,7 @@ public class AdminCreateUserCommandTests
             .WithRoles(role)
             .Build();
 
-        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var handler = CreateHandler(ctx.Object);
         var result = await handler.Handle(new AdminCreateUserCommand("new-user@test.com", "New User", role.Id), default);
 
         result.IsError.Should().BeFalse();
@@ -111,7 +126,7 @@ public class AdminCreateUserCommandTests
             .WithRoles(role)
             .Build();
 
-        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var handler = CreateHandler(ctx.Object);
         var result = await handler.Handle(new AdminCreateUserCommand("existing@test.com", "New User", role.Id), default);
 
         result.IsError.Should().BeTrue();
@@ -129,7 +144,7 @@ public class AdminCreateUserCommandTests
         _email.Setup(x => x.SendOnboardingLinkEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("provider failure"));
 
-        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var handler = CreateHandler(ctx.Object);
         var result = await handler.Handle(new AdminCreateUserCommand("new-user@test.com", "New User", role.Id), default);
 
         result.IsError.Should().BeTrue();
@@ -149,7 +164,7 @@ public class AdminCreateUserCommandTests
         _email.Setup(x => x.SendOnboardingLinkEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("provider failure"));
 
-        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var handler = CreateHandler(ctx.Object);
         var result = await handler.Handle(new AdminCreateUserCommand("new-user@test.com", "New User", role.Id), default);
 
         result.IsError.Should().BeTrue();
@@ -166,7 +181,7 @@ public class AdminCreateUserCommandTests
         _logging.Setup(x => x.LogActivityAsync(It.IsAny<string>()))
             .ThrowsAsync(new Exception("logging failure"));
 
-        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var handler = CreateHandler(ctx.Object);
         var result = await handler.Handle(new AdminCreateUserCommand("new-user@test.com", "New User", role.Id), default);
 
         result.IsError.Should().BeFalse();
@@ -187,10 +202,13 @@ public class AdminCreateUserCommandTests
         _logging.Setup(x => x.LogErrorAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new Exception("logging failure"));
 
-        var handler = new AdminCreateUserCommandHandler(ctx.Object, _email.Object, _policy.Object, _logging.Object);
+        var handler = CreateHandler(ctx.Object);
         var result = await handler.Handle(new AdminCreateUserCommand("new-user@test.com", "New User", role.Id), default);
 
         result.IsError.Should().BeTrue();
         result.FirstError.Code.Should().Be("Email.SendFailed");
     }
+
+    private AdminCreateUserCommandHandler CreateHandler(IAppDbContext ctx) =>
+        new(ctx, _email.Object, _policy.Object, _logging.Object, _clientUrl.Object);
 }

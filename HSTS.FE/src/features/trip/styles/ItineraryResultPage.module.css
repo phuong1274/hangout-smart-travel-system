@@ -1345,6 +1345,34 @@
   width: 100%;
 }
 
+/* Hide Ant Design AutoComplete mirror text node that can leak outside the input. */
+.customPointSearchWrap :global(.ant-select-content) {
+  font-size: 0;
+  line-height: 0;
+}
+
+.customPointSearchWrap :global(.ant-select-selector) {
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.customPointSearchWrap :global(.ant-select-selection-search) {
+  inset: 0 !important;
+}
+
+.customPointSearchWrap :global(.ant-select-content) :global(.ant-input-affix-wrapper),
+.customPointSearchWrap :global(.ant-select-content) input {
+  font-size: 14px;
+  line-height: normal;
+}
+
+.customPointSearchWrap :global(.ant-input-affix-wrapper) {
+  min-height: 44px;
+  border-radius: 8px;
+}
+
 @media (max-width: 991px) {
   .addBetweenSplitLayout {
     grid-template-columns: 1fr;

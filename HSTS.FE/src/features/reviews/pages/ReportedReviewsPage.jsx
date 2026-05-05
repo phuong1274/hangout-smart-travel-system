@@ -25,7 +25,7 @@ const ReportedReviewsPage = () => {
     setSelected(null);
   };
 
-  const { submitting, ignoreReports, hide, remove } = useModerationActions({ onChanged });
+  const { submitting, ignoreReports, hide, unhide, remove } = useModerationActions({ onChanged });
 
   return (
     <div className={styles.container}>
@@ -57,6 +57,7 @@ const ReportedReviewsPage = () => {
         onClose={() => setSelected(null)}
         onIgnore={ignoreReports}
         onHide={hide}
+        onUnhide={unhide}
         onDelete={remove}
       />
     </div>

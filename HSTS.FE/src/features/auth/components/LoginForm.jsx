@@ -1,4 +1,4 @@
-import { Button, Form, Input, Typography } from 'antd';
+import { Button, Form, Input, Typography, message } from 'antd';
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { GoogleLogin } from '@react-oauth/google';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -30,7 +30,7 @@ const LoginForm = () => {
         <div className={styles.googleLoginWrapper}>
           <GoogleLogin
             onSuccess={(res) => googleLogin(res.credential)}
-            onError={() => {}}
+            onError={() => message.error('Google login failed. Please try again.')}
             useOneTap={false}
             shape="pill" 
           />

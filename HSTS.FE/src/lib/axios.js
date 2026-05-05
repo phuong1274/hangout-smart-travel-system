@@ -134,8 +134,10 @@ apiClient.interceptors.response.use(
       } else if (response.status === 403) {
         // Skip generic message for auth-specific errors handled by individual hooks
         if (!response.data?.code) {
-          message.error('You do not have permission to do this.');
+          message.error(response.data?.detail || response.data?.title || 'You do not have permission to do this.');
         }
+      } else if (response.status === 404) {
+        message.error(response.data?.detail || response.data?.title || 'Resource not found.');
       } else if (response.status === 409) {
         const msg = response.data?.detail || response.data?.title || 'This resource already exists.';
         message.error(msg);

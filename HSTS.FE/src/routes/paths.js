@@ -18,6 +18,7 @@ export const PATHS = {
   AMENITIES: '/amenities',
   ITINERARY: '/itinerary',
   MY_LOCATIONS: '/my-locations',
+  MY_REVIEWS: '/my-reviews',
   USERS: '/users',
   USER_DETAIL: (id = ':id') => `/users/${id}`,
   REPORTED_REVIEWS: '/reviews/reported',

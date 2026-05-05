@@ -34,6 +34,14 @@ namespace HSTS.API.Controllers
             return result.Match<IActionResult>(Ok, MapErrors);
         }
 
+        [HttpGet("/api/reviews/me")]
+        [Authorize(Roles = "TRAVELER")]
+        public async Task<IActionResult> GetMine([FromQuery] GetMyReviewsQuery query)
+        {
+            var result = await Mediator.Send(query);
+            return result.Match<IActionResult>(Ok, MapErrors);
+        }
+
         [HttpPost("/api/reviews")]
         [Authorize(Roles = "TRAVELER")]
         public async Task<IActionResult> Create([FromBody] CreateReviewCommand command)

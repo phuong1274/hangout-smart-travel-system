@@ -282,6 +282,9 @@ namespace HSTS.Application.Trips.Commands
             if (!isLeader)
                 return Error.Forbidden("Trip.Forbidden", "Only the trip leader can update this trip.");
 
+            if (trip.Status == TripStatus.Completed)
+                return Error.Forbidden("Trip.Completed", "Completed trips cannot be edited.");
+
             // 3. Validate LocationId references exist
             var locationIds = req.Days
                 .SelectMany(d => d.Activities)

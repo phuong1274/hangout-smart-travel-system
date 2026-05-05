@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { message } from 'antd';
 import { generateItineraryApi } from '../api';
-import { convertBudgetToVnd } from '../constants/currency';
 
 const STORAGE_KEY = 'trip-itinerary-result';
 
@@ -36,7 +35,7 @@ export const useTripPlanner = () => {
     setLoading(true);
     try {
       const requestedGroupSize = Math.max(1, Math.round(Number(formData.groupSize) || 1));
-      const normalizedBudget = convertBudgetToVnd(formData.totalBudget, formData.currencyCode);
+      const currencyCode = String(formData.currencyCode || 'VND').trim().toUpperCase();
 
       const payload = {
         request: {
@@ -49,10 +48,10 @@ export const useTripPlanner = () => {
             districtIds: d.districtIds?.length ? d.districtIds : undefined,
           })),
           userFavoriteTagIds: formData.userFavoriteTagIds || [],
-          currencyCode: 'VND',
+          currencyCode,
           groupSize: requestedGroupSize,
           minimumAge: formData.minimumAge ?? null,
-          totalBudget: normalizedBudget,
+          totalBudget: formData.totalBudget,
           includeContingencyFund: formData.includeContingencyFund !== false,
           startDate: formData.startDate,
           endDate: formData.endDate,

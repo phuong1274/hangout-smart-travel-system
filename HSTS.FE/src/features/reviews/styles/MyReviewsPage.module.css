@@ -1,0 +1,116 @@
+.container {
+  background-color: #F7F9F9;
+  min-height: 100vh;
+  padding: clamp(32px, 5vw, 72px) clamp(16px, 3vw, 40px);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #1A535C;
+}
+
+.headingMain {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 700 !important;
+  color: #1A535C !important;
+  font-size: clamp(28px, 4vw, 44px) !important;
+  margin-bottom: 4px !important;
+  line-height: 1.2 !important;
+}
+
+.cardWrapper {
+  animation: fadeUp 0.5s ease-out backwards;
+}
+
+@keyframes fadeUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.container :global(.ant-card) {
+  border-radius: 8px !important;
+  border: none !important;
+  box-shadow: 0 8px 24px rgba(26, 83, 92, 0.08) !important;
+  background: #FFFFFF !important;
+}
+
+.filterToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.leftActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+}
+
+.searchSection {
+  min-width: 280px;
+  max-width: 420px;
+  flex: 1;
+}
+
+.tableContainer {
+  width: 100%;
+}
+
+.tableContainer :global(.ant-table) {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #1A535C;
+}
+
+.tableContainer :global(.ant-table-thead > tr > th) {
+  background-color: #F7F9F9 !important;
+  color: #1A535C !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid rgba(78, 205, 196, 0.2) !important;
+}
+
+.commentText {
+  display: inline-block;
+  max-width: 320px;
+  white-space: normal;
+}
+
+.actionIconBtn {
+  min-width: 40px !important;
+  min-height: 40px !important;
+  width: 40px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #4ECDC4 !important;
+  font-size: 18px !important;
+  border-radius: 50% !important;
+}
+
+.actionIconBtn:hover {
+  color: #1A535C !important;
+  background-color: rgba(255, 230, 109, 0.3) !important;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 24px 16px;
+  }
+
+  .container :global(.ant-card-body) {
+    padding: 16px !important;
+  }
+
+  .filterToolbar,
+  .leftActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchSection {
+    max-width: 100%;
+  }
+}

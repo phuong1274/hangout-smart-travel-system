@@ -5,6 +5,8 @@ export const reviewsApi = {
     apiClient.get(`/api/locations/${locationId}/reviews`, { params }),
   getMyReview: (locationId) =>
     apiClient.get(`/api/locations/${locationId}/reviews/me`),
+  getMyReviews: (params) =>
+    apiClient.get('/api/reviews/me', { params }),
   create: (data) => apiClient.post('/api/reviews', data),
   update: ({ reviewId, ...data }) =>
     apiClient.put(`/api/reviews/${reviewId}`, { reviewId, ...data }),
@@ -23,6 +25,8 @@ export const reviewsApi = {
     apiClient.post(`/api/admin/reviews/${reviewId}/ignore-reports`, { resolutionNote }),
   hide: (reviewId) =>
     apiClient.post(`/api/admin/reviews/${reviewId}/hide`),
+  unhide: (reviewId) =>
+    apiClient.post(`/api/admin/reviews/${reviewId}/unhide`),
   deleteModerated: (reviewId, note) =>
     apiClient.delete(`/api/admin/reviews/${reviewId}`, { params: { note } }),
 };
