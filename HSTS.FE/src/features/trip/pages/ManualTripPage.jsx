@@ -209,6 +209,8 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND', targetC
         note: pickFirstText(option?.note, option?.Note),
         fromTransitHubName: pickFirstText(option?.fromTransitHubName, option?.FromTransitHubName),
         toTransitHubName: pickFirstText(option?.toTransitHubName, option?.ToTransitHubName),
+        firstMileEstimate: option?.firstMileEstimate ?? option?.FirstMileEstimate ?? null,
+        lastMileEstimate: option?.lastMileEstimate ?? option?.LastMileEstimate ?? null,
       };
     })
     .filter((option) => option.method || option.travelMinutes > 0 || option.costAmount > 0 || option.note);
@@ -2833,14 +2835,15 @@ const ManualTripPage = () => {
                                           const isFirstActivity = activityIndex === 0;
                                           const previousActivity = activityIndex > 0 ? day.activities?.[activityIndex - 1] : null;
                                           const travelFromPrevious = activity.travelFromPrevious || null;
-                                          const isTransportOptionsOpen = openTransportOptionIds[activity.id] ?? true;
                                           const transportOptions = normalizeTransportOptions(
                                             travelFromPrevious?.transportOptions ?? travelFromPrevious?.TransportOptions,
                                             tripInfo.currencyCode || 'VND',
                                           );
-                                          const hasTransportOptions = transportOptions.length > 0;
                                           const isCustomTransport = Boolean(travelFromPrevious?.isCustomTransport);
                                           const selectedTransportOptionIndex = getPreferredTransportOptionIndex(transportOptions, travelFromPrevious);
+                                          const selectedTransportOption = selectedTransportOptionIndex != null
+                                            ? transportOptions[selectedTransportOptionIndex]
+                                            : transportOptions.find((option) => option.recommended);
                                           const selectedTransportLabel = String(
                                             (isCustomTransport ? (travelFromPrevious?.transportModeName || 'Custom') : '')
                                             || travelFromPrevious?.transportModeName
@@ -2849,15 +2852,310 @@ const ManualTripPage = () => {
                                               : '')
                                             || '',
                                           ).trim();
-                                          const fromLabel = pickFirstText(
+                                          const originLabel = pickFirstText(
                                             travelFromPrevious?.fromName,
                                             getActivityDisplayName(previousActivity, `Location ${activityIndex}`),
                                             'Previous Location',
                                           );
-                                          const toLabel = pickFirstText(
+                                          const destinationLabel = pickFirstText(
                                             travelFromPrevious?.toName,
                                             getActivityDisplayName(activity, `Location ${activityIndex + 1}`),
                                             'Next Location',
+                                          );
+                                          const transitFrom = pickFirstText(
+                                            selectedTransportOption?.fromTransitHubName,
+                                            selectedTransportOption?.FromTransitHubName,
+                                            travelFromPrevious?.fromTransitHubName,
+                                            travelFromPrevious?.FromTransitHubName,
+                                          );
+                                          const transitTo = pickFirstText(
+                                            selectedTransportOption?.toTransitHubName,
+                                            selectedTransportOption?.ToTransitHubName,
+                                            travelFromPrevious?.toTransitHubName,
+                                            travelFromPrevious?.ToTransitHubName,
+                                          );
+                                          const firstMileEstimate = selectedTransportOption?.firstMileEstimate
+                                            ?? selectedTransportOption?.FirstMileEstimate
+                                            ?? travelFromPrevious?.firstMileEstimate
+                                            ?? travelFromPrevious?.FirstMileEstimate
+                                            ?? null;
+                                          const lastMileEstimate = selectedTransportOption?.lastMileEstimate
+                                            ?? selectedTransportOption?.LastMileEstimate
+                                            ?? travelFromPrevious?.lastMileEstimate
+                                            ?? travelFromPrevious?.LastMileEstimate
+                                            ?? null;
+                                          const showTransitSegments = Boolean(
+                                            transitFrom
+                                            || transitTo
+                                            || firstMileEstimate
+                                            || lastMileEstimate
+                                          );
+
+                                          const getEstimateMinutes = (estimate) => toNumberOrDefault(
+                                            estimate?.selectedTravelTimeMinutes
+                                            ?? estimate?.SelectedTravelTimeMinutes
+                                            ?? estimate?.travelMinutes
+                                            ?? estimate?.TravelMinutes
+                                            ?? estimate?.estimatedTravelMinutes
+                                            ?? estimate?.EstimatedTravelMinutes,
+                                            0,
+                                          );
+                                          const getEstimateDistanceKm = (estimate) => Math.max(
+                                            0,
+                                            toNumberOrDefault(estimate?.distanceKm ?? estimate?.DistanceKm, 0),
+                                          );
+                                          const getEstimateCostValue = (estimate) => toMoneyAmount(
+                                            estimate?.selectedTotalCost
+                                            ?? estimate?.SelectedTotalCost
+                                            ?? estimate?.estimatedTotalCost
+                                            ?? estimate?.EstimatedTotalCost
+                                            ?? estimate?.costForGroup
+                                            ?? estimate?.CostForGroup,
+                                          );
+                                          const getEstimateCurrency = (estimate) => getMoneyCurrency(
+                                            estimate?.selectedTotalCost
+                                            ?? estimate?.SelectedTotalCost
+                                            ?? estimate?.estimatedTotalCost
+                                            ?? estimate?.EstimatedTotalCost
+                                            ?? estimate?.costForGroup
+                                            ?? estimate?.CostForGroup,
+                                            tripInfo.currencyCode || 'VND',
+                                          );
+                                          const getEstimateOptions = (estimate) => normalizeTransportOptions(
+                                            estimate?.transportOptions ?? estimate?.TransportOptions,
+                                            tripInfo.currencyCode || 'VND',
+                                          );
+                                          const getRecommendedOptionIndex = (options) => {
+                                            if (!Array.isArray(options) || options.length === 0) return null;
+                                            const recommendedIndex = options.findIndex((option) => option.recommended);
+                                            return recommendedIndex >= 0 ? recommendedIndex : 0;
+                                          };
+                                          const getSegmentMethodLabel = (estimate, options) => {
+                                            const recommendedIdx = getRecommendedOptionIndex(options);
+                                            const recommendedOption = recommendedIdx != null ? options[recommendedIdx] : null;
+                                            return pickFirstText(
+                                              estimate?.selectedMethod,
+                                              estimate?.SelectedMethod,
+                                              recommendedOption?.method,
+                                              recommendedOption?.Method,
+                                            );
+                                          };
+
+                                          const buildTravelMetaText = (minutes, distanceKm, method) => {
+                                            const items = [];
+                                            if (minutes > 0) items.push(formatMinutes(minutes));
+                                            if (distanceKm > 0) items.push(`${distanceKm.toFixed(distanceKm >= 10 ? 0 : 1)} km`);
+                                            if (method) items.push(method);
+                                            return items.join(' • ');
+                                          };
+
+                                          const mainMinutes = Math.max(
+                                            0,
+                                            toNumberOrDefault(selectedTransportOption?.travelMinutes, toNumberOrDefault(travelFromPrevious?.travelMinutes, 0)),
+                                          );
+                                          const mainDistanceKm = Math.max(0, toNumberOrDefault(travelFromPrevious?.distanceKm, 0));
+                                          const mainCostAmount = Math.max(
+                                            0,
+                                            toNumberOrDefault(selectedTransportOption?.costAmount, toNumberOrDefault(travelFromPrevious?.costAmount, 0)),
+                                          );
+                                          const mainCostCurrency = String(
+                                            selectedTransportOption?.costCurrency
+                                            || travelFromPrevious?.costCurrency
+                                            || tripInfo.currencyCode
+                                            || 'VND',
+                                          ).trim() || 'VND';
+                                          const mainFromLabel = showTransitSegments ? (transitFrom || originLabel) : originLabel;
+                                          const mainToLabel = showTransitSegments ? (transitTo || destinationLabel) : destinationLabel;
+
+                                          const segmentCards = [];
+                                          if (showTransitSegments && firstMileEstimate) {
+                                            const options = getEstimateOptions(firstMileEstimate);
+                                            const selectedIdx = getRecommendedOptionIndex(options);
+                                            segmentCards.push({
+                                              key: 'first',
+                                              fromLabel: pickFirstText(firstMileEstimate?.fromName, firstMileEstimate?.FromName, originLabel),
+                                              toLabel: pickFirstText(firstMileEstimate?.toName, firstMileEstimate?.ToName, transitFrom || destinationLabel),
+                                              minutes: getEstimateMinutes(firstMileEstimate),
+                                              distanceKm: getEstimateDistanceKm(firstMileEstimate),
+                                              method: getSegmentMethodLabel(firstMileEstimate, options),
+                                              costAmount: getEstimateCostValue(firstMileEstimate),
+                                              costCurrency: getEstimateCurrency(firstMileEstimate),
+                                              options,
+                                              selectedIndex: selectedIdx,
+                                              allowSelect: false,
+                                              showCustomOption: false,
+                                            });
+                                          }
+
+                                          segmentCards.push({
+                                            key: 'main',
+                                            fromLabel: mainFromLabel,
+                                            toLabel: mainToLabel,
+                                            minutes: mainMinutes,
+                                            distanceKm: mainDistanceKm,
+                                            method: selectedTransportLabel,
+                                            costAmount: mainCostAmount,
+                                            costCurrency: mainCostCurrency,
+                                            options: transportOptions,
+                                            selectedIndex: selectedTransportOptionIndex,
+                                            allowSelect: true,
+                                            showCustomOption: true,
+                                          });
+
+                                          if (showTransitSegments && lastMileEstimate) {
+                                            const options = getEstimateOptions(lastMileEstimate);
+                                            const selectedIdx = getRecommendedOptionIndex(options);
+                                            segmentCards.push({
+                                              key: 'last',
+                                              fromLabel: pickFirstText(lastMileEstimate?.fromName, lastMileEstimate?.FromName, transitTo || originLabel),
+                                              toLabel: pickFirstText(lastMileEstimate?.toName, lastMileEstimate?.ToName, destinationLabel),
+                                              minutes: getEstimateMinutes(lastMileEstimate),
+                                              distanceKm: getEstimateDistanceKm(lastMileEstimate),
+                                              method: getSegmentMethodLabel(lastMileEstimate, options),
+                                              costAmount: getEstimateCostValue(lastMileEstimate),
+                                              costCurrency: getEstimateCurrency(lastMileEstimate),
+                                              options,
+                                              selectedIndex: selectedIdx,
+                                              allowSelect: false,
+                                              showCustomOption: false,
+                                            });
+                                          }
+
+                                          const renderTransportOptionsList = (segment) => {
+                                            const optionCount = segment.options.length + (segment.showCustomOption ? 1 : 0);
+                                            if (optionCount === 0) return null;
+
+                                            const transportPanelKey = `${activity.id}-${segment.key}`;
+                                            const isTransportOptionsOpen = openTransportOptionIds[transportPanelKey] ?? true;
+
+                                            return (
+                                              <div className={styles.transportOptionsSection}>
+                                                <Collapse
+                                                  activeKey={isTransportOptionsOpen ? ['1'] : []}
+                                                  onChange={(keys) => setOpenTransportOptionIds((prev) => ({
+                                                    ...prev,
+                                                    [transportPanelKey]: keys.length > 0,
+                                                  }))}
+                                                  className={styles.innerCollapse}
+                                                  bordered={false}
+                                                  expandIconPosition="end"
+                                                  items={[
+                                                    {
+                                                      key: '1',
+                                                      className: styles.innerCollapsePanel,
+                                                      label: <span className={styles.innerCollapseLabel}>Transport options ({optionCount})</span>,
+                                                      children: (
+                                                        <div className={styles.transportOptionList}>
+                                                          {segment.options.map((option, optionIndex) => {
+                                                            const optionSelected = segment.selectedIndex === optionIndex;
+                                                            return (
+                                                              <button
+                                                                key={`${activity.id}-${segment.key}-transport-option-${optionIndex}`}
+                                                                type="button"
+                                                                className={`${styles.transportOptionItem} ${optionSelected ? styles.transportOptionItemSelected : ''}`}
+                                                                onClick={() => {
+                                                                  if (segment.allowSelect) {
+                                                                    selectActivityTransportOption(day.id, activity.id, optionIndex);
+                                                                  }
+                                                                }}
+                                                                disabled={!segment.allowSelect || addingLocation}
+                                                              >
+                                                                <div className={styles.transportOptionMain}>
+                                                                  <span className={styles.transportOptionName}>{option.method || `Option ${optionIndex + 1}`}</span>
+                                                                  {option.recommended && <span className={styles.transportOptionRecommended}>Recommended</span>}
+                                                                </div>
+                                                                <span className={styles.transportOptionMeta}>
+                                                                  {option.travelMinutes > 0 ? formatMinutes(option.travelMinutes) : 'N/A'}
+                                                                  {' • '}
+                                                                  {formatMoney(option.costAmount, option.costCurrency || tripInfo.currencyCode)}
+                                                                </span>
+                                                              </button>
+                                                            );
+                                                          })}
+
+                                                          {segment.showCustomOption && (
+                                                            <>
+                                                              <button
+                                                                type="button"
+                                                                className={`${styles.transportOptionItem} ${isCustomTransport ? styles.transportOptionItemSelected : ''}`}
+                                                                onClick={() => selectCustomTransportOption(day.id, activity.id)}
+                                                                disabled={addingLocation}
+                                                              >
+                                                                <div className={styles.transportOptionMain}>
+                                                                  <span className={styles.transportOptionName}>Custom</span>
+                                                                  {isCustomTransport && <span className={styles.transportOptionRecommended}>Selected</span>}
+                                                                </div>
+                                                                <span className={styles.transportOptionMeta}>Enter your own transport method and cost</span>
+                                                              </button>
+
+                                                              {isCustomTransport && (
+                                                                <div className={styles.customTransportEditor}>
+                                                                  <div className={styles.customTransportGrid}>
+                                                                    <div className={styles.editTimelineField}>
+                                                                      <span className={styles.editTimelineLabel}>Custom transport</span>
+                                                                      <Input
+                                                                        placeholder="e.g. Private motorbike"
+                                                                        value={String(travelFromPrevious?.transportModeName || '')}
+                                                                        onChange={(event) => updateCustomTransportInput(day.id, activity.id, { method: event?.target?.value || '' })}
+                                                                      />
+                                                                    </div>
+                                                                    <div className={styles.editTimelineField}>
+                                                                      <span className={styles.editTimelineLabel}>Custom transport cost</span>
+                                                                      <InputNumber
+                                                                        min={0}
+                                                                        style={{ width: '100%' }}
+                                                                        value={toNumberOrDefault(travelFromPrevious?.costAmount, 0)}
+                                                                        onChange={(value) => updateCustomTransportInput(day.id, activity.id, { cost: value == null ? 0 : value })}
+                                                                        placeholder={`0 ${tripInfo.currencyCode}`}
+                                                                      />
+                                                                    </div>
+                                                                  </div>
+                                                                </div>
+                                                              )}
+                                                            </>
+                                                          )}
+                                                        </div>
+                                                      )
+                                                    }
+                                                  ]}
+                                                />
+                                              </div>
+                                            );
+                                          };
+
+                                          const renderTravelSegmentCard = (segment) => (
+                                            <div key={`${activity.id}-segment-card-${segment.key}`} className={`${styles.card} ${styles.travelCard}`}>
+                                              <div className={styles.travelRoute}>
+                                                <div className={styles.travelPoint}>
+                                                  <div className={styles.dot}></div>
+                                                  <span>{segment.fromLabel}</span>
+                                                </div>
+                                                <div className={styles.travelLine}>
+                                                  <div className={styles.travelIconWrapper}>
+                                                    <NavigationArrow size={24} weight="bold" color="#D89A00" />
+                                                  </div>
+                                                </div>
+                                                <div className={styles.travelPoint}>
+                                                  <div className={styles.dot}></div>
+                                                  <span>{segment.toLabel}</span>
+                                                </div>
+                                              </div>
+
+                                              <div className={styles.travelMetaLine}>
+                                                <div className={styles.travelMeta}>
+                                                  <ClockIcon size={16} weight="bold" />
+                                                  <Text style={{ color: '#D89A00', fontWeight: 600 }}>
+                                                    {buildTravelMetaText(segment.minutes, segment.distanceKm, segment.method)}
+                                                  </Text>
+                                                </div>
+                                              </div>
+
+                                              <div className={styles.travelCost}>
+                                                <span className={styles.costAmount}>{formatMoney(segment.costAmount, segment.costCurrency || tripInfo.currencyCode)}</span>
+                                              </div>
+
+                                              {renderTransportOptionsList(segment)}
+                                            </div>
                                           );
 
                                           return (
@@ -2874,124 +3172,8 @@ const ManualTripPage = () => {
                                                     <NavigationArrow size={24} weight="bold" color="#D89A00" />
                                                   </div>
                                                   <div className={styles.timelineContent}>
-                                                    <div className={`${styles.card} ${styles.travelCard}`}>
-                                                      <div className={styles.travelRoute}>
-                                                        <div className={styles.travelPoint}>
-                                                          <div className={styles.dot}></div>
-                                                          <span>{fromLabel}</span>
-                                                        </div>
-                                                        <div className={styles.travelLine}>
-                                                          <div className={styles.travelIconWrapper}>
-                                                            <NavigationArrow size={24} weight="bold" color="#D89A00" />
-                                                          </div>
-                                                        </div>
-                                                        <div className={styles.travelPoint}>
-                                                          <div className={styles.dot}></div>
-                                                          <span>{toLabel}</span>
-                                                        </div>
-                                                      </div>
-
-                                                      <div className={styles.travelMetaLine}>
-                                                        <div className={styles.travelMeta}>
-                                                          <ClockIcon size={16} weight="bold" />
-                                                          <Text style={{ color: '#D89A00', fontWeight: 600 }}>
-                                                            {formatMinutes(travelFromPrevious.travelMinutes)}
-                                                            {travelFromPrevious.distanceKm > 0 ? ` • ${travelFromPrevious.distanceKm.toFixed(travelFromPrevious.distanceKm >= 10 ? 0 : 1)} km` : ''}
-                                                            {selectedTransportLabel ? ` • ${selectedTransportLabel}` : ''}
-                                                          </Text>
-                                                        </div>
-                                                      </div>
-
-                                                      <div className={styles.travelCost}>
-                                                        <span className={styles.costAmount}>{formatMoney(travelFromPrevious.costAmount, travelFromPrevious.costCurrency || tripInfo.currencyCode)}</span>
-                                                      </div>
-
-                                                      {hasTransportOptions && (
-                                                        <div className={styles.transportOptionsSection}>
-                                                          <Collapse
-                                                            activeKey={isTransportOptionsOpen ? ['1'] : []}
-                                                            onChange={(keys) => setOpenTransportOptionIds((prev) => ({
-                                                              ...prev,
-                                                              [activity.id]: keys.length > 0,
-                                                            }))}
-                                                            className={styles.innerCollapse}
-                                                            bordered={false}
-                                                            expandIconPosition="end"
-                                                            items={[
-                                                              {
-                                                                key: '1',
-                                                                className: styles.innerCollapsePanel,
-                                                                label: <span className={styles.innerCollapseLabel}>Transport options ({transportOptions.length + 1})</span>,
-                                                                children: (
-                                                                  <div className={styles.transportOptionList}>
-                                                                    {transportOptions.map((option, optionIndex) => {
-                                                                      const optionSelected = selectedTransportOptionIndex === optionIndex;
-                                                                      return (
-                                                                        <button
-                                                                          key={`${activity.id}-transport-option-${optionIndex}`}
-                                                                          type="button"
-                                                                          className={`${styles.transportOptionItem} ${optionSelected ? styles.transportOptionItemSelected : ''}`}
-                                                                          onClick={() => selectActivityTransportOption(day.id, activity.id, optionIndex)}
-                                                                          disabled={addingLocation}
-                                                                        >
-                                                                          <div className={styles.transportOptionMain}>
-                                                                            <span className={styles.transportOptionName}>{option.method || `Option ${optionIndex + 1}`}</span>
-                                                                            {option.recommended && <span className={styles.transportOptionRecommended}>Recommended</span>}
-                                                                          </div>
-                                                                          <span className={styles.transportOptionMeta}>
-                                                                            {option.travelMinutes > 0 ? formatMinutes(option.travelMinutes) : 'N/A'}
-                                                                            {' • '}
-                                                                            {formatMoney(option.costAmount, option.costCurrency || tripInfo.currencyCode)}
-                                                                          </span>
-                                                                        </button>
-                                                                      );
-                                                                    })}
-
-                                                                    <button
-                                                                      type="button"
-                                                                      className={`${styles.transportOptionItem} ${isCustomTransport ? styles.transportOptionItemSelected : ''}`}
-                                                                      onClick={() => selectCustomTransportOption(day.id, activity.id)}
-                                                                      disabled={addingLocation}
-                                                                    >
-                                                                      <div className={styles.transportOptionMain}>
-                                                                        <span className={styles.transportOptionName}>Custom</span>
-                                                                        {isCustomTransport && <span className={styles.transportOptionRecommended}>Selected</span>}
-                                                                      </div>
-                                                                      <span className={styles.transportOptionMeta}>Enter your own transport method and cost</span>
-                                                                    </button>
-
-                                                                    {isCustomTransport && (
-                                                                      <div className={styles.customTransportEditor}>
-                                                                        <div className={styles.customTransportGrid}>
-                                                                          <div className={styles.editTimelineField}>
-                                                                            <span className={styles.editTimelineLabel}>Custom transport</span>
-                                                                            <Input
-                                                                              placeholder="e.g. Private motorbike"
-                                                                              value={String(travelFromPrevious?.transportModeName || '')}
-                                                                              onChange={(event) => updateCustomTransportInput(day.id, activity.id, { method: event?.target?.value || '' })}
-                                                                            />
-                                                                          </div>
-                                                                          <div className={styles.editTimelineField}>
-                                                                            <span className={styles.editTimelineLabel}>Custom transport cost</span>
-                                                                            <InputNumber
-                                                                              min={0}
-                                                                              style={{ width: '100%' }}
-                                                                              value={toNumberOrDefault(travelFromPrevious?.costAmount, 0)}
-                                                                              onChange={(value) => updateCustomTransportInput(day.id, activity.id, { cost: value == null ? 0 : value })}
-                                                                              placeholder={`0 ${tripInfo.currencyCode}`}
-                                                                            />
-                                                                          </div>
-                                                                        </div>
-                                                                      </div>
-                                                                    )}
-                                                                  </div>
-                                                                )
-                                                              }
-                                                            ]}
-                                                          />
-                                                        </div>
-                                                      )}
-                                                    </div>
+                                                    {(showTransitSegments ? segmentCards : segmentCards.filter((segment) => segment.key === 'main'))
+                                                      .map((segment) => renderTravelSegmentCard(segment))}
                                                   </div>
                                                 </div>
                                               )}
