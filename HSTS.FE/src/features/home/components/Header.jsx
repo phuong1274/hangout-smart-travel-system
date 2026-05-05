@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/features/auth/hooks/useAuth';
 import { PATHS } from '@/routes/paths';
 import WebLogo from '../assets/WebLogo.svg';
-import styles from '../styles/Header.module.css'; 
+import styles from '../styles/Header.module.css';
 
 const { Text } = Typography;
 
@@ -65,8 +65,7 @@ const AppHeader = ({ destinations = [] }) => {
     },
   ];
 
-  const initials = user?.username?.charAt(0)?.toUpperCase() ?? '?';
-
+  const initials = user?.username?.charAt(0)?.toUpperCase();
   const menuItems = (
     <>
       {locationLink}
@@ -76,14 +75,15 @@ const AppHeader = ({ destinations = [] }) => {
       <Link to={PATHS.CREATE_TRIP}>
         <Text className={styles.navLink}>Plan a Trip</Text>
       </Link>
-      
+
       {user ? (
         <Dropdown menu={{ items: userDropdownItems }} placement="bottomRight" trigger={['click']}>
           <div className={styles.headerAvatarWrapper}>
-            <Avatar 
-              size={40} 
+            <Avatar
+              size={40}
               src={user?.avatarUrl}
               className={styles.headerAvatar}
+              icon={(!user?.avatarUrl && !initials) ? <UserOutlined /> : null}
             >
               {!user?.avatarUrl && initials}
             </Avatar>
@@ -114,17 +114,17 @@ const AppHeader = ({ destinations = [] }) => {
         {menuItems}
       </Space>
 
-      <Button 
-        type="text" 
-        icon={<MenuOutlined style={{ fontSize: '24px', color: '#1A535C' }} />} 
-        onClick={showDrawer} 
-        className={styles.mobileMenuBtn} 
+      <Button
+        type="text"
+        icon={<MenuOutlined style={{ fontSize: '24px', color: '#1A535C' }} />}
+        onClick={showDrawer}
+        className={styles.mobileMenuBtn}
       />
 
-      <Drawer 
-        title={<span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, color: '#1A535C' }}>Menu</span>} 
-        placement="right" 
-        onClose={onClose} 
+      <Drawer
+        title={<span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, color: '#1A535C' }}>Menu</span>}
+        placement="right"
+        onClose={onClose}
         open={open}
         className={styles.mobileDrawer}
       >
