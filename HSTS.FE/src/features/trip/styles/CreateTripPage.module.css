@@ -1,5 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
+/* Hide AutoComplete mirror text node that leaks outside the input.
+   AutoComplete extends Select and renders a "mirror" text in .ant-select-content
+   for width measurement. With Space.Compact, this text becomes visible. */
+.mapSearchWrap :global(.ant-select-content) {
+  font-size: 0;
+  line-height: 0;
+}
+
+.mapSearchWrap :global(.ant-select-content) :global(.ant-input-affix-wrapper),
+.mapSearchWrap :global(.ant-select-content) input {
+  font-size: 14px;
+  line-height: normal;
+}
+
 .createTripPage {
   min-height: 100vh;
   background-color: #F7F9F9;

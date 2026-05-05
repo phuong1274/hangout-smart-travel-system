@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Form, InputNumber, DatePicker, Select, Button, Card, Radio, Typography, Row, Col, Checkbox, Tag, Spin, message, ConfigProvider, Steps, Alert } from 'antd';
+import { Form, Input, InputNumber, DatePicker, Select, Button, Card, Radio, Typography, Row, Col, Checkbox, Tag, Spin, message, ConfigProvider, Steps, Alert, AutoComplete, Space } from 'antd';
+import { SearchOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
@@ -9,6 +10,8 @@ import { useTripFormData, parseTripPrefillParams } from '../hooks/useTripFormDat
 import { useTripPlanner } from '../hooks/useTripPlanner';
 import { CURRENCY_OPTIONS } from '../constants/currency';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
+import MapLinkInput from '@/components/MapLinkInput';
+import useNominatimSearch from '@/hooks/useNominatimSearch';
 import { PATHS } from '@/routes/paths';
 import styles from '../styles/CreateTripPage.module.css';
 
@@ -88,6 +91,7 @@ const CreateTripPage = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [mapOpen, setMapOpen] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const { searchValue, searchOptions, searching, handleSearch, handleSelect } = useNominatimSearch();
   const [destinations, setDestinations] = useState([]);
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [activeParentTagId, setActiveParentTagId] = useState(null);
@@ -334,6 +338,14 @@ const CreateTripPage = () => {
     setMapOpen(false);
   }, [form]);
 
+  const handleMapLinkParsed = useCallback(({ lat, lng }) => {
+    if (lat != null && lng != null) {
+      setUserLocation({ latitude: lat, longitude: lng });
+      form.setFieldsValue({ latitude: lat, longitude: lng });
+      message.success('Location from map link applied!');
+    }
+  }, [form]);
+
   const handleAddDestination = useCallback((provinceId) => {
     if (!provinceId) return;
     if (destinations.find((d) => d.provinceId === provinceId)) {
@@ -552,6 +564,46 @@ const CreateTripPage = () => {
 
             <div className={currentStep === 0 ? styles.stepActive : styles.stepHidden}>
               <Card className={styles.sectionCard} title={<span className={styles.sectionTitle}>Where are you starting from?</span>}>
+                <div className={styles.mapSearchWrap} style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', width: '100%' }}>
+                    <AutoComplete
+                      style={{ flex: 1 }}
+                      options={searchOptions}
+                      value={searchValue}
+                      onSearch={handleSearch}
+                      onSelect={(value, option) => {
+                        const result = handleSelect(value, option);
+                        if (result) {
+                          setUserLocation({ latitude: result.lat, longitude: result.lon });
+                          form.setFieldsValue({ latitude: result.lat, longitude: result.lon });
+                          message.success('Location found!');
+                        }
+                      }}
+                      placeholder="Search for a place (e.g., 'Ben Thanh Market')"
+                    >
+                      <Input
+                        suffix={<SearchOutlined />}
+                        style={{
+                          borderRadius: '8px 0 0 8px',
+                          height: '44px'
+                        }}
+                      />
+                    </AutoComplete>
+
+                    <Button
+                      onClick={handleGetCurrentLocation}
+                      icon={<EnvironmentOutlined />}
+                      style={{
+                        borderRadius: '0 8px 8px 0',
+                        height: '44px',
+                        borderLeft: 0
+                      }}
+                    >
+                      My Location
+                    </Button>
+                  </div>
+                </div>
+                <MapLinkInput onParsed={handleMapLinkParsed} />
                 <div className={styles.mapInlineWrapper}>
                   <MapContainer center={mapCenter} zoom={12} style={{ width: '100%', height: 280, borderRadius: 16 }}>
                     <TileLayer url="http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" subdomains={['mt0', 'mt1', 'mt2', 'mt3']} attribution='© <a href="https://www.google.com/maps">Google Maps</a>' maxZoom={20} />
@@ -560,9 +612,6 @@ const CreateTripPage = () => {
                     <InlineMapCenterSync center={mapCenter} />
                   </MapContainer>
                 </div>
-                <Button type="dashed" block onClick={handleGetCurrentLocation} style={{ marginTop: 16, borderColor: '#4ECDC4', color: '#1A535C', backgroundColor: 'rgba(78, 205, 196, 0.1)' }}>
-                  Use My Current Location
-                </Button>
                 <GoogleMapPicker open={mapOpen} onClose={() => setMapOpen(false)} onConfirm={handleMapConfirm} initialLat={userLocation?.latitude} initialLng={userLocation?.longitude} />
               </Card>
 

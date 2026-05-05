@@ -160,6 +160,13 @@ const TripDetailPage = () => {
     }
   }, [id, refetchTrip]);
 
+  const handleOpenEditItinerary = useCallback(() => {
+    if (!trip?.id) return;
+    navigate(PATHS.CREATE_TRIP_MANUAL_BUILDER, {
+      state: { tripId: trip.id, editMode: true },
+    });
+  }, [navigate, trip?.id]);
+
   const handleExportItineraryPdf = () => {
     if (!trip) return;
     const hide = message.loading('Preparing PDF content...', 0);
@@ -1188,9 +1195,7 @@ const TripDetailPage = () => {
           {myMember?.role === 'Leader' && (
             <Button
               className={styles.saveTripFloatingBtn}
-              onClick={() => navigate(PATHS.CREATE_TRIP_MANUAL_BUILDER, {
-                state: { tripId: trip.id, editMode: true },
-              })}
+              onClick={handleOpenEditItinerary}
             >
               Edit Itinerary
             </Button>

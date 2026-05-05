@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { getAllSubmissionsApi, reviewSubmissionApi } from '../api';
 import { SubmissionStatus } from '../types';
 import BeforeAfterComparison from '../components/BeforeAfterComparison';
+import DuplicateLocationWarning from '../components/DuplicateLocationWarning';
 import SearchFilter from '@/components/UI/SearchFilter/SearchFilter';
 import AppPagination from '@/components/UI/AppPagination/AppPagination';
 import styles from '../styles/LocationSubmissionsReviewPage.module.css';
@@ -320,7 +321,17 @@ const LocationSubmissionsReviewPage = () => {
         >
           {viewingSubmission && (
             viewingSubmission.status === SubmissionStatus.Pending ? (
-              <BeforeAfterComparison submission={viewingSubmission} />
+              <div>
+                {/* Show duplicate warning for new location submissions (type 0) */}
+                {viewingSubmission.submissionType === 0 && viewingSubmission.name && (
+                  <DuplicateLocationWarning
+                    submissionName={viewingSubmission.name}
+                    submissionLat={viewingSubmission.latitude}
+                    submissionLng={viewingSubmission.longitude}
+                  />
+                )}
+                <BeforeAfterComparison submission={viewingSubmission} />
+              </div>
             ) : (
               <SubmissionDetail submission={viewingSubmission} />
             )
@@ -440,7 +451,7 @@ const SubmissionDetail = ({ submission }) => {
         <Descriptions.Item label="Telephone">{submission.telephone || 'N/A'}</Descriptions.Item>
         <Descriptions.Item label="Email">{submission.email || 'N/A'}</Descriptions.Item>
         <Descriptions.Item label="Price Range">
-          ${submission.priceMinUsd?.toFixed(2) || '0'} - ${submission.priceMaxUsd?.toFixed(2) || '0'}
+          {submission.priceMinUsd?.toFixed(2) || '0'} - {submission.priceMaxUsd?.toFixed(2) || '0'}
         </Descriptions.Item>
         <Descriptions.Item label="Score">{submission.score ? `${submission.score} / 5` : 'N/A'}</Descriptions.Item>
       </Descriptions>

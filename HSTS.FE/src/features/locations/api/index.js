@@ -44,6 +44,15 @@ export const getAllDistrictsApi = () => {
 // Alias for backward compatibility
 export const getAllDestinationsApi = getAllDistrictsApi;
 
+// Check for potentially duplicate locations by name similarity
+export const checkDuplicateLocationApi = ({ name, latitude, longitude, radiusKm = 5 }) => {
+  const params = { name };
+  if (latitude != null) params.latitude = latitude;
+  if (longitude != null) params.longitude = longitude;
+  if (radiusKm != null) params.radiusKm = radiusKm;
+  return apiClient.get('/api/Locations/check-duplicate', { params }).then(res => res.data);
+};
+
 export const getAllLocationTypesApi = () => {
   return apiClient.get('/api/LocationTypes').then(res => res.data);
 };

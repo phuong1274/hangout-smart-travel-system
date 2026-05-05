@@ -38,6 +38,9 @@ import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PATHS } from '@/routes/paths';
+import GoogleMapPicker from '@/components/GoogleMapPicker';
+import { convertCurrencyAmount } from '../constants/currency';
+import MapLinkInput from '@/components/MapLinkInput';
 import {
   estimateLocalTravelApi,
   getLocationTypesApi,
@@ -46,7 +49,6 @@ import {
   getTransportModesApi,
   saveTripApi,
   updateSavedTripApi,
-  getTripByIdApi,
   getTripDetailApi,
 } from '../api';
 import styles from './ManualTripPage.module.css';
@@ -101,7 +103,7 @@ const pickFirstText = (...values) => {
   return '';
 };
 
-const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
+const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND', targetCurrency = fallbackCurrency) => {
   const source = Array.isArray(rawOptions)
     ? rawOptions
     : (Array.isArray(rawOptions?.transportOptions)
@@ -184,6 +186,12 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
         ? recommendedValue.trim().toLowerCase() === 'true'
         : Boolean(recommendedValue);
 
+      const normalizedCostCurrency = costCurrency.toUpperCase();
+      const normalizedTargetCurrency = String(targetCurrency || fallbackCurrency).toUpperCase();
+      const convertedCostAmount = normalizedTargetCurrency !== normalizedCostCurrency
+        ? convertCurrencyAmount(costAmount, normalizedCostCurrency, normalizedTargetCurrency)
+        : costAmount;
+
       return {
         method,
         transportModeId: toPositiveIntOrNull(
@@ -195,15 +203,67 @@ const normalizeTransportOptions = (rawOptions, fallbackCurrency = 'VND') => {
           ?? option?.ModeId,
         ),
         travelMinutes,
-        costAmount,
-        costCurrency,
+        costAmount: Math.max(0, toNumberOrDefault(convertedCostAmount, 0)),
+        costCurrency: normalizedTargetCurrency,
         recommended,
         note: pickFirstText(option?.note, option?.Note),
         fromTransitHubName: pickFirstText(option?.fromTransitHubName, option?.FromTransitHubName),
         toTransitHubName: pickFirstText(option?.toTransitHubName, option?.ToTransitHubName),
+        firstMileEstimate: option?.firstMileEstimate ?? option?.FirstMileEstimate ?? null,
+        lastMileEstimate: option?.lastMileEstimate ?? option?.LastMileEstimate ?? null,
       };
     })
     .filter((option) => option.method || option.travelMinutes > 0 || option.costAmount > 0 || option.note);
+};
+
+const getMoneyCurrency = (value, fallback = 'VND') => {
+  const currency = value?.currency || value?.Currency || fallback;
+  return String(currency || fallback).toUpperCase();
+};
+
+const convertAmountToTripCurrency = (amount, sourceCurrency, tripCurrency) => {
+  const normalizedSource = String(sourceCurrency || 'VND').toUpperCase();
+  const normalizedTarget = String(tripCurrency || 'VND').toUpperCase();
+  if (normalizedSource === normalizedTarget) return amount;
+  return convertCurrencyAmount(amount, normalizedSource, normalizedTarget);
+};
+
+const getEstimateCostInTripCurrency = (estimate, tripCurrency) => {
+  if (!estimate) return 0;
+  const costSource = estimate?.selectedTotalCost
+    ?? estimate?.SelectedTotalCost
+    ?? estimate?.estimatedTotalCost
+    ?? estimate?.EstimatedTotalCost
+    ?? estimate?.costForGroup
+    ?? estimate?.CostForGroup;
+  const amount = Math.max(0, toMoneyAmount(costSource));
+  const currency = getMoneyCurrency(costSource, tripCurrency || 'VND');
+  return Math.max(0, toNumberOrDefault(convertAmountToTripCurrency(amount, currency, tripCurrency), 0));
+};
+
+const getTransportTotalCost = (travel, tripCurrency) => {
+  if (!travel) return 0;
+  if (travel?.isCustomTransport) {
+    return Math.max(0, toNumberOrDefault(travel?.costAmount, 0));
+  }
+
+  const options = normalizeTransportOptions(
+    travel?.transportOptions ?? travel?.TransportOptions,
+    tripCurrency || 'VND',
+    tripCurrency || 'VND',
+  );
+  const selectedIndex = getPreferredTransportOptionIndex(options, travel);
+  const selectedOption = selectedIndex != null ? options[selectedIndex] : options.find((option) => option.recommended);
+  const mainCost = Math.max(
+    0,
+    toNumberOrDefault(selectedOption?.costAmount, toNumberOrDefault(travel?.costAmount, 0)),
+  );
+  const firstMile = selectedOption?.firstMileEstimate ?? travel?.firstMileEstimate ?? null;
+  const lastMile = selectedOption?.lastMileEstimate ?? travel?.lastMileEstimate ?? null;
+
+  return Math.max(0, mainCost)
+    + getEstimateCostInTripCurrency(firstMile, tripCurrency)
+    + getEstimateCostInTripCurrency(lastMile, tripCurrency);
 };
 
 const getPreferredTransportOptionIndex = (options, travel) => {
@@ -287,6 +347,21 @@ const formatMoney = (amount, currencyCode = 'VND') => {
   return `${Math.round(Math.max(0, toNumberOrDefault(amount, 0))).toLocaleString('vi-VN')} ${currencyCode}`;
 };
 
+const formatNumberInput = (value) => {
+  if (value == null || value === '') return '';
+  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
+
+const parseNumberInput = (value) => (value ? value.replace(/,/g, '') : '');
+
+const splitDurationMinutes = (value) => {
+  const total = Math.max(0, Math.round(Number(value) || 0));
+  return {
+    hours: Math.floor(total / 60),
+    minutes: total % 60,
+  };
+};
+
 const formatMinutes = (minutes) => {
   const safe = Math.max(0, Math.round(toNumberOrDefault(minutes, 0)));
   const hourPart = Math.floor(safe / 60);
@@ -339,6 +414,7 @@ const normalizeTripInfo = (raw) => {
   if (!raw) return null;
   const startDate = raw.startDate || raw.StartDate || null;
   const endDate = raw.endDate || raw.EndDate || null;
+  const userLocation = raw.userLocation || raw.UserLocation || null;
   const totalBudget = toFiniteNumber(
     raw.totalBudget
     ?? raw.TotalBudget
@@ -359,6 +435,30 @@ const normalizeTripInfo = (raw) => {
     groupSize: Math.max(1, Math.round(toNumberOrDefault(raw.groupSize || raw.GroupSize, 1))),
     currencyCode: String(raw.currency || raw.currencyCode || raw.Currency || raw.CurrencyCode || 'VND').trim() || 'VND',
     totalBudget: totalBudget != null && totalBudget >= 0 ? totalBudget : null,
+    // Preserve any user-provided start/origin label (e.g. province name) so it can
+    // be persisted later when saving the manual trip. This mirrors the
+    // Itinerary editor which may persist a user origin into the first travel
+    // activity. The value may be just a textual label (no coordinates).
+    startingLocation: pickFirstText(raw.startingLocation, raw.StartingLocation) || null,
+    userLocation: userLocation
+      ? {
+        name: pickFirstText(
+          userLocation?.name,
+          userLocation?.Name,
+          userLocation?.locationName,
+          userLocation?.LocationName,
+        ) || null,
+        locationName: pickFirstText(
+          userLocation?.locationName,
+          userLocation?.LocationName,
+          userLocation?.name,
+          userLocation?.Name,
+        ) || null,
+        address: pickFirstText(userLocation?.address, userLocation?.Address) || null,
+        latitude: toFiniteNumber(userLocation?.latitude ?? userLocation?.Latitude),
+        longitude: toFiniteNumber(userLocation?.longitude ?? userLocation?.Longitude),
+      }
+      : null,
   };
 };
 
@@ -370,66 +470,66 @@ const normalizeDraftDays = (rawDays) => {
     dayTitle: String(day.dayTitle || `Day ${dayIndex + 1}`).trim(),
     activities: Array.isArray(day.activities)
       ? day.activities.map((activity, activityIndex) => {
-          const customLocation = activity.customLocation || activity.CustomLocation || null;
-          const normalizedCustom = customLocation
-            ? {
-                name: String(customLocation.name || customLocation.Name || activity.destinationName || '').trim(),
-                latitude: toFiniteNumber(customLocation.latitude ?? customLocation.Latitude),
-                longitude: toFiniteNumber(customLocation.longitude ?? customLocation.Longitude),
-                address: String(customLocation.address || customLocation.Address || activity.address || '').trim(),
-                description: String(customLocation.description || customLocation.Description || '').trim(),
-                locationTypeId: toFiniteNumber(
-                  customLocation.locationTypeId
-                  ?? customLocation.LocationTypeId
-                  ?? activity.locationTypeId
-                  ?? activity.LocationTypeId,
-                ),
-              }
-            : null;
-
-          const travel = activity.travelFromPrevious || activity.TravelFromPrevious || null;
-
-          return {
-            id: activity.id || createClientId(`activity-${dayIndex}-${activityIndex}`),
-            sourceType: activity.sourceType || (normalizedCustom ? 'custom' : 'existing'),
-            locationId: toFiniteNumber(activity.locationId ?? activity.LocationId) || null,
+        const customLocation = activity.customLocation || activity.CustomLocation || null;
+        const normalizedCustom = customLocation
+          ? {
+            name: String(customLocation.name || customLocation.Name || activity.destinationName || '').trim(),
+            latitude: toFiniteNumber(customLocation.latitude ?? customLocation.Latitude),
+            longitude: toFiniteNumber(customLocation.longitude ?? customLocation.Longitude),
+            address: String(customLocation.address || customLocation.Address || activity.address || '').trim(),
+            description: String(customLocation.description || customLocation.Description || '').trim(),
             locationTypeId: toFiniteNumber(
-              activity.locationTypeId
-              ?? activity.LocationTypeId
-              ?? normalizedCustom?.locationTypeId,
-            ) || null,
-            destinationName: String(activity.destinationName || activity.locationName || activity.LocationName || activity.title || '').trim(),
-            title: String(activity.title || '').trim(),
-            address: String(activity.address || activity.Address || normalizedCustom?.address || '').trim(),
-            startTime: normalizeTimeOnly(activity.startTime || activity.StartTime),
-            endTime: normalizeTimeOnly(activity.endTime || activity.EndTime),
-            customLocation: normalizedCustom,
-            travelFromPrevious: travel
-              ? {
-                  distanceKm: Math.max(0, toNumberOrDefault(travel.distanceKm ?? travel.DistanceKm, 0)),
-                  travelMinutes: Math.max(0, toNumberOrDefault(travel.travelMinutes ?? travel.TravelMinutes, 0)),
-                  costAmount: Math.max(0, toNumberOrDefault(travel.costAmount ?? travel.CostAmount, 0)),
-                  costCurrency: String(travel.costCurrency || travel.CostCurrency || 'VND').trim() || 'VND',
-                  transportModeId: toPositiveIntOrNull(travel.transportModeId ?? travel.TransportModeId),
-                  transportModeName: String(travel.transportModeName || travel.TransportModeName || travel.selectedMethod || travel.SelectedMethod || travel.mode || travel.Mode || '').trim() || null,
-                  departureTime: normalizeTimeOnly(travel.departureTime || travel.DepartureTime),
-                  arrivalTime: normalizeTimeOnly(travel.arrivalTime || travel.ArrivalTime),
-                  fromName: String(travel.fromName || travel.FromName || '').trim() || null,
-                  toName: String(travel.toName || travel.ToName || '').trim() || null,
-                  selectedOptionIndex: Number.isInteger(Number(travel.selectedOptionIndex))
-                    ? Number(travel.selectedOptionIndex)
-                    : null,
-                  manualCostOverride: Boolean(travel.manualCostOverride),
-                  isCustomTransport: Boolean(travel.isCustomTransport),
-                  transportOptions: normalizeTransportOptions(
-                    travel.transportOptions || travel.TransportOptions || [],
-                    String(travel.costCurrency || travel.CostCurrency || 'VND').trim() || 'VND',
-                  ),
-                }
-              : null,
-            estimatedCost: Math.max(0, toNumberOrDefault(activity.estimatedCost, 0)),
-          };
-        })
+              customLocation.locationTypeId
+              ?? customLocation.LocationTypeId
+              ?? activity.locationTypeId
+              ?? activity.LocationTypeId,
+            ),
+          }
+          : null;
+
+        const travel = activity.travelFromPrevious || activity.TravelFromPrevious || null;
+
+        return {
+          id: activity.id || createClientId(`activity-${dayIndex}-${activityIndex}`),
+          sourceType: activity.sourceType || (normalizedCustom ? 'custom' : 'existing'),
+          locationId: toFiniteNumber(activity.locationId ?? activity.LocationId) || null,
+          locationTypeId: toFiniteNumber(
+            activity.locationTypeId
+            ?? activity.LocationTypeId
+            ?? normalizedCustom?.locationTypeId,
+          ) || null,
+          destinationName: String(activity.destinationName || activity.locationName || activity.LocationName || activity.title || '').trim(),
+          title: String(activity.title || '').trim(),
+          address: String(activity.address || activity.Address || normalizedCustom?.address || '').trim(),
+          startTime: normalizeTimeOnly(activity.startTime || activity.StartTime),
+          endTime: normalizeTimeOnly(activity.endTime || activity.EndTime),
+          customLocation: normalizedCustom,
+          travelFromPrevious: travel
+            ? {
+              distanceKm: Math.max(0, toNumberOrDefault(travel.distanceKm ?? travel.DistanceKm, 0)),
+              travelMinutes: Math.max(0, toNumberOrDefault(travel.travelMinutes ?? travel.TravelMinutes, 0)),
+              costAmount: Math.max(0, toNumberOrDefault(travel.costAmount ?? travel.CostAmount, 0)),
+              costCurrency: String(travel.costCurrency || travel.CostCurrency || 'VND').trim() || 'VND',
+              transportModeId: toPositiveIntOrNull(travel.transportModeId ?? travel.TransportModeId),
+              transportModeName: String(travel.transportModeName || travel.TransportModeName || travel.selectedMethod || travel.SelectedMethod || travel.mode || travel.Mode || '').trim() || null,
+              departureTime: normalizeTimeOnly(travel.departureTime || travel.DepartureTime),
+              arrivalTime: normalizeTimeOnly(travel.arrivalTime || travel.ArrivalTime),
+              fromName: String(travel.fromName || travel.FromName || '').trim() || null,
+              toName: String(travel.toName || travel.ToName || '').trim() || null,
+              selectedOptionIndex: Number.isInteger(Number(travel.selectedOptionIndex))
+                ? Number(travel.selectedOptionIndex)
+                : null,
+              manualCostOverride: Boolean(travel.manualCostOverride),
+              isCustomTransport: Boolean(travel.isCustomTransport),
+              transportOptions: normalizeTransportOptions(
+                travel.transportOptions || travel.TransportOptions || [],
+                String(travel.costCurrency || travel.CostCurrency || 'VND').trim() || 'VND',
+              ),
+            }
+            : null,
+          estimatedCost: Math.max(0, toNumberOrDefault(activity.estimatedCost, 0)),
+        };
+      })
       : [],
   }));
 };
@@ -460,28 +560,44 @@ const convertDetailDaysToBuilderDays = (tripDays) => {
         address: '',
         startTime: normalizeTimeOnly(act.startTime),
         endTime: normalizeTimeOnly(act.endTime),
-        customLocation: null,
+        customLocation: (!(act.locationId && Number(act.locationId) > 0) && transport?.transport
+          && toFiniteNumber(transport.transport.customToTransitHubLatitude) != null
+          && toFiniteNumber(transport.transport.customToTransitHubLongitude) != null)
+          ? {
+            name: String(act.title || '').trim(),
+            latitude: toFiniteNumber(transport.transport.customToTransitHubLatitude),
+            longitude: toFiniteNumber(transport.transport.customToTransitHubLongitude),
+            address: String(transport.transport.customToTransitHubAddress || '').trim(),
+          }
+          : null,
         travelFromPrevious: transport
           ? (() => {
-              const savedModeId = toPositiveIntOrNull(transport.transport?.transportModeId);
-              const isCustom = savedModeId == null;
-              return {
-                distanceKm: Math.max(0, toNumberOrDefault(transport.transport?.distanceKm, 0)),
-                travelMinutes: Math.max(0, toNumberOrDefault(transport.transport?.travelTimeMinutes, 0)),
-                costAmount: Math.max(0, toNumberOrDefault(transport.budget?.estimateCost, 0)),
-                costCurrency: 'VND',
-                transportModeId: savedModeId,
-                transportModeName: String(transport.transport?.transportModeName || '').trim() || null,
-                departureTime: normalizeTimeOnly(transport.startTime),
-                arrivalTime: normalizeTimeOnly(transport.endTime),
-                fromName: null,
-                toName: null,
-                selectedOptionIndex: null,
-                manualCostOverride: isCustom,
-                isCustomTransport: isCustom,
-                transportOptions: [],
-              };
-            })()
+            const savedModeId = toPositiveIntOrNull(transport.transport?.transportModeId);
+            const isCustom = savedModeId == null;
+            return {
+              distanceKm: Math.max(0, toNumberOrDefault(transport.transport?.distanceKm, 0)),
+              travelMinutes: Math.max(0, toNumberOrDefault(transport.transport?.travelTimeMinutes, 0)),
+              costAmount: Math.max(0, toNumberOrDefault(transport.budget?.estimateCost, 0)),
+              costCurrency: 'VND',
+              transportModeId: savedModeId,
+              transportModeName: String(transport.transport?.transportModeName || '').trim() || null,
+              departureTime: normalizeTimeOnly(transport.startTime),
+              arrivalTime: normalizeTimeOnly(transport.endTime),
+              fromName: transport.transport?.customFromTransitHubName
+                || transport.transport?.yourLocationName
+                || transport.transport?.fromTransitHubName
+                || transport.transport?.fromLocationName
+                || null,
+              toName: transport.transport?.customToTransitHubName
+                || transport.transport?.toTransitHubName
+                || transport.transport?.toLocationName
+                || null,
+              selectedOptionIndex: null,
+              manualCostOverride: isCustom,
+              isCustomTransport: isCustom,
+              transportOptions: [],
+            };
+          })()
           : null,
         estimatedCost: Math.max(0, toNumberOrDefault(act.budget?.estimateCost, 0)),
       });
@@ -578,6 +694,7 @@ const ManualTripPage = () => {
   const [defaultProvinceId, setDefaultProvinceId] = useState(null);
   const [tripInfo, setTripInfo] = useState(null);
   const [manualTotalBudget, setManualTotalBudget] = useState(null);
+  const [manualContingencyFund, setManualContingencyFund] = useState(null);
   const [manualDays, setManualDays] = useState([]);
   const [transportOptionsBackfilled, setTransportOptionsBackfilled] = useState(false);
 
@@ -607,7 +724,7 @@ const ManualTripPage = () => {
   const [existingProvinceId, setExistingProvinceId] = useState(null);
   const [existingLocationId, setExistingLocationId] = useState(null);
   const [existingStartTime, setExistingStartTime] = useState('08:00');
-  const [existingEndTime, setExistingEndTime] = useState('09:30');
+  const [existingDurationMinutes, setExistingDurationMinutes] = useState(DEFAULT_ACTIVITY_DURATION_MINUTES);
   const [existingBudget, setExistingBudget] = useState(null);
 
   const [customName, setCustomName] = useState('');
@@ -617,10 +734,11 @@ const ManualTripPage = () => {
   const [customLat, setCustomLat] = useState(null);
   const [customLng, setCustomLng] = useState(null);
   const [customStartTime, setCustomStartTime] = useState('08:00');
-  const [customEndTime, setCustomEndTime] = useState('09:30');
+  const [customDurationMinutes, setCustomDurationMinutes] = useState(DEFAULT_ACTIVITY_DURATION_MINUTES);
   const [customBudget, setCustomBudget] = useState(null);
 
-  const [showTransportOptions, setShowTransportOptions] = useState(true);
+  const [openTransportOptionIds, setOpenTransportOptionIds] = useState({});
+  const [originMapOpen, setOriginMapOpen] = useState(false);
 
   const customLatValue = toFiniteNumber(customLat);
   const customLngValue = toFiniteNumber(customLng);
@@ -632,20 +750,40 @@ const ManualTripPage = () => {
     && customLngValue <= 180;
   const customMapCenter = hasCustomCoordinates ? [customLatValue, customLngValue] : DEFAULT_MAP_CENTER_VN;
   const customMapActiveKey = `${addLocationModal.open ? 'open' : 'closed'}-${addLocationModal.dayId || 'x'}-${hasCustomCoordinates ? 'picked' : 'empty'}`;
+  const existingDurationParts = splitDurationMinutes(existingDurationMinutes);
+  const customDurationParts = splitDurationMinutes(customDurationMinutes);
+
+  const updateDurationMinutes = useCallback((setter, nextHours, nextMinutes) => {
+    setter((prev) => {
+      const current = splitDurationMinutes(prev);
+      const hours = nextHours != null
+        ? Math.max(0, Math.round(Number(nextHours) || 0))
+        : current.hours;
+      const minutes = nextMinutes != null
+        ? Math.min(59, Math.max(0, Math.round(Number(nextMinutes) || 0)))
+        : current.minutes;
+      return (hours * 60) + minutes;
+    });
+  }, []);
 
   useEffect(() => {
     const queryTripId = Number(searchParams.get('tripId'));
     const stateTripId = Number(location?.state?.tripId);
+    const isEditMode = Boolean(location?.state?.editMode);
     const stateDefaultProvinceId = Number(location?.state?.defaultProvinceId);
-    const resolvedTripId = Number.isFinite(queryTripId) && queryTripId > 0
-      ? queryTripId
-      : (Number.isFinite(stateTripId) && stateTripId > 0 ? stateTripId : 0);
+    const resolvedTripId = isEditMode
+      ? (Number.isFinite(stateTripId) && stateTripId > 0
+        ? stateTripId
+        : (Number.isFinite(queryTripId) && queryTripId > 0 ? queryTripId : 0))
+      : (Number.isFinite(queryTripId) && queryTripId > 0
+        ? queryTripId
+        : (Number.isFinite(stateTripId) && stateTripId > 0 ? stateTripId : 0));
 
     setTripId(resolvedTripId > 0 ? resolvedTripId : null);
     setDefaultProvinceId(Number.isFinite(stateDefaultProvinceId) && stateDefaultProvinceId > 0
       ? stateDefaultProvinceId
       : null);
-    setEditMode(Boolean(location?.state?.editMode));
+    setEditMode(isEditMode);
     setTransportOptionsBackfilled(false);
   }, [location?.state?.tripId, location?.state?.defaultProvinceId, location?.state?.editMode, searchParams]);
 
@@ -657,17 +795,23 @@ const ManualTripPage = () => {
     const hydrate = async () => {
       setLoadingTrip(true);
 
-      const stateTripInfo = normalizeTripInfo(location?.state?.tripInfo);
+      const rawStateTripInfo = location?.state?.tripInfo;
+      const stateTripInfo = normalizeTripInfo(rawStateTripInfo);
       const draft = loadDraftFromStorage(tripId);
       const draftTripInfo = normalizeTripInfo(draft?.tripInfo);
       const draftBudget = toFiniteNumber(draft?.totalBudget);
+      const draftContingency = toFiniteNumber(draft?.contingencyFund);
+
+      const stateGroupSize = Number(rawStateTripInfo?.groupSize ?? rawStateTripInfo?.GroupSize);
+      const stateHasGroupSize = Number.isFinite(stateGroupSize) && stateGroupSize > 0;
 
       let resolvedTripInfo = draftTripInfo || stateTripInfo;
+      let resolvedContingency = draftContingency;
       let resolvedDays = normalizeDraftDays(draft?.days);
 
       const isEditMode = Boolean(location?.state?.editMode);
 
-      if (!resolvedTripInfo || (isEditMode && resolvedDays.length === 0)) {
+      if (!resolvedTripInfo || isEditMode) {
         try {
           if (isEditMode) {
             // Edit mode: load full trip detail (includes days/activities)
@@ -679,12 +823,57 @@ const ManualTripPage = () => {
                 budgetSummary: apiTrip.tripSummary,
               });
             }
-            if (resolvedDays.length === 0 && Array.isArray(apiTrip.tripDays)) {
+            if (resolvedContingency == null) {
+              resolvedContingency = toFiniteNumber(apiTrip?.tripSummary?.contingencyFund ?? apiTrip?.tripSummary?.ContingencyFund);
+            }
+
+            // Reconstruct starting point from the first Travel activity's transport.
+            // The starting point is persisted as a CustomFromTransitHub on the
+            // first travel leg (starting point -> first location).
+            if (!resolvedTripInfo?.startingLocation && !resolvedTripInfo?.userLocation) {
+              const firstDayActs = apiTrip.tripDays?.[0]?.activities;
+              const firstTravel = firstDayActs?.find((a) => a.type === 'Travel');
+              const t = firstTravel?.transport;
+              if (t) {
+                const originName = t.yourLocationName
+                  || t.customFromTransitHubName
+                  || t.fromTransitHubName
+                  || t.fromLocationName
+                  || null;
+                const originLat = toFiniteNumber(t.customFromTransitHubLatitude);
+                const originLng = toFiniteNumber(t.customFromTransitHubLongitude);
+                const originAddress = t.customFromTransitHubAddress || null;
+                if (originName || (originLat != null && originLng != null)) {
+                  resolvedTripInfo = {
+                    ...resolvedTripInfo,
+                    startingLocation: originName || 'Your Location',
+                    userLocation: (originLat != null && originLng != null)
+                      ? {
+                        name: originName || 'Your Location',
+                        locationName: originName || 'Your Location',
+                        address: originAddress,
+                        latitude: originLat,
+                        longitude: originLng,
+                      }
+                      : null,
+                  };
+                }
+              }
+            }
+
+            if (Array.isArray(apiTrip.tripDays)) {
               resolvedDays = convertDetailDaysToBuilderDays(apiTrip.tripDays);
             }
-          } else {
-            const apiTrip = await getTripByIdApi(tripId);
-            resolvedTripInfo = normalizeTripInfo(apiTrip);
+          } else if (!draftTripInfo && (!resolvedTripInfo || !stateHasGroupSize)) {
+            const apiTrip = await getTripDetailApi(tripId);
+            resolvedTripInfo = normalizeTripInfo({
+              ...apiTrip,
+              currencyCode: apiTrip.currency,
+              budgetSummary: apiTrip.tripSummary,
+            });
+            if (resolvedContingency == null) {
+              resolvedContingency = toFiniteNumber(apiTrip?.tripSummary?.contingencyFund ?? apiTrip?.tripSummary?.ContingencyFund);
+            }
           }
         } catch {
           if (!cancelled) {
@@ -699,6 +888,9 @@ const ManualTripPage = () => {
           draftBudget != null && draftBudget >= 0
             ? draftBudget
             : (resolvedTripInfo?.totalBudget != null && resolvedTripInfo.totalBudget >= 0 ? resolvedTripInfo.totalBudget : null),
+        );
+        setManualContingencyFund(
+          resolvedContingency != null && resolvedContingency >= 0 ? resolvedContingency : null,
         );
         setManualDays(resolvedDays);
         setLoadingTrip(false);
@@ -718,6 +910,7 @@ const ManualTripPage = () => {
     saveDraftToStorage(tripId, {
       tripInfo,
       totalBudget: manualTotalBudget,
+      contingencyFund: manualContingencyFund,
       days: manualDays,
       updatedAt: new Date().toISOString(),
     });
@@ -856,14 +1049,15 @@ const ManualTripPage = () => {
   }, [manualDays]);
 
   const totalTransportEstimated = useMemo(() => {
+    const currencyCode = tripInfo?.currencyCode || 'VND';
     return manualDays.reduce((sum, day) => {
       const dayTransport = (day.activities || []).reduce(
-        (daySum, activity) => daySum + Math.max(0, toNumberOrDefault(activity.travelFromPrevious?.costAmount, 0)),
+        (daySum, activity) => daySum + getTransportTotalCost(activity.travelFromPrevious, currencyCode),
         0,
       );
       return sum + dayTransport;
     }, 0);
-  }, [manualDays]);
+  }, [manualDays, tripInfo?.currencyCode]);
 
   const totalEstimated = useMemo(
     () => Math.max(0, totalActivityEstimated + totalTransportEstimated),
@@ -888,6 +1082,63 @@ const ManualTripPage = () => {
     if (tripStart && currentDay.isBefore(tripStart)) return true;
     if (tripEnd && currentDay.isAfter(tripEnd)) return true;
     return false;
+  };
+
+  const manualOrigin = useMemo(() => {
+    const origin = tripInfo?.userLocation || tripInfo?.UserLocation || null;
+    const latitude = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
+    const longitude = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    const hasCoordinates = latitude != null && longitude != null;
+    return {
+      name: pickFirstText(
+        hasCoordinates ? 'Your Location' : '',
+        hasCoordinates ? 'Your Location' : '',
+        tripInfo?.startingLocation,
+        tripInfo?.StartingLocation,
+      ) || '',
+      address: pickFirstText(origin?.address, origin?.Address) || '',
+      latitude,
+      longitude,
+    };
+  }, [tripInfo]);
+
+  const updateTripOrigin = useCallback((updater) => {
+    setTripInfo((prev) => {
+      if (!prev) return prev;
+      const currentOrigin = prev?.userLocation || prev?.UserLocation || {};
+      const nextOrigin = typeof updater === 'function' ? updater(currentOrigin) : updater;
+      return {
+        ...prev,
+        startingLocation: pickFirstText(nextOrigin?.name, prev?.startingLocation, prev?.StartingLocation) || null,
+        userLocation: nextOrigin,
+      };
+    });
+  }, []);
+
+  const getTripOriginEndpoint = useCallback(() => {
+    const origin = tripInfo?.userLocation || tripInfo?.UserLocation;
+    const fromLat = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
+    const fromLng = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    const fromLabel = pickFirstText(origin?.name, origin?.locationName, tripInfo?.startingLocation) || 'Your Location';
+    if (fromLat != null && fromLng != null) {
+      return { fromLat, fromLng, fromLabel };
+    }
+
+    const label = pickFirstText(tripInfo?.startingLocation, tripInfo?.StartingLocation);
+    return label ? { fromLabel: label } : null;
+  }, [tripInfo]);
+
+  // Resolve an origin endpoint for a given day index. Prefer the last activity of
+  // the previous day (if available) which contains coordinates or a locationId.
+  // Returns null when no usable origin endpoint is found.
+  const resolveOriginEndpointForDay = (dayIndex) => {
+    if (!Array.isArray(manualDays) || manualDays.length === 0) return null;
+    if (dayIndex == null || dayIndex <= 0) return null;
+    const prevDay = manualDays[dayIndex - 1];
+    const prevLastActivity = prevDay?.activities?.[prevDay.activities.length - 1];
+    if (!prevLastActivity) return null;
+    // getActivityEndpointForEstimate returns an object with fromLocationId or fromLat/fromLng
+    return getActivityEndpointForEstimate(prevLastActivity, 'from');
   };
 
   const updateDayField = (dayId, field, value) => {
@@ -1050,7 +1301,7 @@ const ManualTripPage = () => {
     setExistingLocations([]);
     setExistingLocationSearch('');
     setExistingStartTime('08:00');
-    setExistingEndTime('09:30');
+    setExistingDurationMinutes(DEFAULT_ACTIVITY_DURATION_MINUTES);
     setExistingBudget(null);
 
     setCustomName('');
@@ -1060,7 +1311,7 @@ const ManualTripPage = () => {
     setCustomLat(null);
     setCustomLng(null);
     setCustomStartTime('08:00');
-    setCustomEndTime('09:30');
+    setCustomDurationMinutes(DEFAULT_ACTIVITY_DURATION_MINUTES);
     setCustomBudget(null);
   }, [defaultProvinceId]);
 
@@ -1069,13 +1320,13 @@ const ManualTripPage = () => {
     const lastActivity = targetDay?.activities?.[targetDay.activities.length - 1];
 
     const nextStart = toInputTimeValue(lastActivity?.endTime, '08:00');
-    const nextEnd = toInputTimeValue(addMinutesToTime(`${nextStart}:00`, DEFAULT_ACTIVITY_DURATION_MINUTES), '09:30');
+    const nextDuration = durationBetweenTimes(lastActivity?.startTime, lastActivity?.endTime);
 
     resetAddLocationModal();
     setExistingStartTime(nextStart);
-    setExistingEndTime(nextEnd);
+    setExistingDurationMinutes(nextDuration);
     setCustomStartTime(nextStart);
-    setCustomEndTime(nextEnd);
+    setCustomDurationMinutes(nextDuration);
 
     setAddLocationModal({ open: true, dayId });
   };
@@ -1137,7 +1388,12 @@ const ManualTripPage = () => {
     }
   }, []);
 
-  const recalculateDayTravelAndEstimate = useCallback(async (activities) => {
+  // Recalculates intra-day travel estimates for a list of visit activities.
+  // Optional `originEndpoint` allows estimating travel from an external origin
+  // (e.g. user start location or previous day's last stop) to the first activity.
+  // originEndpoint shape mirrors getActivityEndpointForEstimate output for the
+  // "from" side: { fromLocationId } or { fromLat, fromLng }.
+  const recalculateDayTravelAndEstimate = useCallback(async (activities, originEndpoint = null, originalFirstTravel = null) => {
     if (!tripInfo) return activities;
 
     const normalized = activities.map((activity, index) => {
@@ -1151,6 +1407,77 @@ const ManualTripPage = () => {
 
       return { ...activity };
     });
+
+    // If an originEndpoint is provided, attempt to estimate a travel leg from
+    // that origin to the first activity and set travelFromPrevious on index 0
+    // accordingly. This brings parity with ItineraryResultPage which injects
+    // an origin→first-stop leg when originEndpoint is available.
+    // Only attempt an origin->first-stop estimate if the provided originEndpoint
+    // contains a valid endpoint the estimate API can consume: either a
+    // fromLocationId or fromLat/fromLng. Textual labels (startingLocation) are
+    // not sufficient for estimation and must not trigger the API call.
+    const originHasEstimateEndpoint = originEndpoint && (
+      originEndpoint.fromLocationId != null || (originEndpoint.fromLat != null && originEndpoint.fromLng != null)
+    );
+
+    if (originHasEstimateEndpoint && normalized.length > 0) {
+      try {
+        const first = normalized[0];
+        const toEndpoint = getActivityEndpointForEstimate(first, 'to');
+        const hasOriginToFirst = Object.keys({ ...originEndpoint, ...toEndpoint }).length > 0;
+        if (hasOriginToFirst) {
+          const departureTime = normalizeTimeOnly('08:00:00') || '08:00:00';
+          const groupSize = Math.max(1, Math.round(toNumberOrDefault(tripInfo.groupSize, 1)));
+          const currencyCode = tripInfo.currencyCode || 'VND';
+          const cacheKey = buildTravelCacheKey(originEndpoint, toEndpoint, groupSize, currencyCode);
+          const cached = travelCacheRef.current.get(cacheKey);
+          const travelLeg = cached
+            ? { ...cached, arrivalTime: null, ArrivalTime: null }
+            : await estimateLocalTravelApi({ ...originEndpoint, ...toEndpoint, groupSize, departureTime, currencyCode });
+          if (!cached) travelCacheRef.current.set(cacheKey, travelLeg);
+
+          const travelMinutesFromLeg = Math.max(0, toNumberOrDefault(travelLeg?.selectedTravelTimeMinutes ?? travelLeg?.SelectedTravelTimeMinutes, 0));
+          const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
+          const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+          const travelCostCurrency = getMoneyCurrency(selectedCost, tripInfo.currencyCode || 'VND');
+          const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
+          const travelCostFromLeg = Math.max(
+            0,
+            toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, tripInfo.currencyCode), 0),
+          );
+          const resolvedTransportModeId = toPositiveIntOrNull(travelLeg?.selectedTransportModeId ?? travelLeg?.SelectedTransportModeId ?? travelLeg?.transportModeId ?? travelLeg?.TransportModeId);
+          const normalizedTransportOptions = normalizeTransportOptions(travelLeg?.transportOptions ?? travelLeg?.TransportOptions ?? travelLeg?.options ?? travelLeg?.Options, currencyCode);
+          const selectedOptionIndex = getPreferredTransportOptionIndex(normalizedTransportOptions, originalFirstTravel);
+          const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
+          const resolvedTravelMinutes = Math.max(1, toNumberOrDefault(selectedOption?.travelMinutes, travelMinutesFromLeg || 1));
+          const autoStart = normalizeTimeOnly(travelLeg?.arrivalTime || travelLeg?.ArrivalTime) || addMinutesToTime(departureTime, resolvedTravelMinutes > 0 ? resolvedTravelMinutes : 20);
+
+          normalized[0] = {
+            ...first,
+            startTime: autoStart,
+            travelFromPrevious: {
+              distanceKm,
+              travelMinutes: resolvedTravelMinutes,
+              costAmount: selectedOption?.costAmount ?? travelCostFromLeg,
+              costCurrency: pickFirstText(selectedOption?.costCurrency, tripInfo.currencyCode, 'VND') || 'VND',
+              transportModeId: resolvedTransportModeId,
+              transportModeName: pickFirstText(selectedOption?.method) || null,
+              departureTime: departureTime,
+              arrivalTime: autoStart,
+              fromName: String(originEndpoint?.fromLabel || originEndpoint?.fromName || '').trim() || null,
+              toName: getActivityDisplayName(first, 'Destination'),
+              selectedOptionIndex: selectedOptionIndex,
+              manualCostOverride: false,
+              isCustomTransport: false,
+              transportOptions: normalizedTransportOptions,
+            },
+            estimatedCost: Math.max(0, toNumberOrDefault(first.estimatedCost, 0)),
+          };
+        }
+      } catch {
+        // best-effort; ignore origin estimate failures
+      }
+    }
 
     for (let index = 1; index < normalized.length; index += 1) {
       const previous = normalized[index - 1];
@@ -1179,12 +1506,12 @@ const ManualTripPage = () => {
         const travelLeg = cached
           ? { ...cached, arrivalTime: null, ArrivalTime: null }
           : await estimateLocalTravelApi({
-              ...fromEndpoint,
-              ...toEndpoint,
-              groupSize,
-              departureTime,
-              currencyCode,
-            });
+            ...fromEndpoint,
+            ...toEndpoint,
+            groupSize,
+            departureTime,
+            currencyCode,
+          });
         if (!cached) travelCacheRef.current.set(cacheKey, travelLeg);
 
         const travelMinutesFromLeg = Math.max(
@@ -1195,9 +1522,12 @@ const ManualTripPage = () => {
           ),
         );
         const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
+        const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+        const travelCostCurrency = getMoneyCurrency(selectedCost, currencyCode);
+        const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
         const travelCostFromLeg = Math.max(
           0,
-          toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost),
+          toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, currencyCode), 0),
         );
         const transportModeIdFromLeg = toPositiveIntOrNull(
           travelLeg?.selectedTransportModeId
@@ -1211,6 +1541,7 @@ const ManualTripPage = () => {
           ?? travelLeg?.TransportOptions
           ?? travelLeg?.options
           ?? travelLeg?.Options,
+          currencyCode,
           currencyCode,
         );
         const isCustomTransport = Boolean(previousTravel?.isCustomTransport);
@@ -1250,12 +1581,7 @@ const ManualTripPage = () => {
             travelLeg?.mode,
             travelLeg?.Mode,
           ) || null);
-        const resolvedCurrency = pickFirstText(
-          selectedOption?.costCurrency,
-          previousTravel?.costCurrency,
-          currencyCode,
-          'VND',
-        ) || 'VND';
+        const resolvedCurrency = currencyCode || 'VND';
 
         normalized[index] = {
           ...current,
@@ -1291,6 +1617,71 @@ const ManualTripPage = () => {
     return normalized;
   }, [tripInfo, transportModeNameById]);
 
+  const recalculateFirstManualDayFromOrigin = useCallback(async (nextTripInfo) => {
+    if (!Array.isArray(manualDays) || manualDays.length === 0) return;
+    const firstDay = manualDays[0];
+    if (!firstDay || !Array.isArray(firstDay.activities) || firstDay.activities.length === 0) return;
+
+    const origin = nextTripInfo?.userLocation || nextTripInfo?.UserLocation;
+    const fromLat = toFiniteNumber(origin?.latitude ?? origin?.Latitude);
+    const fromLng = toFiniteNumber(origin?.longitude ?? origin?.Longitude);
+    const label = pickFirstText(
+      fromLat != null && fromLng != null ? 'Your Location' : '',
+      fromLat != null && fromLng != null ? 'Your Location' : '',
+      nextTripInfo?.startingLocation,
+      nextTripInfo?.StartingLocation,
+    );
+    const originEndpoint = fromLat != null && fromLng != null
+      ? { fromLat, fromLng, fromLabel: label || 'Your Location' }
+      : (label ? { fromLabel: label } : null);
+
+    try {
+      const recalculated = await recalculateDayTravelAndEstimate(firstDay.activities, originEndpoint);
+      setManualDays((prev) => prev.map((day, index) => (
+        index === 0 ? { ...day, activities: recalculated } : day
+      )));
+    } catch {
+      message.error('Unable to recalculate the first day after updating origin.');
+    }
+  }, [manualDays, recalculateDayTravelAndEstimate]);
+
+  const handleManualOriginMapConfirm = useCallback(async (lat, lng) => {
+    const nextTripInfo = {
+      ...tripInfo,
+      startingLocation: pickFirstText(tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your Location'),
+      userLocation: {
+        ...(tripInfo?.userLocation || tripInfo?.UserLocation || {}),
+        name: 'Your Location',
+        locationName: 'Your Location',
+        address: manualOrigin.address || null,
+        latitude: lat,
+        longitude: lng,
+      },
+    };
+    setTripInfo(nextTripInfo);
+    await recalculateFirstManualDayFromOrigin(nextTripInfo);
+    message.success('Trip origin updated on the map.');
+  }, [manualOrigin.address, manualOrigin.name, recalculateFirstManualDayFromOrigin, tripInfo]);
+
+  const handleOriginMapLinkParsed = useCallback(async ({ lat, lng, address, name }) => {
+    const nextTripInfo = {
+      ...tripInfo,
+      startingLocation: pickFirstText(name, tripInfo?.startingLocation, tripInfo?.StartingLocation, 'Your Location'),
+      userLocation: {
+        ...(tripInfo?.userLocation || tripInfo?.UserLocation || {}),
+        name: name || 'Your Location',
+        locationName: name || 'Your Location',
+        address: address || null,
+        ...(lat != null ? { latitude: lat } : {}),
+        ...(lng != null ? { longitude: lng } : {}),
+      },
+    };
+    setTripInfo(nextTripInfo);
+    if (lat != null && lng != null) {
+      await recalculateFirstManualDayFromOrigin(nextTripInfo);
+    }
+  }, [tripInfo, recalculateFirstManualDayFromOrigin]);
+
   // Estimates the travel leg from the last activity of the previous day to the first
   // activity of the current day. Returns an updated version of `toActivity` with
   // `travelFromPrevious` populated (or the original if estimation fails/has no endpoints).
@@ -1303,20 +1694,27 @@ const ManualTripPage = () => {
     if (!hasEndpoint) return toActivity;
 
     try {
-      const departureTime = normalizeTimeOnly(fromActivity.endTime) || '08:00:00';
+      const arrivalAnchor = normalizeTimeOnly(toActivity.startTime) || '08:00:00';
+      const apiDepartureTime = arrivalAnchor;
       const groupSize = Math.max(1, Math.round(toNumberOrDefault(tripInfo.groupSize, 1)));
       const currencyCode = tripInfo.currencyCode || 'VND';
       const cacheKey = buildTravelCacheKey(fromEndpoint, toEndpoint, groupSize, currencyCode);
       const cached = travelCacheRef.current.get(cacheKey);
       const travelLeg = cached
         ? { ...cached }
-        : await estimateLocalTravelApi({ ...fromEndpoint, ...toEndpoint, groupSize, departureTime, currencyCode });
+        : await estimateLocalTravelApi({ ...fromEndpoint, ...toEndpoint, groupSize, departureTime: apiDepartureTime, currencyCode });
       if (!cached) travelCacheRef.current.set(cacheKey, travelLeg);
 
       const travelMinutesFromLeg = Math.max(0, toNumberOrDefault(
         travelLeg?.selectedTravelTimeMinutes ?? travelLeg?.SelectedTravelTimeMinutes, 0));
       const distanceKm = Math.max(0, toNumberOrDefault(travelLeg?.distanceKm ?? travelLeg?.DistanceKm, 0));
-      const travelCostFromLeg = Math.max(0, toMoneyAmount(travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost));
+      const selectedCost = travelLeg?.selectedTotalCost ?? travelLeg?.SelectedTotalCost;
+      const travelCostCurrency = getMoneyCurrency(selectedCost, currencyCode);
+      const travelCostRaw = Math.max(0, toMoneyAmount(selectedCost));
+      const travelCostFromLeg = Math.max(
+        0,
+        toNumberOrDefault(convertAmountToTripCurrency(travelCostRaw, travelCostCurrency, currencyCode), 0),
+      );
       const transportModeIdFromLeg = toPositiveIntOrNull(
         travelLeg?.selectedTransportModeId ?? travelLeg?.SelectedTransportModeId
         ?? travelLeg?.transportModeId ?? travelLeg?.TransportModeId);
@@ -1325,6 +1723,7 @@ const ManualTripPage = () => {
         travelLeg?.transportOptions ?? travelLeg?.TransportOptions
         ?? travelLeg?.options ?? travelLeg?.Options,
         currencyCode,
+        currencyCode,
       );
       // Prefer restoring saved selection (by transportModeId/name) over just picking the recommended one
       const travelHint = existingTravel && !existingTravel.isCustomTransport ? existingTravel : null;
@@ -1332,8 +1731,11 @@ const ManualTripPage = () => {
       const selectedOption = selectedOptionIndex != null ? normalizedTransportOptions[selectedOptionIndex] : null;
 
       const resolvedTravelMinutes = Math.max(1, toNumberOrDefault(selectedOption?.travelMinutes, travelMinutesFromLeg || 1));
-      const autoStart = normalizeTimeOnly(travelLeg?.arrivalTime || travelLeg?.ArrivalTime)
-        || addMinutesToTime(departureTime, resolvedTravelMinutes > 0 ? resolvedTravelMinutes : 20);
+      const arrivalMinutes = toMinutesOfDay(arrivalAnchor);
+      const computedDeparture = arrivalMinutes != null
+        ? toTimeOnlyString(arrivalMinutes - resolvedTravelMinutes)
+        : apiDepartureTime;
+      const autoStart = arrivalAnchor;
       const desiredDuration = durationBetweenTimes(toActivity.startTime, toActivity.endTime);
       const autoEnd = addMinutesToTime(autoStart, desiredDuration);
 
@@ -1349,7 +1751,7 @@ const ManualTripPage = () => {
         travelLeg?.selectedMethod,
         travelLeg?.SelectedMethod,
       ) || null;
-      const resolvedCurrency = pickFirstText(selectedOption?.costCurrency, currencyCode, 'VND') || 'VND';
+      const resolvedCurrency = currencyCode || 'VND';
 
       return {
         ...toActivity,
@@ -1362,8 +1764,8 @@ const ManualTripPage = () => {
           costCurrency: resolvedCurrency,
           transportModeId: resolvedTransportModeId,
           transportModeName: resolvedTransportModeName,
-          departureTime,
-          arrivalTime: autoStart,
+          departureTime: computedDeparture,
+          arrivalTime: arrivalAnchor,
           fromName: getActivityDisplayName(fromActivity, 'Previous'),
           toName: getActivityDisplayName(toActivity, 'Destination'),
           selectedOptionIndex,
@@ -1399,13 +1801,12 @@ const ManualTripPage = () => {
     }
 
     const normalizedStart = normalizeTimeOnly(existingStartTime);
-    const normalizedEnd = normalizeTimeOnly(existingEndTime);
-    if (!normalizedStart || !normalizedEnd) {
-      message.warning('Please enter valid start and end time.');
+    if (!normalizedStart) {
+      message.warning('Please enter valid start time.');
       return;
     }
 
-    const duration = durationBetweenTimes(normalizedStart, normalizedEnd);
+    const duration = Math.max(1, Math.round(toNumberOrDefault(existingDurationMinutes, DEFAULT_ACTIVITY_DURATION_MINUTES)));
 
     setAddingLocation(true);
     try {
@@ -1428,7 +1829,16 @@ const ManualTripPage = () => {
         estimatedCost: Math.max(0, toNumberOrDefault(existingBudget, 0)),
       };
 
-      let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended]);
+      // Resolve origin endpoint: prefer previous day's last activity (coordinates)
+      // so we can estimate cross-day travel. If not available and the trip has a
+      // textual startingLocation, pass it as a fromLabel so the first-leg's
+      // fromName will reflect the user's provided origin even if no estimate
+      // is possible.
+      const originEndpointForAdd = (dayIndex > 0 && manualDays[dayIndex - 1]?.activities?.length > 0)
+        ? getActivityEndpointForEstimate(manualDays[dayIndex - 1].activities.at(-1), 'from')
+        : getTripOriginEndpoint();
+
+      let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended], originEndpointForAdd);
 
       // If this is the first location added to a non-first day, estimate travel from
       // the last activity of the previous day.
@@ -1446,6 +1856,26 @@ const ManualTripPage = () => {
       setManualDays((prev) => prev.map((item, index) => (
         index === dayIndex ? { ...item, activities: recalculated } : item
       )));
+
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed.
+      if (dayIndex + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIndex + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const originalFirst = nextDay.activities[0];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, originalFirst);
+            // Preserve the original activity's start/end times — only update
+            // travelFromPrevious, not the activity schedule itself.
+            updatedNextFirst.startTime = originalFirst.startTime;
+            updatedNextFirst.endTime = originalFirst.endTime;
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
 
       message.success('Location added. Estimate was recalculated automatically.');
       closeAddLocationModal();
@@ -1475,13 +1905,12 @@ const ManualTripPage = () => {
     }
 
     const normalizedStart = normalizeTimeOnly(customStartTime);
-    const normalizedEnd = normalizeTimeOnly(customEndTime);
-    if (!normalizedStart || !normalizedEnd) {
-      message.warning('Please enter valid start and end time.');
+    if (!normalizedStart) {
+      message.warning('Please enter valid start time.');
       return;
     }
 
-    const duration = durationBetweenTimes(normalizedStart, normalizedEnd);
+    const duration = Math.max(1, Math.round(toNumberOrDefault(customDurationMinutes, DEFAULT_ACTIVITY_DURATION_MINUTES)));
 
     setAddingLocation(true);
     try {
@@ -1511,7 +1940,11 @@ const ManualTripPage = () => {
         estimatedCost: Math.max(0, toNumberOrDefault(customBudget, 0)),
       };
 
-      let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended]);
+      const originEndpointForAdd = (dayIndex > 0 && manualDays[dayIndex - 1]?.activities?.length > 0)
+        ? getActivityEndpointForEstimate(manualDays[dayIndex - 1].activities.at(-1), 'from')
+        : getTripOriginEndpoint();
+
+      let recalculated = await recalculateDayTravelAndEstimate([...(day.activities || []), appended], originEndpointForAdd);
 
       // If this is the first location added to a non-first day, estimate travel from
       // the last activity of the previous day.
@@ -1529,6 +1962,26 @@ const ManualTripPage = () => {
       setManualDays((prev) => prev.map((item, index) => (
         index === dayIndex ? { ...item, activities: recalculated } : item
       )));
+
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed.
+      if (dayIndex + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIndex + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const originalFirst = nextDay.activities[0];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, originalFirst);
+            // Preserve the original activity's start/end times — only update
+            // travelFromPrevious, not the activity schedule itself.
+            updatedNextFirst.startTime = originalFirst.startTime;
+            updatedNextFirst.endTime = originalFirst.endTime;
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
 
       message.success('Custom location added. Estimate was recalculated automatically.');
       closeAddLocationModal();
@@ -1548,10 +2001,34 @@ const ManualTripPage = () => {
 
     setAddingLocation(true);
     try {
-      const recalculated = await recalculateDayTravelAndEstimate(nextActivities);
+      const originEndpointForRemove = (dayIndex > 0 && manualDays[dayIndex - 1]?.activities?.length > 0)
+        ? getActivityEndpointForEstimate(manualDays[dayIndex - 1].activities.at(-1), 'from')
+        : getTripOriginEndpoint();
+
+      const recalculated = await recalculateDayTravelAndEstimate(nextActivities, originEndpointForRemove);
       setManualDays((prev) => prev.map((item, index) => (
         index === dayIndex ? { ...item, activities: recalculated } : item
       )));
+
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed.
+      if (dayIndex + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIndex + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const originalFirst = nextDay.activities[0];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, originalFirst);
+            // Preserve the original activity's start/end times — only update
+            // travelFromPrevious, not the activity schedule itself.
+            updatedNextFirst.startTime = originalFirst.startTime;
+            updatedNextFirst.endTime = originalFirst.endTime;
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIndex + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
     } catch {
       message.error('Unable to recalculate estimates after removing location.');
     } finally {
@@ -1596,7 +2073,11 @@ const ManualTripPage = () => {
 
     setReorderRecalculating(true);
     try {
-      let recalculated = await recalculateDayTravelAndEstimate(reordered);
+      const originEndpointForReorder = (dayIdx > 0 && manualDays[dayIdx - 1]?.activities?.length > 0)
+        ? getActivityEndpointForEstimate(manualDays[dayIdx - 1].activities.at(-1), 'from')
+        : getTripOriginEndpoint();
+
+      let recalculated = await recalculateDayTravelAndEstimate(reordered, originEndpointForReorder);
 
       // If the first activity of a non-first day changed, re-estimate cross-day travel.
       if (dayIdx > 0 && recalculated.length > 0 && (oldIdx === 0 || newIdx === 0)) {
@@ -1611,6 +2092,21 @@ const ManualTripPage = () => {
       }
 
       setManualDays((prev) => prev.map((d, i) => (i === dayIdx ? { ...d, activities: recalculated } : d)));
+
+      // Re-estimate next day's cross-day travel since the current day's
+      // last activity may have changed after reorder.
+      if (dayIdx + 1 < manualDays.length && recalculated.length > 0) {
+        const nextDay = manualDays[dayIdx + 1];
+        if (nextDay?.activities?.length > 0) {
+          try {
+            const newLast = recalculated[recalculated.length - 1];
+            const updatedNextFirst = await estimateCrossDayTravel(newLast, nextDay.activities[0]);
+            setManualDays((prev) => prev.map((d, i) =>
+              i === dayIdx + 1 ? { ...d, activities: [updatedNextFirst, ...d.activities.slice(1)] } : d
+            ));
+          } catch { /* best effort */ }
+        }
+      }
     } catch {
       message.error('Unable to recalculate travel estimates after reordering.');
     } finally {
@@ -1756,10 +2252,25 @@ const ManualTripPage = () => {
     const backfill = async () => {
       try {
         const updates = await Promise.all(daysNeedingBackfill.map(async ({ dayIndex, day }) => {
-          // Preserve existing cross-day travelFromPrevious before recalculate strips it
-          const originalFirstTravel = dayIndex > 0 ? (day.activities?.[0]?.travelFromPrevious ?? null) : null;
-          let nextActivities = await recalculateDayTravelAndEstimate(day.activities || []);
-          
+          // Preserve existing first-activity travelFromPrevious before recalculate strips it
+          const originalFirstTravel = day.activities?.[0]?.travelFromPrevious ?? null;
+          // For Day 1, pass trip origin endpoint so starting-point transport is re-estimated
+          const originEndpoint = dayIndex === 0 ? getTripOriginEndpoint() : null;
+          // Strip isCustomTransport from the hint so getPreferredTransportOptionIndex
+          // still tries to match by modeName/transportModeId for selection
+          const selectionHint = originalFirstTravel
+            ? { ...originalFirstTravel, isCustomTransport: false }
+            : null;
+          let nextActivities = await recalculateDayTravelAndEstimate(day.activities || [], originEndpoint, selectionHint);
+
+          // If Day 1's first activity lost its transport, restore the original
+          if (dayIndex === 0 && nextActivities.length > 0 && nextActivities[0].travelFromPrevious == null && originalFirstTravel) {
+            nextActivities = [
+              { ...nextActivities[0], travelFromPrevious: originalFirstTravel },
+              ...nextActivities.slice(1),
+            ];
+          }
+
           // Also apply cross-day travel for the first activity if it's a non-first day
           if (dayIndex > 0 && nextActivities.length > 0 && nextActivities[0].travelFromPrevious == null) {
             const prevDay = manualDays[dayIndex - 1];
@@ -1797,6 +2308,13 @@ const ManualTripPage = () => {
       cancelled = true;
     };
   }, [manualDays, recalculateDayTravelAndEstimate, estimateCrossDayTravel, transportOptionsBackfilled, tripInfo]);
+
+  const handleCustomMapLinkParsed = ({ lat, lng, address, name }) => {
+    if (lat != null) setCustomLat(lat);
+    if (lng != null) setCustomLng(lng);
+    if (address) setCustomAddress(address);
+    if (name && !customName) setCustomName(name);
+  };
 
   const handlePickCustomLocationOnMap = (latitude, longitude) => {
     const safeLat = toFiniteNumber(latitude);
@@ -1883,17 +2401,20 @@ const ManualTripPage = () => {
         const visitStartTime = normalizeTimeOnly(activity.startTime);
         const visitEndTime = normalizeTimeOnly(activity.endTime);
 
-        // Cross-day first activity: activityIndex === 0 but travelFromPrevious is set (from previous day's last stop)
         const isCrossDayFirst = activityIndex === 0 && dayIndex > 0;
+        const isFirstActivityOfTrip = activityIndex === 0 && dayIndex === 0;
         const previousActivity = activityIndex > 0
           ? sourceActivities[activityIndex - 1]
           : (isCrossDayFirst ? manualDays[dayIndex - 1]?.activities?.at(-1) : null);
 
-        if ((activityIndex > 0 || isCrossDayFirst) && activity.travelFromPrevious) {
+        if (activity.travelFromPrevious) {
           const travelMethodText = String(activity.travelFromPrevious.transportModeName || '').trim();
           const travelMinutes = Math.max(1, Math.round(toNumberOrDefault(activity.travelFromPrevious.travelMinutes, 1)));
           const travelDistanceKm = Math.max(0, toNumberOrDefault(activity.travelFromPrevious.distanceKm, 0));
-          const travelCostAmount = Math.max(0, Math.round(toNumberOrDefault(activity.travelFromPrevious.costAmount, 0)));
+          const travelCostAmount = Math.max(
+            0,
+            Math.round(getTransportTotalCost(activity.travelFromPrevious, tripInfo?.currencyCode || 'VND')),
+          );
           const travelStartTime = normalizeTimeOnly(activity.travelFromPrevious.departureTime)
             || normalizeTimeOnly(previousActivity?.endTime)
             || visitStartTime
@@ -1905,6 +2426,50 @@ const ManualTripPage = () => {
           const fromEndpoint = toTransportEndpointPayload(previousActivity, fromLabel);
           const toEndpoint = toTransportEndpointPayload(activity, name || `Destination ${activityIndex + 1}`);
 
+          const transportPayload = {
+            transportModeId: toPositiveIntOrNull(activity.travelFromPrevious.transportModeId),
+            distanceKm: travelDistanceKm,
+            travelTimeMinutes: travelMinutes,
+            fromLocationId: fromEndpoint.locationId,
+            toLocationId: toEndpoint.locationId,
+            fromTransitHubId: null,
+            toTransitHubId: null,
+            customFromTransitHubId: null,
+            customToTransitHubId: null,
+            customFromTransitHub: fromEndpoint.customTransitHub,
+            customToTransitHub: toEndpoint.customTransitHub,
+          };
+
+          // If the saved trip has a textual startingLocation (e.g. province name)
+          // and the computed fromEndpoint does not reference a known locationId,
+          // preserve that startingLocation into the first travel's customFromTransitHub
+          // so backend and other flows can record the user-provided origin label.
+          if ((tripInfo?.startingLocation || tripInfo?.userLocation || tripInfo?.UserLocation) && (activityIndex === 0 || isCrossDayFirst) && !fromEndpoint.locationId) {
+            transportPayload.customFromTransitHub = transportPayload.customFromTransitHub || {};
+            transportPayload.customFromTransitHub.name = pickFirstText(
+              tripInfo?.userLocation?.name,
+              tripInfo?.userLocation?.locationName,
+              tripInfo?.UserLocation?.name,
+              tripInfo?.UserLocation?.LocationName,
+              tripInfo?.startingLocation,
+              tripInfo?.StartingLocation,
+            ) || 'Your location';
+            const originLat = toFiniteNumber(tripInfo?.userLocation?.latitude ?? tripInfo?.UserLocation?.latitude ?? tripInfo?.UserLocation?.Latitude);
+            const originLng = toFiniteNumber(tripInfo?.userLocation?.longitude ?? tripInfo?.UserLocation?.longitude ?? tripInfo?.UserLocation?.Longitude);
+            if (originLat != null && originLng != null) {
+              transportPayload.customFromTransitHub.latitude = originLat;
+              transportPayload.customFromTransitHub.longitude = originLng;
+            }
+            const originAddress = pickFirstText(
+              tripInfo?.userLocation?.address,
+              tripInfo?.UserLocation?.address,
+              tripInfo?.UserLocation?.Address,
+            );
+            if (originAddress) {
+              transportPayload.customFromTransitHub.address = originAddress;
+            }
+          }
+
           mappedActivities.push({
             type: 2,
             title: travelMethodText
@@ -1915,22 +2480,62 @@ const ManualTripPage = () => {
             locationId: null,
             customLocationId: null,
             customLocation: null,
-            transport: {
-              transportModeId: toPositiveIntOrNull(activity.travelFromPrevious.transportModeId),
-              distanceKm: travelDistanceKm,
-              travelTimeMinutes: travelMinutes,
-              fromLocationId: fromEndpoint.locationId,
-              toLocationId: toEndpoint.locationId,
-              fromTransitHubId: null,
-              toTransitHubId: null,
-              customFromTransitHubId: null,
-              customToTransitHubId: null,
-              customFromTransitHub: fromEndpoint.customTransitHub,
-              customToTransitHub: toEndpoint.customTransitHub,
-            },
+            transport: transportPayload,
             budget: {
               estimateCost: travelCostAmount,
             },
+          });
+        } else if (isFirstActivityOfTrip && !activity.travelFromPrevious
+          && (tripInfo?.startingLocation || tripInfo?.userLocation || tripInfo?.UserLocation)
+        ) {
+          // No travel estimate (textual starting location, no coords) but the trip
+          // has a starting point — create a minimal travel activity so the origin
+          // label is persisted via customFromTransitHub.
+          const originName = pickFirstText(
+            tripInfo?.userLocation?.name,
+            tripInfo?.userLocation?.locationName,
+            tripInfo?.UserLocation?.name,
+            tripInfo?.UserLocation?.LocationName,
+            tripInfo?.startingLocation,
+            tripInfo?.StartingLocation,
+          ) || 'Your location';
+          const originLat = toFiniteNumber(
+            tripInfo?.userLocation?.latitude ?? tripInfo?.UserLocation?.latitude ?? tripInfo?.UserLocation?.Latitude,
+          );
+          const originLng = toFiniteNumber(
+            tripInfo?.userLocation?.longitude ?? tripInfo?.UserLocation?.longitude ?? tripInfo?.UserLocation?.Longitude,
+          );
+          const originAddress = pickFirstText(
+            tripInfo?.userLocation?.address,
+            tripInfo?.UserLocation?.address,
+            tripInfo?.UserLocation?.Address,
+          );
+
+          mappedActivities.push({
+            type: 2,
+            title: `Move to ${name || 'Location 1'}`,
+            startTime: visitStartTime || '08:00:00',
+            endTime: visitStartTime || '08:00:00',
+            locationId: null,
+            customLocationId: null,
+            customLocation: null,
+            transport: {
+              transportModeId: null,
+              distanceKm: 0,
+              travelTimeMinutes: 0,
+              fromLocationId: null,
+              toLocationId: toPositiveIntOrNull(activity.locationId) || null,
+              customFromTransitHub: {
+                name: originName,
+                ...(originLat != null && originLng != null ? {
+                  latitude: originLat,
+                  longitude: originLng,
+                  address: originAddress || null,
+                } : {}),
+              },
+              customToTransitHub: null,
+            },
+            budget: { estimateCost: 0 },
           });
         }
 
@@ -1943,20 +2548,20 @@ const ManualTripPage = () => {
           customLocationId: null,
           customLocation: activity.customLocation
             ? (() => {
-                const resolvedCustomLocationTypeId = toPositiveIntOrNull(
-                  activity.customLocation.locationTypeId
-                  ?? activity.customLocation.LocationTypeId
-                  ?? activity.locationTypeId,
-                );
-                return {
-                  name: String(activity.customLocation.name || name).trim(),
-                  latitude: toNumberOrDefault(activity.customLocation.latitude, 0),
-                  longitude: toNumberOrDefault(activity.customLocation.longitude, 0),
-                  address: String(activity.customLocation.address || activity.address || '').trim() || null,
-                  description: String(activity.customLocation.description || activity.customLocation.Description || '').trim() || null,
-                  locationTypeId: resolvedCustomLocationTypeId,
-                };
-              })()
+              const resolvedCustomLocationTypeId = toPositiveIntOrNull(
+                activity.customLocation.locationTypeId
+                ?? activity.customLocation.LocationTypeId
+                ?? activity.locationTypeId,
+              );
+              return {
+                name: String(activity.customLocation.name || name).trim(),
+                latitude: toNumberOrDefault(activity.customLocation.latitude, 0),
+                longitude: toNumberOrDefault(activity.customLocation.longitude, 0),
+                address: String(activity.customLocation.address || activity.address || '').trim() || null,
+                description: String(activity.customLocation.description || activity.customLocation.Description || '').trim() || null,
+                locationTypeId: resolvedCustomLocationTypeId,
+              };
+            })()
             : null,
           transport: null,
           budget: {
@@ -1998,10 +2603,14 @@ const ManualTripPage = () => {
 
     const estimatedTotalCost = Math.round(Math.max(0, estimatedTransportCost + estimatedActivityCost));
     const requestedBudget = toFiniteNumber(manualTotalBudget);
+    const requestedContingency = toFiniteNumber(manualContingencyFund);
     const totalBudget = requestedBudget != null && requestedBudget >= 0
       ? Math.round(requestedBudget)
       : estimatedTotalCost;
-    const usableBudget = totalBudget;
+    const contingencyFund = requestedContingency != null && requestedContingency >= 0
+      ? Math.round(requestedContingency)
+      : null;
+    const usableBudget = Math.max(0, totalBudget - (contingencyFund || 0));
     const remainingBudget = Math.max(0, usableBudget - estimatedTotalCost);
 
     const payload = {
@@ -2021,7 +2630,7 @@ const ManualTripPage = () => {
         estimatedMealCost: 0,
         estimatedTotalCost,
         remainingBudget,
-        contingencyFund: null,
+        contingencyFund,
       },
     };
 
@@ -2082,7 +2691,7 @@ const ManualTripPage = () => {
                     {editMode ? `Editing: ${tripInfo.tripName}` : tripInfo.tripName}
                   </Title>
                   <Text style={{ color: 'rgba(255,255,255,0.86)' }}>
-                    {tripInfo.startDate || 'TBD'} to {tripInfo.endDate || 'TBD'} • {tripInfo.groupSize} people
+                    {tripInfo.startDate || 'TBD'} to {tripInfo.endDate || 'TBD'} • {tripInfo.groupSize} {tripInfo.groupSize === 1 ? 'person' : 'people'}
                   </Text>
                 </Col>
                 <Col>
@@ -2113,22 +2722,64 @@ const ManualTripPage = () => {
                   : 'Flow independent from Itinerary screen. Add each day and each location, estimate updates automatically.'}
               </Text>
 
+              <Card bordered={false} className={styles.originCard}>
+                <div className={styles.originHeaderRow}>
+                  <div>
+                    <Text strong>Trip origin</Text>
+                    <div className={styles.originSubtext}>This origin is used for the first travel leg and stays outside the draggable location list.</div>
+                  </div>
+                  <Space wrap>
+                    <Button onClick={() => setOriginMapOpen(true)}>Pick on Map</Button>
+                  </Space>
+                </div>
+                <MapLinkInput onParsed={handleOriginMapLinkParsed} />
+                <div className={styles.originMetaRow}>
+                  <Tag color={manualOrigin.latitude != null && manualOrigin.longitude != null ? 'processing' : 'default'}>
+                    {manualOrigin.latitude != null && manualOrigin.longitude != null
+                      ? `${manualOrigin.latitude.toFixed(6)}, ${manualOrigin.longitude.toFixed(6)}`
+                      : 'Pick on Map to set origin coordinates'}
+                  </Tag>
+                </div>
+              </Card>
+
               <div className={styles.optionalBudgetRow}>
                 <Text strong>Trip budget (optional)</Text>
-                <InputNumber
-                  min={0}
-                  style={{ width: 260 }}
-                  placeholder={`e.g. 10000000 ${tripInfo.currencyCode}`}
-                  value={manualTotalBudget}
-                  onChange={(value) => {
-                    const normalized = toFiniteNumber(value);
-                    if (normalized == null || normalized < 0) {
-                      setManualTotalBudget(null);
-                      return;
-                    }
-                    setManualTotalBudget(normalized);
-                  }}
-                />
+                <Space size={12} wrap>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Text type="secondary">Total budget</Text>
+                    <InputNumber
+                      min={0}
+                      style={{ width: 220 }}
+                      placeholder={`e.g. 10000000 ${tripInfo.currencyCode}`}
+                      value={manualTotalBudget}
+                      onChange={(value) => {
+                        const normalized = toFiniteNumber(value);
+                        if (normalized == null || normalized < 0) {
+                          setManualTotalBudget(null);
+                          return;
+                        }
+                        setManualTotalBudget(normalized);
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Text type="secondary">Contingency fund</Text>
+                    <InputNumber
+                      min={0}
+                      style={{ width: 220 }}
+                      placeholder={`e.g. 100000 ${tripInfo.currencyCode}`}
+                      value={manualContingencyFund}
+                      onChange={(value) => {
+                        const normalized = toFiniteNumber(value);
+                        if (normalized == null || normalized < 0) {
+                          setManualContingencyFund(null);
+                          return;
+                        }
+                        setManualContingencyFund(normalized);
+                      }}
+                    />
+                  </div>
+                </Space>
               </div>
 
               {!manualDays.length && (
@@ -2149,375 +2800,562 @@ const ManualTripPage = () => {
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
                 >
-                <SortableContext items={manualDays.map((d) => d.id)} strategy={verticalListSortingStrategy}>
-                <Space direction="vertical" size="large" className={styles.dayList}>
-                  {manualDays.map((day, dayIndex) => {
-                    const dayActivityEstimate = (day.activities || []).reduce(
-                      (sum, activity) => sum + Math.max(0, toNumberOrDefault(activity.estimatedCost, 0)),
-                      0,
-                    );
-                    const dayTransportEstimate = (day.activities || []).reduce(
-                      (sum, activity) => sum + Math.max(0, toNumberOrDefault(activity.travelFromPrevious?.costAmount, 0)),
-                      0,
-                    );
-                    const dayEstimate = dayActivityEstimate + dayTransportEstimate;
+                  <SortableContext items={manualDays.map((d) => d.id)} strategy={verticalListSortingStrategy}>
+                    <Space direction="vertical" size="large" className={styles.dayList}>
+                      {manualDays.map((day, dayIndex) => {
+                        const dayActivityEstimate = (day.activities || []).reduce(
+                          (sum, activity) => sum + Math.max(0, toNumberOrDefault(activity.estimatedCost, 0)),
+                          0,
+                        );
+                        const dayTransportEstimate = (day.activities || []).reduce(
+                          (sum, activity) => sum + getTransportTotalCost(activity.travelFromPrevious, tripInfo.currencyCode),
+                          0,
+                        );
+                        const dayEstimate = dayActivityEstimate + dayTransportEstimate;
 
-                    const collapseItems = [
-                      {
-                        key: '1',
-                        label: (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                            <Space>
-                              <span style={{ fontWeight: 600, color: '#1A535C' }}>{day.dayTitle || `Day ${dayIndex + 1}`}</span>
-                              <Tag color="cyan" style={{ margin: 0 }}>{formatMoney(dayEstimate, tripInfo.currencyCode)}</Tag>
-                            </Space>
-                          </div>
-                        ),
-                        extra: (
-                          <Space onClick={(e) => e.stopPropagation()}>
-                            <Button type="text" className={styles.btnSm} icon={<ArrowUpOutlined />} onClick={() => moveDayUp(day.id)} disabled={dayIndex === 0 || reorderRecalculating} title="Move day up" style={{ color: '#8c8c8c' }} />
-                            <Button type="text" className={styles.btnSm} icon={<ArrowDownOutlined />} onClick={() => moveDayDown(day.id)} disabled={dayIndex === manualDays.length - 1 || reorderRecalculating} title="Move day down" style={{ color: '#8c8c8c' }} />
-                            <Button type="dashed" className={styles.btnSm} icon={<PlusOutlined />} onClick={() => openAddLocationModal(day.id)}>Add Location</Button>
-                            <Button danger type="text" className={styles.btnSm} icon={<DeleteOutlined />} onClick={() => removeDay(day.id)} disabled={manualDays.length <= 1}>Remove Day</Button>
-                          </Space>
-                        ),
-                        children: (
-                          <>
-                            <Row gutter={[12, 12]}>
-                              <Col xs={24} md={12}>
-                                <Text>Date</Text>
-                                <DatePicker
-                                  style={{ width: '100%', marginTop: 6 }}
-                                  value={day.date ? dayjs(day.date) : null}
-                                  disabledDate={dayDateDisabled}
-                                  onChange={(value) => updateDayField(day.id, 'date', value ? value.format('YYYY-MM-DD') : '')}
-                                />
-                              </Col>
-                              <Col xs={24} md={12}>
-                                <Text>Day Title</Text>
-                                <Input
-                                  style={{ marginTop: 6 }}
-                                  value={day.dayTitle}
-                                  onChange={(event) => updateDayField(day.id, 'dayTitle', event.target.value)}
-                                />
-                              </Col>
-                            </Row>
+                        const collapseItems = [
+                          {
+                            key: '1',
+                            label: (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                                <Space>
+                                  <span style={{ fontWeight: 600, color: '#1A535C' }}>{day.dayTitle || `Day ${dayIndex + 1}`}</span>
+                                  <Tag color="cyan" style={{ margin: 0 }}>{formatMoney(dayEstimate, tripInfo.currencyCode)}</Tag>
+                                </Space>
+                              </div>
+                            ),
+                            extra: (
+                              <Space onClick={(e) => e.stopPropagation()}>
+                                <Button type="text" className={styles.btnSm} icon={<ArrowUpOutlined />} onClick={() => moveDayUp(day.id)} disabled={dayIndex === 0 || reorderRecalculating} title="Move day up" style={{ color: '#8c8c8c' }} />
+                                <Button type="text" className={styles.btnSm} icon={<ArrowDownOutlined />} onClick={() => moveDayDown(day.id)} disabled={dayIndex === manualDays.length - 1 || reorderRecalculating} title="Move day down" style={{ color: '#8c8c8c' }} />
+                                <Button type="dashed" className={styles.btnSm} icon={<PlusOutlined />} onClick={() => openAddLocationModal(day.id)}>Add Location</Button>
+                                <Button danger type="text" className={styles.btnSm} icon={<DeleteOutlined />} onClick={() => removeDay(day.id)} disabled={manualDays.length <= 1}>Remove Day</Button>
+                              </Space>
+                            ),
+                            children: (
+                              <>
+                                <Row gutter={[12, 12]}>
+                                  <Col xs={24} md={12}>
+                                    <Text>Date</Text>
+                                    <DatePicker
+                                      style={{ width: '100%', marginTop: 6 }}
+                                      value={day.date ? dayjs(day.date) : null}
+                                      disabledDate={dayDateDisabled}
+                                      onChange={(value) => updateDayField(day.id, 'date', value ? value.format('YYYY-MM-DD') : '')}
+                                    />
+                                  </Col>
+                                  <Col xs={24} md={12}>
+                                    <Text>Day Title</Text>
+                                    <Input
+                                      style={{ marginTop: 6 }}
+                                      value={day.dayTitle}
+                                      onChange={(event) => updateDayField(day.id, 'dayTitle', event.target.value)}
+                                    />
+                                  </Col>
+                                </Row>
 
-                            {(day.activities || []).length === 0 && (
-                              <Empty
-                                description="No location in this day"
-                                style={{ marginTop: 24, marginBottom: 4 }}
-                              >
-                                <Button icon={<PlusOutlined />} onClick={() => openAddLocationModal(day.id)}>
-                                  Add First Location
-                                </Button>
-                              </Empty>
-                            )}
+                                {(day.activities || []).length === 0 && (
+                                  <Empty
+                                    description="No location in this day"
+                                    style={{ marginTop: 24, marginBottom: 4 }}
+                                  >
+                                    <Button icon={<PlusOutlined />} onClick={() => openAddLocationModal(day.id)}>
+                                      Add First Location
+                                    </Button>
+                                  </Empty>
+                                )}
 
-                            {(day.activities || []).length > 0 && (
-                              <div className={styles.activityList}>
-                                <SortableContext
-                                  items={(day.activities || []).map((a) => a.id)}
-                                  strategy={verticalListSortingStrategy}
-                                >
-                                  <div className={styles.timeline} style={{ marginTop: 24 }}>
-                                    {(day.activities || []).map((activity, activityIndex) => {
-                                      const isLastActivity = activityIndex === (day.activities || []).length - 1;
-                                      const previousActivity = activityIndex > 0 ? day.activities?.[activityIndex - 1] : null;
-                                      const travelFromPrevious = activity.travelFromPrevious || null;
-                                      const transportOptions = normalizeTransportOptions(
-                                        travelFromPrevious?.transportOptions ?? travelFromPrevious?.TransportOptions,
-                                        tripInfo.currencyCode || 'VND',
-                                      );
-                                      const hasTransportOptions = transportOptions.length > 0;
-                                      const isCustomTransport = Boolean(travelFromPrevious?.isCustomTransport);
-                                      const selectedTransportOptionIndex = getPreferredTransportOptionIndex(transportOptions, travelFromPrevious);
-                                      const selectedTransportLabel = String(
-                                        (isCustomTransport ? (travelFromPrevious?.transportModeName || 'Custom') : '')
-                                        || travelFromPrevious?.transportModeName
-                                        || (toPositiveIntOrNull(travelFromPrevious?.transportModeId)
-                                          ? (transportModeNameById.get(toPositiveIntOrNull(travelFromPrevious?.transportModeId)) || '')
-                                          : '')
-                                        || '',
-                                      ).trim();
-                                      const fromLabel = pickFirstText(
-                                        travelFromPrevious?.fromName,
-                                        getActivityDisplayName(previousActivity, `Location ${activityIndex}`),
-                                        'Previous Location',
-                                      );
-                                      const toLabel = pickFirstText(
-                                        travelFromPrevious?.toName,
-                                        getActivityDisplayName(activity, `Location ${activityIndex + 1}`),
-                                        'Next Location',
-                                      );
+                                {(day.activities || []).length > 0 && (
+                                  <div className={styles.activityList}>
+                                    <SortableContext
+                                      items={(day.activities || []).map((a) => a.id)}
+                                      strategy={verticalListSortingStrategy}
+                                    >
+                                      <div className={styles.timeline} style={{ marginTop: 24 }}>
+                                        {(day.activities || []).map((activity, activityIndex) => {
+                                          const isLastActivity = activityIndex === (day.activities || []).length - 1;
+                                          const isFirstActivity = activityIndex === 0;
+                                          const previousActivity = activityIndex > 0 ? day.activities?.[activityIndex - 1] : null;
+                                          const travelFromPrevious = activity.travelFromPrevious || null;
+                                          const transportOptions = normalizeTransportOptions(
+                                            travelFromPrevious?.transportOptions ?? travelFromPrevious?.TransportOptions,
+                                            tripInfo.currencyCode || 'VND',
+                                          );
+                                          const isCustomTransport = Boolean(travelFromPrevious?.isCustomTransport);
+                                          const selectedTransportOptionIndex = getPreferredTransportOptionIndex(transportOptions, travelFromPrevious);
+                                          const selectedTransportOption = selectedTransportOptionIndex != null
+                                            ? transportOptions[selectedTransportOptionIndex]
+                                            : transportOptions.find((option) => option.recommended);
+                                          const selectedTransportLabel = String(
+                                            (isCustomTransport ? (travelFromPrevious?.transportModeName || 'Custom') : '')
+                                            || travelFromPrevious?.transportModeName
+                                            || (toPositiveIntOrNull(travelFromPrevious?.transportModeId)
+                                              ? (transportModeNameById.get(toPositiveIntOrNull(travelFromPrevious?.transportModeId)) || '')
+                                              : '')
+                                            || '',
+                                          ).trim();
+                                          const originLabel = pickFirstText(
+                                            travelFromPrevious?.fromName,
+                                            getActivityDisplayName(previousActivity, `Location ${activityIndex}`),
+                                            'Previous Location',
+                                          );
+                                          const destinationLabel = pickFirstText(
+                                            travelFromPrevious?.toName,
+                                            getActivityDisplayName(activity, `Location ${activityIndex + 1}`),
+                                            'Next Location',
+                                          );
+                                          const transitFrom = pickFirstText(
+                                            selectedTransportOption?.fromTransitHubName,
+                                            selectedTransportOption?.FromTransitHubName,
+                                            travelFromPrevious?.fromTransitHubName,
+                                            travelFromPrevious?.FromTransitHubName,
+                                          );
+                                          const transitTo = pickFirstText(
+                                            selectedTransportOption?.toTransitHubName,
+                                            selectedTransportOption?.ToTransitHubName,
+                                            travelFromPrevious?.toTransitHubName,
+                                            travelFromPrevious?.ToTransitHubName,
+                                          );
+                                          const firstMileEstimate = selectedTransportOption?.firstMileEstimate
+                                            ?? selectedTransportOption?.FirstMileEstimate
+                                            ?? travelFromPrevious?.firstMileEstimate
+                                            ?? travelFromPrevious?.FirstMileEstimate
+                                            ?? null;
+                                          const lastMileEstimate = selectedTransportOption?.lastMileEstimate
+                                            ?? selectedTransportOption?.LastMileEstimate
+                                            ?? travelFromPrevious?.lastMileEstimate
+                                            ?? travelFromPrevious?.LastMileEstimate
+                                            ?? null;
+                                          const showTransitSegments = Boolean(
+                                            transitFrom
+                                            || transitTo
+                                            || firstMileEstimate
+                                            || lastMileEstimate
+                                          );
 
-                                      return (
-                                        <React.Fragment key={activity.id}>
-                                          {travelFromPrevious && (activityIndex > 0 || dayIndex > 0) && (
-                                            <div className={styles.timelineItem}>
-                                              <div className={styles.timelineLine} />
-                                              <div className={styles.timelineTime}>
-                                                <span className={styles.timelineTimeStart}>{toInputTimeValue(travelFromPrevious.departureTime)}</span>
-                                                <span className={styles.timelineTimeEnd}>{toInputTimeValue(travelFromPrevious.arrivalTime)}</span>
-                                                <span className={styles.timelineDuration}>{formatMinutes(travelFromPrevious.travelMinutes)}</span>
-                                              </div>
-                                              <div className={styles.timelineIcon} style={{ background: 'rgba(255, 230, 109, 0.3)' }}>
-                                                <NavigationArrow size={24} weight="bold" color="#D89A00" />
-                                              </div>
-                                              <div className={styles.timelineContent}>
-                                                <div className={`${styles.card} ${styles.travelCard}`}>
-                                                  <div className={styles.travelRoute}>
-                                                    <div className={styles.travelPoint}>
-                                                      <div className={styles.dot}></div>
-                                                      <span>{fromLabel}</span>
-                                                    </div>
-                                                    <div className={styles.travelLine}>
-                                                      <div className={styles.travelIconWrapper}>
-                                                        <NavigationArrow size={24} weight="bold" color="#D89A00" />
-                                                      </div>
-                                                    </div>
-                                                    <div className={styles.travelPoint}>
-                                                      <div className={styles.dot}></div>
-                                                      <span>{toLabel}</span>
-                                                    </div>
-                                                  </div>
+                                          const getEstimateMinutes = (estimate) => toNumberOrDefault(
+                                            estimate?.selectedTravelTimeMinutes
+                                            ?? estimate?.SelectedTravelTimeMinutes
+                                            ?? estimate?.travelMinutes
+                                            ?? estimate?.TravelMinutes
+                                            ?? estimate?.estimatedTravelMinutes
+                                            ?? estimate?.EstimatedTravelMinutes,
+                                            0,
+                                          );
+                                          const getEstimateDistanceKm = (estimate) => Math.max(
+                                            0,
+                                            toNumberOrDefault(estimate?.distanceKm ?? estimate?.DistanceKm, 0),
+                                          );
+                                          const getEstimateCostValue = (estimate) => toMoneyAmount(
+                                            estimate?.selectedTotalCost
+                                            ?? estimate?.SelectedTotalCost
+                                            ?? estimate?.estimatedTotalCost
+                                            ?? estimate?.EstimatedTotalCost
+                                            ?? estimate?.costForGroup
+                                            ?? estimate?.CostForGroup,
+                                          );
+                                          const getEstimateCurrency = (estimate) => getMoneyCurrency(
+                                            estimate?.selectedTotalCost
+                                            ?? estimate?.SelectedTotalCost
+                                            ?? estimate?.estimatedTotalCost
+                                            ?? estimate?.EstimatedTotalCost
+                                            ?? estimate?.costForGroup
+                                            ?? estimate?.CostForGroup,
+                                            tripInfo.currencyCode || 'VND',
+                                          );
+                                          const getEstimateOptions = (estimate) => normalizeTransportOptions(
+                                            estimate?.transportOptions ?? estimate?.TransportOptions,
+                                            tripInfo.currencyCode || 'VND',
+                                          );
+                                          const getRecommendedOptionIndex = (options) => {
+                                            if (!Array.isArray(options) || options.length === 0) return null;
+                                            const recommendedIndex = options.findIndex((option) => option.recommended);
+                                            return recommendedIndex >= 0 ? recommendedIndex : 0;
+                                          };
+                                          const getSegmentMethodLabel = (estimate, options) => {
+                                            const recommendedIdx = getRecommendedOptionIndex(options);
+                                            const recommendedOption = recommendedIdx != null ? options[recommendedIdx] : null;
+                                            return pickFirstText(
+                                              estimate?.selectedMethod,
+                                              estimate?.SelectedMethod,
+                                              recommendedOption?.method,
+                                              recommendedOption?.Method,
+                                            );
+                                          };
 
-                                                  <div className={styles.travelMetaLine}>
-                                                    <div className={styles.travelMeta}>
-                                                      <ClockIcon size={16} weight="bold" />
-                                                      <Text style={{ color: '#D89A00', fontWeight: 600 }}>
-                                                        {formatMinutes(travelFromPrevious.travelMinutes)}
-                                                        {travelFromPrevious.distanceKm > 0 ? ` • ${travelFromPrevious.distanceKm.toFixed(travelFromPrevious.distanceKm >= 10 ? 0 : 1)} km` : ''}
-                                                        {selectedTransportLabel ? ` • ${selectedTransportLabel}` : ''}
-                                                      </Text>
-                                                    </div>
-                                                  </div>
+                                          const buildTravelMetaText = (minutes, distanceKm, method) => {
+                                            const items = [];
+                                            if (minutes > 0) items.push(formatMinutes(minutes));
+                                            if (distanceKm > 0) items.push(`${distanceKm.toFixed(distanceKm >= 10 ? 0 : 1)} km`);
+                                            if (method) items.push(method);
+                                            return items.join(' • ');
+                                          };
 
-                                                  <div className={styles.travelCost}>
-                                                    <span className={styles.costAmount}>{formatMoney(travelFromPrevious.costAmount, travelFromPrevious.costCurrency || tripInfo.currencyCode)}</span>
-                                                  </div>
+                                          const mainMinutes = Math.max(
+                                            0,
+                                            toNumberOrDefault(selectedTransportOption?.travelMinutes, toNumberOrDefault(travelFromPrevious?.travelMinutes, 0)),
+                                          );
+                                          const mainDistanceKm = Math.max(0, toNumberOrDefault(travelFromPrevious?.distanceKm, 0));
+                                          const mainCostAmount = Math.max(
+                                            0,
+                                            toNumberOrDefault(selectedTransportOption?.costAmount, toNumberOrDefault(travelFromPrevious?.costAmount, 0)),
+                                          );
+                                          const mainCostCurrency = String(
+                                            selectedTransportOption?.costCurrency
+                                            || travelFromPrevious?.costCurrency
+                                            || tripInfo.currencyCode
+                                            || 'VND',
+                                          ).trim() || 'VND';
+                                          const mainFromLabel = showTransitSegments ? (transitFrom || originLabel) : originLabel;
+                                          const mainToLabel = showTransitSegments ? (transitTo || destinationLabel) : destinationLabel;
 
-                                                  {hasTransportOptions && (
-                                                    <div className={styles.transportOptionsSection}>
-                                                      <Collapse
-                                                        activeKey={showTransportOptions ? ['1'] : []}
-                                                        onChange={(keys) => setShowTransportOptions(keys.length > 0)}
-                                                        className={styles.innerCollapse}
-                                                        bordered={false}
-                                                        expandIconPosition="end"
-                                                        items={[
-                                                          {
-                                                            key: '1',
-                                                            className: styles.innerCollapsePanel,
-                                                            label: <span className={styles.innerCollapseLabel}>Transport options ({transportOptions.length + 1})</span>,
-                                                            children: (
-                                                              <div className={styles.transportOptionList}>
-                                                                {transportOptions.map((option, optionIndex) => {
-                                                                  const optionSelected = selectedTransportOptionIndex === optionIndex;
-                                                                  return (
-                                                                    <button
-                                                                      key={`${activity.id}-transport-option-${optionIndex}`}
-                                                                      type="button"
-                                                                      className={`${styles.transportOptionItem} ${optionSelected ? styles.transportOptionItemSelected : ''}`}
-                                                                      onClick={() => selectActivityTransportOption(day.id, activity.id, optionIndex)}
-                                                                      disabled={addingLocation}
-                                                                    >
-                                                                      <div className={styles.transportOptionMain}>
-                                                                        <span className={styles.transportOptionName}>{option.method || `Option ${optionIndex + 1}`}</span>
-                                                                        {option.recommended && <span className={styles.transportOptionRecommended}>Recommended</span>}
-                                                                      </div>
-                                                                      <span className={styles.transportOptionMeta}>
-                                                                        {option.travelMinutes > 0 ? formatMinutes(option.travelMinutes) : 'N/A'}
-                                                                        {' • '}
-                                                                        {formatMoney(option.costAmount, option.costCurrency || tripInfo.currencyCode)}
-                                                                      </span>
-                                                                      {option.note && (
-                                                                        <span className={styles.transportOptionNote}>{option.note}</span>
-                                                                      )}
-                                                                    </button>
-                                                                  );
-                                                                })}
+                                          const segmentCards = [];
+                                          if (showTransitSegments && firstMileEstimate) {
+                                            const options = getEstimateOptions(firstMileEstimate);
+                                            const selectedIdx = getRecommendedOptionIndex(options);
+                                            segmentCards.push({
+                                              key: 'first',
+                                              fromLabel: pickFirstText(firstMileEstimate?.fromName, firstMileEstimate?.FromName, originLabel),
+                                              toLabel: pickFirstText(firstMileEstimate?.toName, firstMileEstimate?.ToName, transitFrom || destinationLabel),
+                                              minutes: getEstimateMinutes(firstMileEstimate),
+                                              distanceKm: getEstimateDistanceKm(firstMileEstimate),
+                                              method: getSegmentMethodLabel(firstMileEstimate, options),
+                                              costAmount: getEstimateCostValue(firstMileEstimate),
+                                              costCurrency: getEstimateCurrency(firstMileEstimate),
+                                              options,
+                                              selectedIndex: selectedIdx,
+                                              allowSelect: false,
+                                              showCustomOption: false,
+                                            });
+                                          }
 
-                                                                <button
-                                                                  type="button"
-                                                                  className={`${styles.transportOptionItem} ${isCustomTransport ? styles.transportOptionItemSelected : ''}`}
-                                                                  onClick={() => selectCustomTransportOption(day.id, activity.id)}
-                                                                  disabled={addingLocation}
-                                                                >
-                                                                  <div className={styles.transportOptionMain}>
-                                                                    <span className={styles.transportOptionName}>Custom</span>
-                                                                    {isCustomTransport && <span className={styles.transportOptionRecommended}>Selected</span>}
-                                                                  </div>
-                                                                  <span className={styles.transportOptionMeta}>Enter your own transport method and cost</span>
-                                                                </button>
+                                          segmentCards.push({
+                                            key: 'main',
+                                            fromLabel: mainFromLabel,
+                                            toLabel: mainToLabel,
+                                            minutes: mainMinutes,
+                                            distanceKm: mainDistanceKm,
+                                            method: selectedTransportLabel,
+                                            costAmount: mainCostAmount,
+                                            costCurrency: mainCostCurrency,
+                                            options: transportOptions,
+                                            selectedIndex: selectedTransportOptionIndex,
+                                            allowSelect: true,
+                                            showCustomOption: true,
+                                          });
 
-                                                                {isCustomTransport && (
-                                                                  <div className={styles.customTransportEditor}>
-                                                                    <div className={styles.customTransportGrid}>
-                                                                      <div className={styles.editTimelineField}>
-                                                                        <span className={styles.editTimelineLabel}>Custom transport</span>
-                                                                        <Input
-                                                                          placeholder="e.g. Private motorbike"
-                                                                          value={String(travelFromPrevious?.transportModeName || '')}
-                                                                          onChange={(event) => updateCustomTransportInput(day.id, activity.id, { method: event?.target?.value || '' })}
-                                                                        />
-                                                                      </div>
-                                                                      <div className={styles.editTimelineField}>
-                                                                        <span className={styles.editTimelineLabel}>Custom transport cost</span>
-                                                                        <InputNumber
-                                                                          min={0}
-                                                                          style={{ width: '100%' }}
-                                                                          value={toNumberOrDefault(travelFromPrevious?.costAmount, 0)}
-                                                                          onChange={(value) => updateCustomTransportInput(day.id, activity.id, { cost: value == null ? 0 : value })}
-                                                                          placeholder={`0 ${tripInfo.currencyCode}`}
-                                                                        />
-                                                                      </div>
+                                          if (showTransitSegments && lastMileEstimate) {
+                                            const options = getEstimateOptions(lastMileEstimate);
+                                            const selectedIdx = getRecommendedOptionIndex(options);
+                                            segmentCards.push({
+                                              key: 'last',
+                                              fromLabel: pickFirstText(lastMileEstimate?.fromName, lastMileEstimate?.FromName, transitTo || originLabel),
+                                              toLabel: pickFirstText(lastMileEstimate?.toName, lastMileEstimate?.ToName, destinationLabel),
+                                              minutes: getEstimateMinutes(lastMileEstimate),
+                                              distanceKm: getEstimateDistanceKm(lastMileEstimate),
+                                              method: getSegmentMethodLabel(lastMileEstimate, options),
+                                              costAmount: getEstimateCostValue(lastMileEstimate),
+                                              costCurrency: getEstimateCurrency(lastMileEstimate),
+                                              options,
+                                              selectedIndex: selectedIdx,
+                                              allowSelect: false,
+                                              showCustomOption: false,
+                                            });
+                                          }
+
+                                          const renderTransportOptionsList = (segment) => {
+                                            const optionCount = segment.options.length + (segment.showCustomOption ? 1 : 0);
+                                            if (optionCount === 0) return null;
+
+                                            const transportPanelKey = `${activity.id}-${segment.key}`;
+                                            const isTransportOptionsOpen = openTransportOptionIds[transportPanelKey] ?? true;
+
+                                            return (
+                                              <div className={styles.transportOptionsSection}>
+                                                <Collapse
+                                                  activeKey={isTransportOptionsOpen ? ['1'] : []}
+                                                  onChange={(keys) => setOpenTransportOptionIds((prev) => ({
+                                                    ...prev,
+                                                    [transportPanelKey]: keys.length > 0,
+                                                  }))}
+                                                  className={styles.innerCollapse}
+                                                  bordered={false}
+                                                  expandIconPosition="end"
+                                                  items={[
+                                                    {
+                                                      key: '1',
+                                                      className: styles.innerCollapsePanel,
+                                                      label: <span className={styles.innerCollapseLabel}>Transport options ({optionCount})</span>,
+                                                      children: (
+                                                        <div className={styles.transportOptionList}>
+                                                          {segment.options.map((option, optionIndex) => {
+                                                            const optionSelected = segment.selectedIndex === optionIndex;
+                                                            return (
+                                                              <button
+                                                                key={`${activity.id}-${segment.key}-transport-option-${optionIndex}`}
+                                                                type="button"
+                                                                className={`${styles.transportOptionItem} ${optionSelected ? styles.transportOptionItemSelected : ''}`}
+                                                                onClick={() => {
+                                                                  if (segment.allowSelect) {
+                                                                    selectActivityTransportOption(day.id, activity.id, optionIndex);
+                                                                  }
+                                                                }}
+                                                                disabled={!segment.allowSelect || addingLocation}
+                                                              >
+                                                                <div className={styles.transportOptionMain}>
+                                                                  <span className={styles.transportOptionName}>{option.method || `Option ${optionIndex + 1}`}</span>
+                                                                  {option.recommended && <span className={styles.transportOptionRecommended}>Recommended</span>}
+                                                                </div>
+                                                                <span className={styles.transportOptionMeta}>
+                                                                  {option.travelMinutes > 0 ? formatMinutes(option.travelMinutes) : 'N/A'}
+                                                                  {' • '}
+                                                                  {formatMoney(option.costAmount, option.costCurrency || tripInfo.currencyCode)}
+                                                                </span>
+                                                              </button>
+                                                            );
+                                                          })}
+
+                                                          {segment.showCustomOption && (
+                                                            <>
+                                                              <button
+                                                                type="button"
+                                                                className={`${styles.transportOptionItem} ${isCustomTransport ? styles.transportOptionItemSelected : ''}`}
+                                                                onClick={() => selectCustomTransportOption(day.id, activity.id)}
+                                                                disabled={addingLocation}
+                                                              >
+                                                                <div className={styles.transportOptionMain}>
+                                                                  <span className={styles.transportOptionName}>Custom</span>
+                                                                  {isCustomTransport && <span className={styles.transportOptionRecommended}>Selected</span>}
+                                                                </div>
+                                                                <span className={styles.transportOptionMeta}>Enter your own transport method and cost</span>
+                                                              </button>
+
+                                                              {isCustomTransport && (
+                                                                <div className={styles.customTransportEditor}>
+                                                                  <div className={styles.customTransportGrid}>
+                                                                    <div className={styles.editTimelineField}>
+                                                                      <span className={styles.editTimelineLabel}>Custom transport</span>
+                                                                      <Input
+                                                                        placeholder="e.g. Private motorbike"
+                                                                        value={String(travelFromPrevious?.transportModeName || '')}
+                                                                        onChange={(event) => updateCustomTransportInput(day.id, activity.id, { method: event?.target?.value || '' })}
+                                                                      />
+                                                                    </div>
+                                                                    <div className={styles.editTimelineField}>
+                                                                      <span className={styles.editTimelineLabel}>Custom transport cost</span>
+                                                                      <InputNumber
+                                                                        min={0}
+                                                                        style={{ width: '100%' }}
+                                                                        value={toNumberOrDefault(travelFromPrevious?.costAmount, 0)}
+                                                                        onChange={(value) => updateCustomTransportInput(day.id, activity.id, { cost: value == null ? 0 : value })}
+                                                                        placeholder={`0 ${tripInfo.currencyCode}`}
+                                                                      />
                                                                     </div>
                                                                   </div>
-                                                                )}
-                                                              </div>
-                                                            )
-                                                          }
-                                                        ]}
-                                                      />
-                                                    </div>
-                                                  )}
+                                                                </div>
+                                                              )}
+                                                            </>
+                                                          )}
+                                                        </div>
+                                                      )
+                                                    }
+                                                  ]}
+                                                />
+                                              </div>
+                                            );
+                                          };
+
+                                          const renderTravelSegmentCard = (segment) => (
+                                            <div key={`${activity.id}-segment-card-${segment.key}`} className={`${styles.card} ${styles.travelCard}`}>
+                                              <div className={styles.travelRoute}>
+                                                <div className={styles.travelPoint}>
+                                                  <div className={styles.dot}></div>
+                                                  <span>{segment.fromLabel}</span>
+                                                </div>
+                                                <div className={styles.travelLine}>
+                                                  <div className={styles.travelIconWrapper}>
+                                                    <NavigationArrow size={24} weight="bold" color="#D89A00" />
+                                                  </div>
+                                                </div>
+                                                <div className={styles.travelPoint}>
+                                                  <div className={styles.dot}></div>
+                                                  <span>{segment.toLabel}</span>
                                                 </div>
                                               </div>
+
+                                              <div className={styles.travelMetaLine}>
+                                                <div className={styles.travelMeta}>
+                                                  <ClockIcon size={16} weight="bold" />
+                                                  <Text style={{ color: '#D89A00', fontWeight: 600 }}>
+                                                    {buildTravelMetaText(segment.minutes, segment.distanceKm, segment.method)}
+                                                  </Text>
+                                                </div>
+                                              </div>
+
+                                              <div className={styles.travelCost}>
+                                                <span className={styles.costAmount}>{formatMoney(segment.costAmount, segment.costCurrency || tripInfo.currencyCode)}</span>
+                                              </div>
+
+                                              {renderTransportOptionsList(segment)}
                                             </div>
-                                          )}
+                                          );
 
-                                          <SortableActivityCard
-                                            id={activity.id}
-                                            dayId={day.id}
-                                            disabled={reorderRecalculating || addingLocation}
-                                          >
-                                            {({ dragHandle: activityDragHandle }) => (
-                                              <div className={styles.timelineItem}>
-                                                {!isLastActivity && <div className={styles.timelineLine} />}
-                                                <div className={styles.timelineTime}>
-                                                  <span className={styles.timelineTimeStart}>{toInputTimeValue(activity.startTime)}</span>
-                                                  <span className={styles.timelineTimeEnd}>{toInputTimeValue(activity.endTime)}</span>
+                                          return (
+                                            <React.Fragment key={activity.id}>
+                                              {travelFromPrevious && (
+                                                <div className={styles.timelineItem}>
+                                                  <div className={styles.timelineLine} />
+                                                  <div className={styles.timelineTime}>
+                                                    <span className={styles.timelineTimeStart}>{toInputTimeValue(travelFromPrevious.departureTime)}</span>
+                                                    <span className={styles.timelineTimeEnd}>{toInputTimeValue(travelFromPrevious.arrivalTime)}</span>
+                                                    <span className={styles.timelineDuration}>{formatMinutes(travelFromPrevious.travelMinutes)}</span>
+                                                  </div>
+                                                  <div className={styles.timelineIcon} style={{ background: 'rgba(255, 230, 109, 0.3)' }}>
+                                                    <NavigationArrow size={24} weight="bold" color="#D89A00" />
+                                                  </div>
+                                                  <div className={styles.timelineContent}>
+                                                    {(showTransitSegments ? segmentCards : segmentCards.filter((segment) => segment.key === 'main'))
+                                                      .map((segment) => renderTravelSegmentCard(segment))}
+                                                  </div>
                                                 </div>
-                                                <div className={styles.timelineIcon} style={{ background: 'rgba(78, 205, 196, 0.2)' }}>
-                                                  <MapPinLine size={24} weight="bold" color="#24A096" />
-                                                </div>
+                                              )}
 
-                                                <div className={styles.timelineContent}>
-                                                  <div className={`${styles.card} ${styles.visitCard}`} style={{ position: 'relative' }}>
-                                                    <div className={styles.cardFloatingActions}>
-                                                      <Space size={4}>
-                                                        <Button
-                                                          type="text"
-                                                          size="small"
-                                                          icon={<ArrowUpOutlined />}
-                                                          onClick={() => moveActivityUp(day.id, activity.id)}
-                                                          disabled={activityIndex === 0 || reorderRecalculating}
-                                                          title="Move up"
-                                                          style={{ color: '#8c8c8c' }}
-                                                        />
-                                                        <Button
-                                                          type="text"
-                                                          size="small"
-                                                          icon={<ArrowDownOutlined />}
-                                                          onClick={() => moveActivityDown(day.id, activity.id)}
-                                                          disabled={isLastActivity || reorderRecalculating}
-                                                          title="Move down"
-                                                          style={{ color: '#8c8c8c' }}
-                                                        />
-                                                        <Button
-                                                          danger
-                                                          type="text"
-                                                          size="small"
-                                                          icon={<DeleteOutlined />}
-                                                          onClick={() => removeActivity(day.id, activity.id)}
-                                                          loading={addingLocation}
-                                                          disabled={reorderRecalculating}
-                                                          style={{ fontWeight: 600 }}
-                                                        >
-                                                          Remove
-                                                        </Button>
-                                                      </Space>
+                                              <SortableActivityCard
+                                                id={activity.id}
+                                                dayId={day.id}
+                                                disabled={reorderRecalculating || addingLocation}
+                                              >
+                                                {({ dragHandle: activityDragHandle }) => (
+                                                  <div className={styles.timelineItem}>
+                                                    {!isLastActivity && <div className={styles.timelineLine} />}
+                                                    <div className={styles.timelineTime}>
+                                                      <span className={styles.timelineTimeStart}>{toInputTimeValue(activity.startTime)}</span>
+                                                      <span className={styles.timelineTimeEnd}>{toInputTimeValue(activity.endTime)}</span>
+                                                    </div>
+                                                    <div className={styles.timelineIcon} style={{ background: 'rgba(78, 205, 196, 0.2)' }}>
+                                                      <MapPinLine size={24} weight="bold" color="#24A096" />
                                                     </div>
 
-                                                    <div className={styles.visitTop}>
-                                                      <div className={styles.visitDetails}>
-                                                        <div className={styles.visitInfo}>
-                                                          <div className={styles.dragHandleWrapper}>
-                                                            {activityDragHandle}
-                                                          </div>
-                                                          <h3 className={styles.title}>{activity.destinationName || `Location ${activityIndex + 1}`}</h3>
-                                                        </div>
-                                                        <p className={styles.address}>{activity.address || '-'}</p>
-
-                                                        <div className={styles.activityConfigGrid} style={{ marginTop: 12 }}>
-                                                          <div className={styles.editTimelineField}>
-                                                            <span className={styles.editTimelineLabel}>Location budget (optional)</span>
-                                                            <InputNumber
-                                                              min={0}
-                                                              style={{ width: '100%' }}
-                                                              value={toNumberOrDefault(activity.estimatedCost, 0)}
-                                                              onChange={(value) => updateActivityBudget(day.id, activity.id, value)}
-                                                              placeholder={`0 ${tripInfo.currencyCode}`}
+                                                    <div className={styles.timelineContent}>
+                                                      <div className={`${styles.card} ${styles.visitCard}`} style={{ position: 'relative' }}>
+                                                        <div className={styles.cardFloatingActions}>
+                                                          <Space size={4}>
+                                                            <Button
+                                                              type="text"
+                                                              size="small"
+                                                              icon={<ArrowUpOutlined />}
+                                                              onClick={() => moveActivityUp(day.id, activity.id)}
+                                                              disabled={isFirstActivity || reorderRecalculating}
+                                                              title="Move up"
+                                                              style={{ color: '#8c8c8c' }}
                                                             />
+                                                            <Button
+                                                              type="text"
+                                                              size="small"
+                                                              icon={<ArrowDownOutlined />}
+                                                              onClick={() => moveActivityDown(day.id, activity.id)}
+                                                              disabled={isLastActivity || reorderRecalculating}
+                                                              title="Move down"
+                                                              style={{ color: '#8c8c8c' }}
+                                                            />
+                                                            <Button
+                                                              danger
+                                                              type="text"
+                                                              size="small"
+                                                              icon={<DeleteOutlined />}
+                                                              onClick={() => removeActivity(day.id, activity.id)}
+                                                              loading={addingLocation}
+                                                              disabled={reorderRecalculating}
+                                                              style={{ fontWeight: 600 }}
+                                                            >
+                                                              Remove
+                                                            </Button>
+                                                          </Space>
+                                                        </div>
+
+                                                        <div className={styles.visitTop}>
+                                                          <div className={styles.visitDetails}>
+                                                            <div className={styles.visitInfo}>
+                                                              <div className={styles.dragHandleWrapper}>
+                                                                {activityDragHandle}
+                                                              </div>
+                                                              <h3 className={styles.title}>{activity.destinationName || `Location ${activityIndex + 1}`}</h3>
+                                                            </div>
+                                                            <p className={styles.address}>{activity.address || '-'}</p>
+
+                                                            <div className={styles.activityConfigGrid} style={{ marginTop: 12 }}>
+                                                              <div className={styles.editTimelineField}>
+                                                                <span className={styles.editTimelineLabel}>Location budget (optional)</span>
+                                                                <InputNumber
+                                                                  min={0}
+                                                                  step={10000}
+                                                                  precision={0}
+                                                                  controls={false}
+                                                                  style={{ width: '100%' }}
+                                                                  value={toNumberOrDefault(activity.estimatedCost, 0)}
+                                                                  onChange={(value) => updateActivityBudget(day.id, activity.id, value)}
+                                                                  formatter={formatNumberInput}
+                                                                  parser={parseNumberInput}
+                                                                  addonAfter={tripInfo.currencyCode}
+                                                                />
+                                                              </div>
+                                                            </div>
                                                           </div>
                                                         </div>
                                                       </div>
                                                     </div>
                                                   </div>
-                                                </div>
-                                              </div>
-                                            )}
-                                          </SortableActivityCard>
-                                        </React.Fragment>
-                                      );
-                                    })}
-                                  </div>
-                                </SortableContext>
+                                                )}
+                                              </SortableActivityCard>
+                                            </React.Fragment>
+                                          );
+                                        })}
+                                      </div>
+                                    </SortableContext>
 
-                                <Button
-                                  type="dashed"
-                                  icon={<PlusOutlined />}
-                                  onClick={() => openAddLocationModal(day.id)}
-                                  style={{ marginLeft: 32 }}
-                                >
-                                  Add Location
-                                </Button>
+                                    <Button
+                                      type="dashed"
+                                      icon={<PlusOutlined />}
+                                      onClick={() => openAddLocationModal(day.id)}
+                                      style={{ marginLeft: 32 }}
+                                    >
+                                      Add Location
+                                    </Button>
+                                  </div>
+                                )}
+                              </>
+                            )
+                          }
+                        ];
+
+                        return (
+                          <SortableDayCard key={day.id} id={day.id} disabled={reorderRecalculating || addingLocation}>
+                            {({ dragHandle }) => (
+                              <div style={{ position: 'relative' }}>
+                                <div style={{ position: 'absolute', top: 12, left: -28, zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                  {dragHandle}
+                                </div>
+                                <Collapse
+                                  defaultActiveKey={['1']}
+                                  className={styles.dayCard}
+                                  bordered={false}
+                                  expandIconPosition="end"
+                                  items={collapseItems}
+                                />
                               </div>
                             )}
-                          </>
-                        )
-                      }
-                    ];
-
-                    return (
-                      <SortableDayCard key={day.id} id={day.id} disabled={reorderRecalculating || addingLocation}>
-                        {({ dragHandle }) => (
-                          <div style={{ position: 'relative' }}>
-                            <div style={{ position: 'absolute', top: 12, left: -28, zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                              {dragHandle}
-                            </div>
-                            <Collapse
-                              defaultActiveKey={['1']}
-                              className={styles.dayCard}
-                              bordered={false}
-                              expandIconPosition="end"
-                              items={collapseItems}
-                            />
-                          </div>
-                        )}
-                      </SortableDayCard>
-                    );
-                  })}
-                </Space>
-                </SortableContext>
-                <DragOverlay>
-                  {activeDragItem && (
-                    <div style={{ background: '#fff', border: '1px solid #d9d9d9', borderRadius: 6, padding: '8px 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', opacity: 0.95 }}>
-                      {activeDragItem.type === 'day' ? '📅' : '📍'} {activeDragItem.label}
-                    </div>
-                  )}
-                </DragOverlay>
+                          </SortableDayCard>
+                        );
+                      })}
+                    </Space>
+                  </SortableContext>
+                  <DragOverlay>
+                    {activeDragItem && (
+                      <div style={{ background: '#fff', border: '1px solid #d9d9d9', borderRadius: 6, padding: '8px 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', opacity: 0.95 }}>
+                        {activeDragItem.type === 'day' ? '📅' : '📍'} {activeDragItem.label}
+                      </div>
+                    )}
+                  </DragOverlay>
                 </DndContext>
               )}
 
@@ -2550,6 +3388,14 @@ const ManualTripPage = () => {
                 {editMode ? 'Save Changes' : 'Save Manual Trip'}
               </Button>
             </div>
+
+            <GoogleMapPicker
+              open={originMapOpen}
+              onClose={() => setOriginMapOpen(false)}
+              onConfirm={handleManualOriginMapConfirm}
+              initialLat={manualOrigin.latitude}
+              initialLng={manualOrigin.longitude}
+            />
           </>
         )}
       </div>
@@ -2648,22 +3494,27 @@ const ManualTripPage = () => {
 
               <div className={styles.customLocationTimelineGrid}>
                 <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>Start time</span>
-                  <Input
-                    type="time"
+                  <span className={styles.editTimelineLabel}>Duration (hours)</span>
+                  <InputNumber
                     className={styles.editTimelineInput}
-                    value={existingStartTime}
-                    onChange={(event) => setExistingStartTime(event?.target?.value || '')}
+                    min={0}
+                    precision={0}
+                    controls={false}
+                    value={existingDurationParts.hours}
+                    onChange={(value) => updateDurationMinutes(setExistingDurationMinutes, value, null)}
                   />
                 </div>
 
                 <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>End time</span>
-                  <Input
-                    type="time"
+                  <span className={styles.editTimelineLabel}>Duration (minutes)</span>
+                  <InputNumber
                     className={styles.editTimelineInput}
-                    value={existingEndTime}
-                    onChange={(event) => setExistingEndTime(event?.target?.value || '')}
+                    min={0}
+                    max={59}
+                    precision={0}
+                    controls={false}
+                    value={existingDurationParts.minutes}
+                    onChange={(value) => updateDurationMinutes(setExistingDurationMinutes, null, value)}
                   />
                 </div>
               </div>
@@ -2672,11 +3523,16 @@ const ManualTripPage = () => {
                 <span className={styles.editTimelineLabel}>Location budget (optional)</span>
                 <InputNumber
                   min={0}
+                  step={10000}
+                  precision={0}
+                  controls={false}
                   className={styles.editTimelineInput}
                   style={{ width: '100%' }}
                   value={existingBudget}
                   onChange={(value) => setExistingBudget(value == null ? null : Math.max(0, toNumberOrDefault(value, 0)))}
-                  placeholder={`0 ${tripInfo?.currencyCode || 'VND'}`}
+                  formatter={formatNumberInput}
+                  parser={parseNumberInput}
+                  addonAfter={tripInfo?.currencyCode || 'VND'}
                 />
               </div>
 
@@ -2696,6 +3552,10 @@ const ManualTripPage = () => {
               <Text type="secondary" className={styles.addBetweenPanelHint}>
                 Pick your own point on map and define timeline. Estimate is recalculated from API automatically.
               </Text>
+
+              <div className={styles.editTimelineField} style={{ marginBottom: 16 }}>
+                <MapLinkInput onParsed={handleCustomMapLinkParsed} />
+              </div>
 
               <div className={styles.editTimelineField}>
                 <span className={styles.editTimelineLabel}>Name</span>
@@ -2787,22 +3647,27 @@ const ManualTripPage = () => {
 
               <div className={styles.customLocationTimelineGrid}>
                 <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>Start time</span>
-                  <Input
-                    type="time"
+                  <span className={styles.editTimelineLabel}>Duration (hours)</span>
+                  <InputNumber
                     className={styles.editTimelineInput}
-                    value={customStartTime}
-                    onChange={(event) => setCustomStartTime(event?.target?.value || '')}
+                    min={0}
+                    precision={0}
+                    controls={false}
+                    value={customDurationParts.hours}
+                    onChange={(value) => updateDurationMinutes(setCustomDurationMinutes, value, null)}
                   />
                 </div>
 
                 <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>End time</span>
-                  <Input
-                    type="time"
+                  <span className={styles.editTimelineLabel}>Duration (minutes)</span>
+                  <InputNumber
                     className={styles.editTimelineInput}
-                    value={customEndTime}
-                    onChange={(event) => setCustomEndTime(event?.target?.value || '')}
+                    min={0}
+                    max={59}
+                    precision={0}
+                    controls={false}
+                    value={customDurationParts.minutes}
+                    onChange={(value) => updateDurationMinutes(setCustomDurationMinutes, null, value)}
                   />
                 </div>
               </div>
@@ -2811,11 +3676,16 @@ const ManualTripPage = () => {
                 <span className={styles.editTimelineLabel}>Location budget (optional)</span>
                 <InputNumber
                   min={0}
+                  step={10000}
+                  precision={0}
+                  controls={false}
                   className={styles.editTimelineInput}
                   style={{ width: '100%' }}
                   value={customBudget}
                   onChange={(value) => setCustomBudget(value == null ? null : Math.max(0, toNumberOrDefault(value, 0)))}
-                  placeholder={`0 ${tripInfo?.currencyCode || 'VND'}`}
+                  formatter={formatNumberInput}
+                  parser={parseNumberInput}
+                  addonAfter={tripInfo?.currencyCode || 'VND'}
                 />
               </div>
 
@@ -2831,9 +3701,9 @@ const ManualTripPage = () => {
             </div>
           </div>
 
-          <div className={styles.addBetweenFooterActions}>
+          {/* <div className={styles.addBetweenFooterActions}>
             <Button onClick={closeAddLocationModal}>Close</Button>
-          </div>
+          </div> */}
         </div>
       </Modal>
     </div>

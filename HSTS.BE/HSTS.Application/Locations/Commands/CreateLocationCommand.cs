@@ -75,7 +75,7 @@ namespace HSTS.Application.Locations.Commands
             if (district == null || district.IsDeleted)
             {
                 return Error.NotFound("District.NotFound",
-                    "Specified district does not exist or has been deleted.");
+                    "Specified district does not exist or has been deleted");
             }
 
             // Validate LocationType exists
@@ -83,7 +83,7 @@ namespace HSTS.Application.Locations.Commands
             if (locationType == null || locationType.IsDeleted)
             {
                 return Error.NotFound("LocationType.NotFound",
-                    "Specified location type does not exist or has been deleted.");
+                    "Specified location type does not exist or has been deleted");
             }
 
             var location = new Location
@@ -114,17 +114,20 @@ namespace HSTS.Application.Locations.Commands
                     .Where(t => distinctTagIds.Contains(t.Id) && !t.IsDeleted)
                     .ToListAsync(cancellationToken);
 
-                foreach (var tagId in distinctTagIds)
+                if (tags.Count != distinctTagIds.Count)
                 {
-                    var tag = tags.FirstOrDefault(t => t.Id == tagId);
-                    if (tag != null)
+                    var missingId = distinctTagIds.FirstOrDefault(id => !tags.Any(t => t.Id == id));
+                    return Error.NotFound("Tag.NotFound",
+                        $"Tag with ID {missingId} does not exist or has been deleted.");
+                }
+
+                foreach (var tag in tags)
+                {
+                    location.LocationTags.Add(new LocationTag
                     {
-                        location.LocationTags.Add(new LocationTag
-                        {
-                            LocationId = location.Id,
-                            TagId = tag.Id
-                        });
-                    }
+                        LocationId = location.Id,
+                        TagId = tag.Id
+                    });
                 }
             }
 
@@ -169,17 +172,20 @@ namespace HSTS.Application.Locations.Commands
                     .Where(a => distinctAmenityIds.Contains(a.Id) && !a.IsDeleted)
                     .ToListAsync(cancellationToken);
 
-                foreach (var amenityId in distinctAmenityIds)
+                if (amenities.Count != distinctAmenityIds.Count)
                 {
-                    var amenity = amenities.FirstOrDefault(a => a.Id == amenityId);
-                    if (amenity != null)
+                    var missingId = distinctAmenityIds.FirstOrDefault(id => !amenities.Any(a => a.Id == id));
+                    return Error.NotFound("Amenity.NotFound",
+                        $"Amenity with ID {missingId} does not exist or has been deleted.");
+                }
+
+                foreach (var amenity in amenities)
+                {
+                    location.LocationAmenities.Add(new LocationAmenity
                     {
-                        location.LocationAmenities.Add(new LocationAmenity
-                        {
-                            LocationId = location.Id,
-                            AmenityId = amenity.Id
-                        });
-                    }
+                        LocationId = location.Id,
+                        AmenityId = amenity.Id
+                    });
                 }
             }
 
@@ -223,15 +229,15 @@ namespace HSTS.Application.Locations.Commands
     {
         public CreateLocationCommandValidator()
         {
-            RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+            RuleFor(x => x.Name).NotEmpty().WithMessage("Name' must not be empty.").MaximumLength(200);
             RuleFor(x => x.Description).MaximumLength(2000);
             RuleFor(x => x.Latitude).InclusiveBetween(-90, 90);
             RuleFor(x => x.Longitude).InclusiveBetween(-180, 180);
             RuleFor(x => x.TicketPrice).GreaterThanOrEqualTo(0);
             RuleFor(x => x.MinimumAge).InclusiveBetween(0, 120);
-            RuleFor(x => x.Address).NotEmpty().MaximumLength(300);
-            RuleFor(x => x.LocationTypeId).NotEmpty();
-            RuleFor(x => x.DistrictId).NotEmpty();
+            RuleFor(x => x.Address).NotEmpty().WithMessage("Address' must not be empty. ").MaximumLength(300);
+            RuleFor(x => x.LocationTypeId).NotEmpty().WithMessage("LocationTypeId' must not be empty. ");
+            RuleFor(x => x.DistrictId).NotEmpty().WithMessage("'District Id' must not be empty.");
             RuleFor(x => x.Telephone).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.Telephone));
             RuleFor(x => x.Email).EmailAddress().MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Email));
             RuleFor(x => x.PriceMinUsd).GreaterThanOrEqualTo(0).When(x => x.PriceMinUsd.HasValue);
@@ -249,7 +255,7 @@ namespace HSTS.Application.Locations.Commands
                 link.RuleFor(x => x.Platform)
                     .InclusiveBetween(1, 14)
                     .WithMessage($"Platform must be between 1 and 14 (valid SocialPlatform values).");
-                link.RuleFor(x => x.Url).NotEmpty().MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Url));
+                link.RuleFor(x => x.Url).NotEmpty().WithMessage("'Url' must not be empty.").MaximumLength(500).WithMessage("Url' must not exceed 500 characters.");
             });
         }
     }

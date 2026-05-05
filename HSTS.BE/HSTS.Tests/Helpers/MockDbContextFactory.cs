@@ -22,6 +22,7 @@ public class MockDbContextFactory
     private List<LocationReviewReport> _locationReviewReports = new();
     private List<LocationSubmission> _locationSubmissions = new();
     private List<Trip> _trips = new();
+    private List<TripActivity> _tripActivities = new();
 
     public static MockDbContextFactory Create() => new();
 
@@ -40,6 +41,7 @@ public class MockDbContextFactory
     public MockDbContextFactory WithLocationReviewReports(params LocationReviewReport[] reports) { _locationReviewReports.AddRange(reports); return this; }
     public MockDbContextFactory WithLocationSubmissions(params LocationSubmission[] submissions) { _locationSubmissions.AddRange(submissions); return this; }
     public MockDbContextFactory WithTrips(params Trip[] trips) { _trips.AddRange(trips); return this; }
+    public MockDbContextFactory WithTripActivities(params TripActivity[] activities) { _tripActivities.AddRange(activities); return this; }
 
     public Mock<IAppDbContext> Build()
     {
@@ -60,6 +62,7 @@ public class MockDbContextFactory
         mock.Setup(x => x.LocationReviewReports).Returns(_locationReviewReports.AsQueryable().BuildMockDbSet().Object);
         mock.Setup(x => x.LocationSubmissions).Returns(_locationSubmissions.AsQueryable().BuildMockDbSet().Object);
         mock.Setup(x => x.Trips).Returns(_trips.AsQueryable().BuildMockDbSet().Object);
+        mock.Setup(x => x.TripActivities).Returns(_tripActivities.AsQueryable().BuildMockDbSet().Object);
         mock.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         return mock;

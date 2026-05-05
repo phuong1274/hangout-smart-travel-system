@@ -54,8 +54,14 @@ namespace HSTS.Application.Trips.Dtos
         string? ToTransitHubName,
         int? CustomFromTransitHubId,
         string? CustomFromTransitHubName,
+        double? CustomFromTransitHubLatitude,
+        double? CustomFromTransitHubLongitude,
+        string? CustomFromTransitHubAddress,
         int? CustomToTransitHubId,
-        string? CustomToTransitHubName
+        string? CustomToTransitHubName,
+        double? CustomToTransitHubLatitude,
+        double? CustomToTransitHubLongitude,
+        string? CustomToTransitHubAddress
     );
 
     public record TripActivityBudgetDto(
