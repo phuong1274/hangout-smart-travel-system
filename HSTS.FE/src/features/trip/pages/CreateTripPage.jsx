@@ -565,7 +565,7 @@ const CreateTripPage = () => {
             <div className={currentStep === 0 ? styles.stepActive : styles.stepHidden}>
               <Card className={styles.sectionCard} title={<span className={styles.sectionTitle}>Where are you starting from?</span>}>
                 <div className={styles.mapSearchWrap} style={{ marginBottom: 12 }}>
-                  <Space.Compact style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', width: '100%' }}>
                     <AutoComplete
                       style={{ flex: 1 }}
                       options={searchOptions}
@@ -581,12 +581,27 @@ const CreateTripPage = () => {
                       }}
                       placeholder="Search for a place (e.g., 'Ben Thanh Market')"
                     >
-                      <Input suffix={<SearchOutlined />} style={{ borderRadius: '8px 0 0 8px' }} />
+                      <Input
+                        suffix={<SearchOutlined />}
+                        style={{
+                          borderRadius: '8px 0 0 8px',
+                          height: '44px'
+                        }}
+                      />
                     </AutoComplete>
-                    <Button onClick={handleGetCurrentLocation} icon={<EnvironmentOutlined />} style={{ borderRadius: '0 8px 8px 0' }}>
+
+                    <Button
+                      onClick={handleGetCurrentLocation}
+                      icon={<EnvironmentOutlined />}
+                      style={{
+                        borderRadius: '0 8px 8px 0',
+                        height: '44px',
+                        borderLeft: 0
+                      }}
+                    >
                       My Location
                     </Button>
-                  </Space.Compact>
+                  </div>
                 </div>
                 <MapLinkInput onParsed={handleMapLinkParsed} />
                 <div className={styles.mapInlineWrapper}>
