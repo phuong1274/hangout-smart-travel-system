@@ -35,6 +35,7 @@ const SubmissionsPage = lazy(() => import('@/features/location-submissions/pages
 const LocationSubmissionsReviewPage = lazy(() => import('@/features/location-submissions/pages/LocationSubmissionsReviewPage'));
 const PartnerLocationsPage = lazy(() => import('@/features/locations/pages/PartnerLocationsPage'));
 const ReportedReviewsPage = lazy(() => import('@/features/reviews/pages/ReportedReviewsPage'));
+const MyReviewsPage = lazy(() => import('@/features/reviews/pages/MyReviewsPage'));
 
 const TransportManagementPage = lazy(() => import('@/features/transportation/pages/TransportManagementPage'));
 
@@ -176,6 +177,13 @@ export const router = createBrowserRouter([
           {
             path: '/my-locations',
             element: <SubmissionsPage />
+          },
+          {
+            path: PATHS.MY_REVIEWS,
+            element: <ProtectedRoute allowedRoles={[ROLES.TRAVELER]} />,
+            children: [
+              { index: true, element: <MyReviewsPage /> },
+            ]
           },
           {
             path: PATHS.PARTNER_LOCATIONS,

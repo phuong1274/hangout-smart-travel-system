@@ -5,6 +5,8 @@ export const reviewsApi = {
     apiClient.get(`/api/locations/${locationId}/reviews`, { params }),
   getMyReview: (locationId) =>
     apiClient.get(`/api/locations/${locationId}/reviews/me`),
+  getMyReviews: (params) =>
+    apiClient.get('/api/reviews/me', { params }),
   create: (data) => apiClient.post('/api/reviews', data),
   update: ({ reviewId, ...data }) =>
     apiClient.put(`/api/reviews/${reviewId}`, { reviewId, ...data }),
