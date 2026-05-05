@@ -94,6 +94,11 @@ const getTripStatusConfig = (status) => {
   return TRIP_STATUS_CONFIG[key] || { label: `Unknown (${status})`, color: 'default', nextStatus: null, nextLabel: null };
 };
 
+const isTripCompletedStatus = (status) => {
+  if (typeof status === 'number') return status === 2;
+  return String(status || '').trim().toLowerCase() === 'completed';
+};
+
 const formatMoney = (amount, currency = 'VND') => {
   if (amount == null) return '0';
   return `${Number(amount).toLocaleString()} ${currency}`;
@@ -162,10 +167,14 @@ const TripDetailPage = () => {
 
   const handleOpenEditItinerary = useCallback(() => {
     if (!trip?.id) return;
+    if (isTripCompletedStatus(trip?.status)) {
+      message.warning('Completed trips cannot be edited.');
+      return;
+    }
     navigate(PATHS.CREATE_TRIP_MANUAL_BUILDER, {
       state: { tripId: trip.id, editMode: true },
     });
-  }, [navigate, trip?.id]);
+  }, [navigate, trip?.id, trip?.status]);
 
   const handleExportItineraryPdf = () => {
     if (!trip) return;
@@ -395,6 +404,7 @@ const TripDetailPage = () => {
   const currentUserId = user?.id;
   const myMember = trip?.tripMembers?.find(m => m.userId === currentUserId);
   const isTripLocked = trip?.endDate && dayjs().isAfter(dayjs(trip.endDate).add(2, 'day'), 'day');
+  const isTripCompleted = isTripCompletedStatus(trip?.status);
   const canManageExpenses = myMember && (myMember.role === 'Leader' || myMember.role === 'Treasurer');
 
   const handleUpdateActivityStatus = useCallback(async (activityId, skipConfirm = false) => {
@@ -1192,7 +1202,7 @@ const TripDetailPage = () => {
             ]}
           />
 
-          {myMember?.role === 'Leader' && (
+          {myMember?.role === 'Leader' && !isTripCompleted && (
             <Button
               className={styles.saveTripFloatingBtn}
               onClick={handleOpenEditItinerary}

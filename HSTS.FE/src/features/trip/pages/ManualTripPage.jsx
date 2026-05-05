@@ -444,6 +444,7 @@ const normalizeTripInfo = (raw) => {
     endDate: endDate ? dayjs(endDate).format('YYYY-MM-DD') : null,
     groupSize: Math.max(1, Math.round(toNumberOrDefault(raw.groupSize || raw.GroupSize, 1))),
     currencyCode: String(raw.currency || raw.currencyCode || raw.Currency || raw.CurrencyCode || 'VND').trim() || 'VND',
+    status: raw.status ?? raw.Status ?? null,
     totalBudget: totalBudget != null && totalBudget >= 0 ? totalBudget : null,
     // Preserve any user-provided start/origin label (e.g. province name) so it can
     // be persisted later when saving the manual trip. This mirrors the
@@ -470,6 +471,11 @@ const normalizeTripInfo = (raw) => {
       }
       : null,
   };
+};
+
+const isTripCompletedStatus = (status) => {
+  if (typeof status === 'number') return status === 2;
+  return String(status || '').trim().toLowerCase() === 'completed';
 };
 
 const normalizeDraftDays = (rawDays) => {
@@ -858,6 +864,11 @@ const ManualTripPage = () => {
           if (isEditMode) {
             // Edit mode: load full trip detail (includes days/activities)
             const apiTrip = await getTripDetailApi(tripId);
+            if (isTripCompletedStatus(apiTrip?.status ?? apiTrip?.Status)) {
+              message.warning('Completed trips cannot be edited.');
+              navigate(PATHS.TRIP_DETAIL.replace(':id', String(tripId)), { replace: true });
+              return;
+            }
             if (!resolvedTripInfo) {
               resolvedTripInfo = normalizeTripInfo({
                 ...apiTrip,
@@ -947,7 +958,7 @@ const ManualTripPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [location?.state?.tripInfo, location?.state?.editMode, tripId]);
+  }, [location?.state?.tripInfo, location?.state?.editMode, navigate, tripId]);
 
   useEffect(() => {
     if (!tripId || !tripInfo) return;
@@ -2472,6 +2483,12 @@ const ManualTripPage = () => {
   const handleSaveManualTrip = async () => {
     if (!tripId || !tripInfo) {
       message.error('Missing trip context. Please create a trip from Manual Trip Setup first.');
+      return;
+    }
+
+    if (editMode && isTripCompletedStatus(tripInfo.status)) {
+      message.warning('Completed trips cannot be edited.');
+      navigate(PATHS.TRIP_DETAIL.replace(':id', String(tripId)), { replace: true });
       return;
     }
 
