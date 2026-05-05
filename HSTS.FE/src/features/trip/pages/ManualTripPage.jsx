@@ -307,6 +307,21 @@ const formatMoney = (amount, currencyCode = 'VND') => {
   return `${Math.round(Math.max(0, toNumberOrDefault(amount, 0))).toLocaleString('vi-VN')} ${currencyCode}`;
 };
 
+const formatNumberInput = (value) => {
+  if (value == null || value === '') return '';
+  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
+
+const parseNumberInput = (value) => (value ? value.replace(/,/g, '') : '');
+
+const splitDurationMinutes = (value) => {
+  const total = Math.max(0, Math.round(Number(value) || 0));
+  return {
+    hours: Math.floor(total / 60),
+    minutes: total % 60,
+  };
+};
+
 const formatMinutes = (minutes) => {
   const safe = Math.max(0, Math.round(toNumberOrDefault(minutes, 0)));
   const hourPart = Math.floor(safe / 60);
@@ -669,7 +684,7 @@ const ManualTripPage = () => {
   const [existingProvinceId, setExistingProvinceId] = useState(null);
   const [existingLocationId, setExistingLocationId] = useState(null);
   const [existingStartTime, setExistingStartTime] = useState('08:00');
-  const [existingEndTime, setExistingEndTime] = useState('09:30');
+  const [existingDurationMinutes, setExistingDurationMinutes] = useState(DEFAULT_ACTIVITY_DURATION_MINUTES);
   const [existingBudget, setExistingBudget] = useState(null);
 
   const [customName, setCustomName] = useState('');
@@ -679,7 +694,7 @@ const ManualTripPage = () => {
   const [customLat, setCustomLat] = useState(null);
   const [customLng, setCustomLng] = useState(null);
   const [customStartTime, setCustomStartTime] = useState('08:00');
-  const [customEndTime, setCustomEndTime] = useState('09:30');
+  const [customDurationMinutes, setCustomDurationMinutes] = useState(DEFAULT_ACTIVITY_DURATION_MINUTES);
   const [customBudget, setCustomBudget] = useState(null);
 
   const [openTransportOptionIds, setOpenTransportOptionIds] = useState({});
@@ -695,6 +710,21 @@ const ManualTripPage = () => {
     && customLngValue <= 180;
   const customMapCenter = hasCustomCoordinates ? [customLatValue, customLngValue] : DEFAULT_MAP_CENTER_VN;
   const customMapActiveKey = `${addLocationModal.open ? 'open' : 'closed'}-${addLocationModal.dayId || 'x'}-${hasCustomCoordinates ? 'picked' : 'empty'}`;
+  const existingDurationParts = splitDurationMinutes(existingDurationMinutes);
+  const customDurationParts = splitDurationMinutes(customDurationMinutes);
+
+  const updateDurationMinutes = useCallback((setter, nextHours, nextMinutes) => {
+    setter((prev) => {
+      const current = splitDurationMinutes(prev);
+      const hours = nextHours != null
+        ? Math.max(0, Math.round(Number(nextHours) || 0))
+        : current.hours;
+      const minutes = nextMinutes != null
+        ? Math.min(59, Math.max(0, Math.round(Number(nextMinutes) || 0)))
+        : current.minutes;
+      return (hours * 60) + minutes;
+    });
+  }, []);
 
   useEffect(() => {
     const queryTripId = Number(searchParams.get('tripId'));
@@ -1230,7 +1260,7 @@ const ManualTripPage = () => {
     setExistingLocations([]);
     setExistingLocationSearch('');
     setExistingStartTime('08:00');
-    setExistingEndTime('09:30');
+    setExistingDurationMinutes(DEFAULT_ACTIVITY_DURATION_MINUTES);
     setExistingBudget(null);
 
     setCustomName('');
@@ -1240,7 +1270,7 @@ const ManualTripPage = () => {
     setCustomLat(null);
     setCustomLng(null);
     setCustomStartTime('08:00');
-    setCustomEndTime('09:30');
+    setCustomDurationMinutes(DEFAULT_ACTIVITY_DURATION_MINUTES);
     setCustomBudget(null);
   }, [defaultProvinceId]);
 
@@ -1249,13 +1279,13 @@ const ManualTripPage = () => {
     const lastActivity = targetDay?.activities?.[targetDay.activities.length - 1];
 
     const nextStart = toInputTimeValue(lastActivity?.endTime, '08:00');
-    const nextEnd = toInputTimeValue(addMinutesToTime(`${nextStart}:00`, DEFAULT_ACTIVITY_DURATION_MINUTES), '09:30');
+    const nextDuration = durationBetweenTimes(lastActivity?.startTime, lastActivity?.endTime);
 
     resetAddLocationModal();
     setExistingStartTime(nextStart);
-    setExistingEndTime(nextEnd);
+    setExistingDurationMinutes(nextDuration);
     setCustomStartTime(nextStart);
-    setCustomEndTime(nextEnd);
+    setCustomDurationMinutes(nextDuration);
 
     setAddLocationModal({ open: true, dayId });
   };
@@ -1730,13 +1760,12 @@ const ManualTripPage = () => {
     }
 
     const normalizedStart = normalizeTimeOnly(existingStartTime);
-    const normalizedEnd = normalizeTimeOnly(existingEndTime);
-    if (!normalizedStart || !normalizedEnd) {
-      message.warning('Please enter valid start and end time.');
+    if (!normalizedStart) {
+      message.warning('Please enter valid start time.');
       return;
     }
 
-    const duration = durationBetweenTimes(normalizedStart, normalizedEnd);
+    const duration = Math.max(1, Math.round(toNumberOrDefault(existingDurationMinutes, DEFAULT_ACTIVITY_DURATION_MINUTES)));
 
     setAddingLocation(true);
     try {
@@ -1835,13 +1864,12 @@ const ManualTripPage = () => {
     }
 
     const normalizedStart = normalizeTimeOnly(customStartTime);
-    const normalizedEnd = normalizeTimeOnly(customEndTime);
-    if (!normalizedStart || !normalizedEnd) {
-      message.warning('Please enter valid start and end time.');
+    if (!normalizedStart) {
+      message.warning('Please enter valid start time.');
       return;
     }
 
-    const duration = durationBetweenTimes(normalizedStart, normalizedEnd);
+    const duration = Math.max(1, Math.round(toNumberOrDefault(customDurationMinutes, DEFAULT_ACTIVITY_DURATION_MINUTES)));
 
     setAddingLocation(true);
     try {
@@ -3039,10 +3067,15 @@ const ManualTripPage = () => {
                                                             <span className={styles.editTimelineLabel}>Location budget (optional)</span>
                                                             <InputNumber
                                                               min={0}
+                                                              step={10000}
+                                                              precision={0}
+                                                              controls={false}
                                                               style={{ width: '100%' }}
                                                               value={toNumberOrDefault(activity.estimatedCost, 0)}
                                                               onChange={(value) => updateActivityBudget(day.id, activity.id, value)}
-                                                              placeholder={`0 ${tripInfo.currencyCode}`}
+                                                              formatter={formatNumberInput}
+                                                              parser={parseNumberInput}
+                                                              addonAfter={tripInfo.currencyCode}
                                                             />
                                                           </div>
                                                         </div>
@@ -3240,22 +3273,27 @@ const ManualTripPage = () => {
 
               <div className={styles.customLocationTimelineGrid}>
                 <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>Start time</span>
-                  <Input
-                    type="time"
+                  <span className={styles.editTimelineLabel}>Duration (hours)</span>
+                  <InputNumber
                     className={styles.editTimelineInput}
-                    value={existingStartTime}
-                    onChange={(event) => setExistingStartTime(event?.target?.value || '')}
+                    min={0}
+                    precision={0}
+                    controls={false}
+                    value={existingDurationParts.hours}
+                    onChange={(value) => updateDurationMinutes(setExistingDurationMinutes, value, null)}
                   />
                 </div>
 
                 <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>End time</span>
-                  <Input
-                    type="time"
+                  <span className={styles.editTimelineLabel}>Duration (minutes)</span>
+                  <InputNumber
                     className={styles.editTimelineInput}
-                    value={existingEndTime}
-                    onChange={(event) => setExistingEndTime(event?.target?.value || '')}
+                    min={0}
+                    max={59}
+                    precision={0}
+                    controls={false}
+                    value={existingDurationParts.minutes}
+                    onChange={(value) => updateDurationMinutes(setExistingDurationMinutes, null, value)}
                   />
                 </div>
               </div>
@@ -3264,11 +3302,16 @@ const ManualTripPage = () => {
                 <span className={styles.editTimelineLabel}>Location budget (optional)</span>
                 <InputNumber
                   min={0}
+                  step={10000}
+                  precision={0}
+                  controls={false}
                   className={styles.editTimelineInput}
                   style={{ width: '100%' }}
                   value={existingBudget}
                   onChange={(value) => setExistingBudget(value == null ? null : Math.max(0, toNumberOrDefault(value, 0)))}
-                  placeholder={`0 ${tripInfo?.currencyCode || 'VND'}`}
+                  formatter={formatNumberInput}
+                  parser={parseNumberInput}
+                  addonAfter={tripInfo?.currencyCode || 'VND'}
                 />
               </div>
 
@@ -3383,22 +3426,27 @@ const ManualTripPage = () => {
 
               <div className={styles.customLocationTimelineGrid}>
                 <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>Start time</span>
-                  <Input
-                    type="time"
+                  <span className={styles.editTimelineLabel}>Duration (hours)</span>
+                  <InputNumber
                     className={styles.editTimelineInput}
-                    value={customStartTime}
-                    onChange={(event) => setCustomStartTime(event?.target?.value || '')}
+                    min={0}
+                    precision={0}
+                    controls={false}
+                    value={customDurationParts.hours}
+                    onChange={(value) => updateDurationMinutes(setCustomDurationMinutes, value, null)}
                   />
                 </div>
 
                 <div className={styles.editTimelineField}>
-                  <span className={styles.editTimelineLabel}>End time</span>
-                  <Input
-                    type="time"
+                  <span className={styles.editTimelineLabel}>Duration (minutes)</span>
+                  <InputNumber
                     className={styles.editTimelineInput}
-                    value={customEndTime}
-                    onChange={(event) => setCustomEndTime(event?.target?.value || '')}
+                    min={0}
+                    max={59}
+                    precision={0}
+                    controls={false}
+                    value={customDurationParts.minutes}
+                    onChange={(value) => updateDurationMinutes(setCustomDurationMinutes, null, value)}
                   />
                 </div>
               </div>
@@ -3407,11 +3455,16 @@ const ManualTripPage = () => {
                 <span className={styles.editTimelineLabel}>Location budget (optional)</span>
                 <InputNumber
                   min={0}
+                  step={10000}
+                  precision={0}
+                  controls={false}
                   className={styles.editTimelineInput}
                   style={{ width: '100%' }}
                   value={customBudget}
                   onChange={(value) => setCustomBudget(value == null ? null : Math.max(0, toNumberOrDefault(value, 0)))}
-                  placeholder={`0 ${tripInfo?.currencyCode || 'VND'}`}
+                  formatter={formatNumberInput}
+                  parser={parseNumberInput}
+                  addonAfter={tripInfo?.currencyCode || 'VND'}
                 />
               </div>
 
