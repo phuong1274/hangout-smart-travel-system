@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 
 const MainLayout = lazy(() => import('@/layouts/MainLayout'));
 const AuthLayout = lazy(() => import('@/layouts/AuthLayout'));
+const PublicDiscoveryLayout = lazy(() => import('@/layouts/PublicDiscoveryLayout'));
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
 const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
@@ -98,12 +99,17 @@ export const router = createBrowserRouter([
     ]
   },
   {
-    path: PATHS.PUBLIC_LOCATIONS.replace('/', ''),
-    element: <SuspenseWrapper><PublicLocationsPage /></SuspenseWrapper>
-  },
-  {
-    path: PATHS.PUBLIC_LOCATION_DETAIL().replace('/', ''),
-    element: <SuspenseWrapper><PublicLocationDetailPage /></SuspenseWrapper>
+    element: <SuspenseWrapper><PublicDiscoveryLayout /></SuspenseWrapper>,
+    children: [
+      {
+        path: PATHS.PUBLIC_LOCATIONS.replace('/', ''),
+        element: <PublicLocationsPage />
+      },
+      {
+        path: PATHS.PUBLIC_LOCATION_DETAIL().replace('/', ''),
+        element: <PublicLocationDetailPage />
+      },
+    ],
   },
   {
     path: PATHS.DESTINATIONS.replace('/', ''),

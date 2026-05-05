@@ -139,6 +139,20 @@ export const formatUsdAmount = (amount, targetCurrencyCode = 'VND') => {
   return formatMoneyAmount(convertCurrencyAmount(amount, 'USD', currency), currency);
 };
 
+export const formatBudgetFilterRange = ({
+  minBudget,
+  maxBudget,
+  currencyCode = 'VND',
+}) => {
+  if (minBudget == null && maxBudget == null) {
+    return null;
+  }
+
+  const minText = formatMoneyAmount(minBudget ?? 0, currencyCode);
+  const maxText = maxBudget == null ? 'Any' : formatMoneyAmount(maxBudget, currencyCode);
+  return `${minText} - ${maxText}`;
+};
+
 export const formatLocationPriceRange = ({
   priceMinUsd,
   priceMaxUsd,
@@ -148,8 +162,8 @@ export const formatLocationPriceRange = ({
 }) => {
   const hasUsdRange = priceMinUsd != null || priceMaxUsd != null;
   if (hasUsdRange) {
-    const minText = formatUsdAmount(priceMinUsd ?? 0, currencyCode);
-    const maxText = priceMaxUsd == null ? 'Any' : formatUsdAmount(priceMaxUsd, currencyCode);
+    const minText = formatVndAmount(priceMinUsd ?? 0, currencyCode);
+    const maxText = priceMaxUsd == null ? 'Any' : formatVndAmount(priceMaxUsd, currencyCode);
     return `${minText} - ${maxText}`;
   }
 

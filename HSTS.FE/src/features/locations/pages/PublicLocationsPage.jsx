@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { Card, Pagination, Space, Tag, Typography } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import { useCurrencyStore } from '@/store/currencyStore';
-import { formatLocationPriceRange } from '@/features/trip/constants/currency';
+import { formatBudgetFilterRange } from '@/features/trip/constants/currency';
 import PublicLocationFilterBar from '../components/PublicLocationFilterBar';
 import PublicLocationGrid from '../components/PublicLocationGrid';
 import { usePublicLocations } from '../hooks/usePublicLocations';
@@ -99,9 +99,9 @@ const PublicLocationsPage = () => {
       : []),
     filters.minRating ? `${filters.minRating}+ rating` : null,
     filters.minBudget != null || filters.maxBudget != null
-      ? formatLocationPriceRange({
-          priceMinUsd: filters.minBudget,
-          priceMaxUsd: filters.maxBudget,
+      ? formatBudgetFilterRange({
+          minBudget: filters.minBudget,
+          maxBudget: filters.maxBudget,
           currencyCode,
         })
       : null,

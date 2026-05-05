@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
+import { useCurrencyStore } from '@/store/currencyStore';
+import { convertBudgetToVnd } from '@/features/trip/constants/currency';
 import {
   getAllLocationTypesApi,
   getAllProvincesApi,
@@ -10,6 +12,7 @@ import {
 
 export const usePublicLocations = (initialFilters = {}, initialPagination = {}) => {
   const { pagination, handleTableChange, setTotal, pageIndex, pageSize } = usePagination(initialPagination.pageSize);
+  const currencyCode = useCurrencyStore((state) => state.currencyCode);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState(initialFilters);
@@ -89,7 +92,7 @@ export const usePublicLocations = (initialFilters = {}, initialPagination = {}) 
     };
 
     loadFilterOptions();
-  }, []);
+  }, [normalizeCollection]);
 
   useEffect(() => {
     const loadDistricts = async () => {
@@ -126,8 +129,8 @@ export const usePublicLocations = (initialFilters = {}, initialPagination = {}) 
         keyword: filters.keyword || undefined,
         tagIds: filters.tagIds?.length ? filters.tagIds : undefined,
         minRating: filters.minRating || undefined,
-        minBudget: filters.minBudget || undefined,
-        maxBudget: filters.maxBudget || undefined,
+        minBudget: filters.minBudget != null ? convertBudgetToVnd(filters.minBudget, currencyCode) : undefined,
+        maxBudget: filters.maxBudget != null ? convertBudgetToVnd(filters.maxBudget, currencyCode) : undefined,
         maxDurationMinutes: filters.maxDurationMinutes || undefined,
       };
 
@@ -139,7 +142,7 @@ export const usePublicLocations = (initialFilters = {}, initialPagination = {}) 
     } finally {
       setLoading(false);
     }
-  }, [filters.destinationId, filters.districtId, filters.locationTypeId, filters.keyword, filters.tagIds, filters.minRating, filters.minBudget, filters.maxBudget, filters.maxDurationMinutes, pageIndex, pageSize, setTotal]);
+  }, [currencyCode, filters.destinationId, filters.districtId, filters.locationTypeId, filters.keyword, filters.tagIds, filters.minRating, filters.minBudget, filters.maxBudget, filters.maxDurationMinutes, pageIndex, pageSize, setPaginationFromResponse, normalizeLocations]);
 
   useEffect(() => {
     fetchLocations();

@@ -12,7 +12,12 @@ import styles from '../styles/Header.module.css';
 
 const { Text } = Typography;
 
-const AppHeader = ({ destinations = [] }) => {
+const AppHeader = ({
+  destinations = [],
+  homePath = PATHS.DASHBOARD,
+  homeLabel = 'Dashboard',
+  showDashboardLink = false,
+}) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -105,9 +110,14 @@ const AppHeader = ({ destinations = [] }) => {
   const menuItems = (
     <>
       {locationLink}
-      <Link to={PATHS.DASHBOARD}>
-        <Text className={styles.navLink}>Home</Text>
+      <Link to={homePath}>
+        <Text className={styles.navLink}>{homeLabel}</Text>
       </Link>
+      {user && showDashboardLink ? (
+        <Link to={PATHS.DASHBOARD}>
+          <Text className={styles.navLink}>Dashboard</Text>
+        </Link>
+      ) : null}
       <Link to={PATHS.CREATE_TRIP}>
         <Text className={styles.navLink}>Plan a Trip</Text>
       </Link>
