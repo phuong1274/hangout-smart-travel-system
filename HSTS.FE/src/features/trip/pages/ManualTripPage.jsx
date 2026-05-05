@@ -39,7 +39,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PATHS } from '@/routes/paths';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
-import { convertCurrencyAmount } from '../constants/currency';
+import { convertCurrencyAmount, loadBackendCurrencyRates } from '../constants/currency';
 import MapLinkInput from '@/components/MapLinkInput';
 import {
   estimateLocalTravelApi,
@@ -344,7 +344,12 @@ const durationBetweenTimes = (startTime, endTime) => {
 };
 
 const formatMoney = (amount, currencyCode = 'VND') => {
-  return `${Math.round(Math.max(0, toNumberOrDefault(amount, 0))).toLocaleString('vi-VN')} ${currencyCode}`;
+  const currency = String(currencyCode || 'VND').toUpperCase();
+  const fractionDigits = ['VND', 'JPY', 'KRW', 'IDR'].includes(currency) ? 0 : 2;
+  return `${Math.max(0, toNumberOrDefault(amount, 0)).toLocaleString('vi-VN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: fractionDigits,
+  })} ${currency}`;
 };
 
 const formatNumberInput = (value) => {
@@ -536,8 +541,10 @@ const normalizeDraftDays = (rawDays) => {
 
 // Converts a saved TripDetail's days (interleaved Travel+Visit) into the builder's
 // Visit-only format where travel legs are stored as travelFromPrevious on the next activity.
-const convertDetailDaysToBuilderDays = (tripDays) => {
+const convertDetailDaysToBuilderDays = (tripDays, tripCurrency = 'VND') => {
   if (!Array.isArray(tripDays)) return [];
+  const resolvedTripCurrency = String(tripCurrency || 'VND').trim().toUpperCase() || 'VND';
+
   return tripDays.map((day, dayIndex) => {
     const activities = [];
     let pendingTravel = null;
@@ -578,7 +585,7 @@ const convertDetailDaysToBuilderDays = (tripDays) => {
               distanceKm: Math.max(0, toNumberOrDefault(transport.transport?.distanceKm, 0)),
               travelMinutes: Math.max(0, toNumberOrDefault(transport.transport?.travelTimeMinutes, 0)),
               costAmount: Math.max(0, toNumberOrDefault(transport.budget?.estimateCost, 0)),
-              costCurrency: 'VND',
+              costCurrency: resolvedTripCurrency,
               transportModeId: savedModeId,
               transportModeName: String(transport.transport?.transportModeName || '').trim() || null,
               departureTime: normalizeTimeOnly(transport.startTime),
@@ -697,6 +704,12 @@ const ManualTripPage = () => {
   const [manualContingencyFund, setManualContingencyFund] = useState(null);
   const [manualDays, setManualDays] = useState([]);
   const [transportOptionsBackfilled, setTransportOptionsBackfilled] = useState(false);
+
+  useEffect(() => {
+    loadBackendCurrencyRates().catch(() => {
+      // Static currency rates remain available for display-only fallback.
+    });
+  }, []);
 
   const [locationTypes, setLocationTypes] = useState([]);
   const [loadingLocationTypes, setLoadingLocationTypes] = useState(false);
@@ -862,7 +875,10 @@ const ManualTripPage = () => {
             }
 
             if (Array.isArray(apiTrip.tripDays)) {
-              resolvedDays = convertDetailDaysToBuilderDays(apiTrip.tripDays);
+              resolvedDays = convertDetailDaysToBuilderDays(
+                apiTrip.tripDays,
+                resolvedTripInfo?.currencyCode || apiTrip.currency || apiTrip.Currency || 'VND',
+              );
             }
           } else if (!draftTripInfo && (!resolvedTripInfo || !stateHasGroupSize)) {
             const apiTrip = await getTripDetailApi(tripId);

@@ -264,8 +264,12 @@ const getTravelPointName = (travelDetail, isFrom) => {
 const formatMoney = (moneyDto) => {
   if (!moneyDto) return null;
   const amount = Number(moneyDto.amount ?? moneyDto.Amount ?? 0);
-  const currency = moneyDto.currency || moneyDto.Currency || 'VND';
-  return `${Math.round(amount).toLocaleString('vi-VN')} ${currency}`;
+  const currency = String(moneyDto.currency || moneyDto.Currency || 'VND').toUpperCase();
+  const fractionDigits = ['VND', 'JPY', 'KRW', 'IDR'].includes(currency) ? 0 : 2;
+  return `${amount.toLocaleString('vi-VN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: fractionDigits,
+  })} ${currency}`;
 };
 
 const formatTime = (timeStr) => {

@@ -64,25 +64,76 @@ namespace HSTS.Infrastructure.Services
 
         public async Task<ConvertedAmount> ConvertFromVndAsync(decimal vndAmount, string targetCurrency, CancellationToken cancellationToken = default)
         {
-            if (string.Equals(targetCurrency, BaseCurrency, StringComparison.OrdinalIgnoreCase))
+            var upperTarget = NormalizeCurrency(targetCurrency);
+
+            if (string.Equals(upperTarget, BaseCurrency, StringComparison.OrdinalIgnoreCase))
             {
                 return new ConvertedAmount(vndAmount, BaseCurrency, vndAmount, BaseCurrency);
             }
 
             var rates = await GetRatesAsync(cancellationToken);
+            var convertedAmount = ConvertUsdBasedRate(vndAmount, BaseCurrency, upperTarget, rates);
 
-            var upperTarget = targetCurrency.ToUpperInvariant();
+            return new ConvertedAmount(convertedAmount, upperTarget, vndAmount, BaseCurrency);
+        }
+
+        public async Task<ConvertedAmount> ConvertToVndAsync(decimal amount, string sourceCurrency, CancellationToken cancellationToken = default)
+        {
+            var upperSource = NormalizeCurrency(sourceCurrency);
+
+            if (string.Equals(upperSource, BaseCurrency, StringComparison.OrdinalIgnoreCase))
+            {
+                return new ConvertedAmount(amount, BaseCurrency, amount, BaseCurrency);
+            }
+
+            var rates = await GetRatesAsync(cancellationToken);
+            var vndAmount = ConvertUsdBasedRate(amount, upperSource, BaseCurrency, rates);
+
+            return new ConvertedAmount(amount, upperSource, vndAmount, BaseCurrency);
+        }
+
+        public async Task<IReadOnlyList<CurrencyRateDto>> GetVndRelativeRatesAsync(CancellationToken cancellationToken = default)
+        {
+            var rates = await GetRatesAsync(cancellationToken);
 
             if (!rates.TryGetValue("VND", out var vndRate) || vndRate <= 0)
                 throw new InvalidOperationException("VND rate not available from exchange rate API.");
 
-            if (!rates.TryGetValue(upperTarget, out var targetRate) || targetRate <= 0)
-                throw new InvalidOperationException($"Exchange rate for {upperTarget} not available.");
+            return rates
+                .Where(rate => rate.Value > 0)
+                .Select(rate => new CurrencyRateDto(
+                    rate.Key.ToUpperInvariant(),
+                    Math.Round(vndRate / rate.Value, 6)))
+                .OrderBy(rate => rate.CurrencyCode == BaseCurrency ? 0 : 1)
+                .ThenBy(rate => rate.CurrencyCode)
+                .ToList();
+        }
 
-            // convertedAmount = baseAmount / rate[VND] * rate[targetCurrency]
-            var convertedAmount = Math.Round(vndAmount / vndRate * targetRate, 2);
+        private static decimal ConvertUsdBasedRate(
+            decimal amount,
+            string sourceCurrency,
+            string targetCurrency,
+            Dictionary<string, decimal> rates)
+        {
+            if (!rates.TryGetValue(sourceCurrency, out var sourceRate) || sourceRate <= 0)
+                throw new InvalidOperationException($"Exchange rate for {sourceCurrency} not available.");
 
-            return new ConvertedAmount(convertedAmount, upperTarget, vndAmount, BaseCurrency);
+            if (!rates.TryGetValue(targetCurrency, out var targetRate) || targetRate <= 0)
+                throw new InvalidOperationException($"Exchange rate for {targetCurrency} not available.");
+
+            return Math.Round(amount / sourceRate * targetRate, 2);
+        }
+
+        private static string NormalizeCurrency(string currencyCode)
+        {
+            var normalized = string.IsNullOrWhiteSpace(currencyCode)
+                ? BaseCurrency
+                : currencyCode.Trim().ToUpperInvariant();
+
+            if (normalized.Length != 3)
+                throw new InvalidOperationException("Currency code must be exactly 3 characters.");
+
+            return normalized;
         }
 
         private async Task<Dictionary<string, decimal>> FetchRatesFromApiAsync(CancellationToken cancellationToken)

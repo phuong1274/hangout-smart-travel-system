@@ -41,7 +41,10 @@ namespace HSTS.Application.Itineraries.Queries
         public EstimateLocalTravelQueryValidator()
         {
             RuleFor(x => x.GroupSize).GreaterThan(0);
-            RuleFor(x => x.CurrencyCode).NotEmpty().MaximumLength(5);
+            RuleFor(x => x.CurrencyCode)
+                .NotEmpty()
+                .Length(3)
+                .WithMessage("CurrencyCode must be exactly 3 characters (ISO 4217).");
 
             RuleFor(x => x).Must(x =>
                     x.FromLocationId > 0 || x.FromTransitHubId > 0 ||

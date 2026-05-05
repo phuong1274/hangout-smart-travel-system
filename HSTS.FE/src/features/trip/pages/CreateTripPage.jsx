@@ -8,7 +8,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTripFormData, parseTripPrefillParams } from '../hooks/useTripFormData';
 import { useTripPlanner } from '../hooks/useTripPlanner';
-import { CURRENCY_OPTIONS } from '../constants/currency';
+import { CURRENCY_OPTIONS, loadBackendCurrencyRates } from '../constants/currency';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
 import MapLinkInput from '@/components/MapLinkInput';
 import useNominatimSearch from '@/hooks/useNominatimSearch';
@@ -87,6 +87,12 @@ const CreateTripPage = () => {
   const [searchParams] = useSearchParams();
   const { provinces, rootTags, childTagsMap, districtsMap, loadingProvinces, loadingTags, fetchChildTags, fetchDistricts } = useTripFormData();
   const { loading, generateItinerary } = useTripPlanner();
+
+  useEffect(() => {
+    loadBackendCurrencyRates().catch(() => {
+      // Static currency rates remain available for display-only fallback.
+    });
+  }, []);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [mapOpen, setMapOpen] = useState(false);

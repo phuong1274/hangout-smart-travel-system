@@ -67,7 +67,10 @@ namespace HSTS.Application.Itineraries.Queries
                     .When(x => x.Request.MinimumAge.HasValue);
                 RuleFor(x => x.Request.TotalBudget).GreaterThan(0)
                     .WithMessage("TotalBudget must be > 0.");
-                RuleFor(x => x.Request.CurrencyCode).NotEmpty().MaximumLength(5);
+                RuleFor(x => x.Request.CurrencyCode)
+                    .NotEmpty()
+                    .Length(3)
+                    .WithMessage("CurrencyCode must be exactly 3 characters (ISO 4217).");
                 RuleFor(x => x.Request.HotelPreference)
                     .Must(x => x is null or "Budget" or "Standard" or "Luxury")
                     .WithMessage("HotelPreference must be null, Budget, Standard, or Luxury.");
@@ -172,30 +175,31 @@ namespace HSTS.Application.Itineraries.Queries
                 catch { }
             }
 
-            // Pre-fetch exchange rate for sync currency conversion
-            decimal vndToTargetRate = 1m;
-            string resolvedCurrency = "VND";
-            if (!string.Equals(request.CurrencyCode, "VND", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    var rates = await _currencyService.GetRatesAsync(cancellationToken);
-                    if (rates.TryGetValue("VND", out var vndRate) && vndRate > 0
-                        && rates.TryGetValue(request.CurrencyCode.ToUpperInvariant(), out var targetRate) && targetRate > 0)
-                    {
-                        vndToTargetRate = targetRate / vndRate;
-                        resolvedCurrency = request.CurrencyCode.ToUpperInvariant();
-                    }
-                }
-                catch { /* fallback to VND */ }
-            }
-
-            MoneyDto toMoney(decimal vndAmount) => new MoneyDto(
-                Math.Round(vndAmount * vndToTargetRate, 2), resolvedCurrency, Math.Round(vndAmount, 2), "VND");
-
             // STAGE 1: Validation and Data Loading
             if (request.TotalBudget <= 0)
                 return Error.Validation("Itinerary.Budget", "Total budget must be greater than zero.");
+
+            var resolvedCurrency = request.CurrencyCode.Trim().ToUpperInvariant();
+            ConvertedAmount totalBudgetConversion;
+            try
+            {
+                totalBudgetConversion = await _currencyService.ConvertToVndAsync(
+                    request.TotalBudget,
+                    resolvedCurrency,
+                    cancellationToken);
+            }
+            catch (Exception)
+            {
+                return Error.Validation("Itinerary.Currency", $"Currency '{resolvedCurrency}' is not supported.");
+            }
+
+            var totalBudgetVnd = Math.Round(totalBudgetConversion.BaseAmount, 0);
+            var vndToTargetRate = totalBudgetVnd > 0
+                ? totalBudgetConversion.Amount / totalBudgetVnd
+                : 1m;
+
+            MoneyDto toMoney(decimal vndAmount) => new MoneyDto(
+                Math.Round(vndAmount * vndToTargetRate, 2), resolvedCurrency, Math.Round(vndAmount, 2), "VND");
 
             if (request.UserLocation.Latitude < -90 || request.UserLocation.Latitude > 90 ||
                 request.UserLocation.Longitude < -180 || request.UserLocation.Longitude > 180)
@@ -208,7 +212,7 @@ namespace HSTS.Application.Itineraries.Queries
                 return Error.Validation("Itinerary.Dates", "Trip duration is invalid.");
 
             var groupSize = request.GroupSize;
-            var isLuxuryTrip = ClassifyBudgetLevel(request.TotalBudget, groupSize, totalDays) == "Luxury";
+            var isLuxuryTrip = ClassifyBudgetLevel(totalBudgetVnd, groupSize, totalDays) == "Luxury";
 
             var destinationProvinceIds = request.Destinations.Select(d => d.ProvinceId).Distinct().ToList();
             var destinationProvinces = await _context.Provinces
@@ -422,11 +426,11 @@ namespace HSTS.Application.Itineraries.Queries
             notes.Add($"Destination order: {string.Join(" -> ", orderedDestinations.Select(d => $"{d.Name} ({dayAllocation[d.Id]}d)"))}.");
 
             // STAGE 4: Budget Decomposition
-            var contingencyPercent = request.IncludeContingencyFund 
-                ? CalculateContingencyPercentage(request.TotalBudget) 
+            var contingencyPercent = request.IncludeContingencyFund
+                ? CalculateContingencyPercentage(totalBudgetVnd)
                 : 0m;
-            var contingencyFund = Math.Round(request.TotalBudget * contingencyPercent, 0);
-            var usableBudget = request.TotalBudget - contingencyFund;
+            var contingencyFund = Math.Round(totalBudgetVnd * contingencyPercent, 0);
+            var usableBudget = totalBudgetVnd - contingencyFund;
 
             var maxAccommodationBudget = usableBudget * 0.40m;
             var maxIntercityTransportBudget = usableBudget * 0.30m;
@@ -2991,7 +2995,7 @@ namespace HSTS.Application.Itineraries.Queries
             var remainingBudget = Math.Max(0m, usableBudget - estimatedTotal);
 
             var budgetSummary = new BudgetSummaryDto(
-                toMoney(request.TotalBudget),
+                toMoney(totalBudgetVnd),
                 toMoney(contingencyFund),
                 toMoney(usableBudget),
                 toMoney(totalTransportCost),
@@ -3014,7 +3018,7 @@ namespace HSTS.Application.Itineraries.Queries
                 request.StartDate, request.EndDate,
                 groupSize,
                 resolvedCurrency,
-                isLuxuryTrip ? "Luxury" : ClassifyBudgetLevel(request.TotalBudget, groupSize, totalDays),
+                isLuxuryTrip ? "Luxury" : ClassifyBudgetLevel(totalBudgetVnd, groupSize, totalDays),
                 budgetSummary,
                 days, notes);
             } // END RETRY LOOP

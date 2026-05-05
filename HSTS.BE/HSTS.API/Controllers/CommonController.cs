@@ -18,10 +18,12 @@ namespace HSTS.API.Controllers
     public class CommonController : ControllerBase
     {
         private readonly ISender _mediator;
+        private readonly ICurrencyService _currencyService;
 
-        public CommonController(ISender mediator)
+        public CommonController(ISender mediator, ICurrencyService currencyService)
         {
             _mediator = mediator;
+            _currencyService = currencyService;
         }
 
         [HttpGet("tags")]
@@ -66,6 +68,24 @@ namespace HSTS.API.Controllers
                 Ok,
                 errors => NotFound(errors.First().Description)
             );
+        }
+
+        [HttpGet("currencies/rates")]
+        public async Task<IActionResult> GetCurrencyRates(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var rates = await _currencyService.GetVndRelativeRatesAsync(cancellationToken);
+                return Ok(new
+                {
+                    baseCurrency = "VND",
+                    rates,
+                });
+            }
+            catch (Exception)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, "Currency rates are temporarily unavailable.");
+            }
         }
 
         [HttpGet("provinces")]

@@ -17,7 +17,7 @@ export const CURRENCY_OPTIONS = [
   { value: 'PHP', label: 'PHP - Philippine Peso' },
 ];
 
-const VND_EXCHANGE_RATES = Object.freeze({
+export const VND_EXCHANGE_RATES = Object.freeze({
   VND: 1,
   USD: 26000,
   EUR: 28500,
@@ -36,7 +36,45 @@ const VND_EXCHANGE_RATES = Object.freeze({
   PHP: 460,
 });
 
-export const convertCurrencyAmount = (amount, fromCurrencyCode = 'VND', toCurrencyCode = 'VND') => {
+let backendVndExchangeRates = null;
+
+const normalizeRatesPayload = (payload) => {
+  const rawRates = Array.isArray(payload?.rates)
+    ? payload.rates
+    : (Array.isArray(payload?.Rates) ? payload.Rates : []);
+
+  const rates = rawRates.reduce((acc, item) => {
+    const code = String(item?.currencyCode || item?.CurrencyCode || item?.code || item?.Code || '').trim().toUpperCase();
+    const rate = Number(item?.vndRate ?? item?.VndRate ?? item?.rate ?? item?.Rate);
+    if (code.length === 3 && Number.isFinite(rate) && rate > 0) {
+      acc[code] = rate;
+    }
+    return acc;
+  }, {});
+
+  return rates.VND === 1 ? rates : { VND: 1, ...rates };
+};
+
+export const setBackendCurrencyRates = (payload) => {
+  const rates = normalizeRatesPayload(payload);
+  backendVndExchangeRates = Object.keys(rates).length > 1 ? Object.freeze(rates) : null;
+  return backendVndExchangeRates;
+};
+
+export const getResolvedCurrencyRates = () => backendVndExchangeRates || VND_EXCHANGE_RATES;
+
+export const loadBackendCurrencyRates = async () => {
+  const { default: apiClient } = await import('@/lib/axios');
+  const response = await apiClient.get('/api/common/currencies/rates');
+  return setBackendCurrencyRates(response.data);
+};
+
+export const convertCurrencyAmount = (
+  amount,
+  fromCurrencyCode = 'VND',
+  toCurrencyCode = 'VND',
+  rates = getResolvedCurrencyRates(),
+) => {
   const numericAmount = Number(amount);
   if (!Number.isFinite(numericAmount)) {
     return 0;
@@ -44,21 +82,25 @@ export const convertCurrencyAmount = (amount, fromCurrencyCode = 'VND', toCurren
 
   const fromCurrency = String(fromCurrencyCode || 'VND').toUpperCase();
   const toCurrency = String(toCurrencyCode || 'VND').toUpperCase();
-  const fromRate = VND_EXCHANGE_RATES[fromCurrency] ?? VND_EXCHANGE_RATES.VND;
-  const toRate = VND_EXCHANGE_RATES[toCurrency] ?? VND_EXCHANGE_RATES.VND;
+  const fromRate = rates[fromCurrency] ?? VND_EXCHANGE_RATES[fromCurrency] ?? VND_EXCHANGE_RATES.VND;
+  const toRate = rates[toCurrency] ?? VND_EXCHANGE_RATES[toCurrency] ?? VND_EXCHANGE_RATES.VND;
 
   const amountInVnd = numericAmount * fromRate;
   return amountInVnd / toRate;
 };
 
-export const convertBudgetToVnd = (amount, currencyCode = 'VND') => {
+export const convertBudgetToVnd = (
+  amount,
+  currencyCode = 'VND',
+  rates = getResolvedCurrencyRates(),
+) => {
   const numericAmount = Number(amount);
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
     return 0;
   }
 
   const normalizedCurrency = String(currencyCode || 'VND').toUpperCase();
-  const rate = VND_EXCHANGE_RATES[normalizedCurrency] ?? VND_EXCHANGE_RATES.VND;
+  const rate = rates[normalizedCurrency] ?? VND_EXCHANGE_RATES[normalizedCurrency] ?? VND_EXCHANGE_RATES.VND;
 
   return Math.round(numericAmount * rate);
 };
