@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Drawer, Descriptions, Tag, List, Space, Button, Popconfirm, Input } from 'antd';
 import {
+  REVIEW_STATUS,
   getReviewReportReasonLabel,
   getReviewReportStatusColor,
   getReviewReportStatusLabel,
@@ -15,6 +16,7 @@ export const ReportedReviewDetailDrawer = ({
   onClose,
   onIgnore,
   onHide,
+  onUnhide,
   onDelete,
 }) => {
   const [note, setNote] = useState('');
@@ -22,6 +24,7 @@ export const ReportedReviewDetailDrawer = ({
   if (!item) return null;
 
   const { review, locationName, authorEmail, reports } = item;
+  const isHidden = review.status === REVIEW_STATUS.HIDDEN || review.status === 'Hidden';
 
   return (
     <Drawer open={open} onClose={onClose} width={520} title={`Review #${review.id}`} afterOpenChange={(isOpen) => { if (isOpen) setNote(''); }}>
@@ -66,7 +69,9 @@ export const ReportedReviewDetailDrawer = ({
 
       <Space style={{ marginTop: 16 }}>
         <Button loading={submitting} onClick={() => onIgnore(review.id, note)}>Ignore reports</Button>
-        <Button loading={submitting} onClick={() => onHide(review.id)}>Hide review</Button>
+        <Button loading={submitting} onClick={() => (isHidden ? onUnhide(review.id) : onHide(review.id))}>
+          {isHidden ? 'Unhide review' : 'Hide review'}
+        </Button>
         <Popconfirm title="Delete this review?" onConfirm={() => onDelete(review.id, note)}>
           <Button danger loading={submitting}>Delete review</Button>
         </Popconfirm>

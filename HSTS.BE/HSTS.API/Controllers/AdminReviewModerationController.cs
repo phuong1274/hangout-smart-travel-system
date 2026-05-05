@@ -40,6 +40,13 @@ namespace HSTS.API.Controllers
             return result.Match<IActionResult>(_ => NoContent(), MapErrors);
         }
 
+        [HttpPost("reviews/{reviewId:int}/unhide")]
+        public async Task<IActionResult> Unhide(int reviewId)
+        {
+            var result = await Mediator.Send(new UnhideReviewCommand(reviewId));
+            return result.Match<IActionResult>(_ => NoContent(), MapErrors);
+        }
+
         [HttpDelete("reviews/{reviewId:int}")]
         public async Task<IActionResult> Delete(int reviewId, [FromQuery] string? note)
         {

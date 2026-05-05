@@ -23,6 +23,8 @@ export const reviewsApi = {
     apiClient.post(`/api/admin/reviews/${reviewId}/ignore-reports`, { resolutionNote }),
   hide: (reviewId) =>
     apiClient.post(`/api/admin/reviews/${reviewId}/hide`),
+  unhide: (reviewId) =>
+    apiClient.post(`/api/admin/reviews/${reviewId}/unhide`),
   deleteModerated: (reviewId, note) =>
     apiClient.delete(`/api/admin/reviews/${reviewId}`, { params: { note } }),
 };

@@ -27,6 +27,17 @@ export const useModerationActions = ({ onChanged } = {}) => {
     }
   };
 
+  const unhide = async (reviewId) => {
+    setSubmitting(true);
+    try {
+      await reviewsApi.unhide(reviewId);
+      message.success('Review restored.');
+      onChanged?.();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const remove = async (reviewId, note) => {
     setSubmitting(true);
     try {
@@ -38,5 +49,5 @@ export const useModerationActions = ({ onChanged } = {}) => {
     }
   };
 
-  return { submitting, ignoreReports, hide, remove };
+  return { submitting, ignoreReports, hide, unhide, remove };
 };
