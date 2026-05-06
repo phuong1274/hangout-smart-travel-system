@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Button, Space, Card, Divider, Rate, Table, TimePicker, ConfigProvider } from 'antd';
-import { PlusOutlined, DeleteOutlined, EnvironmentOutlined, HomeOutlined, PhoneOutlined, MailOutlined, DollarOutlined, PictureOutlined, LinkOutlined, TagsOutlined, ClockCircleOutlined, CloudOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, InputNumber, Row, Col, Select, message, Button, Space, Card, Divider, Rate, Table, TimePicker, ConfigProvider, Upload } from 'antd';
+import { PlusOutlined, DeleteOutlined, EnvironmentOutlined, HomeOutlined, PhoneOutlined, MailOutlined, DollarOutlined, PictureOutlined, LinkOutlined, TagsOutlined, ClockCircleOutlined, CloudOutlined, UploadOutlined } from '@ant-design/icons';
 import GoogleMapPicker from '@/components/GoogleMapPicker';
 import MapLinkInput from '@/components/MapLinkInput';
 import {
@@ -12,6 +12,7 @@ import {
   getAllTagsApi
 } from '../api';
 import { buildTagHierarchy } from '@/utils/locationCache';
+import { uploadImageToCloudinary } from '@/services/cloudinary';
 import dayjs from 'dayjs';
 import styles from '../styles/SubmissionForm.module.css';
 
@@ -305,6 +306,17 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleImageUpload = async (file) => {
+    try {
+      const imageUrl = await uploadImageToCloudinary(file);
+      setMediaLinks([...mediaLinks, imageUrl]);
+      message.success('Image uploaded successfully');
+    } catch (error) {
+      message.error(error.message || 'Upload failed');
+    }
+    return Upload.LIST_IGNORE;
   };
 
   const handleMapLinkParsed = ({ lat, lng, address, name }) => {
@@ -798,6 +810,16 @@ const SubmissionForm = ({ open, submission, existingLocation, onClose, onSuccess
                 <Button className={styles.dashedBtn} onClick={addMediaLink} icon={<PlusOutlined />}>
                   Add Image/Video Link
                 </Button>
+                <Upload
+                  accept="image/*"
+                  beforeUpload={handleImageUpload}
+                  showUploadList={false}
+                  multiple={false}
+                >
+                  <Button className={styles.dashedBtn} icon={<UploadOutlined />}>
+                    Upload Image to Cloudinary
+                  </Button>
+                </Upload>
               </Space>
             </div>
             {mediaLinks.map((link, index) => (
